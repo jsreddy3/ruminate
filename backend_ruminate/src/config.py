@@ -11,15 +11,14 @@ class Settings(BaseSettings):
     gemini_api_key: str
     
     # Storage type settings
-    document_storage_type: str = "sqlite"  # Default to local JSON storage
+    document_storage_type: str = "sqlite"  # Default to SQLite storage
     file_storage_type: str = "local"      # Default to local file storage
     
     # Local storage settings
-    data_dir: str = "local_db"            # Directory for JSON document storage
     storage_dir: str = "local_storage"     # Directory for file storage
     
     # SQLite settings
-    db_path: Optional[str] = "sqlite.db"         # Path to SQLite database
+    db_path: Optional[str] = "sqlite.db"   # Path to SQLite database
     
     # RDS settings
     db_host: Optional[str] = None

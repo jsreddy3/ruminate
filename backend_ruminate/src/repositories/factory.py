@@ -9,10 +9,10 @@ from .interfaces.chunk_index_repository import ChunkIndexRepository
 from .interfaces.key_term_repository import KeyTermRepository
 
 class StorageType(Enum):
-    LOCAL = "local"
     SQLITE = "sqlite"
     S3 = "s3"
     RDS = "rds"
+    LOCAL = "local" # Kept for file storage
 
 class RepositoryFactory:
     def __init__(self):
@@ -25,18 +25,13 @@ class RepositoryFactory:
         
     def init_repositories(
         self,
-        document_type: str = "local",
+        document_type: str = "sqlite",
         storage_type: str = "local",
         **kwargs  # For connection strings, credentials etc
     ):
         """Initialize repositories based on type.
         """
-        if document_type == "local":
-            from .implementations.json_document_repository import JSONDocumentRepository
-            from .implementations.json_conversation_repository import JSONConversationRepository
-            self._document_repo = JSONDocumentRepository(data_dir=kwargs.get('data_dir', 'local_db'))
-            self._conversation_repo = JSONConversationRepository(data_dir=kwargs.get('data_dir', 'local_db'))
-        elif document_type == "sqlite":
+        if document_type == "sqlite":
             from .implementations.sqlite_document_repository import SQLiteDocumentRepository
             from .implementations.sqlite_conversation_repository import SQLiteConversationRepository
             from .implementations.sqlite_insight_repository import SQLiteInsightRepository
@@ -75,7 +70,7 @@ class RepositoryFactory:
         elif storage_type == "s3":
             from .implementations.s3_storage_repository import S3StorageRepository
             self._storage_repo = S3StorageRepository(
-                bucket=kwargs.get('bucket'),
+                bucket_name=kwargs.get('s3_bucket'),
                 aws_access_key=kwargs.get('aws_access_key'),
                 aws_secret_key=kwargs.get('aws_secret_key')
             )

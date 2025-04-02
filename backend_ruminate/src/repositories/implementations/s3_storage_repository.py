@@ -1,7 +1,6 @@
 from typing import Optional
 import boto3
 from botocore.exceptions import ClientError
-from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.repositories.interfaces.storage_repository import StorageRepository

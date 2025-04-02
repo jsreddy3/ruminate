@@ -1,7 +1,5 @@
 from typing import Optional
 import os
-import shutil
-from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.repositories.interfaces.storage_repository import StorageRepository

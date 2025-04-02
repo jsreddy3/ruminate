@@ -55,7 +55,6 @@ async def initialize_repositories():
     repository_factory.init_repositories(
         document_type=settings.document_storage_type,
         storage_type=settings.file_storage_type,
-        data_dir=settings.data_dir,
         storage_dir=settings.storage_dir,
         db_path=settings.db_path,
         db_host=settings.db_host,
