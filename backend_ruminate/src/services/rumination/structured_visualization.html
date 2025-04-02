@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Structure Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        button {
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #f5f5f5;
+        }
+        
+        #visualization-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #visualization {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 12px;
+            max-width: 180px;
+            z-index: 1000;
+        }
+        
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 3px;
+            margin-right: 5px;
+        }
+        
+        .chunk {
+            fill: #f5f5f5;
+            stroke: #333;
+            stroke-width: 1px;
+        }
+        
+        .chunk-label {
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            font-size: 13px;
+        }
+        
+        .element {
+            fill: #ddd;
+            stroke: #666;
+            stroke-width: 1px;
+            rx: 5px;
+            ry: 5px;
+            cursor: pointer;
+        }
+        
+        .element.definition {
+            fill: #ffe8cc;
+            stroke: #d39e00;
+        }
+        
+        .element.argument {
+            fill: #d4edda;
+            stroke: #28a745;
+        }
+        
+        .element.counter {
+            fill: #f8d7da;
+            stroke: #dc3545;
+        }
+        
+        .element.principle {
+            fill: #cce5ff;
+            stroke: #007bff;
+        }
+        
+        .element.identity {
+            fill: #e2d9f3;
+            stroke: #6f42c1;
+        }
+        
+        .element.institution {
+            fill: #d6d8db;
+            stroke: #5a6268;
+        }
+        
+        .authority {
+            fill: #e6f7ff;
+            stroke: #1890ff;
+            stroke-width: 2px;
+            rx: 5px;
+            ry: 5px;
+            cursor: pointer;
+        }
+        
+        .connection {
+            fill: none;
+            stroke-width: 1.5px;
+        }
+        
+        .connection-label {
+            font-size: 10px;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            background: white;
+            padding: 2px;
+            pointer-events: none;
+        }
+        
+        .element-label {
+            font-size: 10px;
+            fill: #333;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            pointer-events: none;
+            max-width: 300px;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tooltip h4 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+        }
+        
+        .tooltip p {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+        }
+        
+        .tooltip .quote {
+            font-style: italic;
+            color: #555;
+            border-left: 3px solid #ddd;
+            padding-left: 8px;
+            margin: 5px 0;
+        }
+        
+        .category-label {
+            font-size: 12px;
+            font-weight: bold;
+            fill: #555;
+        }
+        
+        .mini-map {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 150px;
+            height: 100px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        
+        .mini-map-content {
+            transform-origin: 0 0;
+            position: relative;
+        }
+        
+        .mini-map-viewport {
+            position: absolute;
+            border: 2px solid rgba(255, 0, 0, 0.5);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Document Analysis Visualization</h2>
+        <div class="controls">
+            <div class="zoom-controls">
+                <button id="zoom-in">Zoom In</button>
+                <button id="zoom-out">Zoom Out</button>
+                <button id="reset-view">Reset View</button>
+            </div>
+            <button id="toggle-mini-map">Toggle Mini-map</button>
+        </div>
+    </div>
+    
+    <div id="visualization-container">
+        <div class="legend">
+            <div class="legend-title">Relationship Types</div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #52c41a;"></div>
+                <span>Builds Upon</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f5222d;"></div>
+                <span>Contests</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #fa8c16;"></div>
+                <span>Responds To</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #722ed1;"></div>
+                <span>Reframes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #91caff; stroke-dasharray: 5,5;"></div>
+                <span>Cites Authority</span>
+            </div>
+        </div>
+        <div id="visualization"></div>
+        <div class="mini-map" style="display: none;">
+            <div class="mini-map-content"></div>
+            <div class="mini-map-viewport"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Visualization data
+        const data = GRAPH_DATA_PLACEHOLDER;
+        
+        // Generate colors for concept clusters
+        const clusterColors = {};
+        const randomColors = [
+            "#e6194B", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
+            "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
+            "#469990", "#dcbeff", "#9A6324", "#fffac8", "#800000",
+            "#aaffc3", "#808000", "#ffd8b1", "#000075", "#a9a9a9"
+        ];
+        
+        // Map from label to concept name and color
+        const labelConceptMap = {};
+        
+        // Set up cluster colors if concept clusters exist
+        if (data.concept_clusters && data.concept_clusters.clusters) {
+            // Assign colors to clusters
+            const clusterNames = Object.keys(data.concept_clusters.clusters || {});
+            clusterNames.forEach((cluster, index) => {
+                clusterColors[cluster] = randomColors[index % randomColors.length];
+            });
+            
+            // Create label to concept mapping
+            Object.entries(data.concept_clusters.mapping || {}).forEach(([label, concept]) => {
+                labelConceptMap[label] = {
+                    concept: concept,
+                    color: clusterColors[concept]
+                };
+            });
+        }
+        
+        // Create the visualization
+        function createVisualization() {
+            const container = d3.select("#visualization");
+            
+            // Base layout dimensions
+            const numChunks = data.chunks.length;
+            const baseWidth = Math.max(1200, numChunks * 250);
+            const baseHeight = 1200;  // Make this larger to accommodate all content
+            const margin = { top: 50, right: 100, bottom: 300, left: 100 };
+            
+            // Create SVG
+            const svg = container.append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", [0, 0, baseWidth, baseHeight]);
+            
+            // Add zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on("zoom", (event) => {
+                    mainGroup.attr("transform", event.transform);
+                    updateMiniMap(event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // Main group for all visualization elements
+            const mainGroup = svg.append("g");
+            
+            // Create tooltip
+            const tooltip = d3.select("#visualization-container").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+            
+            // Calculate chunk width and spacing
+            const chunkWidth = 180;
+            const chunkSpacing = 40;
+            const chunkHeight = 60;
+            
+            // Calculate element height and spacing
+            const elementHeight = 30;
+            const elementSpacing = 15;
+            const categorySpacing = 50;
+            
+            // Calculate positions for chunks
+            const chunkX = i => margin.left + i * (chunkWidth + chunkSpacing);
+            const chunkY = margin.top;
+            
+            // Calculate positions for elements
+            const categories = [
+                "contested_definitions",
+                "argumentative_moves",
+                "counter_responses",
+                "core_principles",
+                "identity_claims",
+                "institutional_functions"
+            ];
+            
+            const categoryLabels = {
+                "contested_definitions": "Contested Definitions",
+                "argumentative_moves": "Argumentative Moves",
+                "counter_responses": "Counter Responses",
+                "core_principles": "Core Principles",
+                "identity_claims": "Identity Claims",
+                "institutional_functions": "Institutional Functions"
+            };
+            
+            // Calculate Y positions for each category
+            const categoryY = {};
+            let currentY = chunkY + chunkHeight + 60;
+            
+            categories.forEach(category => {
+                categoryY[category] = currentY;
+                currentY += 30; // Space for category label
+                
+                // Count max elements in any chunk for this category
+                const maxElements = Math.max(1, ...data.chunks.map(chunk => 
+                    chunk.elements[category].length
+                ));
+                
+                // Always show at least some space for the category even if empty
+                currentY += Math.max(50, (maxElements * (elementHeight + elementSpacing))) + categorySpacing;
+            });
+            
+            // Calculate position for concept clusters section
+            const conceptClustersY = currentY + 60;
+            const conceptClusterHeight = 40;
+            
+            // Calculate position for authorities section
+            const authorityY = conceptClustersY + (data.concept_clusters && Object.keys(data.concept_clusters.clusters).length > 0 ? 150 : 0) + 60;
+            const authorityHeight = 40;
+            
+            // Draw background sections for each category
+            categories.forEach(category => {
+                const categoryBottom = categories.indexOf(category) < categories.length - 1
+                    ? categoryY[categories[categories.indexOf(category) + 1]] - categorySpacing/2
+                    : authorityY - 30;
+                    
+                mainGroup.append("rect")
+                    .attr("x", margin.left - 20)
+                    .attr("y", categoryY[category] - 20)
+                    .attr("width", baseWidth - margin.left - margin.right + 40)
+                    .attr("height", categoryBottom - categoryY[category] + 20)
+                    .attr("fill", "#f9f9f9")
+                    .attr("rx", 5)
+                    .attr("ry", 5);
+            });
+            
+            // Draw category labels
+            categories.forEach(category => {
+                mainGroup.append("text")
+                    .attr("class", "category-label")
+                    .attr("x", margin.left - 10)
+                    .attr("y", categoryY[category] - 5)
+                    .text(categoryLabels[category]);
+            });
+            
+            // Draw chunks
+            const chunkGroups = mainGroup.selectAll(".chunk-group")
+                .data(data.chunks)
+                .enter()
+                .append("g")
+                .attr("class", "chunk-group")
+                .attr("transform", (d, i) => `translate(${chunkX(i)}, ${chunkY})`);
+            
+            chunkGroups.append("rect")
+                .attr("class", "chunk")
+                .attr("width", chunkWidth)
+                .attr("height", chunkHeight)
+                .attr("rx", 5)
+                .attr("ry", 5);
+            
+            chunkGroups.append("text")
+                .attr("class", "chunk-label")
+                .attr("x", chunkWidth / 2)
+                .attr("y", chunkHeight / 2)
+                .text(d => `Chunk ${d.sequence}`)
+                .on("mouseover", function(event, d) {
+                    showTooltip(event, {
+                        title: `Chunk ${d.sequence}`,
+                        summary: d.summary,
+                        content: d.html_content,
+                        type: "chunk"
+                    });
+                })
+                .on("mouseout", hideTooltip);
+            
+            // Create element ID map for connections
+            const elementIdMap = {};
+            
+            // Draw elements for each chunk and category
+            data.chunks.forEach((chunk, chunkIndex) => {
+                categories.forEach(category => {
+                    const elements = chunk.elements[category];
+                    elements.forEach((element, elementIndex) => {
+                        const x = chunkX(chunkIndex) + chunkWidth / 2;
+                        const y = categoryY[category] + elementIndex * (elementHeight + elementSpacing);
+                        
+                        // Store element position for connections
+                        elementIdMap[element.id] = { x, y, width: chunkWidth * 0.8, height: elementHeight };
+                        
+                        // Determine element type class
+                        const elementTypeClass = category === "contested_definitions" ? "definition" :
+                                               category === "argumentative_moves" ? "argument" :
+                                               category === "counter_responses" ? "counter" :
+                                               category === "core_principles" ? "principle" :
+                                               category === "identity_claims" ? "identity" : "institution";
+                        
+                        // Check if this element belongs to a concept cluster
+                        const inCluster = labelConceptMap[element.label];
+                        let borderColor = "#aaaaaa";
+                        let borderWidth = 1;
+                        let boxShadow = "none";
+                        
+                        if (inCluster) {
+                            borderColor = inCluster.color;
+                            borderWidth = 3;
+                            boxShadow = `0 0 5px ${inCluster.color}`;
+                        }
+                        
+                        // Draw element
+                        mainGroup.append("rect")
+                            .attr("class", `element ${elementTypeClass}`)
+                            .attr("x", x - (chunkWidth * 0.8) / 2)
+                            .attr("y", y)
+                            .attr("width", chunkWidth * 0.8)
+                            .attr("height", elementHeight)
+                            .attr("stroke", borderColor)
+                            .attr("stroke-width", borderWidth)
+                            .attr("filter", inCluster ? `drop-shadow(0px 0px 2px ${inCluster.color})` : null)
+                            .on("mouseover", function(event) {
+                                d3.select(this).attr("opacity", 0.8);
+                                // Add concept cluster info to tooltip if applicable
+                                const clusterInfo = inCluster ? 
+                                    `<p><strong>Concept Cluster:</strong> ${inCluster.concept}</p>` : "";
+                                showTooltip(event, {
+                                    title: element.label,
+                                    quote: element.quote,
+                                    explanation: element.explanation,
+                                    type: elementTypeClass,
+                                    content: clusterInfo
+                                });
+                            })
+                            .on("mouseout", function() {
+                                d3.select(this).attr("opacity", 1);
+                                hideTooltip();
+                            });
+                        
+                        // Draw truncated label
+                        const shortenedLabel = element.label.length > 20 
+                            ? element.label.substring(0, 18) + "..."
+                            : element.label;
+                            
+                        mainGroup.append("text")
+                            .attr("class", "element-label")
+                            .attr("x", x)
+                            .attr("y", y + elementHeight / 2)
+                            .text(shortenedLabel);
+                    });
+                });
+            });
+            
+            // Add concept cluster legend if clusters exist
+            if (Object.keys(clusterColors).length > 0) {
+                // Create legend container
+                const clusterLegend = mainGroup.append("g")
+                    .attr("class", "cluster-legend")
+                    .attr("transform", `translate(${baseWidth - margin.right - 190}, ${margin.top})`);
+                
+                clusterLegend.append("rect")
+                    .attr("x", -10)
+                    .attr("y", -20)
+                    .attr("width", 180)
+                    .attr("height", Object.keys(clusterColors).length * 25 + 40)
+                    .attr("fill", "rgba(255, 255, 255, 0.9)")
+                    .attr("stroke", "#ccc")
+                    .attr("rx", 5)
+                    .attr("ry", 5);
+                
+                clusterLegend.append("text")
+                    .attr("class", "legend-title")
+                    .attr("x", 0)
+                    .attr("y", 0)
+                    .attr("font-weight", "bold")
+                    .text("Concept Clusters");
+                
+                // Add legend items for each cluster
+                Object.entries(clusterColors).forEach(([cluster, color], i) => {
+                    const item = clusterLegend.append("g")
+                        .attr("transform", `translate(0, ${i * 25 + 20})`);
+                    
+                    item.append("rect")
+                        .attr("width", 40)
+                        .attr("height", 15)
+                        .attr("fill", "white")
+                        .attr("stroke", color)
+                        .attr("stroke-width", 3)
+                        .attr("rx", 2)
+                        .attr("ry", 2);
+                    
+                    item.append("text")
+                        .attr("x", 50)
+                        .attr("y", 12)
+                        .attr("font-size", "12px")
+                        .text(cluster.length > 15 ? cluster.substring(0, 13) + "..." : cluster);
+                });
+            }
+            
+            // Draw authorities section label
+            mainGroup.append("text")
+                .attr("class", "category-label")
+                .attr("x", margin.left - 10)
+                .attr("y", authorityY - 15)
+                .text("Authority References");
+                
+            // Draw concept clusters section if it exists
+            if (data.concept_clusters && (Object.keys(data.concept_clusters.clusters).length > 0 || data.concept_clusters.isolated.length > 0)) {
+                // Draw background for concept clusters section
+                mainGroup.append("rect")
+                    .attr("x", margin.left - 20)
+                    .attr("y", conceptClustersY - 20)
+                    .attr("width", baseWidth - margin.left - margin.right + 40)
+                    .attr("height", 180)  // Fixed initial height for concept clusters section
+                    .attr("fill", "#f0f5ff")
+                    .attr("rx", 5)
+                    .attr("ry", 5);
+                
+                // Add section title
+                mainGroup.append("text")
+                    .attr("class", "category-label")
+                    .attr("x", margin.left - 10)
+                    .attr("y", conceptClustersY - 5)
+                    .text("Concept Clusters");
+                
+                // Calculate positions for clusters
+                const clusterWidth = 180;
+                const clusterSpacing = 30;
+                const clustersPerRow = Math.floor((baseWidth - margin.left - margin.right) / (clusterWidth + clusterSpacing));
+                let clusterPositions = {};
+                
+                // Draw clusters
+                const clusters = Object.entries(data.concept_clusters.clusters || {});
+                clusters.forEach(([clusterName, labels], i) => {
+                    const row = Math.floor(i / clustersPerRow);
+                    const col = i % clustersPerRow;
+                    const x = margin.left + col * (clusterWidth + clusterSpacing) + clusterWidth / 2;
+                    const y = conceptClustersY + row * 50;
+                    
+                    // Draw cluster container
+                    mainGroup.append("rect")
+                        .attr("class", "cluster")
+                        .attr("x", x - clusterWidth / 2)
+                        .attr("y", y)
+                        .attr("width", clusterWidth)
+                        .attr("height", 40)
+                        .attr("fill", "#d9e8ff")
+                        .attr("stroke", "#9cc3ff")
+                        .attr("rx", 5)
+                        .attr("ry", 5)
+                        .on("mouseover", function(event) {
+                            d3.select(this).attr("fill", "#c1ddff");
+                            // Create label list for tooltip
+                            const labelList = labels.map(l => `<li>${l}</li>`).join("");
+                            // Add explanation if available
+                            const explanation = data.concept_clusters.explanations && data.concept_clusters.explanations[clusterName] 
+                                ? `<p><em>${data.concept_clusters.explanations[clusterName]}</em></p>` : "";
+                            
+                            showTooltip(event, {
+                                title: clusterName,
+                                content: `<p><strong>Labels in this cluster:</strong></p><ul>${labelList}</ul>${explanation}`,
+                                type: "cluster"
+                            });
+                        })
+                        .on("mouseout", function() {
+                            d3.select(this).attr("fill", "#d9e8ff");
+                            hideTooltip();
+                        });
+                    
+                    // Draw cluster name
+                    const shortenedName = clusterName.length > 22
+                        ? clusterName.substring(0, 20) + "..."
+                        : clusterName;
+                    
+                    mainGroup.append("text")
+                        .attr("class", "element-label")
+                        .attr("x", x)
+                        .attr("y", y + 25)
+                        .text(shortenedName);
+                });
+                
+                // Draw isolated labels section if any exist
+                const isolated = data.concept_clusters.isolated || [];
+                if (isolated.length > 0) {
+                    const isolatedY = conceptClustersY + (clusters.length > 0 ? 100 : 30);
+                    
+                    // Draw isolated label header
+                    mainGroup.append("text")
+                        .attr("class", "category-label")
+                        .attr("x", margin.left)
+                        .attr("y", isolatedY)
+                        .attr("font-size", "14px")
+                        .text("Isolated Labels");
+                    
+                    // Calculate positions for isolated labels
+                    const labelWidth = 150;
+                    const labelSpacing = 20;
+                    const labelsPerRow = Math.floor((baseWidth - margin.left - margin.right) / (labelWidth + labelSpacing));
+                    
+                    // Draw isolated labels
+                    isolated.forEach((label, i) => {
+                        const row = Math.floor(i / labelsPerRow);
+                        const col = i % labelsPerRow;
+                        const x = margin.left + col * (labelWidth + labelSpacing) + labelWidth / 2;
+                        const y = isolatedY + 25 + row * 25;
+                        
+                        mainGroup.append("text")
+                            .attr("x", x)
+                            .attr("y", y)
+                            .attr("text-anchor", "middle")
+                            .attr("font-size", "12px")
+                            .text(label.length > 20 ? label.substring(0, 18) + "..." : label)
+                            .attr("title", label)
+                            .on("mouseover", function(event) {
+                                showTooltip(event, {
+                                    title: "Isolated Label",
+                                    content: label,
+                                    type: "isolated"
+                                });
+                            })
+                            .on("mouseout", hideTooltip);
+                    });
+                }
+            }
+            
+            // Draw background for authorities section
+            mainGroup.append("rect")
+                .attr("x", margin.left - 20)
+                .attr("y", authorityY - 20)
+                .attr("width", baseWidth - margin.left - margin.right + 40)
+                .attr("height", 300)  // Fixed height for authorities section
+                .attr("fill", "#f0f7ff")
+                .attr("rx", 5)
+                .attr("ry", 5);
+            
+            // Calculate positions for authorities
+            const authorityWidth = 180;
+            const authoritySpacing = 30;
+            const authoritiesPerRow = Math.floor((baseWidth - margin.left - margin.right) / (authorityWidth + authoritySpacing));
+            let authorityPositions = {};
+            
+            data.authorities.forEach((authority, i) => {
+                const row = Math.floor(i / authoritiesPerRow);
+                const col = i % authoritiesPerRow;
+                const x = margin.left + col * (authorityWidth + authoritySpacing) + authorityWidth / 2;
+                const y = authorityY + row * (authorityHeight + authoritySpacing);
+                
+                authorityPositions[authority.id] = { x, y, width: authorityWidth, height: authorityHeight };
+                
+                // Draw authority
+                mainGroup.append("rect")
+                    .attr("class", "authority")
+                    .attr("x", x - authorityWidth / 2)
+                    .attr("y", y)
+                    .attr("width", authorityWidth)
+                    .attr("height", authorityHeight)
+                    .on("mouseover", function(event) {
+                        d3.select(this).attr("fill", "#d6e9f5");
+                        showTooltip(event, {
+                            title: authority.label,
+                            quote: authority.quote,
+                            explanation: authority.explanation,
+                            type: "authority",
+                            chunks: authority.chunks.map(c => `Chunk ${c.sequence}`).join(", ")
+                        });
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).attr("fill", "#e6f7ff");
+                        hideTooltip();
+                    });
+                
+                // Draw label
+                const shortenedLabel = authority.label.length > 22
+                    ? authority.label.substring(0, 20) + "..."
+                    : authority.label;
+                    
+                mainGroup.append("text")
+                    .attr("class", "element-label")
+                    .attr("x", x)
+                    .attr("y", y + authorityHeight / 2)
+                    .text(shortenedLabel);
+                    
+                // Draw connections from chunks to authority
+                authority.chunks.forEach(chunk => {
+                    const chunkIndex = data.chunks.findIndex(c => c.id === chunk.chunk_id);
+                    if (chunkIndex >= 0) {
+                        const startX = chunkX(chunkIndex) + chunkWidth / 2;
+                        const startY = chunkY + chunkHeight;
+                        
+                        mainGroup.append("path")
+                            .attr("class", "connection")
+                            .attr("stroke", "#91caff")
+                            .attr("stroke-dasharray", "5,5")
+                            .attr("d", `M${startX},${startY} C${startX},${(y + startY) / 2} ${x},${(y + startY) / 2} ${x},${y}`);
+                    }
+                });
+            });
+            
+            // Draw connections between elements
+            data.connections.forEach(connection => {
+                const source = connection.source_is_authority 
+                    ? authorityPositions[connection.source]
+                    : elementIdMap[connection.source];
+                    
+                const target = connection.target_is_authority
+                    ? authorityPositions[connection.target]
+                    : elementIdMap[connection.target];
+                
+                if (source && target) {
+                    // Calculate connection points
+                    const sourceX = source.x;
+                    const sourceY = source.y + source.height;
+                    const targetX = target.x;
+                    const targetY = target.y;
+                    
+                    // Draw curved path
+                    const path = mainGroup.append("path")
+                        .attr("class", "connection")
+                        .attr("stroke", getRelationColor(connection.relation_type))
+                        .attr("d", `M${sourceX},${sourceY} C${sourceX},${(sourceY + targetY) / 2} ${targetX},${(sourceY + targetY) / 2} ${targetX},${targetY}`);
+                    
+                    // Add relation type label
+                    const pathNode = path.node();
+                    if (pathNode) {
+                        const pathLength = pathNode.getTotalLength();
+                        const midpoint = pathNode.getPointAtLength(pathLength / 2);
+                        
+                        // Draw white background for label
+                        mainGroup.append("rect")
+                            .attr("x", midpoint.x - 30)
+                            .attr("y", midpoint.y - 10)
+                            .attr("width", 60)
+                            .attr("height", 20)
+                            .attr("fill", "white")
+                            .attr("stroke", getRelationColor(connection.relation_type))
+                            .attr("stroke-width", 1)
+                            .attr("rx", 5)
+                            .attr("ry", 5);
+                            
+                        mainGroup.append("text")
+                            .attr("class", "connection-label")
+                            .attr("x", midpoint.x)
+                            .attr("y", midpoint.y)
+                            .attr("fill", getRelationColor(connection.relation_type))
+                            .text(formatRelationType(connection.relation_type));
+                    }
+                }
+            });
+            
+            // Initialize with a slight zoom out to show more content
+            const initialScale = 0.8;
+            const initialTransform = d3.zoomIdentity
+                .translate(baseWidth * (1 - initialScale) / 2, 0)
+                .scale(initialScale);
+            
+            svg.call(zoom.transform, initialTransform);
+            
+            // Helper functions for tooltips
+            function showTooltip(event, data) {
+                let content = '';
+                
+                if (data.type === "chunk") {
+                    content = `<h4>${data.title}</h4>
+                              ${data.summary ? `<p><strong>Summary:</strong> ${data.summary}</p>` : ''}
+                              <p>${data.content}</p>`;
+                } else if (data.type === "authority") {
+                    content = `<h4>${data.title}</h4>
+                              <div class="quote">${data.quote}</div>
+                              <p><strong>Explanation:</strong> ${data.explanation}</p>
+                              <p><strong>Referenced in:</strong> ${data.chunks}</p>`;
+                } else {
+                    content = `<h4>${data.title}</h4>
+                              <div class="quote">${data.quote}</div>
+                              <p><strong>Explanation:</strong> ${data.explanation}</p>
+                              ${data.content ? data.content : ''}`; // Add concept cluster info if available
+                }
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                    
+                tooltip.html(content)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            }
+            
+            function hideTooltip() {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            }
+            
+            // Setup mini-map
+            setupMiniMap(baseWidth, baseHeight);
+            
+            // Setup control buttons
+            setupControls(zoom, svg);
+            
+            // Helper function for relation colors
+            function getRelationColor(relationType) {
+                const colors = {
+                    "builds_upon": "#52c41a",
+                    "contests": "#f5222d",
+                    "responds_to": "#fa8c16",
+                    "reframes": "#722ed1",
+                    "unknown": "#8c8c8c"
+                };
+                return colors[relationType] || colors.unknown;
+            }
+            
+            // Helper function to format relation type for display
+            function formatRelationType(type) {
+                return type.replace(/_/g, " ");
+            }
+        }
+        
+        // Setup mini-map function
+        function setupMiniMap(fullWidth, fullHeight) {
+            const miniMap = d3.select(".mini-map");
+            const miniMapContent = d3.select(".mini-map-content");
+            const miniMapViewport = d3.select(".mini-map-viewport");
+            
+            const miniMapWidth = 150;
+            const miniMapHeight = 100;
+            
+            // Calculate scale for mini-map
+            const scaleX = miniMapWidth / fullWidth;
+            const scaleY = miniMapHeight / fullHeight;
+            const scale = Math.min(scaleX, scaleY);
+            
+            // Clone the SVG for the mini-map
+            const mainSvg = d3.select("#visualization svg").node();
+            if (mainSvg) {
+                const clone = mainSvg.cloneNode(true);
+                // Remove any existing content in the mini-map
+                miniMapContent.selectAll("*").remove();
+                
+                // Add clone to mini-map
+                miniMapContent.node().appendChild(clone);
+                
+                // Scale the clone
+                d3.select(clone)
+                    .attr("width", fullWidth * scale)
+                    .attr("height", fullHeight * scale)
+                    .attr("viewBox", [0, 0, fullWidth, fullHeight])
+                    .select("g").attr("transform", `scale(${scale})`);
+            }
+            
+            // Update mini-map when transform changes
+            window.updateMiniMap = function(transform) {
+                const vpWidth = miniMapWidth / transform.k;
+                const vpHeight = miniMapHeight / transform.k;
+                
+                miniMapViewport
+                    .style("width", `${vpWidth}px`)
+                    .style("height", `${vpHeight}px`)
+                    .style("left", `${-transform.x * scale}px`)
+                    .style("top", `${-transform.y * scale}px`);
+            };
+        }
+        
+        // Setup control buttons
+        function setupControls(zoom, svg) {
+            // Zoom in button
+            d3.select("#zoom-in").on("click", () => {
+                svg.transition().call(zoom.scaleBy, 1.3);
+            });
+            
+            // Zoom out button
+            d3.select("#zoom-out").on("click", () => {
+                svg.transition().call(zoom.scaleBy, 0.7);
+            });
+            
+            // Reset view button
+            d3.select("#reset-view").on("click", () => {
+                svg.transition().call(zoom.transform, d3.zoomIdentity.scale(0.8));
+            });
+            
+            // Toggle mini-map
+            d3.select("#toggle-mini-map").on("click", () => {
+                const miniMap = d3.select(".mini-map");
+                const isVisible = miniMap.style("display") !== "none";
+                miniMap.style("display", isVisible ? "none" : "block");
+            });
+        }
+        
+        // Initialize visualization
+        createVisualization();
+    </script>
+</body>
+</html>

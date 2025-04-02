@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunk Analysis Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        #sidebar {
+            width: 350px;
+            padding: 20px;
+            background-color: #ffffff;
+            overflow-y: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+        
+        #graph {
+            flex-grow: 1;
+            overflow: hidden;
+            position: relative;
+            background-color: #fafafa;
+        }
+        
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #34495e;
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .node-info {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: none;
+            max-height: calc(100vh - 580px);
+            overflow-y: auto;
+        }
+        
+        .node-info.visible {
+            display: block;
+        }
+        
+        .node-info h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .node-info p {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .metadata {
+            color: #7f8c8d;
+            font-style: italic;
+            font-size: 12px;
+        }
+        
+        .quote {
+            border-left: 3px solid #3498db;
+            padding-left: 10px;
+            margin: 10px 0;
+            font-style: italic;
+            background-color: #f8fafc;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* Node and link styles */
+        .node {
+            cursor: pointer;
+            transition: stroke-width 0.2s, r 0.2s;
+            filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.2));
+        }
+        
+        .node:hover {
+            stroke: #000;
+            stroke-width: 2px;
+        }
+        
+        .node.selected {
+            stroke: #e74c3c;
+            stroke-width: 3px;
+        }
+        
+        .link {
+            stroke-opacity: 0.7;
+            transition: stroke-opacity 0.2s, stroke-width 0.2s;
+        }
+        
+        .link:hover {
+            stroke-opacity: 1;
+            stroke-width: 2px;
+        }
+        
+        .node-label {
+            font-size: 12px;
+            pointer-events: none;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8), 1px 0 2px rgba(255,255,255,0.8), 0 -1px 2px rgba(255,255,255,0.8), -1px 0 2px rgba(255,255,255,0.8);
+        }
+        
+        .node-label-bg {
+            fill: rgba(255, 255, 255, 0.8);
+            rx: 4;
+            ry: 4;
+        }
+        
+        .toggle-group {
+            margin-top: 15px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .toggle-group h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .checkboxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .filter-btn {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background-color: #e0e6e9;
+        }
+        
+        .filter-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+        
+        /* Connection marker arrows */
+        marker {
+            fill: inherit;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <h1>Chunk Analysis Visualization</h1>
+            
+            <div class="controls">
+                <button id="zoom-fit">Fit to View</button>
+                <button id="toggle-labels">Toggle Labels</button>
+                <button id="toggle-force">Toggle Force</button>
+            </div>
+            
+            <div class="toggle-group">
+                <h3>Filter Nodes:</h3>
+                <div class="filters">
+                    <span class="filter-btn active" data-filter="all">All</span>
+                    <span class="filter-btn" data-filter="chunk">Chunks</span>
+                    <span class="filter-btn" data-filter="authority">Authority</span>
+                    <span class="filter-btn" data-filter="definition">Definitions</span>
+                    <span class="filter-btn" data-filter="argument">Arguments</span>
+                    <span class="filter-btn" data-filter="counter">Counters</span>
+                    <span class="filter-btn" data-filter="principle">Principles</span>
+                    <span class="filter-btn" data-filter="identity">Identity</span>
+                    <span class="filter-btn" data-filter="institution">Institution</span>
+                </div>
+            </div>
+            
+            <div class="toggle-group">
+                <h3>Filter Connections:</h3>
+                <div class="filters">
+                    <span class="filter-btn active" data-link-filter="all">All Links</span>
+                    <span class="filter-btn" data-link-filter="chunk_to_element">Chunk → Element</span>
+                    <span class="filter-btn" data-link-filter="cross_builds_upon">Builds Upon</span>
+                    <span class="filter-btn" data-link-filter="cross_reframes">Reframes</span>
+                    <span class="filter-btn" data-link-filter="cross_contests">Contests</span>
+                    <span class="filter-btn" data-link-filter="cross_responds_to">Responds To</span>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <h2>Legend</h2>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #aaaaaa;"></div>
+                    <div>Chunk</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e74c3c;"></div>
+                    <div>Authority Reference</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #3498db;"></div>
+                    <div>Contested Definition</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #2ecc71;"></div>
+                    <div>Argumentative Move</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #9b59b6;"></div>
+                    <div>Counter Response</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f1c40f;"></div>
+                    <div>Core Principle</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #1abc9c;"></div>
+                    <div>Identity Claim</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e67e22;"></div>
+                    <div>Institutional Function</div>
+                </div>
+            </div>
+            
+            <div class="legend" style="margin-top: 10px">
+                <h2>Connection Types</h2>
+                <div class="legend-item">
+                    <svg width="40" height="3" style="margin-right: 10px;">
+                        <line x1="0" y1="1.5" x2="40" y2="1.5" stroke="#aaaaaa" stroke-width="2" />
+                    </svg>
+                    <div>Chunk → Element</div>
+                </div>
+                <div class="legend-item">
+                    <svg width="40" height="3" style="margin-right: 10px;">
+                        <line x1="0" y1="1.5" x2="40" y2="1.5" stroke="#27ae60" stroke-width="2" />
+                    </svg>
+                    <div>Builds Upon</div>
+                </div>
+                <div class="legend-item">
+                    <svg width="40" height="3" style="margin-right: 10px;">
+                        <line x1="0" y1="1.5" x2="40" y2="1.5" stroke="#3498db" stroke-width="2" />
+                    </svg>
+                    <div>Reframes</div>
+                </div>
+                <div class="legend-item">
+                    <svg width="40" height="3" style="margin-right: 10px;">
+                        <line x1="0" y1="1.5" x2="40" y2="1.5" stroke="#e74c3c" stroke-width="2" />
+                    </svg>
+                    <div>Contests</div>
+                </div>
+                <div class="legend-item">
+                    <svg width="40" height="3" style="margin-right: 10px;">
+                        <line x1="0" y1="1.5" x2="40" y2="1.5" stroke="#9b59b6" stroke-width="2" />
+                    </svg>
+                    <div>Responds To</div>
+                </div>
+            </div>
+            
+            <div id="node-info" class="node-info">
+                <h3 id="node-title">Select a node to see details</h3>
+                <p id="node-type" class="metadata"></p>
+                <div id="node-details"></div>
+            </div>
+        </div>
+        
+        <div id="graph"></div>
+    </div>
+    
+    <script>
+        // Graph data
+        const graphData = GRAPH_DATA_PLACEHOLDER;
+        
+        // Node colors by type
+        const nodeColors = {
+            chunk: "#aaaaaa",
+            authority: "#e74c3c",
+            definition: "#3498db",
+            argument: "#2ecc71",
+            counter: "#9b59b6",
+            principle: "#f1c40f",
+            identity: "#1abc9c",
+            institution: "#e67e22"
+        };
+        
+        // Link colors by type
+        const linkColors = {
+            chunk_to_element: "#aaaaaa",
+            cross_builds_upon: "#27ae60",
+            cross_reframes: "#3498db",
+            cross_contests: "#e74c3c",
+            cross_responds_to: "#9b59b6",
+            default: "#aaaaaa"
+        };
+        
+        // Node sizes by type
+        const nodeSizes = {
+            chunk: 22,
+            authority: 14,
+            definition: 14,
+            argument: 14,
+            counter: 14,
+            principle: 14,
+            identity: 14,
+            institution: 14,
+            default: 14
+        };
+        
+        // Create the visualization
+        let width = document.getElementById('graph').clientWidth;
+        let height = document.getElementById('graph').clientHeight;
+        
+        // Create SVG
+        const svg = d3.select("#graph")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", [0, 0, width, height]);
+            
+        // Define arrow markers for links
+        svg.append("defs").selectAll("marker")
+            .data(["chunk_to_element", "cross_builds_upon", "cross_reframes", "cross_contests", "cross_responds_to", "default"])
+            .enter().append("marker")
+            .attr("id", d => `arrow-${d}`)
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 20)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5");
+            
+        // Create a group for the graph
+        const g = svg.append("g");
+        
+        // Create zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+            
+        svg.call(zoom);
+        
+        // Create simulation
+        const simulation = d3.forceSimulation(graphData.nodes)
+            .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(d => {
+                // Longer distance for cross-references
+                if (d.type.startsWith("cross_")) return 180;
+                // Shorter distance for chunk to element links
+                return 100;
+            }))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("x", d3.forceX(width / 2).strength(0.1))
+            .force("y", d3.forceY(height / 2).strength(0.1))
+            .force("collision", d3.forceCollide().radius(d => nodeSizes[d.type] || nodeSizes.default + 10));
+            
+        // Create links
+        const link = g.append("g")
+            .selectAll("line")
+            .data(graphData.links)
+            .join("line")
+            .attr("class", "link")
+            .attr("stroke", d => linkColors[d.type] || linkColors.default)
+            .attr("stroke-width", 1.5)
+            .attr("data-type", d => d.type)
+            .attr("marker-end", d => `url(#arrow-${d.type})`);
+            
+        // Create label backgrounds
+        const labelBg = g.append("g")
+            .selectAll("rect")
+            .data(graphData.nodes)
+            .join("rect")
+            .attr("class", "node-label-bg")
+            .attr("width", d => {
+                const label = d.label || "";
+                const textWidth = label.length * (d.type === "chunk" ? 8 : 6); // Estimate text width
+                return textWidth + 10;
+            })
+            .attr("height", d => d.type === "chunk" ? 22 : 18)
+            .attr("x", d => 0)
+            .attr("y", d => d.type === "chunk" ? -35 : -25)
+            .attr("opacity", 0.8)
+            .style("display", "block");  // Always visible
+            
+        // Create node labels (always visible)
+        const label = g.append("g")
+            .selectAll("text")
+            .data(graphData.nodes)
+            .join("text")
+            .attr("class", "node-label")
+            .attr("dy", d => d.type === "chunk" ? -20 : -15)
+            .attr("text-anchor", "middle")
+            .attr("font-size", d => d.type === "chunk" ? "14px" : "12px")
+            .attr("font-weight", d => d.type === "chunk" ? "bold" : "normal")
+            .text(d => {
+                if (d.type === "chunk") return d.label;
+                // For non-chunk nodes, truncate the label if it's too long
+                const maxLength = 20;
+                return d.label?.length > maxLength ? d.label.substring(0, maxLength) + "..." : d.label;
+            })
+            .style("display", "block");  // Always visible
+            
+        // Create nodes
+        const node = g.append("g")
+            .selectAll("circle")
+            .data(graphData.nodes)
+            .join("circle")
+            .attr("class", "node")
+            .attr("r", d => nodeSizes[d.type] || nodeSizes.default)
+            .attr("fill", d => nodeColors[d.type] || "#aaaaaa")
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 1.5)
+            .attr("data-type", d => d.type)
+            .on("click", (event, d) => showNodeInfo(d))
+            .on("mouseover", function(event, d) {
+                // Highlight on hover and increase size slightly
+                d3.select(this)
+                  .transition()
+                  .duration(200)
+                  .attr("r", d => (nodeSizes[d.type] || nodeSizes.default) * 1.2);
+                  
+                // Highlight connected links
+                link.style("stroke-width", l => 
+                  (l.source.id === d.id || l.target.id === d.id) ? 2.5 : 1.5);
+                link.style("stroke-opacity", l => 
+                  (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.5);
+                  
+                // Highlight connected nodes
+                node.style("opacity", n => 
+                  isConnected(d, n) ? 1 : 0.6);
+                  
+                // Show label backgrounds for connected nodes
+                labelBg.style("opacity", n => 
+                  isConnected(d, n) ? 0.9 : 0.6);
+            })
+            .on("mouseout", function(event, d) {
+                // Reset on mouseout
+                d3.select(this)
+                  .transition()
+                  .duration(200)
+                  .attr("r", d => nodeSizes[d.type] || nodeSizes.default);
+                  
+                // Reset links
+                link.style("stroke-width", 1.5);
+                link.style("stroke-opacity", 0.7);
+                
+                // Reset nodes
+                node.style("opacity", 1);
+                
+                // Reset label backgrounds
+                labelBg.style("opacity", 0.8);
+            })
+            .call(drag(simulation));
+         
+        // Check if two nodes are connected
+        function isConnected(a, b) {
+            if (a.id === b.id) return true;
+            return graphData.links.some(l => 
+                (l.source.id === a.id && l.target.id === b.id) || 
+                (l.source.id === b.id && l.target.id === a.id));
+        }
+            
+        // Update positions on tick
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+                
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+                
+            // Update label positions to follow nodes
+            label
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+                
+            // Update label background positions
+            labelBg
+                .attr("x", d => d.x - labelBg.filter(n => n.id === d.id).attr("width") / 2)
+                .attr("y", d => d.y - (d.type === "chunk" ? 35 : 25));
+        });
+        
+        // Drag function
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+            
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+        
+        // Show node info
+        function showNodeInfo(d) {
+            // Highlight selected node
+            node.classed("selected", n => n.id === d.id);
+            
+            // Show node info panel
+            const nodeInfo = document.getElementById("node-info");
+            nodeInfo.classList.add("visible");
+            
+            // Set node title
+            document.getElementById("node-title").textContent = d.label;
+            
+            // Set node type
+            const nodeTypeEl = document.getElementById("node-type");
+            const typeMap = {
+                chunk: "Document Chunk",
+                authority: "Authority Reference",
+                definition: "Contested Definition",
+                argument: "Argumentative Move",
+                counter: "Counter Response",
+                principle: "Core Principle",
+                identity: "Identity Claim",
+                institution: "Institutional Function"
+            };
+            nodeTypeEl.textContent = typeMap[d.type] || d.type;
+            
+            // Set node details
+            const detailsEl = document.getElementById("node-details");
+            detailsEl.innerHTML = "";
+            
+            if (d.type === "chunk") {
+                // Chunk details
+                const title = document.createElement("p");
+                title.innerHTML = `<strong>Title:</strong> ${d.details.title}`;
+                detailsEl.appendChild(title);
+                
+                const sequence = document.createElement("p");
+                sequence.innerHTML = `<strong>Sequence:</strong> ${d.sequence}`;
+                detailsEl.appendChild(sequence);
+                
+                const pages = document.createElement("p");
+                pages.innerHTML = `<strong>Pages:</strong> ${d.page_range.join("-")}`;
+                detailsEl.appendChild(pages);
+                
+                const content = document.createElement("div");
+                content.innerHTML = `<strong>Preview:</strong><div style="max-height: 150px; overflow-y: auto; margin-top: 5px; font-size: 12px;">${d.details.html_content}</div>`;
+                detailsEl.appendChild(content);
+            } else {
+                // Element details
+                if (d.details.quote) {
+                    const quote = document.createElement("div");
+                    quote.className = "quote";
+                    quote.textContent = d.details.quote;
+                    detailsEl.appendChild(quote);
+                }
+                
+                if (d.details.explanation) {
+                    const explanation = document.createElement("p");
+                    explanation.innerHTML = `<strong>Explanation:</strong> ${d.details.explanation}`;
+                    detailsEl.appendChild(explanation);
+                }
+                
+                if (d.details.label) {
+                    const label = document.createElement("p");
+                    label.innerHTML = `<strong>Label:</strong> ${d.details.label}`;
+                    detailsEl.appendChild(label);
+                }
+            }
+            
+            // Find connections
+            const connections = [];
+            graphData.links.forEach(link => {
+                if (link.source.id === d.id || link.target.id === d.id) {
+                    const otherNode = link.source.id === d.id ? link.target : link.source;
+                    const direction = link.source.id === d.id ? "to" : "from";
+                    const relType = link.type.replace("cross_", "");
+                    
+                    connections.push({
+                        node: otherNode,
+                        direction: direction,
+                        type: relType
+                    });
+                }
+            });
+            
+            if (connections.length > 0) {
+                const connectionsHeader = document.createElement("h4");
+                connectionsHeader.textContent = "Connections";
+                connectionsHeader.style.marginTop = "20px";
+                connectionsHeader.style.borderBottom = "1px solid #eee";
+                connectionsHeader.style.paddingBottom = "5px";
+                detailsEl.appendChild(connectionsHeader);
+                
+                const connectionsList = document.createElement("ul");
+                connectionsList.style.paddingLeft = "20px";
+                
+                connections.forEach(conn => {
+                    const item = document.createElement("li");
+                    const relationText = conn.type === "chunk_to_element" ? "Element of" : 
+                                       conn.type === "builds_upon" ? "Builds upon" :
+                                       conn.type === "reframes" ? "Reframes" :
+                                       conn.type === "contests" ? "Contests" :
+                                       conn.type === "responds_to" ? "Responds to" : 
+                                       "Connected to";
+                                       
+                    item.innerHTML = `<span style="color: ${nodeColors[conn.node.type] || '#aaaaaa'}">●</span> ${relationText} <strong>${conn.node.label}</strong>`;
+                    item.style.marginBottom = "5px";
+                    item.style.cursor = "pointer";
+                    item.onclick = () => showNodeInfo(conn.node);
+                    
+                    connectionsList.appendChild(item);
+                });
+                
+                detailsEl.appendChild(connectionsList);
+            }
+        }
+        
+        // Zoom fit
+        document.getElementById("zoom-fit").addEventListener("click", () => {
+            const bounds = g.node().getBBox();
+            const dx = bounds.width;
+            const dy = bounds.height;
+            const x = bounds.x + dx / 2;
+            const y = bounds.y + dy / 2;
+            
+            // Calculate the scale to fit the graph
+            const scale = 0.8 / Math.max(dx / width, dy / height);
+            const translate = [width / 2 - scale * x, height / 2 - scale * y];
+            
+            svg.transition()
+                .duration(750)
+                .call(zoom.transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
+        });
+        
+        // Toggle labels
+        let labelsVisible = true; // Now labels are visible by default
+        document.getElementById("toggle-labels").addEventListener("click", () => {
+            labelsVisible = !labelsVisible;
+            label.style("display", labelsVisible ? "block" : "none");
+            labelBg.style("display", labelsVisible ? "block" : "none");
+        });
+        
+        // Toggle force
+        let forceEnabled = true;
+        document.getElementById("toggle-force").addEventListener("click", () => {
+            forceEnabled = !forceEnabled;
+            if (forceEnabled) {
+                simulation.alpha(0.3).restart();
+                simulation.force("charge", d3.forceManyBody().strength(-300));
+            } else {
+                simulation.force("charge", null);
+                simulation.alpha(0).stop();
+            }
+        });
+        
+        // Filter nodes
+        const filterButtons = document.querySelectorAll("[data-filter]");
+        filterButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                // Toggle active state
+                if (button.dataset.filter === "all") {
+                    filterButtons.forEach(btn => btn.classList.remove("active"));
+                    button.classList.add("active");
+                    // Show all nodes
+                    node.style("opacity", 1);
+                } else {
+                    // Remove active state from "All" button
+                    document.querySelector("[data-filter='all']").classList.remove("active");
+                    // Toggle this button
+                    button.classList.toggle("active");
+                    
+                    // Get all active filters
+                    const activeFilters = Array.from(document.querySelectorAll("[data-filter].active"))
+                        .map(btn => btn.dataset.filter)
+                        .filter(filter => filter !== "all");
+                    
+                    // If no active filters, activate "All" button
+                    if (activeFilters.length === 0) {
+                        document.querySelector("[data-filter='all']").classList.add("active");
+                        node.style("opacity", 1);
+                    } else {
+                        // Apply filters
+                        node.style("opacity", d => activeFilters.includes(d.type) ? 1 : 0.2);
+                    }
+                }
+                
+                // Update links visibility
+                updateLinkVisibility();
+            });
+        });
+        
+        // Filter links
+        const linkFilterButtons = document.querySelectorAll("[data-link-filter]");
+        linkFilterButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                // Toggle active state
+                if (button.dataset.linkFilter === "all") {
+                    linkFilterButtons.forEach(btn => btn.classList.remove("active"));
+                    button.classList.add("active");
+                    // Show all links
+                    link.style("opacity", 0.7);
+                } else {
+                    // Remove active state from "All" button
+                    document.querySelector("[data-link-filter='all']").classList.remove("active");
+                    // Toggle this button
+                    button.classList.toggle("active");
+                    
+                    // Get all active filters
+                    const activeLinkFilters = Array.from(document.querySelectorAll("[data-link-filter].active"))
+                        .map(btn => btn.dataset.linkFilter)
+                        .filter(filter => filter !== "all");
+                    
+                    // If no active filters, activate "All" button
+                    if (activeLinkFilters.length === 0) {
+                        document.querySelector("[data-link-filter='all']").classList.add("active");
+                        link.style("opacity", 0.7);
+                    } else {
+                        // Apply filters
+                        link.style("opacity", d => activeLinkFilters.includes(d.type) ? 0.7 : 0.1);
+                    }
+                }
+            });
+        });
+        
+        // Update link visibility based on node visibility
+        function updateLinkVisibility() {
+            // Get visible nodes
+            const visibleNodes = node.filter(function() {
+                return d3.select(this).style("opacity") > 0.2;
+            }).data().map(d => d.id);
+            
+            // Update link visibility
+            link.style("visibility", d => {
+                const sourceVisible = visibleNodes.includes(d.source.id);
+                const targetVisible = visibleNodes.includes(d.target.id);
+                return sourceVisible && targetVisible ? "visible" : "hidden";
+            });
+        }
+        
+        // Initial zoom fit
+        setTimeout(() => {
+            document.getElementById("zoom-fit").click();
+        }, 500);
+    </script>
+</body>
+</html>
