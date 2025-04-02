@@ -6,6 +6,10 @@ from pydantic import Field
 from src.models.base.base_model import BaseModel
 from datetime import datetime
 
+# Add SQLAlchemy imports
+from sqlalchemy import Column, String, Text, JSON, Boolean
+from src.database.base import Base
+
 class DocumentStatus(str, Enum):
     PENDING = "PENDING"
     PROCESSING_MARKER = "PROCESSING_MARKER"
@@ -61,3 +65,26 @@ class Document(BaseModel):
 
     class Config:
         use_enum_values = True
+
+# SQLAlchemy model definition
+class DocumentModel(Base):
+    __tablename__ = "documents"
+    
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=True)
+    status = Column(String, default=DocumentStatus.PENDING.value)
+    s3_pdf_path = Column(String, nullable=True)
+    chunk_ids = Column(JSON, default=list)
+    title = Column(String, default="Untitled Document")
+    summary = Column(Text, nullable=True)
+    filename = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)
+    file_type = Column(String, nullable=True)
+    meta_data = Column(JSON, nullable=True)
+    arguments = Column(JSON, nullable=True)
+    key_themes_terms = Column(JSON, nullable=True)
+    processing_error = Column(String, nullable=True)
+    marker_job_id = Column(String, nullable=True)
+    marker_check_url = Column(String, nullable=True)
+    created_at = Column(String, nullable=True)
+    updated_at = Column(String, nullable=True)

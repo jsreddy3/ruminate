@@ -4,6 +4,8 @@ from uuid import uuid4
 from pydantic import Field
 from datetime import datetime
 from src.models.base.base_model import BaseModel
+from sqlalchemy import Column, String, Text, JSON, Integer, ForeignKey
+from src.database.base import Base
 
 class Chunk(BaseModel):
     """
@@ -58,3 +60,22 @@ class Chunk(BaseModel):
             created_at=data.get('created_at', datetime.now()),
             updated_at=data.get('updated_at', datetime.now())
         )
+
+# SQLAlchemy model definition
+class ChunkModel(Base):
+    __tablename__ = "chunks"
+    
+    id = Column(String, primary_key=True)
+    document_id = Column(String, ForeignKey("documents.id"))
+    title = Column(String, nullable=True)
+    sequence = Column(Integer)
+    page_range = Column(JSON)
+    block_ids = Column(JSON)
+    html_content = Column(Text)
+    content = Column(Text, nullable=True)
+    embedding = Column(JSON, nullable=True)
+    summary = Column(Text, nullable=True)
+    meta_data = Column(JSON, nullable=True)
+    created_at = Column(String, nullable=True)
+    updated_at = Column(String, nullable=True)
+    index = Column(String, nullable=True)  # Added for back reference to ChunkIndex

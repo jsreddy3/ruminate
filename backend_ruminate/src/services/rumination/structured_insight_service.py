@@ -24,15 +24,27 @@ class StructuredInsightService:
         self.llm_service = llm_service
         self.insight_repository = insight_repository
         
-        # Get the absolute path to the config directory
-        config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "config")
+        # Get the absolute path to the prompts directory
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        prompts_dir = os.path.join(base_dir, "src", "prompts")
+        config_dir = os.path.join(base_dir, "config")
         
         # Load prompts from YAML.
-        with open(os.path.join(config_dir, "prompt.yml"), "r") as f:
-            self.prompts = yaml.safe_load(f)
+        try:
+            with open(os.path.join(prompts_dir, "prompt.yml"), "r") as f:
+                self.prompts = yaml.safe_load(f)
+        except FileNotFoundError:
+            logger.error(f"Could not find prompt.yml in {prompts_dir}")
+            # Fallback to empty prompts dictionary
+            self.prompts = {}
 
-        with open(os.path.join(config_dir, "rumination_config.yml"), "r") as f:
-            self.rumination_config = yaml.safe_load(f)
+        try:
+            with open(os.path.join(config_dir, "rumination_config.yml"), "r") as f:
+                self.rumination_config = yaml.safe_load(f)
+        except FileNotFoundError:
+            logger.error(f"Could not find rumination_config.yml in {config_dir}")
+            # Fallback to empty config dictionary
+            self.rumination_config = {}
         
         # Store the default objective from config
         self.default_objective = self.rumination_config.get("objective", "Focus on extracting the key themes and details of the document.")

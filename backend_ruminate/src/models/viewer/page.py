@@ -4,6 +4,8 @@ from uuid import uuid4
 from pydantic import Field
 from datetime import datetime
 from src.models.base.base_model import BaseModel
+from sqlalchemy import Column, String, Text, JSON, Integer, ForeignKey
+from src.database.base import Base
 
 class Page(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
@@ -33,3 +35,18 @@ class Page(BaseModel):
             section_hierarchy=data.get('section_hierarchy'),
             html_content=data.get('html_content')
         )
+
+# SQLAlchemy model definition
+class PageModel(Base):
+    __tablename__ = "pages"
+    
+    id = Column(String, primary_key=True)
+    document_id = Column(String, ForeignKey("documents.id"))
+    page_number = Column(Integer, nullable=True)
+    polygon = Column(JSON, nullable=True)
+    block_ids = Column(JSON, default=list)
+    section_hierarchy = Column(JSON, default=dict)
+    html_content = Column(Text, default="")
+    meta_data = Column(JSON, nullable=True)
+    created_at = Column(String, nullable=True)
+    updated_at = Column(String, nullable=True)

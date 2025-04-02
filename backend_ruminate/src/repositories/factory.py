@@ -56,13 +56,33 @@ class RepositoryFactory:
             self._key_term_repo = SQLiteKeyTermRepository(db_path=db_path)
             
         elif document_type == "rds":
+            # Import both RDS and SQLite implementations
             from .implementations.rds_document_repository import RDSDocumentRepository
-            raise NotImplementedError("RDS implementation pending")
-            # from .implementations.rds_conversation_repository import RDSConversationRepository
-            # self._document_repo = RDSDocumentRepository()
-            # )
-            # self._conversation_repo = RDSConversationRepository()
-            # )
+            from .implementations.rds_conversation_repository import RDSConversationRepository
+            from .implementations.rds_insight_repository import RDSInsightRepository
+            from .implementations.sqlite_chunk_index_repository import SQLiteChunkIndexRepository
+            from .implementations.sqlite_key_term_repository import SQLiteKeyTermRepository
+            
+            # Create session factory for PostgreSQL if not exists
+            if 'session_factory' not in kwargs:
+                from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+                from sqlalchemy.orm import sessionmaker
+                url = f"postgresql+asyncpg://{kwargs.get('db_user')}:{kwargs.get('db_password')}@{kwargs.get('db_host')}:{kwargs.get('db_port')}/{kwargs.get('db_name', 'ruminate_document_table')}"
+                engine = create_async_engine(url, echo=False)  # Reduced logging verbosity
+                kwargs['session_factory'] = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+            
+            # Use RDS for document, conversation, and insight repositories
+            self._document_repo = RDSDocumentRepository(kwargs['session_factory'])
+            self._conversation_repo = RDSConversationRepository(kwargs['session_factory'])
+            self._insight_repo = RDSInsightRepository(kwargs['session_factory'])
+            
+            # Use SQLite for other repositories (hybrid approach for testing)
+            db_path = kwargs.get('db_path', 'sqlite.db')
+            self._chunk_index_repo = SQLiteChunkIndexRepository(
+                session_factory=kwargs['session_factory'],
+                db_path=db_path
+            )
+            self._key_term_repo = SQLiteKeyTermRepository(db_path=db_path)
 
         if storage_type == "local":
             from .implementations.local_storage_repository import LocalStorageRepository

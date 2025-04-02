@@ -5,6 +5,8 @@ from uuid import uuid4
 from pydantic import Field
 from datetime import datetime
 from src.models.base.base_model import BaseModel
+from sqlalchemy import Column, String, Text, JSON, Integer, Boolean, ForeignKey
+from src.database.base import Base
 
 class BlockType(str, Enum):
     """All possible block types from Marker API"""
@@ -93,3 +95,23 @@ class Block(BaseModel):
             is_critical=data.get('is_critical'),
             critical_summary=data.get('critical_summary')
         )
+
+class BlockModel(Base):
+    __tablename__ = "blocks"
+    
+    id = Column(String, primary_key=True)
+    document_id = Column(String, ForeignKey("documents.id"))
+    page_id = Column(String, ForeignKey("pages.id"), nullable=True)
+    block_type = Column(String, nullable=True)
+    html_content = Column(Text, nullable=True)
+    content = Column(Text, nullable=True)
+    content_type = Column(String, nullable=True)
+    polygon = Column(JSON, nullable=True)
+    page_number = Column(Integer, nullable=True)
+    section_hierarchy = Column(JSON, nullable=True)
+    meta_data = Column(JSON, nullable=True)
+    images = Column(JSON, nullable=True)
+    is_critical = Column(Boolean, nullable=True)
+    critical_summary = Column(Text, nullable=True)
+    created_at = Column(String, nullable=True)
+    updated_at = Column(String, nullable=True)

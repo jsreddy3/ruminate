@@ -1,12 +1,15 @@
+"""
+API dependencies module for FastAPI dependency injection.
+"""
 from functools import lru_cache
 from typing import Optional
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer
+import logging
 
-Base = declarative_base()
-
+from src.database.base import Base
 from src.repositories.factory import RepositoryFactory
 from src.repositories.interfaces.document_repository import DocumentRepository
 from src.repositories.interfaces.storage_repository import StorageRepository
@@ -28,6 +31,8 @@ from src.services.document.chunking_service import ChunkingService
 repository_factory = RepositoryFactory()
 db_session_factory = None
 
+logger = logging.getLogger(__name__)
+
 async def initialize_repositories():
     """Called on app startup to initialize repositories"""
     global db_session_factory
@@ -37,19 +42,50 @@ async def initialize_repositories():
     # Initialize session factory if using a database
     if settings.document_storage_type in ["rds", "sqlite"]:
         if settings.document_storage_type == "rds":
-            url = f"postgresql+asyncpg://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/db"
+            url = f"postgresql+asyncpg://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}"
         else:  # sqlite
             url = f"sqlite+aiosqlite:///{settings.db_path}"
             
-        engine = create_async_engine(url)
-        db_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-        
-        # Import all models that need tables created
-        from src.repositories.implementations.sqlite_insight_repository import InsightModel
-        
-        # Create tables
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        try:
+            # Reduce logging verbosity - change from echo=True to echo=False
+            engine = create_async_engine(url, echo=False)
+            db_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+            
+            # Import all models that need tables created
+            from src.repositories.implementations.sqlite_insight_repository import InsightModel
+            # Import RDS document models from their new locations
+            from src.models.base.document import DocumentModel
+            from src.models.viewer.page import PageModel
+            from src.models.viewer.block import BlockModel
+            from src.models.base.chunk import ChunkModel
+            # Import conversation and insight models
+            from src.models.conversation.conversation import ConversationModel
+            from src.models.conversation.message import MessageModel
+            from src.models.rumination.structured_insight import InsightModel as RDSInsightModel
+            
+            # Create tables
+            async with engine.begin() as conn:
+                # For PostgreSQL, drop and recreate tables for clean start
+                if settings.document_storage_type == "rds":
+                    try:
+                        # Drop all tables first to ensure clean start with new schema
+                        await conn.run_sync(Base.metadata.drop_all)
+                        logger.info(f"Dropped existing tables for {settings.document_storage_type}")
+                        
+                        # Create tables with new schema
+                        await conn.run_sync(Base.metadata.create_all)
+                        logger.info(f"Database tables created for {settings.document_storage_type}")
+                    except Exception as e:
+                        logger.error(f"Error setting up database tables: {str(e)}")
+                        raise
+                else:
+                    # For SQLite, just create tables if they don't exist
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info(f"Database tables created or verified for {settings.document_storage_type}")
+                
+        except Exception as e:
+            logger.error(f"Error initializing database: {str(e)}")
+            raise
     
     # Initialize repositories with session factory if available
     repository_factory.init_repositories(
@@ -61,6 +97,7 @@ async def initialize_repositories():
         db_port=settings.db_port,
         db_user=settings.db_user,
         db_password=settings.db_password,
+        db_name=settings.db_name,
         aws_access_key=settings.aws_access_key,
         aws_secret_key=settings.aws_secret_key,
         s3_bucket=settings.s3_bucket,

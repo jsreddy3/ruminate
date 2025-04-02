@@ -3,6 +3,8 @@ from datetime import datetime
 from uuid import uuid4
 from pydantic import Field
 from src.models.base.base_model import BaseModel
+from sqlalchemy import Column, String, JSON, Boolean
+from src.database.base import Base
 
 class ConversationType(str):
     MAIN = "main"
@@ -36,3 +38,15 @@ class Conversation(BaseModel):
         if 'created_at' in data and isinstance(data['created_at'], str):
             data['created_at'] = datetime.fromisoformat(data['created_at'])
         return cls(**data)
+
+class ConversationModel(Base):
+    __tablename__ = "conversations"
+    
+    id = Column(String, primary_key=True)
+    document_id = Column(String, nullable=True, index=True)
+    block_id = Column(String, nullable=True, index=True)
+    type = Column(String, default=ConversationType.MAIN)
+    created_at = Column(String)  # Store as ISO format string
+    meta_data = Column(JSON, nullable=True)
+    is_demo = Column(Boolean, default=False)
+    root_message_id = Column(String, nullable=True)

@@ -4,6 +4,8 @@ from typing import Optional, Dict, Any, List
 from src.models.base.base_model import BaseModel
 from enum import Enum
 from pydantic import Field
+from sqlalchemy import Column, String, Text, JSON, Integer, ForeignKey
+from src.database.base import Base
 
 class MessageRole(str, Enum):
     USER = "user"
@@ -31,3 +33,21 @@ class Message(BaseModel):
         if 'role' in data and isinstance(data['role'], str):
             data['role'] = MessageRole(data['role'])  # Convert string to enum
         return cls(**data)
+
+class MessageModel(Base):
+    __tablename__ = "messages"
+    
+    id = Column(String, primary_key=True)
+    conversation_id = Column(String, ForeignKey("conversations.id"), nullable=False, index=True)
+    role = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(String)  # Store as ISO format string
+    parent_id = Column(String, ForeignKey("messages.id"), nullable=True, index=True)
+    active_child_id = Column(String, ForeignKey("messages.id"), nullable=True)
+    meta_data = Column(JSON, nullable=True)
+    block_id = Column(String, nullable=True)
+    version = Column(Integer, default=1)
+    
+    # Note: children relationship will be handled in the application layer
+    # as it's a complex relationship that may be more efficiently managed
+    # through explicit queries rather than eager loading
