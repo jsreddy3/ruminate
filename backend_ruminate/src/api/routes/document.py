@@ -1,10 +1,7 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-import io
-import os
-
+from typing import Optional, List
 from src.services.document.upload_service import UploadService
 from src.api.dependencies import get_upload_service, get_document_repository, get_storage_repository, get_db
 from src.repositories.interfaces.document_repository import DocumentRepository
@@ -12,18 +9,35 @@ from src.repositories.interfaces.storage_repository import StorageRepository
 from src.models.viewer.block import Block
 from src.models.base.document import Document
 from src.models.base.chunk import Chunk
+from src.api.sse_manager import subscribe_to_updates
+import logging
+import io
+import os
 
-document_router = APIRouter(prefix="/documents")
+logger = logging.getLogger(__name__)
+
+document_router = APIRouter(
+    prefix="/documents",
+    tags=["documents"],
+    responses={404: {"description": "Not found"}},
+)
+
+@document_router.get("/{document_id}/processing-stream")
+async def stream_processing_status(document_id: str):
+    """Streams document processing status updates via Server-Sent Events."""
+    logger.info(f"Request received for SSE stream for document_id: {document_id}")
+    return StreamingResponse(subscribe_to_updates(document_id), media_type="text/event-stream")
 
 @document_router.post("/")
 async def upload_document(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None,
     upload_service: UploadService = Depends(get_upload_service),
     session: Optional[AsyncSession] = Depends(get_db)
 ) -> Document:
     """Upload a new document"""
     # For testing purposes, using a fixed user_id
-    doc = await upload_service.upload(file, session, user_id="test_user")
+    doc = await upload_service.upload(file, background_tasks, session, user_id="test_user")
     return doc
 
 @document_router.get("/{document_id}")
