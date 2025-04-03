@@ -1,23 +1,11 @@
 import json
 from typing import List, Optional
-from sqlalchemy import Column, String, Integer, JSON, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
 
-from src.models.rumination.structured_insight import StructuredInsight
+from src.models.rumination.structured_insight import StructuredInsight, InsightModel
 from src.repositories.interfaces.insight_repository import InsightRepository
-from src.api.dependencies import Base
-
-class InsightModel(Base):
-    __tablename__ = "insights"
-
-    block_id = Column(String, primary_key=True)
-    document_id = Column(String, nullable=False)
-    page_number = Column(Integer)
-    insight = Column(String, nullable=False)
-    annotations = Column(JSON)
-    conversation_history = Column(JSON)
 
 class SQLiteInsightRepository(InsightRepository):
     def __init__(self, session_factory):

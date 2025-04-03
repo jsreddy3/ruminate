@@ -3,6 +3,8 @@ from pydantic import Field
 from datetime import datetime
 from uuid import uuid4
 from src.models.base.base_model import BaseModel
+from sqlalchemy import Column, String, Integer, JSON, DateTime
+from src.database.base import Base
 
 # Pydantic model for API and business logic
 class ChunkIndex(BaseModel):
@@ -83,4 +85,23 @@ class ChunkIndex(BaseModel):
             document_id=document_id,
             sequence=sequence,
             **mapped_results
-        ) 
+        )
+
+# SQLAlchemy model for database persistence
+class ChunkIndexModel(Base):
+    __tablename__ = "chunk_indices"
+    
+    id = Column(String, primary_key=True)
+    chunk_id = Column(String, nullable=False, unique=True, index=True)
+    document_id = Column(String, nullable=False, index=True)
+    sequence = Column(Integer, default=0)
+    summary = Column(String, nullable=True)
+    authority_references = Column(JSON, default=list)
+    contested_definitions = Column(JSON, default=list)
+    argumentative_moves = Column(JSON, default=list)
+    counter_responses = Column(JSON, default=list)
+    core_principles = Column(JSON, default=list)
+    identity_claims = Column(JSON, default=list)
+    institutional_functions = Column(JSON, default=list)
+    created_at = Column(String)  # Store as ISO format string
+    updated_at = Column(String)  # Store as ISO format string

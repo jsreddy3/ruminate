@@ -51,9 +51,7 @@ async def initialize_repositories():
             engine = create_async_engine(url, echo=False)
             db_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             
-            # Import all models that need tables created
-            from src.repositories.implementations.sqlite_insight_repository import InsightModel
-            # Import RDS document models from their new locations
+            # Import RDS models from their new locations
             from src.models.base.document import DocumentModel
             from src.models.viewer.page import PageModel
             from src.models.viewer.block import BlockModel
@@ -61,7 +59,8 @@ async def initialize_repositories():
             # Import conversation and insight models
             from src.models.conversation.conversation import ConversationModel
             from src.models.conversation.message import MessageModel
-            from src.models.rumination.structured_insight import InsightModel as RDSInsightModel
+            from src.models.rumination.structured_insight import InsightModel
+            from src.models.rumination.chunk_index import ChunkIndexModel
             
             # Create tables
             async with engine.begin() as conn:

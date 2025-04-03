@@ -60,7 +60,7 @@ class RepositoryFactory:
             from .implementations.rds_document_repository import RDSDocumentRepository
             from .implementations.rds_conversation_repository import RDSConversationRepository
             from .implementations.rds_insight_repository import RDSInsightRepository
-            from .implementations.sqlite_chunk_index_repository import SQLiteChunkIndexRepository
+            from .implementations.rds_chunk_index_repository import RDSChunkIndexRepository
             from .implementations.sqlite_key_term_repository import SQLiteKeyTermRepository
             
             # Create session factory for PostgreSQL if not exists
@@ -71,17 +71,14 @@ class RepositoryFactory:
                 engine = create_async_engine(url, echo=False)  # Reduced logging verbosity
                 kwargs['session_factory'] = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             
-            # Use RDS for document, conversation, and insight repositories
+            # Use RDS for document, conversation, insight, and chunk index repositories
             self._document_repo = RDSDocumentRepository(kwargs['session_factory'])
             self._conversation_repo = RDSConversationRepository(kwargs['session_factory'])
             self._insight_repo = RDSInsightRepository(kwargs['session_factory'])
+            self._chunk_index_repo = RDSChunkIndexRepository(kwargs['session_factory'])
             
-            # Use SQLite for other repositories (hybrid approach for testing)
+            # Use SQLite for remaining repositories (hybrid approach for testing)
             db_path = kwargs.get('db_path', 'sqlite.db')
-            self._chunk_index_repo = SQLiteChunkIndexRepository(
-                session_factory=kwargs['session_factory'],
-                db_path=db_path
-            )
             self._key_term_repo = SQLiteKeyTermRepository(db_path=db_path)
 
         if storage_type == "local":
