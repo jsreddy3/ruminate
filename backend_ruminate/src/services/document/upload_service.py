@@ -46,15 +46,17 @@ class UploadService:
         document = None 
         try:
             # Fetch the document to update its status
-            document = await self.document_repo.get_document_by_id(document_id, session)
+            document = await self.document_repo.get_document(document_id, session)
             if not document:
                 logger.error(f"Document {document_id} not found for background processing.")
-                return 
+                raise ValueError(f"Document {document_id} not found")
 
             # 1. Marker Processing
             await publish_status(document_id, {"status": "PROCESSING_LAYOUT", "detail": "Starting layout analysis..."})
-            document.status = DocumentStatus.PROCESSING 
+            document.status = DocumentStatus.PROCESSING_MARKER 
             await self.document_repo.store_document(document, session) 
+            await session.commit()
+            logger.info(f"Set document {document_id} status to {document.status}")
 
             pages, blocks = await self.marker.process_document(file_data, document_id)
             await self.document_repo.store_pages(pages, session)
@@ -109,7 +111,7 @@ class UploadService:
         document = Document(
             user_id=user_id,
             title=file.filename,
-            status=DocumentStatus.PROCESSING, 
+            status=DocumentStatus.PENDING, 
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -117,7 +119,7 @@ class UploadService:
         try:
             await self.document_repo.store_document(document, session)
             await session.flush() 
-            await session.refresh(document)
+            # await session.refresh(document) # Removed: This causes UnmappedInstanceError because repo uses raw SQL
             logger.info(f"Created initial document record with ID: {document.id}, status: {document.status}")
 
             s3_path = await self.storage_repo.store_file(file_data, document.id, session)

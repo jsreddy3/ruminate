@@ -183,9 +183,9 @@ def get_upload_service(
 ) -> UploadService:
     """Dependency for upload service that composes other dependencies"""
     return UploadService(
-        document_repository=document_repository,
-        storage_repository=storage_repository,
-        marker_service=marker_service,
+        document_repo=document_repository,
+        storage_repo=storage_repository,
+        marker=marker_service,
         critical_content_service=critical_content_service,
         chunking_service=chunking_service
     )
