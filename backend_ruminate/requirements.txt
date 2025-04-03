@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+aiosqlite
+psycopg2-binary
+pydantic-settings
+python-dotenv
+litellm
+google-generativeai
+openai
+PyYAML
+boto3
+nougat-ocr
+pypdf
+tiktoken
