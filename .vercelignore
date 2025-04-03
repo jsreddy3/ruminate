@@ -1,0 +1,14 @@
+# Exclude everything except the frontend_ruminate directory
+/*
+!/frontend_ruminate
+
+# Exclude node_modules and other large directories within frontend_ruminate
+/frontend_ruminate/node_modules
+/frontend_ruminate/.next
+/frontend_ruminate/out
+/frontend_ruminate/build
+/frontend_ruminate/.vercel
+
+# Exclude backend and other directories
+/backend_ruminate
+/.git
