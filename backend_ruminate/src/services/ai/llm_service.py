@@ -3,8 +3,8 @@
 from typing import List, Optional, Dict, Any
 from src.models.conversation.message import Message, MessageRole
 from litellm import acompletion
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
 import base64
 import json
 import logging
