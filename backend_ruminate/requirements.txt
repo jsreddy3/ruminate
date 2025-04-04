@@ -13,3 +13,5 @@ boto3
 nougat-ocr
 pypdf
 tiktoken
+python-multipart
+asyncpg
