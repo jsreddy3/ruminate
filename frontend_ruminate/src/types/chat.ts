@@ -13,7 +13,6 @@ export interface Message {
 export interface ChatPaneProps {
   block: Block;
   documentId: string;
-  conversationId?: string;
-  onConversationCreated: (conversationId: string) => void;
+  conversationId: string;
   onClose: () => void;
 }

@@ -6,18 +6,15 @@ import { useScrollEffect } from './useScrollEffect';
 
 interface UseConversationProps {
   documentId: string;
-  blockId: string;
-  existingConversationId?: string;
-  onConversationCreated: (id: string) => void;
+  conversationId: string;
+  blockId?: string; // Optional, used for context when sending messages
 }
 
 export function useConversation({
   documentId,
-  blockId,
-  existingConversationId,
-  onConversationCreated
+  conversationId,
+  blockId
 }: UseConversationProps) {
-  const [conversationId, setConversationId] = useState<string | null>(existingConversationId || null);
   const [messageTree, setMessageTree] = useState<Message[]>([]);
   const [displayedThread, setDisplayedThread] = useState<Message[]>([]);
   const [messagesById, setMessagesById] = useState<Map<string, Message>>(new Map());
@@ -29,36 +26,24 @@ export function useConversation({
   // Add scroll effect
   useScrollEffect(displayedThread);
 
-  // Initialize conversation
-  useEffect(() => {
-    const initializeConversation = async () => {
-      if (existingConversationId) {
-        setConversationId(existingConversationId);
-      } else {
-        try {
-          const convData = await conversationApi.create(documentId, blockId);
-          setConversationId(convData.id);
-          onConversationCreated(convData.id);
-        } catch (err) {
-          console.error("Error creating conversation:", err);
-        }
-      }
-    };
-
-    initializeConversation();
-  }, [blockId, documentId, existingConversationId, onConversationCreated]);
-
   // Fetch conversation history
   useEffect(() => {
     const fetchConversationHistory = async () => {
-      if (!conversationId) return;
+      if (!conversationId) {
+        setMessageTree([]);
+        setDisplayedThread([]);
+        setMessagesById(new Map());
+        return;
+      }
 
+      setIsLoading(true); // Indicate loading history
       try {
         const messages = await conversationApi.getMessageTree(conversationId);
         
         if (!messages || messages.length === 0) {
           setMessageTree([]);
           setDisplayedThread([]);
+          setMessagesById(new Map());
           return;
         }
 
@@ -70,19 +55,25 @@ export function useConversation({
         setDisplayedThread(activeThread);
       } catch (err) {
         console.error("Error fetching conversation history:", err);
+        // Handle error (e.g., show message)
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchConversationHistory();
   }, [conversationId]);
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, selectedBlockId?: string) => {
     if (!content.trim() || isLoading || !conversationId) return;
     setIsLoading(true);
-    
-    console.log("Sending message:", content);
-    const parentMessage = displayedThread[displayedThread.length - 1];
-    console.log("Parent message:", parentMessage);
+
+    const parentMessage = displayedThread.length > 0 ? displayedThread[displayedThread.length - 1] : messageTree[0]; // Use root if thread empty
+    if (!parentMessage) {
+      console.error("Cannot send message: No parent message found.");
+      setIsLoading(false);
+      return;
+    }
 
     // Create optimistic user message
     const userMessage: Message = {
@@ -95,22 +86,31 @@ export function useConversation({
       created_at: new Date().toISOString()
     };
 
-    // Optimistic update
-    parentMessage.children.push(userMessage);
-    parentMessage.active_child_id = userMessage.id;
-    setDisplayedThread(prev => [...prev, userMessage]);
+    // --- Optimistic Update ---
+    const tempThread = [...displayedThread, userMessage];
+    setDisplayedThread(tempThread);
 
     try {
       const [aiResponse, backendUserId] = await conversationApi.sendMessage(
         conversationId,
         content,
-        parentMessage.id
+        parentMessage.id,
+        selectedBlockId // Pass selected block ID to API
       );
-      
-      userMessage.id = backendUserId;
-      messagesById.set(backendUserId, userMessage);
-      parentMessage.active_child_id = backendUserId;
-      
+
+      // --- Update with Backend Data ---
+      userMessage.id = backendUserId; // Update ID
+      messagesById.set(backendUserId, userMessage); // Add to map with correct ID
+
+      // Update parent's children and active_child_id in the map
+      const parent = messagesById.get(parentMessage.id);
+      if (parent) {
+        if (!parent.children.some(c => c.id === userMessage.id)) { // Avoid duplicates if already optimistically added
+          parent.children.push(userMessage);
+        }
+        parent.active_child_id = userMessage.id;
+      }
+
       const aiMessage: Message = {
         id: aiResponse.id,
         role: aiResponse.role as "user" | "assistant" | "system",
@@ -120,18 +120,28 @@ export function useConversation({
         active_child_id: null,
         created_at: aiResponse.created_at
       };
-
-      userMessage.children.push(aiMessage);
-      userMessage.active_child_id = aiMessage.id;
       messagesById.set(aiMessage.id, aiMessage);
 
-      setDisplayedThread(prev => [...prev, aiMessage]);
+      // Update user message's children and active_child_id in the map
+      userMessage.children.push(aiMessage);
+      userMessage.active_child_id = aiMessage.id;
+
+      // Recalculate displayed thread based on updated map/tree
+      const newActiveThread = getActiveThread(messageTree[0], messagesById);
+      setDisplayedThread(newActiveThread);
+
     } catch (error) {
       console.error("Error sending message:", error);
-      // Revert optimistic update
-      parentMessage.children.pop();
-      parentMessage.active_child_id = null;
+      // Revert optimistic update: remove the temp user message
       setDisplayedThread(prev => prev.slice(0, -1));
+      // Also remove from map if added optimistically
+      messagesById.delete("unset-user-message-id");
+      // Reset parent's active child if needed
+      const parent = messagesById.get(parentMessage.id);
+      if (parent && parent.active_child_id === "unset-user-message-id") {
+        parent.active_child_id = null; // Or find the previous active child if necessary
+      }
+
     } finally {
       setNewMessage("");
       setIsLoading(false);
@@ -203,7 +213,6 @@ export function useConversation({
   };
 
   return {
-    conversationId,
     messageTree,
     displayedThread,
     messagesById,

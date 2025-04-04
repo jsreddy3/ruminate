@@ -26,12 +26,10 @@ const chatEnabledBlockTypes = [
 export default function ChatPane({ 
   block, 
   documentId, 
-  conversationId: existingConversationId,
-  onConversationCreated,
+  conversationId,
   onClose 
 }: ChatPaneProps) {
   const {
-    conversationId,
     messageTree,
     displayedThread,
     messagesById,
@@ -48,9 +46,8 @@ export default function ChatPane({
     setDisplayedThread
   } = useConversation({
     documentId,
+    conversationId,
     blockId: block.id,
-    existingConversationId,
-    onConversationCreated,
   });
 
   const {
@@ -64,7 +61,7 @@ export default function ChatPane({
   });
 
   const handleSend = () => {
-    sendMessage(newMessage);
+    sendMessage(newMessage, block.id);
   };
 
   // Update the condition to check against supported types
@@ -109,11 +106,11 @@ export default function ChatPane({
             )}
 
             {/* Show text annotations only for text blocks */}
-            {block.block_type?.toLowerCase() === 'text' && currentBlockInsight?.annotations?.length > 0 && (
+            {block.block_type?.toLowerCase() === 'text' && currentBlockInsight?.annotations && currentBlockInsight.annotations.length > 0 && (
               <div className="border-t border-neutral-200 pt-4 mt-4">
                 <p className="text-sm font-medium text-neutral-900 mb-2">Key Phrases</p>
                 <div className="space-y-2">
-                  {currentBlockInsight.annotations.map((annotation, idx) => (
+                  {currentBlockInsight?.annotations?.map((annotation, idx) => (
                     <div key={idx} className="bg-neutral-50 p-2 rounded border border-neutral-200">
                       <p className="text-sm font-medium text-primary-800">{annotation.phrase}</p>
                       <p className="text-sm text-neutral-600 mt-1">{annotation.insight}</p>

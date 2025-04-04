@@ -13,6 +13,7 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 class SendMessageRequest(BaseModel):
     content: str
     parent_version_id: Optional[str] = None
+    selected_block_id: Optional[str] = None
 
 class EditMessageRequest(BaseModel):
     content: str
@@ -20,12 +21,11 @@ class EditMessageRequest(BaseModel):
 @router.post("", response_model=Conversation)
 async def create_conversation(
     document_id: str,
-    block_id: Optional[str] = None,
     chat_service: ChatService = Depends(get_chat_service),
     session: Optional[AsyncSession] = Depends(get_db)
 ) -> Conversation:
     """Create a new conversation"""
-    return await chat_service.create_conversation(document_id, block_id, session)
+    return await chat_service.create_conversation(document_id, session)
 
 @router.get("/{conversation_id}", response_model=Conversation)
 async def get_conversation(
@@ -64,6 +64,7 @@ async def send_message(
             conversation_id, 
             request.content, 
             parent_version_id=request.parent_version_id,
+            selected_block_id=request.selected_block_id,
             session=session
         )
     except ValueError as e:
@@ -77,15 +78,6 @@ async def get_document_conversations(
 ) -> List[Conversation]:
     """Get all conversations for a document"""
     return await chat_service.get_document_conversations(document_id, session)
-
-@router.get("/block/{block_id}", response_model=List[Conversation])
-async def get_block_conversations(
-    block_id: str,
-    chat_service: ChatService = Depends(get_chat_service),
-    session: Optional[AsyncSession] = Depends(get_db)
-) -> List[Conversation]:
-    """Get all conversations for a block"""
-    return await chat_service.get_block_conversations(block_id, session)
 
 @router.put("/{conversation_id}/messages/{message_id}", response_model=tuple[Message, str])
 async def edit_message(

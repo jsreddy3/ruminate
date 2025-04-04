@@ -24,15 +24,13 @@ class ChatService:
     def __init__(self, 
                  conversation_repository: ConversationRepository,
                  document_repository: DocumentRepository,
-                 insight_repository: InsightRepository,
                  llm_service: LLMService):
         self.conversation_repo = conversation_repository
         self.document_repo = document_repository
-        self.insight_repository = insight_repository
         self.llm_service = llm_service
         self.context_service = ContextService(conversation_repository, document_repository)
     
-    async def create_conversation(self, document_id: str, block_id: Optional[str] = None, session: Optional[AsyncSession] = None) -> Conversation:
+    async def create_conversation(self, document_id: str, session: Optional[AsyncSession] = None) -> Conversation:
         """Create a new conversation"""
         # Verify document exists
         document = await self.document_repo.get_document(document_id, session)
@@ -41,13 +39,11 @@ class ChatService:
         
         # Create conversation
         conversation = Conversation(
-            document_id=document_id,
-            block_id=block_id,
-            type=ConversationType.BLOCK if block_id else ConversationType.MAIN
+            document_id=document_id
         )
         conversation = await self.conversation_repo.create_conversation(conversation, session)
         
-        # Create system message with document/block context
+        # Create system message with document context
         document = await self.document_repo.get_document(document_id, session)
         if not document:
             raise ValueError(f"Document {document_id} not found")
@@ -57,12 +53,6 @@ class ChatService:
         # Add document summary if available
         if document.summary:
             content += f"\nDocument Summary:\n{document.summary}\n"
-        
-        # Add block context if this is a block conversation
-        if block_id:
-            block = await self.document_repo.get_block(block_id, session)
-            if block:
-                content += f"\nSpecifically about this section:\n{block.html_content}"
         
         # Create and save system message
         system_msg = Message(
@@ -76,20 +66,6 @@ class ChatService:
         # Save conversation and message
         await self.conversation_repo.update_conversation(conversation, session)
         await self.conversation_repo.add_message(system_msg, session)
-        
-        # If this is a block conversation, add the rumination insight as context
-        if block_id:
-            insight = await self.insight_repository.get_block_insight(block_id)
-            if insight and insight.conversation_history:
-                # Add each message from the rumination history
-                for msg in insight.conversation_history:
-                    message = Message(
-                        id=str(uuid.uuid4()),
-                        conversation_id=conversation.id,
-                        role=msg["role"],
-                        content=msg["content"]
-                    )
-                    await self.conversation_repo.add_message(message, session)
         
         return conversation
     
@@ -147,107 +123,85 @@ class ChatService:
         # 3. active_child_id showing which version is current
         return messages
     
-    async def send_message(self, conversation_id: str, content: str, parent_version_id: Optional[str] = None, session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
-        """Send a user message and get AI response"""
-        logger.info(f"Sending message to conversation {conversation_id}")
-        
-        # Get conversation to verify it exists
+    async def send_message(self,
+                           conversation_id: str,
+                           content: str,
+                           parent_version_id: Optional[str] = None,
+                           selected_block_id: Optional[str] = None,
+                           session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
+        """Send a user message and get AI response, incorporating selected block context if provided"""
+        logger.info(f"Sending message to conversation {conversation_id}, selected block: {selected_block_id}")
+
         conversation = await self.conversation_repo.get_conversation(conversation_id, session)
-        logger.info(f"Retrieved conversation: {conversation}")
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             raise ValueError(f"Conversation {conversation_id} not found")
 
-        # Get current thread to find parent
+        # Get parent message ID
         thread = await self.conversation_repo.get_active_thread(conversation_id, session)
-        logger.info(f"Retrieved thread with {len(thread) if thread else 0} messages")
-        logger.info(f"Thread messages: {[msg.content for msg in thread] if thread else []}")
-
-        # If parent_version_id is provided, verify it exists and use it as parent
         parent_id = None
         if parent_version_id:
-            # Find the message in the thread that has this version ID
-            parent_msg = next((msg for msg in thread if msg.id == parent_version_id), None)
-            if not parent_msg:
-                logger.error(f"Parent version {parent_version_id} not found")
-                raise ValueError(f"Parent version {parent_version_id} not found")
-            parent_id = parent_version_id
+             parent_msg = next((msg for msg in thread if msg.id == parent_version_id), None)
+             if not parent_msg:
+                 raise ValueError(f"Parent version {parent_version_id} not found")
+             parent_id = parent_version_id
         else:
-            # Use the last message in thread as parent
-            parent_id = thread[-1].id if thread else None
+             parent_id = thread[-1].id if thread else conversation.root_message_id # Fallback to root if thread is empty
 
-        # Create user message with parent set to specified version or last message
-        try:
-            user_msg = Message(
-                id=str(uuid.uuid4()),
-                conversation_id=conversation_id,
-                role=MessageRole.USER,
-                content=content,
-                parent_id=parent_id
-            )
-            logger.info(f"Created user message: {user_msg}")
-        except Exception as e:
-            logger.error(f"Error creating user message: {e}")
-            raise ValueError(f"Error creating user message: {e}")
-        
-        # Save user message
-        try:
-            await self.conversation_repo.add_message(user_msg, session)
-            logger.info("Saved user message")
-        except Exception as e:
-            logger.error(f"Error saving user message: {e}")
-            raise ValueError(f"Error saving user message: {e}")
-        
-        # Set parent's active_child_id to user message
+        # --- Create User Message ---
+        user_msg_content = content # Keep original user content clean
+        user_msg = Message(
+            id=str(uuid.uuid4()),
+            conversation_id=conversation_id,
+            role=MessageRole.USER,
+            content=user_msg_content,
+            parent_id=parent_id
+        )
+        await self.conversation_repo.add_message(user_msg, session)
         if user_msg.parent_id:
-            try:
-                await self.conversation_repo.set_active_version(user_msg.parent_id, user_msg.id, session)
-                logger.info("Set active version")
-            except Exception as e:
-                logger.error(f"Error setting active version: {e}")
-                raise ValueError(f"Error setting active version: {e}")
-        
-        # Build context and generate response
-        try:
-            context = await self.context_service.build_message_context(conversation_id, user_msg)
-            logger.info(f"Built context with {len(context)} messages")
-            response_content = await self.llm_service.generate_response(context)
-            logger.info("Generated response")
-        except Exception as e:
-            logger.error(f"Error generating response: {e}")
-            raise ValueError(f"Error generating response: {e}")
-        
-        # Create AI response with parent set to user message
-        try:
-            ai_msg = Message(
-                id=str(uuid.uuid4()),
-                conversation_id=conversation_id,
-                role=MessageRole.ASSISTANT,
-                content=response_content,
-                parent_id=user_msg.id
-            )
-            logger.info("Created AI message")
-        except Exception as e:
-            logger.error(f"Error creating AI message: {e}")
-            raise ValueError(f"Error creating AI message: {e}")
-        
-        # Save AI message
-        try:
-            await self.conversation_repo.add_message(ai_msg, session)
-            logger.info("Saved AI message")
-        except Exception as e:
-            logger.error(f"Error saving AI message: {e}")
-            raise ValueError(f"Error saving AI message: {e}")
-        
-        # Set user message's active_child_id to AI message
-        try:
-            await self.conversation_repo.set_active_version(user_msg.id, ai_msg.id, session)
-            logger.info("Set active version for AI message")
-        except Exception as e:
-            logger.error(f"Error setting active version for AI message: {e}")
-            raise ValueError(f"Error setting active version for AI message: {e}")
-        
-        return ai_msg, user_msg.id
+             await self.conversation_repo.set_active_version(user_msg.parent_id, user_msg.id, session)
+
+        # --- Prepare Context for LLM ---
+        # Fetch selected block content if ID provided
+        selected_block_text = None
+        if selected_block_id:
+             block = await self.document_repo.get_block(selected_block_id, session)
+             if block and block.html_content:
+                 # Simple text extraction for context
+                 selected_block_text = re.sub(r'<[^>]+>', ' ', block.html_content).strip()
+                 logger.info(f"Fetched content for selected block {selected_block_id}")
+
+
+        # Build the message list for the LLM
+        context_messages = await self.context_service.build_message_context(conversation_id, user_msg)
+
+        # **Modify the last user message content OR prepend a system message for context**
+        # Here, we modify the user message content sent to LLM (alternative: prepend system message)
+        if selected_block_text:
+             context_messages[-1].content = (
+                 f"Context from selected block (ID: {selected_block_id}):\n"
+                 f"```\n{selected_block_text}\n```\n\n"
+                 f"User query: {user_msg_content}"
+             )
+
+        logger.info(f"Context for LLM (last message modified): {context_messages[-1].content}")
+
+        # --- Generate AI Response ---
+        response_content = await self.llm_service.generate_response(context_messages)
+        logger.info("Generated response")
+
+        # --- Create and Save AI Message ---
+        ai_msg = Message(
+            id=str(uuid.uuid4()),
+            conversation_id=conversation_id,
+            role=MessageRole.ASSISTANT,
+            content=response_content,
+            parent_id=user_msg.id
+        )
+        await self.conversation_repo.add_message(ai_msg, session)
+        await self.conversation_repo.set_active_version(user_msg.id, ai_msg.id, session)
+
+        return ai_msg, user_msg.id # Return AI message and the *actual* user message ID 
     
     async def edit_message(self, message_id: str, content: str, session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""

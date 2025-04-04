@@ -6,15 +6,9 @@ from src.models.base.base_model import BaseModel
 from sqlalchemy import Column, String, JSON, Boolean
 from src.database.base import Base
 
-class ConversationType(str):
-    MAIN = "main"
-    BLOCK = "block"
-
 class Conversation(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     document_id: Optional[str] = None
-    block_id: Optional[str] = None
-    type: str = ConversationType.MAIN
     created_at: datetime = datetime.utcnow()
     meta_data: Optional[Dict[str, Any]] = None
     is_demo: bool = False
@@ -25,6 +19,8 @@ class Conversation(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
+        if 'document_id' not in data or not data['document_id']:
+            raise ValueError("document_id is required for Conversation")
 
     def dict(self, *args, **kwargs):
         d = super().dict(*args, **kwargs)
@@ -44,8 +40,6 @@ class ConversationModel(Base):
     
     id = Column(String, primary_key=True)
     document_id = Column(String, nullable=True, index=True)
-    block_id = Column(String, nullable=True, index=True)
-    type = Column(String, default=ConversationType.MAIN)
     created_at = Column(String)  # Store as ISO format string
     meta_data = Column(JSON, nullable=True)
     is_demo = Column(Boolean, default=False)
