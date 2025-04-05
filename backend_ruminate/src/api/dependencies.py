@@ -207,13 +207,11 @@ def get_graph_service(
 def get_chat_service(
     conversation_repository: ConversationRepository = Depends(get_conversation_repository),
     document_repository: DocumentRepository = Depends(get_document_repository),
-    insight_repository: InsightRepository = Depends(get_insight_repository),
     llm_service: LLMService = Depends(get_llm_service)
 ) -> ChatService:
     """Dependency for chat service"""
     return ChatService(
         conversation_repository=conversation_repository,
         document_repository=document_repository,
-        insight_repository=insight_repository,
         llm_service=llm_service
     )

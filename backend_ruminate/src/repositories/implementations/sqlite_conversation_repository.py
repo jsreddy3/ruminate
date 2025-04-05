@@ -309,25 +309,6 @@ class SQLiteConversationRepository(ConversationRepository):
                     return Conversation.from_dict(data)
         return None
     
-    async def get_block_conversations(self, block_id: str, session: Optional[AsyncSession] = None) -> List[Conversation]:
-        if session:
-            result = await session.execute(
-                text("SELECT data FROM conversations WHERE block_id = :block_id"),
-                {"block_id": block_id}
-            )
-            rows = result.fetchall()
-            return [Conversation.from_dict(json.loads(row[0])) for row in rows]
-
-        conversations = []
-        async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute(
-                "SELECT data FROM conversations WHERE block_id = ?",
-                (block_id,)
-            ) as cursor:
-                async for row in cursor:
-                    data = json.loads(row[0])
-                    conversations.append(Conversation.from_dict(data))
-        return conversations
     
     async def get_active_thread(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         # Get conversation to find root message

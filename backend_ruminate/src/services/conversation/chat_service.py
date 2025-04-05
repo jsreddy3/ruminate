@@ -1,16 +1,15 @@
 from typing import List, Optional, Tuple
-from src.models.conversation.conversation import Conversation, ConversationType
+from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message, MessageRole
 from src.repositories.interfaces.conversation_repository import ConversationRepository
 from src.repositories.interfaces.document_repository import DocumentRepository
-from src.repositories.interfaces.insight_repository import InsightRepository
 from src.services.ai.llm_service import LLMService
 from src.services.ai.context_service import ContextService
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-import json
 from datetime import datetime
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -243,7 +242,3 @@ class ChatService:
     async def get_document_conversations(self, document_id: str, session: Optional[AsyncSession] = None) -> List[Conversation]:
         """Get all conversations for a document"""
         return await self.conversation_repo.get_document_conversations(document_id, session)
-    
-    async def get_block_conversations(self, block_id: str, session: Optional[AsyncSession] = None) -> List[Conversation]:
-        """Get all conversations for a block"""
-        return await self.conversation_repo.get_block_conversations(block_id, session)
