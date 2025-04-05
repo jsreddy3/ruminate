@@ -31,7 +31,6 @@ class SQLiteConversationRepository(ConversationRepository):
                 CREATE TABLE IF NOT EXISTS conversations (
                     id TEXT PRIMARY KEY,
                     document_id TEXT NOT NULL,
-                    block_id TEXT,
                     root_message_id TEXT,
                     data TEXT NOT NULL
                 )
@@ -59,11 +58,10 @@ class SQLiteConversationRepository(ConversationRepository):
         if session:
             # logger.debug("Using SQLAlchemy session")
             await session.execute(
-                text("INSERT INTO conversations (id, document_id, block_id, root_message_id, data) VALUES (:id, :document_id, :block_id, :root_message_id, :data)"),
+                text("INSERT INTO conversations (id, document_id, root_message_id, data) VALUES (:id, :document_id, :root_message_id, :data)"),
                 {
                     "id": conversation.id,
                     "document_id": conversation.document_id,
-                    "block_id": conversation.block_id,
                     "root_message_id": conversation.root_message_id,
                     "data": json.dumps(conversation.model_dump())
                 }
@@ -75,8 +73,8 @@ class SQLiteConversationRepository(ConversationRepository):
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 await db.execute(
-                    "INSERT INTO conversations (id, document_id, block_id, root_message_id, data) VALUES (?, ?, ?, ?, ?)",
-                    (conversation.id, conversation.document_id, conversation.block_id, conversation.root_message_id, json.dumps(conversation.model_dump()))
+                    "INSERT INTO conversations (id, document_id, root_message_id, data) VALUES (?, ?, ?, ?)",
+                    (conversation.id, conversation.document_id, conversation.root_message_id, json.dumps(conversation.model_dump()))
                 )
                 await db.commit()
                 # logger.debug("Successfully created conversation")
@@ -184,8 +182,7 @@ class SQLiteConversationRepository(ConversationRepository):
             role=original_msg.role,
             content=new_content,
             parent_id=original_msg.parent_id,
-            meta_data=original_msg.meta_data,
-            block_id=original_msg.block_id
+            meta_data=original_msg.meta_data
         )
         logger.debug(f"Created new version: {new_msg.id}, parent_id: {new_msg.parent_id}")
         
@@ -457,11 +454,10 @@ class SQLiteConversationRepository(ConversationRepository):
         """Update an existing conversation"""
         if session:
             await session.execute(
-                text("UPDATE conversations SET document_id = :document_id, block_id = :block_id, root_message_id = :root_message_id, data = :data WHERE id = :id"),
+                text("UPDATE conversations SET document_id = :document_id, root_message_id = :root_message_id, data = :data WHERE id = :id"),
                 {
                     "id": conversation.id,
                     "document_id": conversation.document_id,
-                    "block_id": conversation.block_id,
                     "root_message_id": conversation.root_message_id,
                     "data": json.dumps(conversation.model_dump())
                 }
@@ -472,8 +468,8 @@ class SQLiteConversationRepository(ConversationRepository):
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 await db.execute(
-                    "UPDATE conversations SET document_id = ?, block_id = ?, root_message_id = ?, data = ? WHERE id = ?",
-                    (conversation.document_id, conversation.block_id, conversation.root_message_id, json.dumps(conversation.model_dump()), conversation.id)
+                    "UPDATE conversations SET document_id = ?, root_message_id = ?, data = ? WHERE id = ?",
+                    (conversation.document_id, conversation.root_message_id, json.dumps(conversation.model_dump()), conversation.id)
                 )
                 await db.commit()
                 return conversation

@@ -61,3 +61,6 @@ coverage/
 ehthumbs.db
 Thumbs.db
 .vercel
+
+*.pdf
+*.db
