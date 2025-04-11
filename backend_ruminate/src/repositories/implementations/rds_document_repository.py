@@ -169,6 +169,40 @@ class RDSDocumentRepository(DocumentRepository):
         finally:
             if local_session:
                 await session.close()
+                
+    async def get_page_by_number(self, document_id: str, page_number: int, session: Optional[AsyncSession] = None) -> Optional[Page]:
+        """Get a page by its number in a document"""
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Query for page with specific page number
+            result = await session.execute(
+                select(PageModel).where(
+                    PageModel.document_id == document_id,
+                    PageModel.page_number == page_number
+                ).limit(1)
+            )
+            page_model = result.scalars().first()
+            
+            if not page_model:
+                return None
+                
+            # Convert model to page
+            page_dict = {c.name: getattr(page_model, c.name) for c in page_model.__table__.columns}
+            
+            # Rename meta_data back to metadata for Pydantic
+            if 'meta_data' in page_dict:
+                page_dict['metadata'] = page_dict.pop('meta_data')
+                
+            return Page.parse_obj(page_dict)
+        except Exception as e:
+            if local_session:
+                await session.rollback()
+            raise e
+        finally:
+            if local_session:
+                await session.close()
     
     async def store_blocks(self, blocks: List[Block], session: Optional[AsyncSession] = None) -> None:
         """Store blocks in the database"""

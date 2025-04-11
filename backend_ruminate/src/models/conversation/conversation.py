@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from uuid import uuid4
 from pydantic import Field
@@ -13,6 +13,7 @@ class Conversation(BaseModel):
     meta_data: Optional[Dict[str, Any]] = None
     is_demo: bool = False
     root_message_id: Optional[str] = None
+    included_pages: Dict[str, str] = Field(default_factory=dict)  # Maps page_number -> message_id
 
     class Config:
         from_attributes = True  # For SQLAlchemy compatibility
@@ -44,3 +45,4 @@ class ConversationModel(Base):
     meta_data = Column(JSON, nullable=True)
     is_demo = Column(Boolean, default=False)
     root_message_id = Column(String, nullable=True)
+    included_pages = Column(JSON, nullable=True)  # Store as JSON serialized dict

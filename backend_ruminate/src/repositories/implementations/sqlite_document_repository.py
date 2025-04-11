@@ -202,6 +202,28 @@ class SQLiteDocumentRepository(DocumentRepository):
                 rows = await cursor.fetchall()
                 return [Page.parse_raw(row[0]) for row in rows]
     
+    async def get_page_by_number(self, document_id: str, page_number: int, session: Optional[AsyncSession] = None) -> Optional[Page]:
+        """Get a page by its number in a document"""
+        if session:
+            result = await session.execute(
+                text("SELECT data FROM pages WHERE document_id = :doc_id AND json_extract(data, '$.page_number') = :page_num LIMIT 1"),
+                {"doc_id": document_id, "page_num": page_number}
+            )
+            row = result.fetchone()
+            if row:
+                return Page.parse_raw(row[0])
+            return None
+        
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                "SELECT data FROM pages WHERE document_id = ? AND json_extract(data, '$.page_number') = ? LIMIT 1",
+                (document_id, page_number)
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return Page.parse_raw(row[0])
+            return None
+    
     async def get_blocks(self, document_id: str, session: Optional[AsyncSession] = None) -> List[Block]:
         """Get all blocks for a document"""
         if session:

@@ -29,6 +29,12 @@ class ChatService:
         self.llm_service = llm_service
         self.context_service = ContextService(conversation_repository, document_repository)
     
+    def _strip_html(self, html_content: Optional[str]) -> str:
+        """Simple text extraction from HTML content"""
+        if not html_content:
+            return ""
+        return re.sub(r'<[^>]+>', ' ', html_content).strip()
+    
     async def create_conversation(self, document_id: str, session: Optional[AsyncSession] = None) -> Conversation:
         """Create a new conversation"""
         # Verify document exists
@@ -135,6 +141,11 @@ class ChatService:
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             raise ValueError(f"Conversation {conversation_id} not found")
+        
+        # Initialize included_pages if not present
+        if not hasattr(conversation, 'included_pages') or conversation.included_pages is None:
+            conversation.included_pages = {}
+            logger.info(f"Initialized included_pages tracking for conversation {conversation_id}")
 
         # Get parent message ID
         thread = await self.conversation_repo.get_active_thread(conversation_id, session)
@@ -160,30 +171,75 @@ class ChatService:
         if user_msg.parent_id:
              await self.conversation_repo.set_active_version(user_msg.parent_id, user_msg.id, session)
 
-        # --- Prepare Context for LLM ---
-        # Fetch selected block content if ID provided
-        selected_block_text = None
+        # --- Enhanced Context Preparation ---
+        selected_block = None
+        pages_content = ""
+        
         if selected_block_id:
-             block = await self.document_repo.get_block(selected_block_id, session)
-             if block and block.html_content:
-                 # Simple text extraction for context
-                 selected_block_text = re.sub(r'<[^>]+>', ' ', block.html_content).strip()
-                 logger.info(f"Fetched content for selected block {selected_block_id}")
+            selected_block = await self.document_repo.get_block(selected_block_id, session)
+            if selected_block and selected_block.page_number is not None:
+                document_id = selected_block.document_id
+                current_page_num = selected_block.page_number
+                prev_page_num = current_page_num - 1 if current_page_num > 0 else None
+                
+                logger.info(f"Selected block is on page {current_page_num} (document: {document_id})")
+                
+                # Check if current page needs to be included
+                if str(current_page_num) not in conversation.included_pages:
+                    logger.info(f"Current page {current_page_num} not yet included in conversation")
+                    current_page = await self.document_repo.get_page_by_number(document_id, current_page_num, session)
+                    if current_page:
+                        current_page_blocks = await self.document_repo.get_page_blocks(current_page.id, session)
+                        if current_page_blocks:
+                            current_page_text = "\n".join([self._strip_html(block.html_content) for block in current_page_blocks if block.html_content])
+                            pages_content += f"Current page (Page {current_page_num}) content:\n```\n{current_page_text}\n```\n\n"
+                            conversation.included_pages[str(current_page_num)] = user_msg.id
+                            logger.info(f"Added page {current_page_num} to included pages")
+                
+                # Check if previous page needs to be included
+                if prev_page_num is not None and str(prev_page_num) not in conversation.included_pages:
+                    logger.info(f"Previous page {prev_page_num} not yet included in conversation")
+                    prev_page = await self.document_repo.get_page_by_number(document_id, prev_page_num, session)
+                    if prev_page:
+                        prev_page_blocks = await self.document_repo.get_page_blocks(prev_page.id, session)
+                        if prev_page_blocks:
+                            prev_page_text = "\n".join([self._strip_html(block.html_content) for block in prev_page_blocks if block.html_content])
+                            pages_content = f"Previous page (Page {prev_page_num}) content:\n```\n{prev_page_text}\n```\n\n" + pages_content
+                            conversation.included_pages[str(prev_page_num)] = user_msg.id
+                            logger.info(f"Added page {prev_page_num} to included pages")
+                
+                # Update conversation with page tracking info if changes were made
+                if pages_content:
+                    await self.conversation_repo.update_conversation(conversation, session)
+                    logger.info(f"Updated conversation included_pages: {conversation.included_pages}")
 
+        # Add selected block content
+        selected_block_text = None
+        if selected_block and selected_block.html_content:
+            selected_block_text = self._strip_html(selected_block.html_content)
+            logger.info(f"Fetched content for selected block {selected_block_id}")
 
         # Build the message list for the LLM
         context_messages = await self.context_service.build_message_context(conversation_id, user_msg)
 
-        # **Modify the last user message content OR prepend a system message for context**
-        # Here, we modify the user message content sent to LLM (alternative: prepend system message)
+        # Modify the last user message to include page context and selected block
+        enhanced_content = ""
+        
+        # Add page content if any pages were included
+        if pages_content:
+            enhanced_content += pages_content
+        
+        # Add selected block content
         if selected_block_text:
-             context_messages[-1].content = (
-                 f"Context from selected block (ID: {selected_block_id}):\n"
-                 f"```\n{selected_block_text}\n```\n\n"
-                 f"User query: {user_msg_content}"
-             )
-
-        logger.info(f"Context for LLM (last message modified): {context_messages[-1].content}")
+            enhanced_content += f"Selected block content:\n```\n{selected_block_text}\n```\n\n"
+        
+        # Add user query
+        enhanced_content += f"User query: {user_msg_content}"
+        
+        # Only modify the content if we have enhancements
+        if enhanced_content:
+            context_messages[-1].content = enhanced_content
+            logger.info(f"Enhanced context with page and block content")
 
         # --- Generate AI Response ---
         response_content = await self.llm_service.generate_response(context_messages)

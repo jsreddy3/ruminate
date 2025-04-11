@@ -32,6 +32,11 @@ class DocumentRepository(ABC):
     @abstractmethod
     async def get_page_blocks(self, page_id: str, session: Optional[DBSession] = None) -> List[Block]:
         pass
+        
+    @abstractmethod
+    async def get_page_by_number(self, document_id: str, page_number: int, session: Optional[DBSession] = None) -> Optional[Page]:
+        """Get a page by its number in a document"""
+        pass
 
     @abstractmethod
     async def get_blocks(self, document_id: str, session: Optional[DBSession] = None) -> List[Block]:
