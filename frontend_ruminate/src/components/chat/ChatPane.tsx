@@ -67,6 +67,15 @@ export default function ChatPane({
   const blockIsChatEnabled = block.block_type && 
     chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
 
+  // Add a function to handle adding text to chat input
+  const handleAddTextToChat = (text: string) => {
+    setNewMessage((prev) => {
+      // If there's already text, add a space
+      const prefix = prev ? `${prev} ` : '';
+      return `${prefix}"${text}"`;
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-white text-neutral-800 border-l border-neutral-200 shadow-lg">
       {/* Header */}
@@ -96,6 +105,7 @@ export default function ChatPane({
                   block_type={block.block_type} 
                   images={block.images}
                   highlights={[]}
+                  onAddTextToChat={handleAddTextToChat}
                 />
               </div>
             </div>

@@ -10,11 +10,12 @@ import CodeBlock from '../blocks/CodeBlock';
 interface BlockContentProps {
   html_content: string;
   block_type: string;
+  images?: { [key: string]: string };
   highlights?: Array<{
     phrase: string;
     insight: string;
   }>;
-  images?: { [key: string]: string };
+  onAddTextToChat?: (text: string) => void;
 }
 
 const getBlockClassName = (block_type?: string): string => {
@@ -53,7 +54,13 @@ const unsupportedTypes = [
   'pagefooter'
 ].map(type => type.toLowerCase());
 
-export default function BlockContent({ html_content, block_type, highlights = [], images }: BlockContentProps) {
+const BlockContent: React.FC<BlockContentProps> = ({ 
+  html_content, 
+  block_type,
+  images = {},
+  highlights = [],
+  onAddTextToChat
+}) => {
   const type = block_type?.toLowerCase();
 
   // Create a wrapper div that provides consistent styling across all block types
@@ -234,7 +241,10 @@ export default function BlockContent({ html_content, block_type, highlights = []
         block_type={block_type} 
         highlights={highlights} 
         getBlockClassName={getBlockClassName}
+        onAddTextToChat={onAddTextToChat}
       />
     </BlockWrapper>
   );
 }
+
+export default BlockContent;
