@@ -179,7 +179,6 @@ def get_upload_service(
     storage_repository: StorageRepository = Depends(get_storage_repository),
     marker_service: MarkerService = Depends(get_marker_service),
     critical_content_service: CriticalContentService = Depends(get_critical_content_service),
-    chunking_service: ChunkingService = Depends(get_chunking_service)
 ) -> UploadService:
     """Dependency for upload service that composes other dependencies"""
     return UploadService(
@@ -187,7 +186,6 @@ def get_upload_service(
         storage_repo=storage_repository,
         marker=marker_service,
         critical_content_service=critical_content_service,
-        chunking_service=chunking_service
     )
 
 def get_graph_service(
