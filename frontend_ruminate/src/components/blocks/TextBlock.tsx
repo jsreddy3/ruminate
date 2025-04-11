@@ -24,8 +24,9 @@ export default function TextBlock({
   const [selectedText, setSelectedText] = useState<string>('');
   const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [selectionRange, setSelectionRange] = useState<Range | null>(null);
+  const [highlightRects, setHighlightRects] = useState<DOMRect[]>([]);
   const textBlockRef = useRef<HTMLDivElement>(null);
+  const highlightLayerRef = useRef<HTMLDivElement>(null);
 
   // Process the content to add highlight spans
   const processContent = (content: string) => {
@@ -55,6 +56,7 @@ export default function TextBlock({
     const handleSelection = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !textBlockRef.current) {
+        clearHighlightRects();
         return;
       }
 
@@ -71,6 +73,7 @@ export default function TextBlock({
 
       if (!isInComponent) {
         setTooltipVisible(false);
+        clearHighlightRects();
         return;
       }
 
@@ -78,127 +81,100 @@ export default function TextBlock({
       if (text) {
         setSelectedText(text);
         
-        // Store the selection range to apply custom highlighting
+        // Capture the selection range rects
         const range = selection.getRangeAt(0);
-        setSelectionRange(range.cloneRange());
+        const rects = Array.from(range.getClientRects());
         
-        const rect = range.getBoundingClientRect();
+        // Store the rectangles for rendering custom highlights
+        setHighlightRects(rects);
         
-        // Calculate position relative to the viewport
-        const x = rect.left + rect.width / 2;
-        const y = rect.top;
-        
-        setTooltipPosition({ x, y });
-        setTooltipVisible(true);
-
-        // Apply custom highlighting
-        applyCustomHighlight(range);
+        // Position the tooltip above the first rect
+        if (rects.length > 0) {
+          const firstRect = rects[0];
+          const x = firstRect.left + firstRect.width / 2;
+          const y = firstRect.top;
+          setTooltipPosition({ x, y });
+          setTooltipVisible(true);
+        }
       } else {
-        clearCustomHighlight();
         setTooltipVisible(false);
+        clearHighlightRects();
       }
     };
 
     const handleClickOutside = (e: MouseEvent) => {
       if (textBlockRef.current && !textBlockRef.current.contains(e.target as Node)) {
-        clearCustomHighlight();
         setTooltipVisible(false);
+        clearHighlightRects();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setTooltipVisible(false);
+        clearHighlightRects();
       }
     };
 
     document.addEventListener('mouseup', handleSelection);
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     
     return () => {
       document.removeEventListener('mouseup', handleSelection);
       document.removeEventListener('mousedown', handleClickOutside);
-      clearCustomHighlight();
+      document.removeEventListener('keydown', handleKeyDown);
+      clearHighlightRects();
     };
   }, []);
 
-  // Apply custom highlight to selected text
-  const applyCustomHighlight = (range: Range) => {
-    // If there's an existing highlight, clear it first
-    clearCustomHighlight();
-    
-    try {
-      // Log for debugging
-      console.log('Applying custom highlight to:', range.toString());
-      
-      // Create a unique ID for this highlight
-      const highlightId = `selection-highlight-${Date.now()}`;
-      
-      // Create a span element to wrap the selection
-      const span = document.createElement('span');
-      span.id = highlightId;
-      span.className = 'custom-text-selection';
-      
-      // Attempt to surround the contents - this can fail with complex HTML
-      try {
-        // Clone range to avoid modifying the selection
-        const clonedRange = range.cloneRange();
-        
-        // Attempt to surround the selection with our span
-        clonedRange.surroundContents(span);
-        
-        // Store the ID so we can find and remove it later
-        span.dataset.highlightId = highlightId;
-        
-        console.log('Successfully applied highlight with ID:', highlightId);
-      } catch (e) {
-        console.error('Error wrapping selection:', e);
-        
-        // Fallback method - CSS-only approach
-        document.documentElement.classList.add('showing-selection');
-        console.log('Using CSS fallback for selection highlight');
-      }
-    } catch (e) {
-      console.error('Error in applyCustomHighlight:', e);
-    }
-  };
-
-  // Clear custom highlighting
-  const clearCustomHighlight = () => {
-    try {
-      console.log('Clearing custom highlights');
-      
-      // Find and remove any existing custom highlights
-      const highlights = document.getElementsByClassName('custom-text-selection');
-      console.log('Found highlights to clear:', highlights.length);
-      
-      while (highlights.length > 0) {
-        const highlight = highlights[0];
-        const parent = highlight.parentNode;
-        
-        if (parent) {
-          // Move all children out of the highlight span
-          while (highlight.firstChild) {
-            parent.insertBefore(highlight.firstChild, highlight);
-          }
-          // Remove the empty highlight span
-          parent.removeChild(highlight);
-        }
-      }
-      
-      // Remove CSS fallback class
-      document.documentElement.classList.remove('showing-selection');
-      
-      setSelectionRange(null);
-    } catch (e) {
-      console.error('Error in clearCustomHighlight:', e);
-    }
+  const clearHighlightRects = () => {
+    setHighlightRects([]);
   };
 
   const handleAddToChat = (text: string) => {
     if (onAddTextToChat) {
       onAddTextToChat(text);
-      clearCustomHighlight();
       setTooltipVisible(false);
+      clearHighlightRects();
     }
   };
 
+  // Render custom highlight elements based on the selection rects
+  const renderHighlights = () => {
+    if (!textBlockRef.current || highlightRects.length === 0) return null;
+    
+    // Get the container's position to calculate relative positions
+    const containerRect = textBlockRef.current.getBoundingClientRect();
+    
+    return highlightRects.map((rect, index) => {
+      // Convert client coordinates to positions relative to the container
+      const left = rect.left - containerRect.left;
+      const top = rect.top - containerRect.top;
+      
+      return (
+        <div
+          key={`highlight-${index}`}
+          style={{
+            position: 'absolute',
+            left: `${left}px`,
+            top: `${top}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+            backgroundColor: 'rgba(99, 102, 241, 0.2)',
+            borderBottom: '1px solid rgba(99, 102, 241, 0.4)',
+            pointerEvents: 'none',
+            // Set z-index below the text
+            zIndex: 0,
+            mixBlendMode: 'multiply'
+          }}
+        />
+      );
+    });
+  };
+
   return (
-    <div className="p-0 mb-0" ref={textBlockRef}>      
+    <div className="p-0 mb-0 relative" ref={textBlockRef}>      
       <div className="relative">
         <div
           className={`p-4 bg-slate-50 text-slate-900 rounded-md border-l-4 border-l-indigo-500 border-t border-r border-b border-slate-200 font-reading leading-relaxed shadow-md ${getBlockClassName(block_type)}`}
@@ -207,6 +183,10 @@ export default function TextBlock({
             __html: processContent(html_content)
           }}
         />
+        {/* Custom highlight overlay - positioned after text to allow selection */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" ref={highlightLayerRef}>
+          {renderHighlights()}
+        </div>
 
         {activeInsight && (
           <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-white rounded-lg border border-neutral-200 shadow-lg z-10">
@@ -228,7 +208,10 @@ export default function TextBlock({
           position={tooltipPosition}
           selectedText={selectedText}
           onAddToChat={handleAddToChat}
-          onClose={() => setTooltipVisible(false)}
+          onClose={() => {
+            setTooltipVisible(false);
+            clearHighlightRects();
+          }}
         />
       </div>
 
@@ -244,18 +227,7 @@ export default function TextBlock({
           background-color: rgba(255, 243, 141, 0.5);
         }
         
-        /* Custom selection highlight */
-        .custom-text-selection {
-          background-color: rgba(99, 102, 241, 0.12) !important;
-          border-radius: 2px !important;
-          box-shadow: 0 1px 0 rgba(99, 102, 241, 0.4) !important;
-        }
-        
-        /* CSS fallback selection highlight that preserves browser selection */
-        html.showing-selection ::selection {
-          background-color: rgba(99, 102, 241, 0.25) !important;
-          color: inherit !important;
-        }
+
         
         /* Improve text readability */
         .prose {
