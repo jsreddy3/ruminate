@@ -63,24 +63,24 @@ async def initialize_repositories():
             from src.models.rumination.chunk_index import ChunkIndexModel
             
             # Create tables
-            # async with engine.begin() as conn:
-            #     # For PostgreSQL, drop and recreate tables for clean start
-            #     if settings.document_storage_type == "rds":
-            #         try:
-            #             # Drop all tables first to ensure clean start with new schema
-            #             await conn.run_sync(Base.metadata.drop_all)
-            #             logger.info(f"Dropped existing tables for {settings.document_storage_type}")
+            async with engine.begin() as conn:
+                # For PostgreSQL, drop and recreate tables for clean start
+                if settings.document_storage_type == "rds":
+                    try:
+                        # Drop all tables first to ensure clean start with new schema
+                        await conn.run_sync(Base.metadata.drop_all)
+                        logger.info(f"Dropped existing tables for {settings.document_storage_type}")
                         
-            #             # Create tables with new schema
-            #             await conn.run_sync(Base.metadata.create_all)
-            #             logger.info(f"Database tables created for {settings.document_storage_type}")
-            #         except Exception as e:
-            #             logger.error(f"Error setting up database tables: {str(e)}")
-            #             raise
-            #     else:
-            #         # For SQLite, just create tables if they don't exist
-            #         await conn.run_sync(Base.metadata.create_all)
-            #         logger.info(f"Database tables created or verified for {settings.document_storage_type}")
+                        # Create tables with new schema
+                        await conn.run_sync(Base.metadata.create_all)
+                        logger.info(f"Database tables created for {settings.document_storage_type}")
+                    except Exception as e:
+                        logger.error(f"Error setting up database tables: {str(e)}")
+                        raise
+                else:
+                    # For SQLite, just create tables if they don't exist
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info(f"Database tables created or verified for {settings.document_storage_type}")
                 
         except Exception as e:
             logger.error(f"Error initializing database: {str(e)}")

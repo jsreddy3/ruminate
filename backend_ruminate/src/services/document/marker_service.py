@@ -101,14 +101,14 @@ class MarkerService:
         logger.info(f"Found {len(children)} top-level children in response")
         
         # Process each page in the response
-        for page_idx, page_data in enumerate(children):
+        for page_number, page_data in enumerate(children):
             if page_data.get('block_type') != 'Page':  # Only process Page blocks
                 logger.warning(f"Skipping non-Page block at top level: {page_data.get('block_type')}")
                 continue
                 
             # Create the page
             page = Page(
-                page_number=page_idx,
+                page_number=page_number,  # Sequential page number (0-based)
                 polygon=page_data.get('polygon'),
                 html_content=page_data.get('html', ""),
                 document_id=document_id,
@@ -117,13 +117,13 @@ class MarkerService:
             )
             pages.append(page)
             
-            logger.info(f"Created page {page_idx} with ID: {page.id}")
+            logger.info(f"Created page {page_number} with ID: {page.id}")
             
             # Process blocks in this page
-            page_blocks = self._process_blocks(page_data.get('children', []), document_id, page.id, page_idx)
+            page_blocks = self._process_blocks(page_data.get('children', []), document_id, page.id, page_number)
             blocks.extend(page_blocks)
             
-            logger.info(f"Processed {len(page_blocks)} blocks for page {page_idx}")
+            logger.info(f"Processed {len(page_blocks)} blocks for page {page_number}")
             
             # Add block IDs to page
             for block in page_blocks:
@@ -137,11 +137,13 @@ class MarkerService:
         logger.debug(f"Processing {len(block_list)} blocks for page {page_number}, page_id: {page_id}")
         
         for block_data in block_list:
-            # Create block with document_id
-            block = Block.from_marker_block(marker_block=block_data, document_id=document_id, page_id=page_id)
-            
-            # Set the page number explicitly
-            block.page_number = page_number
+            # Create block with document_id and page_number passed directly to constructor
+            block = Block.from_marker_block(
+                marker_block=block_data, 
+                document_id=document_id, 
+                page_id=page_id,
+                page_number=page_number
+            )
             
             logger.debug(f"Created block type: {block.block_type}, page: {block.page_number}, id: {block.id}")
             blocks.append(block)

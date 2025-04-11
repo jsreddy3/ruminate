@@ -58,7 +58,7 @@ class Block(BaseModel):
         use_enum_values = True
 
     @classmethod
-    def from_marker_block(cls, marker_block: Dict, document_id: str, page_id: str) -> 'Block':
+    def from_marker_block(cls, marker_block: Dict, document_id: str, page_id: str, page_number: int = None) -> 'Block':
         """Create a Block from Marker API response"""
         assert marker_block.get('block_type', None) is not None, "Block type is None"
         return cls(
@@ -70,6 +70,7 @@ class Block(BaseModel):
             section_hierarchy=marker_block.get('section_hierarchy'),
             metadata=marker_block.get('metadata'),
             images=marker_block.get('images'),
+            page_number=page_number,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
