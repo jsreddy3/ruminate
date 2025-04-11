@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Worker, Viewer } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
@@ -103,7 +103,80 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // New state for chunks and chunk boundary visibility
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [showChunkBoundaries, setShowChunkBoundaries] = useState(false);
+  // State to track all blocks in flattened form for navigation
+  const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
 
+  // Flatten blocks for easy navigation
+  useEffect(() => {
+    if (blocks.length > 0) {
+      // First, collect all non-page blocks with content and that are chat-enabled
+      const contentBlocks = blocks.filter(block => 
+        block.block_type && 
+        block.block_type.toLowerCase() !== "page" && 
+        block.html_content && 
+        chatEnabledBlockTypes.includes(block.block_type.toLowerCase())
+      );
+
+      // Flatten any blocks with children into a single array
+      const flattenAllBlocks = (blocksToProcess: Block[]): Block[] => {
+        const result: Block[] = [];
+        
+        for (const block of blocksToProcess) {
+          // Only add blocks that are chat-enabled
+          if (block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase())) {
+            // Add the current block
+            result.push(block);
+          }
+          
+          // Recursively add any chat-enabled children
+          if (block.children && block.children.length > 0) {
+            // Ensure children inherit the parent's page number if they don't have one
+            for (const child of block.children) {
+              if (typeof child.page_number !== 'number' && typeof block.page_number === 'number') {
+                child.page_number = block.page_number;
+              }
+            }
+            
+            // Only add children that are chat-enabled
+            const chatEnabledChildren = block.children.filter(
+              child => child.block_type && chatEnabledBlockTypes.includes(child.block_type.toLowerCase())
+            );
+            
+            result.push(...flattenAllBlocks(chatEnabledChildren));
+          }
+        }
+        
+        return result;
+      };
+      
+      // Get all chat-enabled blocks including children
+      const allBlocks = flattenAllBlocks(contentBlocks);
+      
+      // Sort blocks properly by page_number and position
+      allBlocks.sort((a, b) => {
+        // First sort by page_number
+        if ((a.page_number ?? 0) !== (b.page_number ?? 0)) {
+          return (a.page_number ?? 0) - (b.page_number ?? 0);
+        }
+        
+        // If on same page, sort by vertical position (top-to-bottom)
+        if (a.polygon?.[0]?.[1] && b.polygon?.[0]?.[1]) {
+          return a.polygon[0][1] - b.polygon[0][1];
+        }
+        
+        // For blocks at same vertical position, sort by horizontal position (left-to-right)
+        if (a.polygon?.[0]?.[0] && b.polygon?.[0]?.[0]) {
+          return a.polygon[0][0] - b.polygon[0][0];
+        }
+        
+        return 0;
+      });
+      
+      // Update state with the sorted blocks
+      setFlattenedBlocks(allBlocks);
+    }
+  }, [blocks]);
+  
   // Fetch blocks when component mounts
   useEffect(() => {
     const fetchBlocks = async () => {
@@ -479,6 +552,88 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const isChatEnabled = selectedBlock?.block_type && 
     chatEnabledBlockTypes.includes(selectedBlock.block_type.toLowerCase());
 
+  // Block navigation functions - defined after chatEnabledBlockTypes to avoid reference errors
+  const handlePreviousBlock = useCallback(() => {
+    if (!selectedBlock) return;
+    
+    // Find current block index in the flattened blocks array
+    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
+    
+    if (currentIndex > 0) {
+      // Start from the previous block and find the first chat-enabled one
+      let prevIndex = currentIndex - 1;
+      while (prevIndex >= 0) {
+        const prevBlock = flattenedBlocks[prevIndex];
+        // Check if block is chat-enabled
+        if (prevBlock.block_type && 
+            chatEnabledBlockTypes.includes(prevBlock.block_type.toLowerCase()) &&
+            prevBlock.html_content) {
+          // Found a chat-enabled block
+          setSelectedBlock(prevBlock);
+          return;
+        }
+        prevIndex--;
+      }
+    }
+  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
+
+  const handleNextBlock = useCallback(() => {
+    if (!selectedBlock) return;
+    
+    // Find current block index in the flattened blocks array
+    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
+    
+    if (currentIndex < flattenedBlocks.length - 1) {
+      // Start from the next block and find the first chat-enabled one
+      let nextIndex = currentIndex + 1;
+      while (nextIndex < flattenedBlocks.length) {
+        const nextBlock = flattenedBlocks[nextIndex];
+        // Check if block is chat-enabled
+        if (nextBlock.block_type && 
+            chatEnabledBlockTypes.includes(nextBlock.block_type.toLowerCase()) &&
+            nextBlock.html_content) {
+          // Found a chat-enabled block
+          setSelectedBlock(nextBlock);
+          return;
+        }
+        nextIndex++;
+      }
+    }
+  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
+  
+  // Determine if there are previous/next blocks available
+  const hasPreviousBlock = useMemo(() => {
+    if (!selectedBlock || flattenedBlocks.length === 0) return false;
+    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
+    
+    // Check if there are any previous blocks that are chat-enabled
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const block = flattenedBlocks[i];
+      if (block.block_type && 
+          chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) && 
+          block.html_content) {
+        return true;
+      }
+    }
+    return false;
+  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
+  
+  const hasNextBlock = useMemo(() => {
+    if (!selectedBlock || flattenedBlocks.length === 0) return false;
+    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
+    
+    // Check if there are any next blocks that are chat-enabled
+    for (let i = currentIndex + 1; i < flattenedBlocks.length; i++) {
+      const block = flattenedBlocks[i];
+      if (block.block_type && 
+          chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) && 
+          block.html_content) {
+        return true;
+      }
+    }
+    return false;
+  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
+
   // Add state for chat pane width
   const [chatPaneWidth, setChatPaneWidth] = useState(384);
 
@@ -583,6 +738,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               documentId={documentId}
               conversationId={documentConversationId}
               onClose={() => setSelectedBlock(null)}
+              onNextBlock={handleNextBlock}
+              onPreviousBlock={handlePreviousBlock}
+              hasNextBlock={hasNextBlock}
+              hasPreviousBlock={hasPreviousBlock}
             />
           </ResizablePanel>
         )}

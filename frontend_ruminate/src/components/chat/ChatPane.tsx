@@ -28,7 +28,11 @@ export default function ChatPane({
   block, 
   documentId, 
   conversationId,
-  onClose 
+  onClose,
+  onNextBlock,
+  onPreviousBlock,
+  hasNextBlock,
+  hasPreviousBlock
 }: ChatPaneProps) {
   // Track current block ID to handle block changes without remounting
   const [currentBlockId, setCurrentBlockId] = useState(block.id);
@@ -80,10 +84,37 @@ export default function ChatPane({
     <div className="h-full flex flex-col bg-white text-neutral-800 border-l border-neutral-200 shadow-lg">
       {/* Header */}
       <div className="p-4 flex items-center justify-between bg-neutral-50 border-b border-neutral-200">
-        <h2 className="font-semibold text-neutral-800">Block Content & Chat</h2>
+        <div className="flex items-center">
+          <div className="flex mr-3">
+            <button 
+              onClick={onPreviousBlock} 
+              disabled={!hasPreviousBlock}
+              className="p-1.5 rounded hover:bg-neutral-200 text-neutral-500 hover:text-neutral-700 transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Previous Block"
+              aria-label="Navigate to previous block"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+              </svg>
+            </button>
+            <button 
+              onClick={onNextBlock} 
+              disabled={!hasNextBlock}
+              className="p-1.5 rounded hover:bg-neutral-200 text-neutral-500 hover:text-neutral-700 transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Next Block"
+              aria-label="Navigate to next block"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+              </svg>
+            </button>
+          </div>
+          <h2 className="font-semibold text-neutral-800">Block Content & Chat</h2>
+        </div>
         <button 
           onClick={onClose} 
           className="p-1 rounded-full hover:bg-neutral-200 text-neutral-500 hover:text-neutral-700 transition-colors duration-200"
+          aria-label="Close panel"
         >
           ✕
         </button>

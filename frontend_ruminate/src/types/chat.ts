@@ -15,4 +15,8 @@ export interface ChatPaneProps {
   documentId: string;
   conversationId: string;
   onClose: () => void;
+  onNextBlock?: () => void;
+  onPreviousBlock?: () => void;
+  hasNextBlock?: boolean;
+  hasPreviousBlock?: boolean;
 }
