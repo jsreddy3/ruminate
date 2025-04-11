@@ -240,6 +240,21 @@ class ChatService:
         if enhanced_content:
             context_messages[-1].content = enhanced_content
             logger.info(f"Enhanced context with page and block content")
+        
+        # Log detailed context information for verification
+        logger.info("---------- CONTEXT VERIFICATION ----------")
+        logger.info(f"Conversation ID: {conversation_id}")
+        logger.info(f"Included Pages: {conversation.included_pages}")
+        if selected_block:
+            logger.info(f"Selected Block: ID={selected_block_id}, Page={selected_block.page_number}")
+        
+        # Log the messages being sent to the LLM
+        logger.info("Messages being sent to LLM:")
+        for i, msg in enumerate(context_messages):
+            # Truncate long content for readability in logs
+            content_preview = msg.content[:500] + "..." if len(msg.content) > 500 else msg.content
+            logger.info(f"  Message {i+1}: Role={msg.role}, Content Preview={content_preview}")
+        logger.info("----------------------------------------")
 
         # --- Generate AI Response ---
         response_content = await self.llm_service.generate_response(context_messages)
