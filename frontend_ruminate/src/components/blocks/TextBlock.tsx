@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import TextSelectionTooltip from '../ui/TextSelectionTooltip';
+import DefinitionTooltip from '../ui/DefinitionTooltip';
 
 export interface TextBlockProps {
   html_content: string;
@@ -23,10 +24,12 @@ export default function TextBlock({
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [selectedText, setSelectedText] = useState<string>('');
   const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
+  const [definitionVisible, setDefinitionVisible] = useState<boolean>(false);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [highlightRects, setHighlightRects] = useState<DOMRect[]>([]);
   const textBlockRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
+  const definitionTooltipRef = useRef<HTMLDivElement>(null);
 
   // Process the content to add highlight spans
   const processContent = (content: string) => {
@@ -140,6 +143,12 @@ export default function TextBlock({
     }
   };
 
+  const handleDefine = (text: string) => {
+    setDefinitionVisible(true);
+    setTooltipVisible(false);
+    // We'll maintain the highlight rects to keep the text highlighted
+  };
+
   // Render custom highlight elements based on the selection rects
   const renderHighlights = () => {
     if (!textBlockRef.current || highlightRects.length === 0) return null;
@@ -202,17 +211,30 @@ export default function TextBlock({
           </div>
         )}
 
-        {/* Text selection tooltip */}
-        <TextSelectionTooltip
-          isVisible={tooltipVisible}
-          position={tooltipPosition}
-          selectedText={selectedText}
-          onAddToChat={handleAddToChat}
-          onClose={() => {
-            setTooltipVisible(false);
-            clearHighlightRects();
-          }}
-        />
+        {/* Selection tooltip or definition tooltip */}
+        {tooltipVisible ? (
+          <TextSelectionTooltip
+            isVisible={true}
+            position={tooltipPosition}
+            selectedText={selectedText}
+            onAddToChat={handleAddToChat}
+            onDefine={handleDefine}
+            onClose={() => {
+              setTooltipVisible(false);
+              clearHighlightRects();
+            }}
+          />
+        ) : (
+          <DefinitionTooltip
+            isVisible={definitionVisible}
+            position={tooltipPosition}
+            term={selectedText}
+            onClose={() => {
+              setDefinitionVisible(false);
+              clearHighlightRects();
+            }}
+          />
+        )}
       </div>
 
       <style jsx global>{`

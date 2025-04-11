@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus, BookOpen } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
   isVisible: boolean;
   position: { x: number, y: number };
   selectedText: string;
   onAddToChat: (text: string) => void;
+  onDefine?: (text: string) => void;
   actions?: Array<{
     label: string;
     icon?: React.ReactNode;
@@ -19,6 +20,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   position,
   selectedText,
   onAddToChat,
+  onDefine,
   actions = [],
   onClose,
 }) => {
@@ -58,13 +60,18 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
 
   if (!isVisible) return null;
 
-  // Default action if none provided
+  // Default actions if none provided
   const defaultActions = actions.length > 0 ? actions : [
     {
       label: 'Add to chat',
       icon: <MessageSquarePlus size={16} />,
       onClick: onAddToChat,
-    }
+    },
+    ...( onDefine ? [{
+      label: 'Define',
+      icon: <BookOpen size={16} />,
+      onClick: onDefine,
+    }] : [])
   ];
 
   // Adjust position to ensure tooltip is visible
