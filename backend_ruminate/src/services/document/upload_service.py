@@ -13,7 +13,6 @@ from src.repositories.interfaces.document_repository import DocumentRepository
 from src.repositories.interfaces.storage_repository import StorageRepository
 from src.services.document.marker_service import MarkerService
 from src.services.document.critical_content_service import CriticalContentService
-from src.services.document.chunking_service import ChunkingService
 from src.api.sse_manager import publish_status, cleanup_queue
 import re
 logging.basicConfig(level=logging.INFO)
@@ -26,13 +25,11 @@ class UploadService:
         storage_repo: StorageRepository,
         marker: MarkerService,
         critical_content_service: CriticalContentService,
-        chunking_service: ChunkingService,
         document_repo: DocumentRepository
     ):
         self.storage_repo = storage_repo
         self.marker = marker
         self.critical_content_service = critical_content_service
-        self.chunking_service = chunking_service
         self.document_repo = document_repo
 
     async def _process_document_background(
@@ -72,11 +69,7 @@ class UploadService:
 
             # 3. Chunking
             await publish_status(document_id, {"status": "CHUNKING", "detail": "Chunking document content..."})
-            chunks = await self.chunking_service.process_document(blocks)
-            await self.document_repo.store_chunks(chunks, session)
-            document.chunk_ids = [str(c.id) for c in chunks] 
-            logger.info(f"Stored {len(chunks)} chunks for document {document_id}")
-            await publish_status(document_id, {"status": "CHUNKING_COMPLETE", "detail": f"Chunking complete. Created {len(chunks)} chunks."})
+            await publish_status(document_id, {"status": "CHUNKING_COMPLETE", "detail": "Chunking complete."})
 
             # 4. Finalize - Set status to READY
             document.status = DocumentStatus.READY

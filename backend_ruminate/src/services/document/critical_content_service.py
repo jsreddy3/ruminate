@@ -38,7 +38,7 @@ class CriticalContentService:
         
         try:
             summary = await self.llm_service.generate_response(messages)
-            self.logger.info("Generated document summary:", summary)
+            self.logger.info("Generated document summary")
             return summary
         except Exception as e:
             self.logger.error(f"Error generating document summary: {e}")
