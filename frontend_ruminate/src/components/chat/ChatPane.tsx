@@ -1,8 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { ChatPaneProps } from "../../types/chat";
 import { useConversation } from "../../hooks/useConversation";
-import { useInsights } from "../../hooks/useInsights";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import BlockContent from "./BlockContent";
@@ -29,6 +29,14 @@ export default function ChatPane({
   conversationId,
   onClose 
 }: ChatPaneProps) {
+  // Track current block ID to handle block changes without remounting
+  const [currentBlockId, setCurrentBlockId] = useState(block.id);
+
+  // Update currentBlockId when block prop changes
+  useEffect(() => {
+    setCurrentBlockId(block.id);
+  }, [block.id]);
+
   const {
     messageTree,
     displayedThread,
@@ -47,21 +55,11 @@ export default function ChatPane({
   } = useConversation({
     documentId,
     conversationId,
-    blockId: block.id,
-  });
-
-  const {
-    currentBlockInsight,
-    isLoading: isInsightLoading,
-    error: insightError,
-    analyzeBlock
-  } = useInsights({
-    documentId,
-    blockId: block.id
+    blockId: currentBlockId, // Use the state variable instead of direct prop
   });
 
   const handleSend = () => {
-    sendMessage(newMessage, block.id);
+    sendMessage(newMessage, currentBlockId);
   };
 
   // Update the condition to check against supported types
@@ -81,15 +79,12 @@ export default function ChatPane({
         </button>
       </div>
 
-      {/* Block Content Display with Insights */}
+      {/* Block Content Display */}
       <BlockContent 
         html_content={block.html_content} 
         block_type={block.block_type} 
         images={block.images}
-        highlights={currentBlockInsight?.annotations.map(a => ({
-          phrase: a.phrase,
-          insight: a.insight
-        }))}
+        highlights={[]}
       />
 
       {/* Chat area */}
@@ -97,29 +92,6 @@ export default function ChatPane({
         <div className="flex-1 flex flex-col min-h-0">
           {/* Messages */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-white messages-container">
-            {/* Show insight summary if available */}
-            {currentBlockInsight && (
-              <div className="bg-primary-50 p-3 rounded-lg shadow-sm border border-primary-100 mb-4">
-                <p className="text-sm font-medium text-primary-900 mb-1">AI Analysis</p>
-                <p className="text-sm text-primary-800 whitespace-pre-wrap">{currentBlockInsight.insight}</p>
-              </div>
-            )}
-
-            {/* Show text annotations only for text blocks */}
-            {block.block_type?.toLowerCase() === 'text' && currentBlockInsight?.annotations && currentBlockInsight.annotations.length > 0 && (
-              <div className="border-t border-neutral-200 pt-4 mt-4">
-                <p className="text-sm font-medium text-neutral-900 mb-2">Key Phrases</p>
-                <div className="space-y-2">
-                  {currentBlockInsight?.annotations?.map((annotation, idx) => (
-                    <div key={idx} className="bg-neutral-50 p-2 rounded border border-neutral-200">
-                      <p className="text-sm font-medium text-primary-800">{annotation.phrase}</p>
-                      <p className="text-sm text-neutral-600 mt-1">{annotation.insight}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {displayedThread
               .filter((message) => message.role !== "system")
               .map((message) => (
@@ -155,7 +127,7 @@ export default function ChatPane({
           {/* Input area */}
           <ChatInput
             value={newMessage}
-            isLoading={isChatLoading || isInsightLoading}
+            isLoading={isChatLoading}
             onChange={(e) => setNewMessage(e.target.value)}
             onSend={handleSend}
           />

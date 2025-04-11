@@ -62,7 +62,7 @@ export function useConversation({
     };
 
     fetchConversationHistory();
-  }, [conversationId]);
+  }, [conversationId]); // Only depends on conversationId, not blockId
 
   const sendMessage = async (content: string, selectedBlockId?: string) => {
     if (!content.trim() || isLoading || !conversationId) return;

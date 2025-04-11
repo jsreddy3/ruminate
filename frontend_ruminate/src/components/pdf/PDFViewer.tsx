@@ -578,7 +578,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             onResize={setChatPaneWidth}
           >
             <ChatPane
-              key={`${documentConversationId}-${selectedBlock.id}`}
+              key={documentConversationId}
               block={selectedBlock}
               documentId={documentId}
               conversationId={documentConversationId}
