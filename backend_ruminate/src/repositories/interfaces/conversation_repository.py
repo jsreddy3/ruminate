@@ -36,10 +36,6 @@ class ConversationRepository(ABC):
         """Get all messages for a conversation"""
         pass
     
-    @abstractmethod
-    async def get_block_conversations(self, block_id: str, session: Optional[DBSession] = None) -> List[Conversation]:
-        """Get all conversations for a block"""
-        pass
 
     @abstractmethod
     async def edit_message(self, message_id: str, new_content: str, session: Optional[DBSession] = None) -> Tuple[Message, str]:

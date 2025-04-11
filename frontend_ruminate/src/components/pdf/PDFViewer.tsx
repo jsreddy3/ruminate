@@ -13,6 +13,7 @@ import MathJaxProvider from "../providers/MathJaxProvider";
 import RuminateButton from "../viewer/RuminateButton";
 import ObjectiveSelector from "../viewer/ObjectiveSelector";
 import { useRumination } from "../../hooks/useRumination";
+import { conversationApi } from "../../services/api/conversation";
 
 export interface Block {
   id: string;
@@ -97,7 +98,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [documentId] = useState<string>(initialDocumentId);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
-  const [blockConversations, setBlockConversations] = useState<{[blockId: string]: string}>({});
+  const [documentConversationId, setDocumentConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // New state for chunks and chunk boundary visibility
   const [chunks, setChunks] = useState<Chunk[]>([]);
@@ -131,6 +132,31 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     if (documentId) {
       fetchBlocks();
     }
+  }, [documentId]);
+
+  // Initialize document conversation
+  useEffect(() => {
+    const initializeDocumentConversation = async () => {
+      if (!documentId) return;
+      try {
+        // Try fetching existing conversations for the document
+        const existingConvos = await conversationApi.getDocumentConversations(documentId);
+        // Simple strategy: use the first one found, or create if none exist
+        if (existingConvos && existingConvos.length > 0) {
+          setDocumentConversationId(existingConvos[0].id);
+          console.log("Using existing document conversation:", existingConvos[0].id);
+        } else {
+          console.log("No existing document conversation found, creating new one...");
+          // Create a document-level conversation
+          const newConv = await conversationApi.create(documentId);
+          setDocumentConversationId(newConv.id);
+          console.log("Created new document conversation:", newConv.id);
+        }
+      } catch (error) {
+        console.error("Error initializing document conversation:", error);
+      }
+    };
+    initializeDocumentConversation();
   }, [documentId]);
 
   const { startRumination, isRuminating, error: ruminationError, status, currentBlockId } = useRumination({ 
@@ -546,22 +572,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         </div>
 
         {/* Right side: Chat pane */}
-        {selectedBlock && isChatEnabled && (
+        {selectedBlock && isChatEnabled && documentConversationId && (
           <ResizablePanel 
             width={chatPaneWidth}
             onResize={setChatPaneWidth}
           >
             <ChatPane
-              key={selectedBlock.id}
+              key={`${documentConversationId}-${selectedBlock.id}`}
               block={selectedBlock}
               documentId={documentId}
-              conversationId={blockConversations[selectedBlock.id]}
-              onConversationCreated={(convId) => {
-                setBlockConversations(prev => ({
-                  ...prev,
-                  [selectedBlock.id]: convId
-                }));
-              }}
+              conversationId={documentConversationId}
               onClose={() => setSelectedBlock(null)}
             />
           </ResizablePanel>

@@ -157,37 +157,7 @@ class RDSConversationRepository(ConversationRepository):
             if local_session:
                 await session.close()
     
-    async def get_block_conversations(self, block_id: str, session: Optional[AsyncSession] = None) -> List[Conversation]:
-        """Get all conversations for a block"""
-        local_session = session is None
-        session = session or self.session_factory()
-        
-        try:
-            # Query for conversations
-            result = await session.execute(
-                select(ConversationModel).where(ConversationModel.block_id == block_id)
-            )
-            conv_models = result.scalars().all()
-            
-            # Convert models to conversations
-            conversations = []
-            for conv_model in conv_models:
-                conv_dict = {c.name: getattr(conv_model, c.name) for c in conv_model.__table__.columns}
-                
-                # Parse datetime string
-                if 'created_at' in conv_dict and isinstance(conv_dict['created_at'], str):
-                    conv_dict['created_at'] = datetime.fromisoformat(conv_dict['created_at'])
-                    
-                conversations.append(Conversation.from_dict(conv_dict))
-                
-            return conversations
-        except Exception as e:
-            if local_session:
-                await session.rollback()
-            raise e
-        finally:
-            if local_session:
-                await session.close()
+
     
     async def add_message(self, message: Message, session: Optional[AsyncSession] = None) -> Message:
         """Add a new message to a conversation"""

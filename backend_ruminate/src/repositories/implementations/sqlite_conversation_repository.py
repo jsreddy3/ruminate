@@ -31,7 +31,6 @@ class SQLiteConversationRepository(ConversationRepository):
                 CREATE TABLE IF NOT EXISTS conversations (
                     id TEXT PRIMARY KEY,
                     document_id TEXT NOT NULL,
-                    block_id TEXT,
                     root_message_id TEXT,
                     data TEXT NOT NULL
                 )
@@ -59,11 +58,10 @@ class SQLiteConversationRepository(ConversationRepository):
         if session:
             # logger.debug("Using SQLAlchemy session")
             await session.execute(
-                text("INSERT INTO conversations (id, document_id, block_id, root_message_id, data) VALUES (:id, :document_id, :block_id, :root_message_id, :data)"),
+                text("INSERT INTO conversations (id, document_id, root_message_id, data) VALUES (:id, :document_id, :root_message_id, :data)"),
                 {
                     "id": conversation.id,
                     "document_id": conversation.document_id,
-                    "block_id": conversation.block_id,
                     "root_message_id": conversation.root_message_id,
                     "data": json.dumps(conversation.model_dump())
                 }
@@ -75,8 +73,8 @@ class SQLiteConversationRepository(ConversationRepository):
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 await db.execute(
-                    "INSERT INTO conversations (id, document_id, block_id, root_message_id, data) VALUES (?, ?, ?, ?, ?)",
-                    (conversation.id, conversation.document_id, conversation.block_id, conversation.root_message_id, json.dumps(conversation.model_dump()))
+                    "INSERT INTO conversations (id, document_id, root_message_id, data) VALUES (?, ?, ?, ?)",
+                    (conversation.id, conversation.document_id, conversation.root_message_id, json.dumps(conversation.model_dump()))
                 )
                 await db.commit()
                 # logger.debug("Successfully created conversation")
@@ -184,8 +182,7 @@ class SQLiteConversationRepository(ConversationRepository):
             role=original_msg.role,
             content=new_content,
             parent_id=original_msg.parent_id,
-            meta_data=original_msg.meta_data,
-            block_id=original_msg.block_id
+            meta_data=original_msg.meta_data
         )
         logger.debug(f"Created new version: {new_msg.id}, parent_id: {new_msg.parent_id}")
         
@@ -309,25 +306,6 @@ class SQLiteConversationRepository(ConversationRepository):
                     return Conversation.from_dict(data)
         return None
     
-    async def get_block_conversations(self, block_id: str, session: Optional[AsyncSession] = None) -> List[Conversation]:
-        if session:
-            result = await session.execute(
-                text("SELECT data FROM conversations WHERE block_id = :block_id"),
-                {"block_id": block_id}
-            )
-            rows = result.fetchall()
-            return [Conversation.from_dict(json.loads(row[0])) for row in rows]
-
-        conversations = []
-        async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute(
-                "SELECT data FROM conversations WHERE block_id = ?",
-                (block_id,)
-            ) as cursor:
-                async for row in cursor:
-                    data = json.loads(row[0])
-                    conversations.append(Conversation.from_dict(data))
-        return conversations
     
     async def get_active_thread(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         # Get conversation to find root message
@@ -476,11 +454,10 @@ class SQLiteConversationRepository(ConversationRepository):
         """Update an existing conversation"""
         if session:
             await session.execute(
-                text("UPDATE conversations SET document_id = :document_id, block_id = :block_id, root_message_id = :root_message_id, data = :data WHERE id = :id"),
+                text("UPDATE conversations SET document_id = :document_id, root_message_id = :root_message_id, data = :data WHERE id = :id"),
                 {
                     "id": conversation.id,
                     "document_id": conversation.document_id,
-                    "block_id": conversation.block_id,
                     "root_message_id": conversation.root_message_id,
                     "data": json.dumps(conversation.model_dump())
                 }
@@ -491,8 +468,8 @@ class SQLiteConversationRepository(ConversationRepository):
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 await db.execute(
-                    "UPDATE conversations SET document_id = ?, block_id = ?, root_message_id = ?, data = ? WHERE id = ?",
-                    (conversation.document_id, conversation.block_id, conversation.root_message_id, json.dumps(conversation.model_dump()), conversation.id)
+                    "UPDATE conversations SET document_id = ?, root_message_id = ?, data = ? WHERE id = ?",
+                    (conversation.document_id, conversation.root_message_id, json.dumps(conversation.model_dump()), conversation.id)
                 )
                 await db.commit()
                 return conversation

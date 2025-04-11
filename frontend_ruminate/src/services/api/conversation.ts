@@ -3,12 +3,20 @@ import { Message } from "../../types/chat";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export const conversationApi = {
-  create: async (documentId: string, blockId: string): Promise<{ id: string }> => {
+  create: async (documentId: string): Promise<{ id: string }> => {
     const response = await fetch(
-      `${API_BASE_URL}/conversations?document_id=${documentId}&block_id=${blockId}`,
+      `${API_BASE_URL}/conversations?document_id=${documentId}`,
       { method: "POST" }
     );
     if (!response.ok) throw new Error("Failed to create conversation");
+    return response.json();
+  },
+
+  getDocumentConversations: async (documentId: string): Promise<any[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/conversations/document/${documentId}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch document conversations");
     return response.json();
   },
 
@@ -23,14 +31,19 @@ export const conversationApi = {
   sendMessage: async (
     conversationId: string, 
     content: string, 
-    parentId: string
+    parentId: string,
+    selectedBlockId?: string
   ): Promise<[any, string]> => {
     const response = await fetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, parent_id: parentId })
+        body: JSON.stringify({ 
+          content, 
+          parent_version_id: parentId,
+          selected_block_id: selectedBlockId 
+        })
       }
     );
     if (!response.ok) throw new Error("Failed to send message");
