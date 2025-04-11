@@ -84,33 +84,7 @@ export default function ChatPane({
     <div className="h-full flex flex-col bg-white text-neutral-800 border-l border-neutral-200 shadow-lg">
       {/* Header */}
       <div className="p-4 flex items-center justify-between bg-neutral-50 border-b border-neutral-200">
-        <div className="flex items-center">
-          <div className="flex mr-3">
-            <button 
-              onClick={onPreviousBlock} 
-              disabled={!hasPreviousBlock}
-              className="p-1.5 rounded hover:bg-neutral-200 text-neutral-500 hover:text-neutral-700 transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Previous Block"
-              aria-label="Navigate to previous block"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
-              </svg>
-            </button>
-            <button 
-              onClick={onNextBlock} 
-              disabled={!hasNextBlock}
-              className="p-1.5 rounded hover:bg-neutral-200 text-neutral-500 hover:text-neutral-700 transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Next Block"
-              aria-label="Navigate to next block"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
-              </svg>
-            </button>
-          </div>
-          <h2 className="font-semibold text-neutral-800">Block Content & Chat</h2>
-        </div>
+        <h2 className="font-semibold text-neutral-800">Block Content & Chat</h2>
         <button 
           onClick={onClose} 
           className="p-1 rounded-full hover:bg-neutral-200 text-neutral-500 hover:text-neutral-700 transition-colors duration-200"
@@ -129,15 +103,89 @@ export default function ChatPane({
             minSize={15} 
             maxSize={70}
           >
-            <div className="h-full overflow-auto bg-neutral-50">
-              <div className="px-4 py-2">
-                <BlockContent 
-                  html_content={block.html_content} 
-                  block_type={block.block_type} 
-                  images={block.images}
-                  highlights={[]}
-                  onAddTextToChat={handleAddTextToChat}
-                />
+            <div className="h-full flex flex-col bg-neutral-50">
+              <div className="flex-1 overflow-auto">
+                <div className="px-4 py-2">
+                  <BlockContent 
+                    html_content={block.html_content} 
+                    block_type={block.block_type} 
+                    images={block.images}
+                    highlights={[]}
+                    onAddTextToChat={handleAddTextToChat}
+                  />
+                </div>
+              </div>
+              
+              {/* Navigation buttons with inline styles */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '8px 0',
+                borderTop: '1px solid #e5e5e5',
+                backgroundColor: '#f9f9f9'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                }}>
+                  <button 
+                    onClick={onPreviousBlock} 
+                    disabled={!hasPreviousBlock}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 12px',
+                      backgroundColor: 'white',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: '#4b5563',
+                      cursor: hasPreviousBlock ? 'pointer' : 'not-allowed',
+                      opacity: hasPreviousBlock ? 1 : 0.5,
+                      transition: 'all 0.2s ease',
+                      boxShadow: hasPreviousBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
+                    }}
+                    title="Previous Block"
+                    aria-label="Navigate to previous block"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                    </svg>
+                    <span>Previous</span>
+                  </button>
+                  
+                  <button 
+                    onClick={onNextBlock} 
+                    disabled={!hasNextBlock}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 12px',
+                      backgroundColor: 'white',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: '#4b5563',
+                      cursor: hasNextBlock ? 'pointer' : 'not-allowed',
+                      opacity: hasNextBlock ? 1 : 0.5,
+                      transition: 'all 0.2s ease',
+                      boxShadow: hasNextBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
+                    }}
+                    title="Next Block"
+                    aria-label="Navigate to next block"
+                  >
+                    <span>Next</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </Panel>
