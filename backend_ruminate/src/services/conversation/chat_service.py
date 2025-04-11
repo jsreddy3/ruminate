@@ -234,7 +234,7 @@ class ChatService:
             enhanced_content += f"Selected block content:\n```\n{selected_block_text}\n```\n\n"
         
         # Add user query
-        enhanced_content += f"User query: {user_msg_content}"
+        enhanced_content += user_msg_content
         
         # Only modify the content if we have enhancements
         if enhanced_content:
