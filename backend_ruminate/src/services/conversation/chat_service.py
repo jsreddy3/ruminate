@@ -192,7 +192,7 @@ class ChatService:
                         current_page_blocks = await self.document_repo.get_page_blocks(current_page.id, session)
                         if current_page_blocks:
                             current_page_text = "\n".join([self._strip_html(block.html_content) for block in current_page_blocks if block.html_content])
-                            pages_content += f"Current page (Page {current_page_num + 1}) content:\n```\n{current_page_text}\n```\n\n"
+                            pages_content += f"Current page (Page {current_page_num + 1}):\n---\n{current_page_text}\n---\n\n"
                             conversation.included_pages[str(current_page_num)] = user_msg.id
                             logger.info(f"Added page {current_page_num} to included pages")
                 
@@ -204,7 +204,7 @@ class ChatService:
                         prev_page_blocks = await self.document_repo.get_page_blocks(prev_page.id, session)
                         if prev_page_blocks:
                             prev_page_text = "\n".join([self._strip_html(block.html_content) for block in prev_page_blocks if block.html_content])
-                            pages_content = f"Previous page (Page {prev_page_num + 1}) content:\n```\n{prev_page_text}\n```\n\n" + pages_content
+                            pages_content = f"Previous page (Page {prev_page_num + 1}):\n---\n{prev_page_text}\n---\n\n" + pages_content
                             conversation.included_pages[str(prev_page_num)] = user_msg.id
                             logger.info(f"Added page {prev_page_num} to included pages")
                 
@@ -231,7 +231,7 @@ class ChatService:
         
         # Add selected block content
         if selected_block_text:
-            enhanced_content += f"Selected block content:\n```\n{selected_block_text}\n```\n\n"
+            enhanced_content += f"Selected block content:\n---\n{selected_block_text}\n---\n\n"
         
         # Add user query
         enhanced_content += user_msg_content
