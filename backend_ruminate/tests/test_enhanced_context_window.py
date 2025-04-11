@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # Test DB paths
 TEST_DB_PATH = "test_convo_context.db"
-TEST_PDF_PATH = os.path.join(os.path.dirname(__file__), "six_pages_two_blocks.pdf")
+TEST_PDF_PATH = os.path.join(os.path.dirname(__file__), "pdfs", "six_pages_two_blocks.pdf")
 
 
 class TestEnhancedContextWindow:

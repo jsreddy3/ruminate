@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Test configuration
 API_URL = "http://localhost:8000"
-TEST_PDF_PATH = os.path.join(os.path.dirname(__file__), "six_pages_two_blocks.pdf")
+TEST_PDF_PATH = os.path.join(os.path.dirname(__file__), "pdfs", "six_pages_two_blocks.pdf")
 TIMEOUT = 60  # seconds
 
 class TestEnhancedContextWindowAPI:
