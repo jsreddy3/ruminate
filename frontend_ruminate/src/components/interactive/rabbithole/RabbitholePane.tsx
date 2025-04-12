@@ -3,17 +3,16 @@
 import { useState, useEffect } from "react";
 import { useConversation } from "../../hooks/useConversation";
 import ChatMessage from "./ChatMessage";
-import ChatInput from "./ChatInput";
+import ChatInput from "../interactive/chat/ChatInput";
 import { createRabbithole } from "../../services/rabbithole";
 
 interface RabbitholePaneProps {
   selectedText: string;
   documentId: string;
-  conversationId: string;
+  conversationId?: string;
   blockId?: string; 
   textStartOffset?: number; 
   textEndOffset?: number;
-  rabbitholeId?: string; 
   onClose: () => void;
 }
 
@@ -24,12 +23,25 @@ export default function RabbitholePane({
   blockId,
   textStartOffset,
   textEndOffset,
-  rabbitholeId,
   onClose
 }: RabbitholePaneProps) {
   const [isCreatingRabbithole, setIsCreatingRabbithole] = useState<boolean>(false);
-  const [rabbitholeConversationId, setRabbitholeConversationId] = useState<string | null>(rabbitholeId || null);
+  const [rabbitholeConversationId, setRabbitholeConversationId] = useState<string | null>(conversationId || null);
   
+  // Debug logging
+  useEffect(() => {
+    console.log("RabbitholePane: Initial state", {
+      selectedText,
+      documentId,
+      conversationId,
+      blockId,
+      textStartOffset,
+      textEndOffset,
+      rabbitholeConversationId
+    });
+  }, []);
+  
+  // Use the conversation hook with the appropriate ID
   const {
     messageTree,
     displayedThread,
@@ -47,38 +59,59 @@ export default function RabbitholePane({
     setDisplayedThread
   } = useConversation({
     documentId,
-    conversationId: rabbitholeConversationId || conversationId,
-    blockId: rabbitholeConversationId ? undefined : blockId 
+    conversationId: rabbitholeConversationId || undefined,
+    blockId: blockId
   });
 
+  // Handle creating a new rabbithole if needed - only runs once
   useEffect(() => {
+    if (isCreatingRabbithole || rabbitholeConversationId) {
+      // Skip if we're already creating a rabbithole or have an ID
+      return;
+    }
+    
     async function createNewRabbithole() {
-      if (!rabbitholeConversationId && blockId && textStartOffset !== undefined && textEndOffset !== undefined) {
-        setIsCreatingRabbithole(true);
-        try {
-          const newRabbitholeId = await createRabbithole({
-            document_id: documentId,
-            block_id: blockId,
-            selected_text: selectedText,
-            start_offset: textStartOffset,
-            end_offset: textEndOffset,
-            type: 'rabbithole'
-          });
-          setRabbitholeConversationId(newRabbitholeId);
-        } catch (error) {
-          console.error('Failed to create rabbithole:', error);
-        } finally {
-          setIsCreatingRabbithole(false);
-        }
+      // Check if we have all the data we need
+      if (!blockId || textStartOffset === undefined || textEndOffset === undefined) {
+        console.log("Missing data required to create rabbithole:", {
+          blockId, 
+          textStartOffset, 
+          textEndOffset
+        });
+        return;
+      }
+      
+      console.log('Creating new rabbithole conversation');
+      setIsCreatingRabbithole(true);
+      
+      try {
+        const newRabbitholeId = await createRabbithole({
+          document_id: documentId,
+          block_id: blockId,
+          selected_text: selectedText,
+          start_offset: textStartOffset,
+          end_offset: textEndOffset,
+          type: 'rabbithole'
+        });
+        
+        console.log('Created rabbithole with ID:', newRabbitholeId);
+        setRabbitholeConversationId(newRabbitholeId);
+      } catch (error) {
+        console.error('Failed to create rabbithole:', error);
+      } finally {
+        setIsCreatingRabbithole(false);
       }
     }
     
-    createNewRabbithole();
-  }, [blockId, documentId, rabbitholeConversationId, selectedText, textEndOffset, textStartOffset]);
+    // Only create a new rabbithole if we don't have a conversation ID
+    if (!conversationId) {
+      createNewRabbithole();
+    }
+  }, [blockId, documentId, conversationId, isCreatingRabbithole, rabbitholeConversationId, selectedText, textEndOffset, textStartOffset]);
 
   useEffect(() => {
     if (selectedText && !newMessage) {
-      setNewMessage(`Let's dive deeper into: "${selectedText}"`);
+      setNewMessage(`Explain this: "${selectedText}"`);
     }
   }, [selectedText, newMessage, setNewMessage]);
 

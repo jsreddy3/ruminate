@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Message } from '../../types/chat';
+import type { Message } from '../../../types/chat';
 
 interface ChatMessageProps {
   message: Message;

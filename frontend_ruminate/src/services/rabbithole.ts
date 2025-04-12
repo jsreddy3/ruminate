@@ -7,6 +7,7 @@ export interface RabbitholeHighlight {
   text_start_offset: number;
   text_end_offset: number;
   created_at: string;
+  conversation_id: string;  // Add this to store the associated conversation ID
 }
 
 export interface CreateRabbitholeRequest {

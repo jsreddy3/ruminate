@@ -7,7 +7,7 @@ import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
 
-import ChatPane from "../chat/ChatPane"; 
+import ChatPane from "../interactive/chat/ChatPane"; 
 import ResizablePanel from "../common/ResizablePanel";
 import MathJaxProvider from "../providers/MathJaxProvider";
 import { conversationApi } from "../../services/api/conversation";

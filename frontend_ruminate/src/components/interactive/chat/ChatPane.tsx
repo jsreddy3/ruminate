@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ChatPaneProps } from "../../types/chat";
-import { useConversation } from "../../hooks/useConversation";
+import type { ChatPaneProps } from "../../../types/chat";
+import { useConversation } from "../../../hooks/useConversation";
+import { useBlockData } from "../../../hooks/useBlockData";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
-import BlockContent from "./BlockContent";
-import RabbitholePane from "./RabbitholePane";
+import BlockContainer from "../blocks/BlockContainer";
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 
 // Add array of supported block types (matching PDFViewer)
@@ -35,22 +35,25 @@ export default function ChatPane({
   hasNextBlock,
   hasPreviousBlock
 }: ChatPaneProps) {
+  console.log(`ChatPane MOUNT with block ID: ${block.id}`);
+  
+  // Add cleanup log in useEffect
+  useEffect(() => {
+    return () => {
+      console.log(`ChatPane UNMOUNT with block ID: ${block.id}`);
+    };
+  }, [block.id]);
+  
   // Track current block ID to handle block changes without remounting
   const [currentBlockId, setCurrentBlockId] = useState(block.id);
-  // Add state for rabbithole mode
-  const [rabbitholeActive, setRabbitholeActive] = useState(false);
-  const [selectedText, setSelectedText] = useState("");
-  // Add state for text selection positions
-  const [textStartOffset, setTextStartOffset] = useState<number | undefined>(undefined);
-  const [textEndOffset, setTextEndOffset] = useState<number | undefined>(undefined);
 
   // Update currentBlockId when block prop changes
   useEffect(() => {
+    console.log(`ChatPane UPDATE with block ID: ${block.id}`);
     setCurrentBlockId(block.id);
-    // Disable rabbithole when changing blocks
-    setRabbitholeActive(false);
   }, [block.id]);
 
+  // Initialize conversation with current block and document
   const {
     messageTree,
     displayedThread,
@@ -89,34 +92,6 @@ export default function ChatPane({
     });
   };
 
-  // Handler for activating rabbithole mode
-  const handleRabbithole = (text: string, startOffset: number, endOffset: number) => {
-    setSelectedText(text);
-    setTextStartOffset(startOffset);
-    setTextEndOffset(endOffset);
-    setRabbitholeActive(true);
-  };
-
-  // If rabbithole is active, show the rabbithole pane
-  if (rabbitholeActive) {
-    return (
-      <RabbitholePane
-        selectedText={selectedText}
-        documentId={documentId}
-        conversationId={conversationId}
-        blockId={currentBlockId}
-        textStartOffset={textStartOffset}
-        textEndOffset={textEndOffset}
-        onClose={() => {
-          setRabbitholeActive(false);
-          setSelectedText("");
-          setTextStartOffset(undefined);
-          setTextEndOffset(undefined);
-        }}
-      />
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-white text-neutral-800 border-l border-neutral-200 shadow-lg">
       {/* Header */}
@@ -132,98 +107,74 @@ export default function ChatPane({
       </div>
 
       {/* Resizable Panels */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0">
         <PanelGroup direction="vertical">
           {/* Block Content Panel */}
-          <Panel 
-            defaultSize={30} 
-            minSize={15} 
-            maxSize={70}
-          >
-            <div className="h-full flex flex-col bg-neutral-50">
-              <div className="flex-1 overflow-auto">
-                <div className="px-4 py-2">
-                  <BlockContent 
-                    html_content={block.html_content} 
-                    block_type={block.block_type} 
-                    block_id={block.id}
+          <Panel defaultSize={30}>
+            <div className="h-full flex flex-col">
+              <div className="p-3 bg-neutral-100 border-b border-neutral-200">
+                <h3 className="text-sm font-medium text-neutral-700">Block Content</h3>
+              </div>
+
+              {/* Content Area with Navigation */}
+              <div className="flex-1 flex flex-col overflow-y-auto">
+                <div className="p-4 flex-1 overflow-y-auto">
+                  <BlockContainer 
+                    blockId={block.id}
+                    blockType={block.block_type}
+                    htmlContent={block.html_content}
                     images={block.images}
-                    highlights={[]}
                     onAddTextToChat={handleAddTextToChat}
-                    onRabbithole={handleRabbithole}
                   />
                 </div>
-              </div>
-              
-              {/* Navigation buttons with inline styles */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '8px 0',
-                borderTop: '1px solid #e5e5e5',
-                backgroundColor: '#f9f9f9'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                }}>
-                  <button 
-                    onClick={onPreviousBlock} 
-                    disabled={!hasPreviousBlock}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 12px',
-                      backgroundColor: 'white',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      color: '#4b5563',
-                      cursor: hasPreviousBlock ? 'pointer' : 'not-allowed',
-                      opacity: hasPreviousBlock ? 1 : 0.5,
-                      transition: 'all 0.2s ease',
-                      boxShadow: hasPreviousBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
-                    }}
-                    title="Previous Block"
-                    aria-label="Navigate to previous block"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                      <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
-                    </svg>
-                    <span>Previous</span>
-                  </button>
-                  
-                  <button 
-                    onClick={onNextBlock} 
-                    disabled={!hasNextBlock}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 12px',
-                      backgroundColor: 'white',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      color: '#4b5563',
-                      cursor: hasNextBlock ? 'pointer' : 'not-allowed',
-                      opacity: hasNextBlock ? 1 : 0.5,
-                      transition: 'all 0.2s ease',
-                      boxShadow: hasNextBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
-                    }}
-                    title="Next Block"
-                    aria-label="Navigate to next block"
-                  >
-                    <span>Next</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                      <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
-                    </svg>
-                  </button>
+                
+                {/* Navigation Controls */}
+                <div className="p-2 border-t border-neutral-200 bg-white">
+                  <div className="flex justify-between items-center px-2">
+                    <button
+                      onClick={hasPreviousBlock ? onPreviousBlock : undefined}
+                      disabled={!hasPreviousBlock}
+                      className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#4b5563',
+                        cursor: hasPreviousBlock ? 'pointer' : 'not-allowed',
+                        opacity: hasPreviousBlock ? 1 : 0.5,
+                        transition: 'all 0.2s ease',
+                        boxShadow: hasPreviousBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
+                      }}
+                      title="Previous Block"
+                      aria-label="Navigate to previous block"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                        <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                      </svg>
+                      <span>Previous</span>
+                    </button>
+
+                    <button
+                      onClick={hasNextBlock ? onNextBlock : undefined}
+                      disabled={!hasNextBlock}
+                      className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#4b5563',
+                        cursor: hasNextBlock ? 'pointer' : 'not-allowed',
+                        opacity: hasNextBlock ? 1 : 0.5,
+                        transition: 'all 0.2s ease',
+                        boxShadow: hasNextBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
+                      }}
+                      title="Next Block"
+                      aria-label="Navigate to next block"
+                    >
+                      <span>Next</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                        <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
