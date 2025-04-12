@@ -28,19 +28,25 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // Close tooltip when clicking outside
+  // Close tooltip when clicking outside, but be careful not to clear selection
   useEffect(() => {
     if (!isVisible) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      // Only close if clicked outside tooltip AND not a selection-related event
       if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
-        onClose();
+        // Delay slightly to avoid interfering with selection
+        // This helps maintain the selection when clicking the tooltip
+        setTimeout(() => {
+          onClose();
+        }, 10);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    // Use mousedown with capture to get it before other handlers
+    document.addEventListener('mousedown', handleClickOutside, true);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
     };
   }, [isVisible, onClose]);
 
@@ -102,8 +108,9 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     left: `${adjustedPosition.x}px`,
     top: `${adjustedPosition.y}px`,
     zIndex: 1000,
-    transform: 'translate(-50%, -100%)',
-    marginTop: '-10px',
+    transform: 'translate(-50%, 0)', // Center horizontally, position below
+    pointerEvents: 'auto', // Ensure tooltip is clickable
+    marginTop: '5px', // Small gap between selection and tooltip
   };
 
   return (
@@ -117,7 +124,14 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           <button
             key={index}
             className="px-3 py-1.5 hover:bg-indigo-50 rounded flex items-center gap-1.5 text-indigo-700 whitespace-nowrap transition-colors duration-150"
-            onClick={() => action.onClick(selectedText)}
+            onClick={(e) => {
+            // Prevent the default action which might clear selection
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Call the action handler
+            action.onClick(selectedText);
+          }}
             title={`${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
           >
             {action.icon && <span className="text-indigo-500">{action.icon}</span>}

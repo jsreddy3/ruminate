@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useConversation } from "../../hooks/useConversation";
+import { useConversation } from "../../../hooks/useConversation";
 import ChatMessage from "./ChatMessage";
-import ChatInput from "../interactive/chat/ChatInput";
-import { createRabbithole } from "../../services/rabbithole";
+import ChatInput from "../chat/ChatInput";
+import { createRabbithole } from "../../../services/rabbithole";
 
 interface RabbitholePaneProps {
   selectedText: string;

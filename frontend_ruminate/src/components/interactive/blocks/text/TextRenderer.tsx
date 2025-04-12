@@ -1,38 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { RabbitholeHighlight } from '../../../../services/rabbithole';
-import TextSelectionTooltip from './tooltip/TextSelectionTooltip';
-// Replace with local implementation since we couldn't find the original component
-const DefinitionTooltip = ({ isVisible, position, term, onClose }: {
-  isVisible: boolean;
-  position: { x: number, y: number };
-  term: string;
-  onClose: () => void;
-}) => {
-  if (!isVisible) return null;
-  
-  return (
-    <div 
-      className="absolute z-50 bg-white rounded-md shadow-lg p-2 border border-neutral-200"
-      style={{
-        left: `${position.x}px`,
-        top: `${position.y - 10}px`,
-        transform: 'translate(-50%, -100%)',
-      }}
-    >
-      <div className="p-3 max-w-md">
-        <div className="flex justify-between mb-2">
-          <h3 className="font-medium">Definition</h3>
-          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
-            ×
-          </button>
-        </div>
-        <p className="text-sm">
-          Loading definition for "{term}"...
-        </p>
-      </div>
-    </div>
-  );
-};
+import TextContent from './TextContentFile';
+import HighlightOverlay from './HighlightOverlay';
+import SelectionManager, { TextSelectionInfo } from './SelectionManager';
+import TooltipManager from './TooltipManager';
 
 interface TextRendererProps {
   htmlContent: string;
@@ -43,217 +14,161 @@ interface TextRendererProps {
     insight: string;
   }>;
   rabbitholeHighlights?: RabbitholeHighlight[];
+  onSelectionChange?: (selectedText: string) => void;
+  getBlockClassName?: (blockType?: string) => string;
+  onRabbitholeClick?: (id: string, text: string) => void;
   onAddTextToChat?: (text: string) => void;
 }
 
 /**
- * TextRenderer handles rendering text content and highlights.
- * It also manages text selection and tooltips.
+ * TextRenderer coordinates between different components to render text content
+ * with highlights, selection capabilities, and tooltips.
  */
-export default function TextRenderer({ 
-  htmlContent, 
-  blockType, 
-  blockId, 
-  highlights = [], 
+export default function TextRenderer({
+  htmlContent,
+  blockType,
+  blockId,
+  highlights = [],
   rabbitholeHighlights = [],
+  onSelectionChange,
+  getBlockClassName = () => '',
+  onRabbitholeClick,
   onAddTextToChat
 }: TextRendererProps) {
+  // Refs and state
+  const blockRef = useRef<HTMLDivElement>(null);
+  const [selectionInfo, setSelectionInfo] = useState<TextSelectionInfo | null>(null);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
-  const [selectedText, setSelectedText] = useState<string>('');
-  const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
-  const [definitionVisible, setDefinitionVisible] = useState<boolean>(false);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [highlightRects, setHighlightRects] = useState<DOMRect[]>([]);
-  const textBlockRef = useRef<HTMLDivElement>(null);
-  const highlightLayerRef = useRef<HTMLDivElement>(null);
   
-  // Process content to add highlight spans
-  const processContent = (content: string) => {
-    let processedContent = content;
-    
-    // Add regular highlights
-    highlights.forEach(highlight => {
-      const regex = new RegExp(escapeRegExp(highlight.phrase), 'gi');
-      processedContent = processedContent.replace(
-        regex,
-        `<span class="highlight-phrase" data-insight="${highlight.insight}">${highlight.phrase}</span>`
-      );
-    });
-    
-    // Add rabbithole highlights
-    rabbitholeHighlights.forEach(highlight => {
-      const escapedText = escapeRegExp(highlight.selected_text);
-      const regex = new RegExp(escapedText, 'g');
-      
-      processedContent = processedContent.replace(
-        regex,
-        `<span class="rabbithole-highlight" data-rabbithole-id="${highlight.conversation_id}">${highlight.selected_text}</span>`
-      );
-    });
-    
-    return processedContent;
-  };
-  
-  // Helper to escape RegExp special characters
-  const escapeRegExp = (string: string) => {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  };
+  // Process content with highlights using HighlightOverlay
+  const processedContent = HighlightOverlay.processContent(htmlContent, {
+    highlights,
+    rabbitholeHighlights,
+    htmlContent
+  });
 
-  // Clear highlight rects
-  const clearHighlightRects = () => {
-    setHighlightRects([]);
-  };
-
-  // Handle adding text to chat
-  const handleAddToChat = (text: string) => {
-    if (onAddTextToChat) {
-      onAddTextToChat(text);
+  // Handle selection changes
+  const handleSelectionChange = (selection: TextSelectionInfo | null) => {
+    setSelectionInfo(selection);
+    
+    // Notify parent of selection change
+    if (onSelectionChange && selection) {
+      onSelectionChange(selection.text);
     }
-    setTooltipVisible(false);
-    clearHighlightRects();
+  };
+  
+  // Handle clicks on highlights
+  const handleHighlightClick = (e: React.MouseEvent) => {
+    HighlightOverlay.handleHighlightClick(e, setActiveInsight);
+    
+    // Check if it's a rabbithole highlight and handle the click
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('rabbithole-highlight') && onRabbitholeClick) {
+      const rabbitholeId = target.getAttribute('data-rabbithole-id');
+      if (rabbitholeId) {
+        onRabbitholeClick(rabbitholeId, target.textContent || '');
+      }
+    }
+  };
+  
+  // Handle creating a rabbithole or adding to chat from selected text
+  const handleCreateRabbithole = (text: string) => {
+    if (onAddTextToChat) {
+      // If we have the chat handler, use it directly
+      onAddTextToChat(text);
+      
+      // After adding to chat, clear the selection
+      setTimeout(clearSelection, 100);
+    } else if (onRabbitholeClick && blockId) {
+      // Otherwise use rabbithole functionality if available
+      // Use an empty ID since this is a new rabbithole
+      onRabbitholeClick('', text);
+      
+      // After creating rabbithole, clear the selection
+      setTimeout(clearSelection, 100);
+    }
+  };
+  
+  // Handle lookup/define function
+  const handleDefineText = (text: string) => {
+    // For now, we can just log this and add the implementation later
+    console.log('Looking up definition for:', text);
+    
+    // Here you would typically call a dictionary API or similar service
+    // For now, we'll just show an insight popup with a placeholder
+    setActiveInsight(`Definition for "${text}" would appear here.`);
+    
+    // Clear the selection after defining
+    setTimeout(clearSelection, 100);
+  };
+  
+  // Function to clear selection (used when a tooltip action is completed)
+  const clearSelection = () => {
+    setSelectionInfo(null);
+    window.getSelection()?.removeAllRanges();
   };
 
-  // Handle defining a term
-  const handleDefine = (text: string) => {
-    setSelectedText(text);
-    setDefinitionVisible(true);
-    setTooltipVisible(false);
-  };
-
-  // Set up selection and click handlers
+  // Add CSS for highlight styles
   useEffect(() => {
-    // Handle text selection
-    const handleSelection = () => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !textBlockRef.current) {
-        setTooltipVisible(false);
-        clearHighlightRects();
-        return;
+    // Add styles for highlights
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .highlight-phrase {
+        background-color: rgba(255, 243, 141, 0.3);
+        border-bottom: 2px solid rgba(255, 220, 0, 0.5);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
       }
-
-      // Check if selection is within this component
-      let node = selection.anchorNode;
-      let isInComponent = false;
-      while (node) {
-        if (node === textBlockRef.current || textBlockRef.current.contains(node as Node)) {
-          isInComponent = true;
-          break;
-        }
-        node = node?.parentNode as Node | null;
+      
+      .highlight-phrase:hover {
+        background-color: rgba(255, 243, 141, 0.5);
       }
-
-      if (!isInComponent) {
-        setTooltipVisible(false);
-        clearHighlightRects();
-        return;
+      
+      .rabbithole-highlight {
+        background-color: rgba(121, 134, 203, 0.2);
+        border-bottom: 2px solid rgba(79, 70, 229, 0.4);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
       }
-
-      // Get selected text and position
-      const text = selection.toString().trim();
-      if (text) {
-        setSelectedText(text);
-        
-        const range = selection.getRangeAt(0);
-        const rects = Array.from(range.getClientRects());
-        
-        setHighlightRects(rects);
-        
-        if (rects.length > 0) {
-          const firstRect = rects[0];
-          const x = firstRect.left + firstRect.width / 2;
-          const y = firstRect.top;
-          setTooltipPosition({ x, y });
-          setTooltipVisible(true);
-        }
+      
+      .rabbithole-highlight:hover {
+        background-color: rgba(121, 134, 203, 0.4);
       }
-    };
-
-    // Handle clicking outside
-    const handleClickOutside = (e: MouseEvent) => {
-      if (textBlockRef.current && !textBlockRef.current.contains(e.target as Node)) {
-        setTooltipVisible(false);
-        setDefinitionVisible(false);
-        clearHighlightRects();
-      }
-    };
-
-    // Handle escape key
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setTooltipVisible(false);
-        setDefinitionVisible(false);
-        clearHighlightRects();
-      }
-    };
-
-    // Add event listeners
-    document.addEventListener('selectionchange', handleSelection);
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
+    `;
+    document.head.appendChild(style);
 
     return () => {
-      document.removeEventListener('selectionchange', handleSelection);
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.head.removeChild(style);
     };
   }, []);
 
-  // Handle clicking on highlights
-  const handleHighlightClick = (e: React.MouseEvent) => {
-    // Handle clicking on phrase highlights
-    if ((e.target as HTMLElement).classList.contains('highlight-phrase')) {
-      const insight = (e.target as HTMLElement).getAttribute('data-insight');
-      if (insight) {
-        setActiveInsight(insight);
-      }
-    } 
-    // Handle clicking on rabbithole highlights
-    else if ((e.target as HTMLElement).classList.contains('rabbithole-highlight')) {
-      const rabbitholeId = (e.target as HTMLElement).getAttribute('data-rabbithole-id');
-      if (rabbitholeId) {
-        // Here we could trigger opening a rabbithole conversation
-        console.log(`Open rabbithole conversation: ${rabbitholeId}`);
-      }
-    } else {
-      setActiveInsight(null);
-    }
-  };
-
-  // Render selection highlight rects
-  const renderHighlights = () => {
-    if (highlightRects.length === 0) return null;
-    
-    return highlightRects.map((rect, index) => {
-      const style = {
-        position: 'absolute' as const,
-        left: `${rect.left}px`,
-        top: `${rect.top}px`,
-        width: `${rect.width}px`,
-        height: `${rect.height}px`,
-        backgroundColor: 'rgba(79, 70, 229, 0.2)',
-        borderRadius: '1px',
-        pointerEvents: 'none' as const,
-        zIndex: 5
-      };
-      
-      return <div key={index} style={style} />;
-    });
-  };
-
   return (
     <div className="relative">
-      <div 
-        className={`p-4 bg-slate-50 text-slate-900 rounded-md border-l-4 border-l-indigo-500 border-t border-r border-b border-slate-200 font-reading leading-relaxed shadow-md`}
-        ref={textBlockRef}
-        onClick={handleHighlightClick}
-        dangerouslySetInnerHTML={{ 
-          __html: processContent(htmlContent)
-        }}
+      {/* Render the text content */}
+      <TextContent 
+        htmlContent={htmlContent}
+        blockType={blockType}
+        processedContent={processedContent}
+        onClickHighlight={handleHighlightClick}
+        getBlockClassName={getBlockClassName}
+        ref={blockRef}
       />
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" ref={highlightLayerRef}>
-        {renderHighlights()}
-      </div>
-
+      
+      {/* Handle text selection */}
+      <SelectionManager 
+        containerRef={blockRef as React.RefObject<HTMLElement>} 
+        onSelectionChange={handleSelectionChange}
+      />
+      
+      {/* Manage tooltips */}
+      <TooltipManager 
+        selectionInfo={selectionInfo}
+        onCreateRabbithole={handleCreateRabbithole}
+        onDefine={handleDefineText}
+        containerRef={blockRef as React.RefObject<HTMLElement>}
+      />
+      
+      {/* Display insight popup when a highlight is clicked */}
       {activeInsight && (
         <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-white rounded-lg border border-neutral-200 shadow-lg z-10">
           <div className="flex justify-between items-start gap-2">
@@ -267,65 +182,6 @@ export default function TextRenderer({
           </div>
         </div>
       )}
-
-      {tooltipVisible ? (
-        <TextSelectionTooltip
-          isVisible={true}
-          position={tooltipPosition}
-          selectedText={selectedText}
-          onAddToChat={handleAddToChat}
-          onDefine={handleDefine}
-          onClose={() => {
-            setTooltipVisible(false);
-            clearHighlightRects();
-          }}
-        />
-      ) : (
-        <DefinitionTooltip
-          isVisible={definitionVisible}
-          position={tooltipPosition}
-          term={selectedText}
-          onClose={() => {
-            setDefinitionVisible(false);
-            clearHighlightRects();
-          }}
-        />
-      )}
-
-      <style jsx global>{`
-        .highlight-phrase {
-          background-color: rgba(255, 243, 141, 0.3);
-          border-bottom: 2px solid rgba(255, 220, 0, 0.5);
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-        
-        .highlight-phrase:hover {
-          background-color: rgba(255, 243, 141, 0.5);
-        }
-        
-        .rabbithole-highlight {
-          background-color: rgba(121, 134, 203, 0.2);
-          border-bottom: 2px solid rgba(79, 70, 229, 0.4);
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-        
-        .rabbithole-highlight:hover {
-          background-color: rgba(121, 134, 203, 0.4);
-        }
-
-        .font-reading {
-          font-family: 'Georgia', serif;
-          font-size: 0.95rem;
-          line-height: 1.65;
-        }
-        
-        .font-reading p {
-          margin-bottom: 1em;
-          color: #1e293b;
-        }
-      `}</style>
     </div>
   );
 }
