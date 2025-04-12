@@ -10,9 +10,6 @@ import { motion } from "framer-motion";
 import ChatPane from "../chat/ChatPane"; 
 import ResizablePanel from "../common/ResizablePanel";
 import MathJaxProvider from "../providers/MathJaxProvider";
-import RuminateButton from "../viewer/RuminateButton";
-import ObjectiveSelector from "../viewer/ObjectiveSelector";
-import { useRumination } from "../../hooks/useRumination";
 import { conversationApi } from "../../services/api/conversation";
 
 export interface Block {
@@ -105,6 +102,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [showChunkBoundaries, setShowChunkBoundaries] = useState(false);
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
+  // Add state for chat pane width
+  const [chatPaneWidth, setChatPaneWidth] = useState(384);
 
   // Flatten blocks for easy navigation
   useEffect(() => {
@@ -232,20 +231,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     initializeDocumentConversation();
   }, [documentId]);
 
-  const { startRumination, isRuminating, error: ruminationError, status, currentBlockId } = useRumination({ 
-    documentId: documentId,
-    onBlockProcessing: (blockId) => {
-      if (blockId) {
-        const block = blocks.find(b => b.id === blockId);
-        if (block) {
-          setSelectedBlock(block);
-        }
-      } else {
-        setSelectedBlock(null);
-      }
-    }
-  });
-
   const [currentObjective, setCurrentObjective] = useState("Focus on key vocabulary and jargon that a novice reader would not be familiar with.");
 
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
@@ -293,19 +278,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 <GoToNextPage />
               </div>
 
-              {/* Ruminate Button - Centered */}
-              {documentId && (
-                <div className="flex items-center gap-2 flex-1 justify-center">
-                  <RuminateButton
-                    isRuminating={isRuminating}
-                    error={ruminationError}
-                    status={status}
-                    onRuminate={() => startRumination(currentObjective)}
-                  />
-                  <span className="text-neutral-600">on</span>
-                  <ObjectiveSelector onObjectiveChange={setCurrentObjective} />
-                </div>
-              )}
+              {/* Center area - empty or could add custom controls here */}
+              <div className="flex-1"></div>
 
               {/* Right Controls Group */}
               <div className="flex items-center gap-2 min-w-[200px] justify-end">
@@ -416,7 +390,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             const h = Math.max(...b.polygon.map((p) => p[1])) - y;
 
             const isSelected = selectedBlock?.id === b.id;
-            const isCurrentlyProcessing = currentBlockId === b.id;
             
             // Determine the chunk for this block
             const chunkForBlock = showChunkBoundaries ? 
@@ -429,20 +402,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               false;
             
             // Determine the block's status
-            let blockStatus = '';
-            let animation = {};
-            if (isCurrentlyProcessing) {
-              blockStatus = 'processing';
-              animation = {
-                boxShadow: [
-                  '0 0 0px rgba(59, 130, 246, 0)',
-                  '0 0 15px rgba(59, 130, 246, 0.3)',
-                  '0 0 0px rgba(59, 130, 246, 0)'
-                ]
-              };
-            } else if (isSelected) {
-              blockStatus = 'selected';
-            }
+            const blockStatus = isSelected ? 'selected' : '';
 
             // Get the appropriate styling based on status
             const getBlockStyle = () => {
@@ -454,7 +414,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 height: `${h * scale}px`,
                 cursor: 'pointer',
                 transition: 'all 0.3s ease-in-out',
-                zIndex: isSelected || isCurrentlyProcessing ? 2 : 1,
+                zIndex: isSelected ? 2 : 1,
                 borderRadius: '2px',
               };
 
@@ -463,14 +423,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 return {
                   ...baseStyle,
                   borderBottom: '3px dashed rgba(255, 0, 0, 0.7)',
-                };
-              }
-
-              if (isCurrentlyProcessing) {
-                return {
-                  ...baseStyle,
-                  border: '2px solid rgba(59, 130, 246, 0.8)',
-                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 };
               }
               
@@ -496,27 +448,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 className="hover:bg-primary-100/10 hover:border-primary-400 hover:shadow-block-hover group"
                 onClick={() => handleBlockClick(b)}
                 title={b.html_content?.replace(/<[^>]*>/g, "") || ""}
-                animate={isCurrentlyProcessing ? {
-                  boxShadow: [
-                    '0 0 0px rgba(59, 130, 246, 0)',
-                    '0 0 15px rgba(59, 130, 246, 0.3)',
-                    '0 0 0px rgba(59, 130, 246, 0)'
-                  ]
-                } : {}}
-                transition={isCurrentlyProcessing ? { duration: 2, repeat: Infinity } : {}}
               >
-                {/* Processing indicator */}
-                {isCurrentlyProcessing && (
-                  <motion.div
-                    className="absolute top-1/2 -translate-y-1/2 -left-6 w-4 h-4 bg-primary-500 rounded-full"
-                    initial={{ scale: 0.8, opacity: 0.5 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.8, repeat: Infinity, repeatType: "reverse" }}
-                  />
-                )}
-                
-                {/* Optional: Show a checkmark or other indicator for processed blocks */}
-                {!isCurrentlyProcessing && blockStatus && (
+                {/* Optional: Show a dot indicator for selected blocks */}
+                {blockStatus && (
                   <div className="absolute top-1/2 -translate-y-1/2 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="w-4 h-4 rounded-full bg-primary-100 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-primary-500" />
@@ -529,7 +463,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         </div>
       );
     },
-    [blocks, selectedBlock, currentBlockId, handleBlockClick, showChunkBoundaries, chunks]
+    [blocks, selectedBlock, handleBlockClick, showChunkBoundaries, chunks]
   );
 
   // Update the array name and contents to include Picture blocks
@@ -634,8 +568,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return false;
   }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
 
-  // Add state for chat pane width
-  const [chatPaneWidth, setChatPaneWidth] = useState(384);
+
 
   return (
     <MathJaxProvider>
@@ -666,30 +599,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 </label>
               </div>
 
-              {/* Scanning effect overlay */}
-              {isRuminating && (
-                <motion.div
-                  className="fixed inset-0 pointer-events-none"
-                  style={{ zIndex: 10 }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <div className="absolute inset-0 overflow-hidden">
-                    <motion.div
-                      className="absolute inset-x-0 h-[200%] bg-gradient-to-b from-transparent via-primary-500/5 to-transparent"
-                      animate={{
-                        y: ["-50%", "0%", "-50%"]
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
-                  </div>
-                </motion.div>
-              )}
+
 
               <Viewer
                 fileUrl={pdfFile}

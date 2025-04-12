@@ -15,7 +15,7 @@ export default function Header() {
         The AI agent that reads between the lines
       </p>
       <p className="text-lg text-neutral-500 mt-4 max-w-xl mx-auto">
-        Upload your document and watch our AI analyze and highlight key insights in real time.
+        Upload your document AI to start!
       </p>
     </motion.div>
   );

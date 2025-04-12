@@ -14,15 +14,10 @@ from src.repositories.factory import RepositoryFactory
 from src.repositories.interfaces.document_repository import DocumentRepository
 from src.repositories.interfaces.storage_repository import StorageRepository
 from src.repositories.interfaces.conversation_repository import ConversationRepository
-from src.repositories.interfaces.insight_repository import InsightRepository
-from src.repositories.interfaces.chunk_index_repository import ChunkIndexRepository
-from src.repositories.interfaces.key_term_repository import KeyTermRepository
 from src.services.document.upload_service import UploadService
 from src.services.document.marker_service import MarkerService
 from src.services.conversation.chat_service import ChatService
 from src.services.ai.llm_service import LLMService
-from src.services.rumination.structured_insight_service import StructuredInsightService
-from src.services.rumination.graph_service import GraphService
 from src.config import get_settings, Settings
 from src.services.document.critical_content_service import CriticalContentService
 from src.services.document.chunking_service import ChunkingService
@@ -56,11 +51,9 @@ async def initialize_repositories():
             from src.models.viewer.page import PageModel
             from src.models.viewer.block import BlockModel
             from src.models.base.chunk import ChunkModel
-            # Import conversation and insight models
+            # Import conversation models
             from src.models.conversation.conversation import ConversationModel
             from src.models.conversation.message import MessageModel
-            from src.models.rumination.structured_insight import InsightModel
-            from src.models.rumination.chunk_index import ChunkIndexModel
             
             # Create tables
             # async with engine.begin() as conn:
@@ -131,10 +124,6 @@ def get_conversation_repository() -> ConversationRepository:
     """Dependency for conversation repository"""
     return repository_factory.conversation_repository
 
-def get_chunk_index_repository() -> ChunkIndexRepository:
-    """Dependency for chunk index repository"""
-    return repository_factory.chunk_index_repository
-
 def get_marker_service() -> MarkerService:
     """Dependency for marker service"""
     settings = get_settings()
@@ -152,27 +141,9 @@ def get_chunking_service() -> ChunkingService:
     """Dependency for chunking service"""
     return ChunkingService()
 
-def get_insight_repository() -> InsightRepository:
-    """Dependency for insight repository"""
-    return repository_factory.insight_repository
-
-def get_key_term_repository() -> KeyTermRepository:
-    """Dependency for key term repository"""
-    return repository_factory.key_term_repository
-
 def get_critical_content_service() -> CriticalContentService:
     llm_service = get_llm_service()
     return CriticalContentService(llm_service)
-
-def get_insight_service(
-    llm_service: LLMService = Depends(get_llm_service),
-    insight_repository: InsightRepository = Depends(get_insight_repository)
-) -> StructuredInsightService:
-    """Dependency for insight service"""
-    return StructuredInsightService(
-        llm_service=llm_service,
-        insight_repository=insight_repository
-    )
 
 def get_upload_service(
     document_repository: DocumentRepository = Depends(get_document_repository),
@@ -186,20 +157,6 @@ def get_upload_service(
         storage_repo=storage_repository,
         marker=marker_service,
         critical_content_service=critical_content_service,
-    )
-
-def get_graph_service(
-    llm_service: LLMService = Depends(get_llm_service),
-    document_repository: DocumentRepository = Depends(get_document_repository),
-    chunk_index_repository: ChunkIndexRepository = Depends(get_chunk_index_repository),
-    key_term_repository: KeyTermRepository = Depends(get_key_term_repository)
-) -> GraphService:
-    """Dependency for graph service that composes other dependencies"""
-    return GraphService(
-        llm_service=llm_service,
-        document_repository=document_repository,
-        chunk_index_repository=chunk_index_repository,
-        key_term_repository=key_term_repository
     )
 
 def get_chat_service(
