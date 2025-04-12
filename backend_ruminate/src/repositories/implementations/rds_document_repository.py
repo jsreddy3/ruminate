@@ -479,3 +479,40 @@ class RDSDocumentRepository(DocumentRepository):
         finally:
             if local_session:
                 await session.close()
+
+    async def get_all_documents(self, user_id: Optional[str] = None, session: Optional[AsyncSession] = None) -> List[Document]:
+        """Get all documents, optionally filtered by user_id"""
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Build query
+            query = select(DocumentModel)
+            
+            # Add user_id filter if provided
+            if user_id:
+                query = query.where(DocumentModel.user_id == user_id)
+                
+            # Execute query
+            result = await session.execute(query)
+            doc_models = result.scalars().all()
+            
+            # Convert models to documents
+            documents = []
+            for doc_model in doc_models:
+                doc_dict = {c.name: getattr(doc_model, c.name) for c in doc_model.__table__.columns}
+                
+                # Rename meta_data back to metadata for Pydantic
+                if 'meta_data' in doc_dict:
+                    doc_dict['metadata'] = doc_dict.pop('meta_data')
+                    
+                documents.append(Document.parse_obj(doc_dict))
+                
+            return documents
+        except Exception as e:
+            if local_session:
+                await session.rollback()
+            raise e
+        finally:
+            if local_session:
+                await session.close()

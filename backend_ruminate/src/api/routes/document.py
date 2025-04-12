@@ -22,6 +22,16 @@ document_router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+@document_router.get("/")
+async def get_uploaded_documents(
+    user_id: Optional[str] = None,
+    document_repository: DocumentRepository = Depends(get_document_repository),
+    session: Optional[AsyncSession] = Depends(get_db)
+) -> List[Document]:
+    """Get all uploaded documents, optionally filtered by user_id"""
+    documents = await document_repository.get_all_documents(user_id, session)
+    return documents
+
 @document_router.get("/{document_id}/processing-stream")
 async def stream_processing_status(document_id: str):
     """Streams document processing status updates via Server-Sent Events."""

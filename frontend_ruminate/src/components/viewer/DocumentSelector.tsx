@@ -1,88 +1,86 @@
 import React, { useEffect, useState } from 'react';
-
-interface Document {
-  id: string;
-  title: string;
-}
+import { Document, documentApi } from '@/services/api/document';
 
 interface DocumentSelectorProps {
   onSelectDocument: (documentId: string, pdfUrl: string) => void;
 }
 
 export default function DocumentSelector({ onSelectDocument }: DocumentSelectorProps) {
-  const [documents, setDocuments] = useState<{[hash: string]: {documentId: string, title: string, blockConversations: {[blockId: string]: string}}}>({});
-  const [loading, setLoading] = useState(false);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch documents on component mount
   useEffect(() => {
-    // Load cached documents from localStorage
-    const cachedDocuments = JSON.parse(localStorage.getItem('pdfDocuments') || '{}');
-    
-    // Update document titles if they don't have one
-    const updatedDocuments = {...cachedDocuments};
-    let hasChanges = false;
-    
-    for (const hash in updatedDocuments) {
-      // If title is missing, add a placeholder
-      if (!updatedDocuments[hash].title) {
-        updatedDocuments[hash].title = `Document ${updatedDocuments[hash].documentId.substring(0, 8)}`;
-        hasChanges = true;
+    const fetchDocuments = async () => {
+      try {
+        setLoading(true);
+        const docs = await documentApi.getAllDocuments();
+        // Filter to only show documents that are ready
+        const readyDocs = docs.filter(doc => doc.status === 'READY');
+        setDocuments(readyDocs);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setError('Failed to load documents');
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    // Save back to localStorage if we made changes
-    if (hasChanges) {
-      localStorage.setItem('pdfDocuments', JSON.stringify(updatedDocuments));
-    }
-    
-    setDocuments(updatedDocuments);
+    };
+
+    fetchDocuments();
   }, []);
 
-  const handleSelectDocument = async (hash: string) => {
-    if (!hash) return;
+  const handleSelectDocument = async (documentId: string) => {
+    if (!documentId) return;
     
     setLoading(true);
     try {
-      const doc = documents[hash];
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      
-      // Get the document to verify it still exists
-      const response = await fetch(`${apiUrl}/documents/${doc.documentId}`);
-      if (!response.ok) {
-        throw new Error("Document no longer exists");
-      }
-      
-      // Get document details to update title if needed
-      const documentData = await response.json();
-      if (documentData.title && documentData.title !== doc.title) {
-        // Update title in localStorage
-        const updatedDocuments = {...documents};
-        updatedDocuments[hash].title = documentData.title;
-        localStorage.setItem('pdfDocuments', JSON.stringify(updatedDocuments));
-        setDocuments(updatedDocuments);
-      }
-      
-      // Generate URL for the PDF
-      const pdfUrl = `${apiUrl}/documents/${doc.documentId}/pdf`;
+      // Get the document data URL
+      const pdfDataUrl = await documentApi.getPdfDataUrl(documentId);
       
       // Call the callback with the document ID and PDF URL
-      onSelectDocument(doc.documentId, pdfUrl);
+      onSelectDocument(documentId, pdfDataUrl);
     } catch (error) {
       console.error("Error loading document:", error);
-      // Remove invalid document from localStorage
-      const updatedDocuments = {...documents};
-      delete updatedDocuments[hash];
-      localStorage.setItem('pdfDocuments', JSON.stringify(updatedDocuments));
-      setDocuments(updatedDocuments);
+      setError('Failed to load the selected document');
     } finally {
       setLoading(false);
     }
   };
 
-  // If no documents, don't render
-  if (Object.keys(documents).length === 0) {
-    return null;
+  // If no documents or still loading initially, show appropriate message
+  if (loading && documents.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-4 border rounded-md bg-gray-50">
+        <svg className="animate-spin h-5 w-5 mr-3 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Loading documents...</span>
+      </div>
+    );
   }
 
+  // If no documents after loading completes
+  if (!loading && documents.length === 0) {
+    return (
+      <div className="p-4 border rounded-md bg-gray-50 text-gray-500 text-center">
+        No documents available. Upload a document to get started.
+      </div>
+    );
+  }
+
+  // If there's an error
+  if (error && !loading) {
+    return (
+      <div className="p-4 border rounded-md bg-red-50 text-red-600 text-center">
+        {error}
+      </div>
+    );
+  }
+
+  // Render document selector
   return (
     <div className="relative inline-block w-full">
       <select 
@@ -92,9 +90,9 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
         defaultValue=""
       >
         <option value="" disabled>Select a previous document</option>
-        {Object.entries(documents).map(([hash, doc]) => (
-          <option key={hash} value={hash}>
-            {doc.title || `Document ${doc.documentId.substring(0, 8)}`}
+        {documents.map((doc) => (
+          <option key={doc.id} value={doc.id}>
+            {doc.title || `Document ${doc.id.substring(0, 8)}`}
           </option>
         ))}
       </select>
@@ -113,4 +111,4 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
       )}
     </div>
   );
-} 
+}

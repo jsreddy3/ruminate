@@ -83,3 +83,16 @@ class DocumentRepository(ABC):
             session: Optional database session
         """
         pass
+        
+    @abstractmethod
+    async def get_all_documents(self, user_id: Optional[str] = None, session: Optional[DBSession] = None) -> List[Document]:
+        """Get all documents, optionally filtered by user_id
+        
+        Args:
+            user_id: Optional user ID to filter documents by owner
+            session: Optional database session
+            
+        Returns:
+            List of Document objects
+        """
+        pass
