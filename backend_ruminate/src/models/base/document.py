@@ -50,10 +50,6 @@ class Document(BaseModel):
         """Start Marker processing"""
         self.status = DocumentStatus.PROCESSING_MARKER
         
-    def start_rumination_processing(self) -> None:
-        """Start Rumination processing"""
-        self.status = DocumentStatus.PROCESSING_RUMINATION
-        
     def set_error(self, error: str) -> None:
         """Set error status and message"""
         self.status = DocumentStatus.ERROR

@@ -76,18 +76,6 @@ async def get_blocks(
         raise HTTPException(status_code=404, detail="Blocks not found")
     return blocks
 
-@document_router.get("/{document_id}/chunks")
-async def get_chunks(
-    document_id: str,
-    document_repository: DocumentRepository = Depends(get_document_repository),
-    session: Optional[AsyncSession] = Depends(get_db)
-) -> List[Chunk]:
-    """Get all chunks for a document"""
-    chunks = await document_repository.get_chunks(document_id, session)
-    if not chunks:
-        raise HTTPException(status_code=404, detail="Chunks not found")
-    return chunks
-
 @document_router.get("/{document_id}/arguments")
 async def get_document_arguments(
     document_id: str,

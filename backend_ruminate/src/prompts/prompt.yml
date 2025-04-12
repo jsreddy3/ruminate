@@ -1,5 +1,0 @@
-# src/prompts/prompt.yml
-system: "You are an expert document reader whose task is to deeply understand each block of the document with this objective: {OBJECTIVE}.\nYour responses should be very concise yet insightful."
-initial_analysis: "Analyze the following block with this objective: {OBJECTIVE}. ANSWER IN 20 WORDS OR LESS. Block content:"
-annotation_extraction: |
-  "Based on the block of text and its overall analysis, extract key phrases that are especially significant, and for each phrase provide a brief insight explaining its importance and connection to the themes of the document. {OBJECTIVE} The phrase should be an exact substring from the block text. The insight should be a concise explanation (1-2 sentences) of the phrase's significance. Limit your response to 1-3 annotations."
