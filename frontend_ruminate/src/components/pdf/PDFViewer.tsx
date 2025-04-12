@@ -586,21 +586,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               }}
               className="overflow-auto relative"
             >
-              {/* Add a control toolbar at the top */}
-              <div className="absolute top-0 right-0 z-10 flex items-center bg-white/80 backdrop-blur-sm p-1 m-2 rounded-md shadow-sm">
-                <label className="flex items-center space-x-2 text-sm cursor-pointer px-2 py-1">
-                  <input 
-                    type="checkbox" 
-                    checked={showChunkBoundaries} 
-                    onChange={() => setShowChunkBoundaries(!showChunkBoundaries)}
-                    className="form-checkbox h-4 w-4 text-primary-600"
-                  />
-                  <span>Show Chunk Boundaries</span>
-                </label>
-              </div>
-
-
-
               <Viewer
                 fileUrl={pdfFile}
                 plugins={[defaultLayoutPluginInstance]}
