@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.document import document_router
 from src.api.routes.conversation import router as conversation_router
+from src.api.routes.rabbithole import router as rabbithole_router
 from src.api.dependencies import initialize_repositories
 
 
@@ -30,6 +31,7 @@ async def startup_event():
 
 app.include_router(document_router)
 app.include_router(conversation_router)
+app.include_router(rabbithole_router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -6,6 +6,7 @@ import { useConversation } from "../../hooks/useConversation";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import BlockContent from "./BlockContent";
+import RabbitholePane from "./RabbitholePane";
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 
 // Add array of supported block types (matching PDFViewer)
@@ -36,10 +37,18 @@ export default function ChatPane({
 }: ChatPaneProps) {
   // Track current block ID to handle block changes without remounting
   const [currentBlockId, setCurrentBlockId] = useState(block.id);
+  // Add state for rabbithole mode
+  const [rabbitholeActive, setRabbitholeActive] = useState(false);
+  const [selectedText, setSelectedText] = useState("");
+  // Add state for text selection positions
+  const [textStartOffset, setTextStartOffset] = useState<number | undefined>(undefined);
+  const [textEndOffset, setTextEndOffset] = useState<number | undefined>(undefined);
 
   // Update currentBlockId when block prop changes
   useEffect(() => {
     setCurrentBlockId(block.id);
+    // Disable rabbithole when changing blocks
+    setRabbitholeActive(false);
   }, [block.id]);
 
   const {
@@ -80,6 +89,34 @@ export default function ChatPane({
     });
   };
 
+  // Handler for activating rabbithole mode
+  const handleRabbithole = (text: string, startOffset: number, endOffset: number) => {
+    setSelectedText(text);
+    setTextStartOffset(startOffset);
+    setTextEndOffset(endOffset);
+    setRabbitholeActive(true);
+  };
+
+  // If rabbithole is active, show the rabbithole pane
+  if (rabbitholeActive) {
+    return (
+      <RabbitholePane
+        selectedText={selectedText}
+        documentId={documentId}
+        conversationId={conversationId}
+        blockId={currentBlockId}
+        textStartOffset={textStartOffset}
+        textEndOffset={textEndOffset}
+        onClose={() => {
+          setRabbitholeActive(false);
+          setSelectedText("");
+          setTextStartOffset(undefined);
+          setTextEndOffset(undefined);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-white text-neutral-800 border-l border-neutral-200 shadow-lg">
       {/* Header */}
@@ -109,9 +146,11 @@ export default function ChatPane({
                   <BlockContent 
                     html_content={block.html_content} 
                     block_type={block.block_type} 
+                    block_id={block.id}
                     images={block.images}
                     highlights={[]}
                     onAddTextToChat={handleAddTextToChat}
+                    onRabbithole={handleRabbithole}
                   />
                 </div>
               </div>

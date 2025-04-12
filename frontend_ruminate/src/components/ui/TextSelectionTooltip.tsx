@@ -7,6 +7,7 @@ interface TextSelectionTooltipProps {
   selectedText: string;
   onAddToChat: (text: string) => void;
   onDefine?: (text: string) => void;
+  onRabbithole?: (text: string) => void;
   actions?: Array<{
     label: string;
     icon?: React.ReactNode;
@@ -21,6 +22,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   selectedText,
   onAddToChat,
   onDefine,
+  onRabbithole,
   actions = [],
   onClose,
 }) => {
@@ -71,6 +73,14 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       label: 'Define',
       icon: <BookOpen size={16} />,
       onClick: onDefine,
+    }] : []),
+    ...( onRabbithole ? [{
+      label: 'Rabbithole',
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12C18 15.3137 15.3137 18 12 18H6V12Z" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M10 12C10 12.5523 9.55228 13 9 13C8.44772 13 8 12.5523 8 12C8 11.4477 8.44772 11 9 11C9.55228 11 10 11.4477 10 12Z" fill="currentColor" />
+      </svg>,
+      onClick: onRabbithole,
     }] : [])
   ];
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, TypeVar, Tuple
+from typing import List, Optional, TypeVar, Tuple, Dict, Any
 from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message
 
@@ -55,4 +55,9 @@ class ConversationRepository(ABC):
     @abstractmethod
     async def set_active_version(self, message_id: str, active_child_id: str, session: Optional[DBSession] = None) -> None:
         """Set the active version of a message"""
+        pass
+
+    @abstractmethod
+    async def get_conversations_by_criteria(self, criteria: Dict[str, Any], session: Optional[DBSession] = None) -> List[Conversation]:
+        """Get conversations matching the provided criteria"""
         pass

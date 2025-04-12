@@ -5,9 +5,16 @@ interface ChatInputProps {
   isLoading: boolean;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSend: () => void;
+  placeholder?: string;
 }
 
-export default function ChatInput({ value, isLoading, onChange, onSend }: ChatInputProps) {
+export default function ChatInput({ 
+  value, 
+  isLoading, 
+  onChange, 
+  onSend,
+  placeholder = "Ask about this block..."
+}: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -33,7 +40,7 @@ export default function ChatInput({ value, isLoading, onChange, onSend }: ChatIn
           value={value}
           onChange={onChange}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about this block..."
+          placeholder={placeholder}
           className="flex-1 p-3 border border-neutral-300 rounded-lg text-sm min-h-[40px] max-h-[200px] resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 overflow-y-auto"
           style={{ height: 'auto' }}
           onInput={(e) => {

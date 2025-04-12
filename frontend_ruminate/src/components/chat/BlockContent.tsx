@@ -10,12 +10,14 @@ import CodeBlock from '../blocks/CodeBlock';
 interface BlockContentProps {
   html_content: string;
   block_type: string;
+  block_id: string;
   images?: { [key: string]: string };
   highlights?: Array<{
     phrase: string;
     insight: string;
   }>;
   onAddTextToChat?: (text: string) => void;
+  onRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
 }
 
 const getBlockClassName = (block_type?: string): string => {
@@ -57,9 +59,11 @@ const unsupportedTypes = [
 const BlockContent: React.FC<BlockContentProps> = ({ 
   html_content, 
   block_type,
+  block_id,
   images = {},
   highlights = [],
-  onAddTextToChat
+  onAddTextToChat,
+  onRabbithole
 }) => {
   const type = block_type?.toLowerCase();
 
@@ -239,9 +243,11 @@ const BlockContent: React.FC<BlockContentProps> = ({
       <TextBlock 
         html_content={html_content} 
         block_type={block_type} 
+        block_id={block_id}
         highlights={highlights} 
         getBlockClassName={getBlockClassName}
         onAddTextToChat={onAddTextToChat}
+        onRabbithole={onRabbithole}
       />
     </BlockWrapper>
   );

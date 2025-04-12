@@ -461,3 +461,48 @@ class RDSConversationRepository(ConversationRepository):
         finally:
             if local_session:
                 await session.close()
+
+    async def get_conversations_by_criteria(self, criteria: Dict[str, Any], session: Optional[AsyncSession] = None) -> List[Conversation]:
+        """Get conversations matching the provided criteria"""
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Build query with dynamic criteria
+            query = select(ConversationModel)
+            
+            # Add all criteria as filters
+            for key, value in criteria.items():
+                if hasattr(ConversationModel, key):
+                    query = query.where(getattr(ConversationModel, key) == value)
+            
+            # Execute query
+            result = await session.execute(query)
+            models = result.scalars().all()
+            
+            # Convert to Conversation objects
+            conversations = []
+            for model in models:
+                # Convert model to dict
+                conv_dict = {c.name: getattr(model, c.name) for c in model.__table__.columns}
+                
+                # Parse created_at datetime if it's a string
+                if 'created_at' in conv_dict and isinstance(conv_dict['created_at'], str):
+                    conv_dict['created_at'] = datetime.fromisoformat(conv_dict['created_at'])
+                
+                # Convert included_pages from JSON to dict if needed
+                if 'included_pages' in conv_dict and conv_dict['included_pages'] is not None:
+                    if isinstance(conv_dict['included_pages'], str):
+                        conv_dict['included_pages'] = json.loads(conv_dict['included_pages'])
+                
+                conversations.append(Conversation.from_dict(conv_dict))
+            
+            return conversations
+        except Exception as e:
+            if local_session:
+                await session.rollback()
+            logger.error(f"Error in get_conversations_by_criteria: {str(e)}")
+            raise e
+        finally:
+            if local_session:
+                await session.close()
