@@ -24,19 +24,7 @@ export interface Block {
   images?: { [key: string]: string };
 }
 
-// New interface for chunks
-interface Chunk {
-  id: string;
-  document_id: string;
-  title?: string;
-  sequence: number;
-  page_range: number[];
-  block_ids: string[];
-  html_content: string;
-  embedding?: number[];
-  summary?: string;
-  metadata?: any;
-}
+
 
 // A minimal Block Info component (for the built-in sidebar tab, if you still want it)
 function BlockInformation({ block }: { block: Block | null }) {
@@ -97,9 +85,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   const [documentConversationId, setDocumentConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // New state for chunks and chunk boundary visibility
-  const [chunks, setChunks] = useState<Chunk[]>([]);
-  const [showChunkBoundaries, setShowChunkBoundaries] = useState(false);
+
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
   // Add state for chat pane width
@@ -186,13 +172,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         const blocksData = await blocksResp.json();
         if (Array.isArray(blocksData)) {
           setBlocks(blocksData);
-        }
-        
-        // Fetch chunks as well
-        const chunksResp = await fetch(`${apiUrl}/documents/${documentId}/chunks`);
-        const chunksData = await chunksResp.json();
-        if (Array.isArray(chunksData)) {
-          setChunks(chunksData);
         }
       } catch (error) {
         console.error("Error fetching document data:", error);
@@ -390,16 +369,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             const h = Math.max(...b.polygon.map((p) => p[1])) - y;
 
             const isSelected = selectedBlock?.id === b.id;
-            
-            // Determine the chunk for this block
-            const chunkForBlock = showChunkBoundaries ? 
-              chunks.find(chunk => chunk.block_ids.includes(b.id)) : 
-              undefined;
-            
-            // Determine if this is a chunk boundary (last block in a chunk)
-            const isChunkBoundary = showChunkBoundaries && chunkForBlock ? 
-              chunkForBlock.block_ids[chunkForBlock.block_ids.length - 1] === b.id : 
-              false;
+
             
             // Determine the block's status
             const blockStatus = isSelected ? 'selected' : '';
@@ -418,13 +388,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 borderRadius: '2px',
               };
 
-              // Add chunk boundary styling if needed
-              if (isChunkBoundary) {
-                return {
-                  ...baseStyle,
-                  borderBottom: '3px dashed rgba(255, 0, 0, 0.7)',
-                };
-              }
+
               
               if (isSelected) {
                 return {
@@ -463,7 +427,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         </div>
       );
     },
-    [blocks, selectedBlock, handleBlockClick, showChunkBoundaries, chunks]
+    [blocks, selectedBlock, handleBlockClick]
   );
 
   // Update the array name and contents to include Picture blocks

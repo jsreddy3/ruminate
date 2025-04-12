@@ -20,7 +20,6 @@ from src.services.conversation.chat_service import ChatService
 from src.services.ai.llm_service import LLMService
 from src.config import get_settings, Settings
 from src.services.document.critical_content_service import CriticalContentService
-from src.services.document.chunking_service import ChunkingService
 
 # Global instances
 repository_factory = RepositoryFactory()
@@ -136,10 +135,6 @@ def get_llm_service() -> LLMService:
         api_key=settings.openai_api_key,
         gemini_api_key=settings.gemini_api_key
     )
-
-def get_chunking_service() -> ChunkingService:
-    """Dependency for chunking service"""
-    return ChunkingService()
 
 def get_critical_content_service() -> CriticalContentService:
     llm_service = get_llm_service()
