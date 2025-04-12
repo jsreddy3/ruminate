@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, AsyncGenerator
 from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message, MessageRole
 from src.repositories.interfaces.conversation_repository import ConversationRepository
@@ -313,3 +313,139 @@ class ChatService:
     async def get_document_conversations(self, document_id: str, session: Optional[AsyncSession] = None) -> List[Conversation]:
         """Get all conversations for a document"""
         return await self.conversation_repo.get_document_conversations(document_id, session)
+    
+    async def stream_message(self,
+                           conversation_id: str,
+                           content: str,
+                           parent_version_id: Optional[str] = None,
+                           selected_block_id: Optional[str] = None,
+                           session: Optional[AsyncSession] = None) -> AsyncGenerator[str, None]:
+        """Send a user message and stream the AI response, incorporating selected block context if provided"""
+        # Verify conversation exists
+        conversation = await self.conversation_repo.get_conversation(conversation_id, session)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+
+        # --- Create User Message ---
+        # Generate a new message ID
+        user_msg_id = str(uuid.uuid4())
+        user_msg_content = content.strip()
+        
+        # Find parent message for branching support
+        parent_id = None
+        thread = await self.conversation_repo.get_active_thread(conversation_id, session)
+        if parent_version_id:
+            parent_id = parent_version_id
+        elif thread:
+            # Find the last assistant message to use as parent
+            for msg in reversed(thread):
+                if msg.role == MessageRole.ASSISTANT:
+                    parent_id = msg.id
+                    break
+        
+        user_msg = Message(
+            id=user_msg_id,
+            conversation_id=conversation_id,
+            role=MessageRole.USER,
+            content=user_msg_content,
+            parent_id=parent_id,
+            timestamp=datetime.utcnow().isoformat()
+        )
+        
+        # Save user message to DB
+        await self.conversation_repo.add_message(user_msg, session)
+
+        # --- Build Context for AI Response ---
+        # If no parent was found, use the root message
+        if not parent_id and conversation.root_message_id:
+            parent_id = conversation.root_message_id
+
+        # Build input context
+        context_messages = await self.context_service.build_message_context(conversation_id, user_msg)
+        
+        # --- Enhance with selected block content if available ---
+        selected_block = None
+        if selected_block_id:
+            selected_block = await self.document_repo.get_block(selected_block_id, session)
+            if not selected_block:
+                logger.warning(f"Selected block {selected_block_id} not found")
+        
+        # Enhance the message with block content if available
+        enhanced_content = ""
+        
+        # Add reference to selected block content if it exists
+        if selected_block and selected_block.html_content:
+            selected_block_text = self._strip_html(selected_block.html_content)
+            enhanced_content += f"Selected block content:\n---\n{selected_block_text}\n---\n\n"
+        
+        # Add user query
+        enhanced_content += user_msg_content
+        
+        # Only modify the content if we have enhancements
+        if enhanced_content:
+            context_messages[-1].content = enhanced_content
+            logger.info(f"Enhanced context with page and block content")
+        
+        # Log detailed context information for verification
+        logger.info("---------- CONTEXT VERIFICATION ----------")
+        logger.info(f"Conversation ID: {conversation_id}")
+        logger.info(f"Included Pages: {conversation.included_pages}")
+        if selected_block:
+            logger.info(f"Selected Block: ID={selected_block_id}, Page={selected_block.page_number}")
+        
+        # Log the messages being sent to the LLM
+        logger.info("Messages being sent to LLM:")
+        for i, msg in enumerate(context_messages):
+            # Truncate long content for readability in logs
+            content_preview = msg.content[:500] + "..." if len(msg.content) > 500 else msg.content
+            logger.info(f"  Message {i+1}: Role={msg.role}, Content Preview={content_preview}")
+        logger.info("----------------------------------------")
+
+        # --- Stream AI Response ---
+        response_content = ""
+        ai_msg_id = str(uuid.uuid4())
+        
+        # Create the AI message with empty content initially
+        ai_msg = Message(
+            id=ai_msg_id,
+            conversation_id=conversation_id,
+            role=MessageRole.ASSISTANT,
+            content="",
+            parent_id=user_msg.id
+        )
+        
+        # Save initial empty AI message to establish the relationship
+        await self.conversation_repo.add_message(ai_msg, session)
+        await self.conversation_repo.set_active_version(user_msg.id, ai_msg.id, session)
+        
+        # Stream the response
+        async for token in self.llm_service.stream_response(context_messages):
+            response_content += token
+            yield token
+        
+        # Now that streaming is complete, we need to update the message with the complete content
+        # We'll use SQLAlchemy's update statement instead of trying to re-add the message
+        local_session = session is None
+        session_to_use = session or self.conversation_repo.session_factory()
+        
+        try:
+            # Import the necessary components for the update
+            from sqlalchemy import update
+            from src.models.conversation.message import MessageModel
+            
+            # Use SQLAlchemy's update statement (safer than raw SQL)
+            update_stmt = update(MessageModel).where(MessageModel.id == ai_msg_id).values(content=response_content)
+            await session_to_use.execute(update_stmt)
+            
+            if local_session:
+                await session_to_use.commit()
+                
+            logger.info("Completed streaming response")
+        except Exception as e:
+            if local_session:
+                await session_to_use.rollback()
+            logger.error(f"Error updating message content: {e}")
+            # Don't re-raise to avoid breaking the streaming response
+        finally:
+            if local_session and session_to_use:
+                await session_to_use.close()

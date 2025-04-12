@@ -50,6 +50,74 @@ export const conversationApi = {
     return response.json();
   },
 
+  streamMessage: (
+    conversationId: string,
+    content: string,
+    parentId: string,
+    selectedBlockId: string,
+    onToken: (token: string) => void,
+    onError: (error: Error) => void,
+    onComplete: () => void
+  ): { abort: () => void } => {
+    // Create the URL with query parameters
+    const url = new URL(`${API_BASE_URL}/conversations/${conversationId}/messages/stream`);
+    
+    // Create an AbortController to allow stopping the stream
+    const controller = new AbortController();
+    
+    // Start the fetch request
+    (async () => {
+      try {
+        // First, send the message using fetch with appropriate headers
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            content, 
+            parent_version_id: parentId,
+            selected_block_id: selectedBlockId 
+          }),
+          signal: controller.signal
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        
+        // Handle the streaming response
+        const reader = response.body?.getReader();
+        
+        if (!reader) {
+          throw new Error('ReadableStream not supported');
+        }
+        
+        const decoder = new TextDecoder();
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            onComplete();
+            break;
+          }
+          
+          // Decode and send the token to the callback
+          const token = decoder.decode(value, { stream: true });
+          onToken(token);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          onError(error instanceof Error ? error : new Error(String(error)));
+        }
+      }
+    })();
+    
+    // Return the abort function for the caller to stop the stream
+    return {
+      abort: () => controller.abort()
+    };
+  },
+
   editMessage: async (
     conversationId: string, 
     messageId: string, 

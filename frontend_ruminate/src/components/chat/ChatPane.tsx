@@ -47,11 +47,15 @@ export default function ChatPane({
     displayedThread,
     messagesById,
     isLoading: isChatLoading,
+    isStreaming,
+    streamingMessage,
     editingMessageId,
     editingContent,
     newMessage,
     setNewMessage,
     sendMessage,
+    sendStreamingMessage,
+    cancelStreaming,
     handleSaveEdit,
     handleVersionSwitch,
     setEditingMessageId,
@@ -64,7 +68,7 @@ export default function ChatPane({
   });
 
   const handleSend = () => {
-    sendMessage(newMessage, currentBlockId);
+    sendStreamingMessage(newMessage, currentBlockId);
   };
 
   // Update the condition to check against supported types
@@ -227,7 +231,21 @@ export default function ChatPane({
                         onVersionSwitch={handleVersionSwitch}
                       />
                     ))}
-                  {isChatLoading && (
+                  
+                  {/* Streaming response */}
+                  {isStreaming && streamingMessage && (
+                    <div className="flex justify-start">
+                      <div className="bg-primary-50 text-neutral-800 p-3 rounded-lg shadow-sm border border-primary-100 max-w-[80%]">
+                        <div className="prose prose-sm">
+                          {streamingMessage}
+                          <span className="inline-block animate-pulse">▌</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Loading indicator */}
+                  {isChatLoading && !isStreaming && (
                     <div className="flex justify-start">
                       <div className="bg-primary-50 text-neutral-800 p-3 rounded-lg shadow-sm border border-primary-100">
                         <em>AI is typing...</em>

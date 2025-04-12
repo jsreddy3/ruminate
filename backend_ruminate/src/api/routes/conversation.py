@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 
 from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message
@@ -129,5 +130,27 @@ async def get_message_tree(
     """Get the full tree of messages in a conversation, including all versions and branches"""
     try:
         return await chat_service.get_message_tree(conversation_id, session)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/{conversation_id}/messages/stream")
+async def stream_message(
+    conversation_id: str,
+    request: SendMessageRequest,
+    chat_service: ChatService = Depends(get_chat_service),
+    session: Optional[AsyncSession] = Depends(get_db)
+):
+    """Stream a message response in a conversation"""
+    try:
+        return StreamingResponse(
+            chat_service.stream_message(
+                conversation_id, 
+                request.content, 
+                parent_version_id=request.parent_version_id,
+                selected_block_id=request.selected_block_id,
+                session=session
+            ),
+            media_type="text/event-stream"
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

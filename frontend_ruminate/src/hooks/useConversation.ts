@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Message } from '../types/chat';
 import { getActiveThread, buildMessageTree } from '../utils/messageTreeUtils';
 import { conversationApi } from '../services/api/conversation';
@@ -22,9 +22,12 @@ export function useConversation({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [newMessage, setNewMessage] = useState("");
+  const [streamingMessage, setStreamingMessage] = useState<string>("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const streamControllerRef = useRef<{ abort: () => void } | null>(null);
 
   // Add scroll effect
-  useScrollEffect(displayedThread);
+  useScrollEffect(displayedThread, isStreaming);
 
   // Fetch conversation history
   useEffect(() => {
@@ -148,6 +151,103 @@ export function useConversation({
     }
   };
 
+  const sendStreamingMessage = async (content: string, selectedBlockId?: string) => {
+    if (!content.trim() || isLoading || isStreaming || !conversationId) return;
+    
+    setIsLoading(true);
+    setIsStreaming(true);
+    setStreamingMessage(""); // Reset streaming message
+
+    const parentMessage = displayedThread.length > 0 
+      ? displayedThread[displayedThread.length - 1] 
+      : messageTree[0]; // Use root if thread empty
+    
+    if (!parentMessage) {
+      console.error("Cannot send message: No parent message found.");
+      setIsLoading(false);
+      setIsStreaming(false);
+      return;
+    }
+
+    // Create optimistic user message
+    const userMessage: Message = {
+      id: "temp-user-message-id-" + Date.now(),
+      role: "user",
+      content,
+      parent_id: parentMessage.id,
+      children: [],
+      active_child_id: null,
+      created_at: new Date().toISOString()
+    };
+
+    // --- Optimistic Update ---
+    const tempThread = [...displayedThread, userMessage];
+    setDisplayedThread(tempThread);
+    
+
+    try {
+      // Start the streaming request
+      const controller = conversationApi.streamMessage(
+        conversationId,
+        content,
+        parentMessage.id,
+        selectedBlockId || '',
+        // Handle each token as it arrives
+        (token) => {
+          setStreamingMessage(prev => prev + token);
+        },
+        // Handle errors
+        (error) => {
+          console.error("Streaming error:", error);
+          setIsStreaming(false);
+          setIsLoading(false);
+        },
+        // Handle completion
+        async () => {
+          // Once streaming is complete, we need to fetch the conversation
+          // to get the proper IDs and structure from the backend
+          try {
+            const messages = await conversationApi.getMessageTree(conversationId);
+            const { tree, messageMap } = buildMessageTree(messages);
+            const activeThread = getActiveThread(tree[0], messageMap);
+            
+            setMessageTree(tree);
+            setMessagesById(messageMap);
+            setDisplayedThread(activeThread);
+          } catch (err) {
+            console.error("Error fetching conversation after streaming:", err);
+          } finally {
+            setStreamingMessage("");
+            setIsStreaming(false);
+            setIsLoading(false);
+            streamControllerRef.current = null;
+          }
+        }
+      );
+      
+      // Save controller reference for potential cancellation
+      streamControllerRef.current = controller;
+      setNewMessage("");
+      
+    } catch (error) {
+      console.error("Error starting streaming message:", error);
+      // Revert optimistic update
+      setDisplayedThread(prev => prev.slice(0, -1));
+      setIsStreaming(false);
+      setIsLoading(false);
+    }
+  };
+
+  // Function to cancel an active stream
+  const cancelStreaming = () => {
+    if (streamControllerRef.current) {
+      streamControllerRef.current.abort();
+      streamControllerRef.current = null;
+      setIsStreaming(false);
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveEdit = async (messageId: string) => {
     if (!conversationId || !editingContent.trim() || isLoading) return;
 
@@ -217,11 +317,15 @@ export function useConversation({
     displayedThread,
     messagesById,
     isLoading,
+    isStreaming,
+    streamingMessage,
     editingMessageId,
     editingContent,
     newMessage,
     setNewMessage,
     sendMessage,
+    sendStreamingMessage,
+    cancelStreaming,
     handleSaveEdit,
     handleVersionSwitch,
     setEditingMessageId,

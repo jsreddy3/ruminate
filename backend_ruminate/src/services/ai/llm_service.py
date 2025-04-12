@@ -1,6 +1,5 @@
 # llm_service.py
-
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, AsyncGenerator
 from src.models.conversation.message import Message, MessageRole
 from litellm import acompletion
 import google.generativeai as genai
@@ -125,7 +124,53 @@ class LLMService:
         except Exception as e:
             logger.error(f"Error calling LiteLLM acompletion: {e}")
             return f"Error generating response: {e}"
+    
+    async def stream_response(self, messages: List[Message]) -> AsyncGenerator[str, None]:
+        """Stream LLM response for the given messages
 
+        Args:
+            messages: List of messages in the conversation thread
+
+        Yields:
+            Tokens of the generated response as they become available
+        """
+        try:
+            # Convert Message objects to the format expected by litellm
+            formatted_messages = []
+            for message in messages:
+                role = "system" if message.role == MessageRole.SYSTEM else \
+                       "user" if message.role == MessageRole.USER else \
+                       "assistant"
+                formatted_messages.append({
+                    "role": role,
+                    "content": message.content
+                })
+            
+            logger.debug(f"Streaming with model {self.CHAT_MODEL}, messages: {formatted_messages}")
+            
+            # Use liteLLM's streaming with acompletion + stream=True
+            response = await acompletion(
+                model=self.CHAT_MODEL,
+                messages=formatted_messages,
+                api_key=self.api_key,
+                temperature=0.7,
+                max_tokens=1500,
+                stream=True  # This enables streaming
+            )
+            
+            # Stream each chunk as it's generated
+            async for chunk in response:
+                if hasattr(chunk, 'choices') and chunk.choices:
+                    choice = chunk.choices[0]
+                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'content'):
+                        token = choice.delta.content
+                        if token:
+                            yield token
+                    
+        except Exception as e:
+            logger.error(f"Error streaming response: {str(e)}")
+            # Yield an error message that can be displayed to the user
+            yield f"\n\nError generating response: {str(e)}"
 
     async def generate_structured_response(
         self,
