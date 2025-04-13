@@ -37,7 +37,7 @@ export function useDocumentUpload(): UseDocumentUploadResult {
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
-        console.log("Closing EventSource connection on cleanup.");
+        // console.log("Closing EventSource connection on cleanup.");
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }

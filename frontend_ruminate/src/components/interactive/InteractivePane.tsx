@@ -34,12 +34,12 @@ export default function InteractivePane({
   hasNextBlock,
   hasPreviousBlock
 }: ChatPaneProps) {
-  console.log(`InteractivePane MOUNT with block ID: ${block.id}`);
+  // console.log(`InteractivePane MOUNT with block ID: ${block.id}`);
   
   // Add cleanup log in useEffect
   useEffect(() => {
     return () => {
-      console.log(`InteractivePane UNMOUNT with block ID: ${block.id}`);
+      // console.log(`InteractivePane UNMOUNT with block ID: ${block.id}`);
     };
   }, [block.id]);
   
@@ -48,7 +48,7 @@ export default function InteractivePane({
 
   // Update currentBlockId when block prop changes
   useEffect(() => {
-    console.log(`InteractivePane UPDATE with block ID: ${block.id}`);
+    // console.log(`InteractivePane UPDATE with block ID: ${block.id}`);
     setCurrentBlockId(block.id);
   }, [block.id]);
 
@@ -69,11 +69,11 @@ export default function InteractivePane({
   
   // Function to handle creating a new rabbithole from selected text
   const handleRabbitholeCreate = (text: string, startOffset: number, endOffset: number) => {
-    console.log('InteractivePane.handleRabbitholeCreate called with:', {
-      text,
-      startOffset,
-      endOffset
-    });
+    // console.log('InteractivePane.handleRabbitholeCreate called with:', {
+    //   text,
+    //   startOffset,
+    //   endOffset
+    // });
     
     // Set the active rabbithole information
     setActiveRabbitholeText(text);
@@ -88,37 +88,37 @@ export default function InteractivePane({
   
   // Function to handle rabbithole click
   const handleRabbitholeClick = (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
-    console.log('InteractivePane.handleRabbitholeClick called with:', {
-      rabbitholeId,
-      selectedText,
-      startOffset,
-      endOffset
-    });
+    // console.log('InteractivePane.handleRabbitholeClick called with:', {
+    //   rabbitholeId,
+    //   selectedText,
+    //   startOffset,
+    //   endOffset
+    // });
     
     // Log component state before changes
-    console.log('InteractivePane state BEFORE changes:', {
-      rabbitholeMode,
-      activeRabbitholeId,
-      currentBlockId,
-      selectedText: activeRabbitholeText
-    });
+    // console.log('InteractivePane state BEFORE changes:', {
+    //   rabbitholeMode,
+    //   activeRabbitholeId,
+    //   currentBlockId,
+    //   selectedText: activeRabbitholeText
+    // });
     
     setActiveRabbitholeId(rabbitholeId);
     setActiveRabbitholeText(selectedText);
     if (startOffset !== undefined) setActiveRabbitholeStartOffset(startOffset);
     if (endOffset !== undefined) setActiveRabbitholeEndOffset(endOffset);
     
-    console.log('Setting rabbithole mode to true');
+    // console.log('Setting rabbithole mode to true');
     setRabbitholeMode(true);
     
     // Log current state after update
     setTimeout(() => {
-      console.log('InteractivePane state AFTER changes:', {
-        rabbitholeMode,
-        activeRabbitholeId,
-        currentBlockId,
-        selectedText: activeRabbitholeText
-      });
+      // console.log('InteractivePane state AFTER changes:', {
+      //   rabbitholeMode,
+      //   activeRabbitholeId,
+      //   currentBlockId,
+      //   selectedText: activeRabbitholeText
+      // });
     }, 100);
   };
   
@@ -178,6 +178,7 @@ export default function InteractivePane({
                     blockId={currentBlockId}
                     blockType={block.block_type.toLowerCase()}
                     htmlContent={block.html_content}
+                    images={block.images}
                     onAddTextToChat={handleAddTextToChat}
                     onRabbitholeClick={handleRabbitholeClick}
                     onRabbitholeCreate={handleRabbitholeCreate}

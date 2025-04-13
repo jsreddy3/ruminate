@@ -94,13 +94,20 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Flatten blocks for easy navigation
   useEffect(() => {
     if (blocks.length > 0) {
-      // First, collect all non-page blocks with content and that are chat-enabled
+      // First, collect all non-page blocks that have content (HTML or images) and are chat-enabled
       const contentBlocks = blocks.filter(block => 
         block.block_type && 
         block.block_type.toLowerCase() !== "page" && 
-        block.html_content && 
+        (
+          block.html_content || 
+          (block.images && Object.keys(block.images || {}).length > 0) ||
+          ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
+        ) && 
         chatEnabledBlockTypes.includes(block.block_type.toLowerCase())
       );
+
+      console.log(`[Blocks Debug] Found ${contentBlocks.length} content blocks`);
+      console.log(`[Blocks Debug] Content block types:`, contentBlocks.map(b => b.block_type));
 
       // Flatten any blocks with children into a single array
       const flattenAllBlocks = (blocksToProcess: Block[]): Block[] => {
@@ -109,8 +116,14 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         for (const block of blocksToProcess) {
           // Only add blocks that are chat-enabled
           if (block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase())) {
-            // Add the current block
-            result.push(block);
+            // Add the current block if it has content (HTML or images)
+            if (
+              block.html_content || 
+              (block.images && Object.keys(block.images || {}).length > 0) ||
+              ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
+            ) {
+              result.push(block);
+            }
           }
           
           // Recursively add any chat-enabled children
@@ -137,6 +150,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       // Get all chat-enabled blocks including children
       const allBlocks = flattenAllBlocks(contentBlocks);
       
+      console.log(`[Blocks Debug] After flattening, found ${allBlocks.length} total blocks`);
+      console.log(`[Blocks Debug] Block types after flattening:`, allBlocks.map(b => b.block_type));
+
       // Sort blocks properly by page_number and position
       allBlocks.sort((a, b) => {
         // First sort by page_number
@@ -546,7 +562,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         // Check if block is chat-enabled
         if (prevBlock.block_type && 
             chatEnabledBlockTypes.includes(prevBlock.block_type.toLowerCase()) &&
-            prevBlock.html_content) {
+            (prevBlock.html_content || 
+             (prevBlock.images && Object.keys(prevBlock.images).length > 0) || 
+             ['picture', 'figure'].includes(prevBlock.block_type.toLowerCase()))) {
           // Found a chat-enabled block
           setSelectedBlock(prevBlock);
           return;
@@ -570,7 +588,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         // Check if block is chat-enabled
         if (nextBlock.block_type && 
             chatEnabledBlockTypes.includes(nextBlock.block_type.toLowerCase()) &&
-            nextBlock.html_content) {
+            (nextBlock.html_content || 
+             (nextBlock.images && Object.keys(nextBlock.images).length > 0) || 
+             ['picture', 'figure'].includes(nextBlock.block_type.toLowerCase()))) {
           // Found a chat-enabled block
           setSelectedBlock(nextBlock);
           return;
@@ -585,15 +605,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     if (!selectedBlock || flattenedBlocks.length === 0) return false;
     const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
     
+    console.log(`[Navigation Debug] Current block: ${selectedBlock.id}, index: ${currentIndex}, type: ${selectedBlock.block_type}`);
+    
     // Check if there are any previous blocks that are chat-enabled
     for (let i = currentIndex - 1; i >= 0; i--) {
       const block = flattenedBlocks[i];
-      if (block.block_type && 
-          chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) && 
-          block.html_content) {
+      const hasValidType = block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
+      const hasContent = block.html_content || (block.images && Object.keys(block.images || {}).length > 0);
+      const isImageType = ['picture', 'figure'].includes((block.block_type || '').toLowerCase());
+      
+      console.log(`[Navigation Debug] ← PREV Check for block id: ${block.id}, type: ${block.block_type || 'unknown'}, index: ${i}`);
+      console.log(`  └─ Valid type: ${hasValidType}, Has content: ${hasContent}, Is image type: ${isImageType}`);
+      
+      if (hasValidType && (hasContent || isImageType)) {
+        console.log(`  └─ VALID for navigation ✓`);
         return true;
+      } else {
+        console.log(`  └─ SKIPPED for navigation ✗`);
       }
     }
+    
+    console.log(`[Navigation Debug] No previous blocks found that meet criteria`);
     return false;
   }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
   
@@ -601,15 +633,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     if (!selectedBlock || flattenedBlocks.length === 0) return false;
     const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
     
+    console.log(`[Navigation Debug] Current block: ${selectedBlock.id}, index: ${currentIndex}, type: ${selectedBlock.block_type}`);
+    
     // Check if there are any next blocks that are chat-enabled
     for (let i = currentIndex + 1; i < flattenedBlocks.length; i++) {
       const block = flattenedBlocks[i];
-      if (block.block_type && 
-          chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) && 
-          block.html_content) {
+      const hasValidType = block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
+      const hasContent = block.html_content || (block.images && Object.keys(block.images || {}).length > 0);
+      const isImageType = ['picture', 'figure'].includes((block.block_type || '').toLowerCase());
+      
+      console.log(`[Navigation Debug] → NEXT Check for block id: ${block.id}, type: ${block.block_type || 'unknown'}, index: ${i}`);
+      console.log(`  └─ Valid type: ${hasValidType}, Has content: ${hasContent}, Is image type: ${isImageType}`);
+      
+      if (hasValidType && (hasContent || isImageType)) {
+        console.log(`  └─ VALID for navigation ✓`);
         return true;
+      } else {
+        console.log(`  └─ SKIPPED for navigation ✗`);
       }
     }
+    
+    console.log(`[Navigation Debug] No next blocks found that meet criteria`);
     return false;
   }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
 

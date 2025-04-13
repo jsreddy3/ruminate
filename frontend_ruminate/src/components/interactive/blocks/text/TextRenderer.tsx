@@ -61,14 +61,14 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [definitionWord, setDefinitionWord] = useState('');
   const [definitionPosition, setDefinitionPosition] = useState({ x: 0, y: 0 });
   
-  console.log(`TextRenderer(${blockId}) rendering`);
+  // console.log(`TextRenderer(${blockId}) rendering`);
   
-  useEffect(() => {
-    console.log(`TextRenderer(${blockId}) mounted`);
-    return () => {
-      console.log(`TextRenderer(${blockId}) unmounting`);
-    };
-  }, [blockId]);
+  // useEffect(() => {
+  //   console.log(`TextRenderer(${blockId}) mounted`);
+  //   return () => {
+  //     console.log(`TextRenderer(${blockId}) unmounting`);
+  //   };
+  // }, [blockId]);
   
   // Handle text selection
   const handleTextSelected = (

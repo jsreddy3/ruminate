@@ -38,13 +38,13 @@ export default function BlockRenderer({
   onRabbitholeClick,
   onRabbitholeCreate
 }: BlockRendererProps) {
-  console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
+  // console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
 
-  useEffect(() => {
-    return () => {
-      console.log(`BlockRenderer UNMOUNT - blockId: ${blockId}`);
-    };
-  }, [blockId]);
+  // useEffect(() => {
+  //   return () => {
+  //     console.log(`BlockRenderer UNMOUNT - blockId: ${blockId}`);
+  //   };
+  // }, [blockId]);
 
   const type = blockType.toLowerCase();
   
