@@ -59,14 +59,21 @@ export default function RabbitholePane({
     setDisplayedThread
   } = useConversation({
     documentId,
-    conversationId: rabbitholeConversationId || "",
+    conversationId: conversationId || rabbitholeConversationId || "",
     blockId: blockId
   });
 
   // Handle creating a new rabbithole if needed - only runs once
   useEffect(() => {
+    // If we already have a conversation ID, use that and don't create a new one
+    if (conversationId) {
+      console.log('Using existing rabbithole conversation:', conversationId);
+      setRabbitholeConversationId(conversationId);
+      return;
+    }
+    
+    // Skip if we're already creating a rabbithole or have an ID generated
     if (isCreatingRabbithole || rabbitholeConversationId) {
-      // Skip if we're already creating a rabbithole or have an ID
       return;
     }
     
@@ -104,9 +111,7 @@ export default function RabbitholePane({
     }
     
     // Only create a new rabbithole if we don't have a conversation ID
-    if (!conversationId) {
-      createNewRabbithole();
-    }
+    createNewRabbithole();
   }, [blockId, documentId, conversationId, isCreatingRabbithole, rabbitholeConversationId, selectedText, textEndOffset, textStartOffset]);
 
   useEffect(() => {

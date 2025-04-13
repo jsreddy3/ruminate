@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 
 import ChatPane from "../interactive/InteractivePane"; 
 import ResizablePanel from "../common/ResizablePanel";
-import MathJaxProvider from "../providers/MathJaxProvider";
+import MathJaxProvider from "../common/MathJaxProvider";
 import { conversationApi } from "../../services/api/conversation";
 
 export interface Block {
