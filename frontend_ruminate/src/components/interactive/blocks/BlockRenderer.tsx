@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import TextRenderer from './text/TextRenderer';
 import PictureBlock from './other/PictureBlock';
 import FigureBlock from './other/FigureBlock';
@@ -19,6 +19,7 @@ interface BlockRendererProps {
   }>;
   rabbitholeHighlights?: RabbitholeHighlight[];
   onAddTextToChat?: (text: string) => void;
+  onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
 }
 
 /**
@@ -32,8 +33,17 @@ export default function BlockRenderer({
   images = {},
   highlights = [],
   rabbitholeHighlights = [],
-  onAddTextToChat
+  onAddTextToChat,
+  onRabbitholeClick
 }: BlockRendererProps) {
+  console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
+
+  useEffect(() => {
+    return () => {
+      console.log(`BlockRenderer UNMOUNT - blockId: ${blockId}`);
+    };
+  }, [blockId]);
+
   const type = blockType.toLowerCase();
   
   // Unsupported block types
@@ -104,6 +114,7 @@ export default function BlockRenderer({
           highlights={highlights} 
           rabbitholeHighlights={rabbitholeHighlights}
           onAddTextToChat={onAddTextToChat}
+          onRabbitholeClick={onRabbitholeClick}
         />
       );
   }

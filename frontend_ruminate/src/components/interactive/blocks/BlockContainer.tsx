@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useBlockData } from '../../../hooks/useBlockData';
 import BlockRenderer from './BlockRenderer';
 import { RabbitholeHighlight } from '../../../services/rabbithole';
@@ -13,6 +13,7 @@ interface BlockContainerProps {
     insight: string;
   }>;
   onAddTextToChat?: (text: string) => void;
+  onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
 }
 
 /**
@@ -25,8 +26,19 @@ export default function BlockContainer({
   htmlContent,
   images = {},
   highlights = [],
-  onAddTextToChat
+  onAddTextToChat,
+  onRabbitholeClick
 }: BlockContainerProps) {
+  // Add component lifecycle logging
+  console.log(`BlockContainer MOUNT - blockId: ${blockId}`);
+  
+  // Component unmount logging
+  useEffect(() => {
+    return () => {
+      console.log(`BlockContainer UNMOUNT - blockId: ${blockId}`);
+    };
+  }, [blockId]);
+
   // Use the hook to fetch rabbithole highlights
   const { rabbitholeHighlights, isLoading, error } = useBlockData(blockId);
   
@@ -55,6 +67,7 @@ export default function BlockContainer({
       highlights={highlights}
       rabbitholeHighlights={rabbitholeHighlights}
       onAddTextToChat={onAddTextToChat}
+      onRabbitholeClick={onRabbitholeClick}
     />
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useConversation } from "../../../hooks/useConversation";
-import ChatMessage from "./ChatMessage";
+import ChatMessage from "../chat/ChatMessage";
 import ChatInput from "../chat/ChatInput";
 import { createRabbithole } from "../../../services/rabbithole";
 
@@ -59,7 +59,7 @@ export default function RabbitholePane({
     setDisplayedThread
   } = useConversation({
     documentId,
-    conversationId: rabbitholeConversationId || undefined,
+    conversationId: rabbitholeConversationId || "",
     blockId: blockId
   });
 

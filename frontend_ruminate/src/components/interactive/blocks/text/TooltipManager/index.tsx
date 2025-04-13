@@ -28,17 +28,13 @@ const TooltipManager: React.FC<TooltipManagerProps> = ({
     const { rects } = selectionInfo;
     if (rects.length === 0) return;
     
-    // Use the selection rectangles for better positioning
-    // We'll position at the end of the last line of selection
+    // Simple approach: use the last selection rectangle for positioning
     const lastRect = rects[rects.length - 1];
     
-    // Get container position
-    const containerRect = containerRef.current.getBoundingClientRect();
-    
-    // Calculate position relative to container
-    // Position tooltip below the selection
-    const x = lastRect.left - containerRect.left + (lastRect.width / 2);
-    const y = lastRect.top - containerRect.top + lastRect.height + 5; // Add small offset
+    // Position tooltip at center-top of the selection
+    // These are viewport coordinates (for position:fixed)
+    const x = lastRect.left + (lastRect.width / 2);
+    const y = lastRect.top - 5; // Position above the selection
     
     setTooltipPosition({ x, y });
   }, [selectionInfo, containerRef]);

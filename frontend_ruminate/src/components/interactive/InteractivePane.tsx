@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import type { ChatPaneProps } from "../../types/chat";
 import ChatPane from "./chat/ChatPane";
 import BlockContainer from "./blocks/BlockContainer";
+import RabbitholePane from "./rabbithole/RabbitholePane";
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
+import { RabbitholeHighlight } from "../../services/rabbithole";
 
 // Add array of supported block types (matching PDFViewer)
 const chatEnabledBlockTypes = [
@@ -53,9 +55,57 @@ export default function InteractivePane({
   // State for selected text from block content to be passed to chat
   const [selectedText, setSelectedText] = useState("");
   
+  // State for rabbithole mode
+  const [rabbitholeMode, setRabbitholeMode] = useState(false);
+  const [activeRabbitholeId, setActiveRabbitholeId] = useState<string>("");
+  const [activeRabbitholeText, setActiveRabbitholeText] = useState<string>("");
+  const [activeRabbitholeStartOffset, setActiveRabbitholeStartOffset] = useState<number>(0);
+  const [activeRabbitholeEndOffset, setActiveRabbitholeEndOffset] = useState<number>(0);
+  
   // Function to handle adding text to chat from the block content
   const handleAddTextToChat = (text: string) => {
     setSelectedText(text);
+  };
+  
+  // Function to handle rabbithole click
+  const handleRabbitholeClick = (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
+    console.log('InteractivePane.handleRabbitholeClick called with:', {
+      rabbitholeId,
+      selectedText,
+      startOffset,
+      endOffset
+    });
+    
+    // Log component state before changes
+    console.log('InteractivePane state BEFORE changes:', {
+      rabbitholeMode,
+      activeRabbitholeId,
+      currentBlockId,
+      selectedText: activeRabbitholeText
+    });
+    
+    setActiveRabbitholeId(rabbitholeId);
+    setActiveRabbitholeText(selectedText);
+    if (startOffset !== undefined) setActiveRabbitholeStartOffset(startOffset);
+    if (endOffset !== undefined) setActiveRabbitholeEndOffset(endOffset);
+    
+    console.log('Setting rabbithole mode to true');
+    setRabbitholeMode(true);
+    
+    // Log current state after update
+    setTimeout(() => {
+      console.log('InteractivePane state AFTER changes:', {
+        rabbitholeMode,
+        activeRabbitholeId,
+        currentBlockId,
+        selectedText: activeRabbitholeText
+      });
+    }, 100);
+  };
+  
+  // Function to exit rabbithole mode
+  const handleCloseRabbithole = () => {
+    setRabbitholeMode(false);
   };
 
   // Update the condition to check against supported types
@@ -95,6 +145,7 @@ export default function InteractivePane({
                     htmlContent={block.html_content}
                     images={block.images}
                     onAddTextToChat={handleAddTextToChat}
+                    onRabbitholeClick={handleRabbitholeClick}
                   />
                 </div>
                 
@@ -155,9 +206,26 @@ export default function InteractivePane({
             <div className="w-8 h-1 bg-neutral-300 rounded-full"></div>
           </PanelResizeHandle>
 
-          {/* Chat Panel */}
+          {/* Chat/Rabbithole Panel */}
           <Panel defaultSize={70}>
-            {blockIsChatEnabled ? (
+            {!blockIsChatEnabled ? (
+              <div className="h-full flex items-center justify-center p-4 text-neutral-700 bg-white">
+                <div className="p-6 bg-neutral-50 rounded-lg border border-neutral-200 text-center max-w-md">
+                  <p className="mb-2">This block type does not support chat interaction.</p>
+                  <p className="text-sm text-neutral-500">Select a different block to start a conversation.</p>
+                </div>
+              </div>
+            ) : rabbitholeMode ? (
+              <RabbitholePane
+                selectedText={activeRabbitholeText}
+                documentId={documentId}
+                conversationId={activeRabbitholeId}
+                blockId={currentBlockId}
+                textStartOffset={activeRabbitholeStartOffset}
+                textEndOffset={activeRabbitholeEndOffset}
+                onClose={handleCloseRabbithole}
+              />
+            ) : (
               <ChatPane
                 blockId={currentBlockId}
                 documentId={documentId}
@@ -165,13 +233,6 @@ export default function InteractivePane({
                 selectedText={selectedText}
                 setSelectedText={setSelectedText}
               />
-            ) : (
-              <div className="h-full flex items-center justify-center p-4 text-neutral-700 bg-white">
-                <div className="p-6 bg-neutral-50 rounded-lg border border-neutral-200 text-center max-w-md">
-                  <p className="mb-2">This block type does not support chat interaction.</p>
-                  <p className="text-sm text-neutral-500">Select a different block to start a conversation.</p>
-                </div>
-              </div>
             )}
           </Panel>
         </PanelGroup>

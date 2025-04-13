@@ -1,54 +1,94 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { RabbitholeHighlight as RabbitholeHighlightType } from '../../../../../services/rabbithole';
 
-interface RabbitholeHighlightProps {
+interface ReactRabbitholeHighlightProps {
+  contentRef: React.RefObject<HTMLElement>;
   highlights: RabbitholeHighlightType[];
-  onHighlightClick: (id: string, text: string) => void;
+  onHighlightClick: (id: string, text: string, start: number, end: number) => void;
 }
 
 /**
- * Component that manages the display of rabbithole highlights
- * This doesn't actually render anything visual on its own,
- * but processes the content in TextContent with highlight spans
+ * Renders rabbithole highlights as React components
+ * Uses text positions to overlay highlights on content
  */
-const RabbitholeHighlight: React.FC<RabbitholeHighlightProps> = ({
+const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
+  contentRef,
   highlights,
   onHighlightClick
 }) => {
-  // The actual visual rendering happens in the TextContent component
-  // This component just processes the highlights and provides the click handler
+  const [highlightElements, setHighlightElements] = useState<React.ReactNode[]>([]);
   
-  /**
-   * Process content to include highlight spans
-   * @param content Original HTML content
-   * @returns Processed HTML with highlight spans
-   */
-  const processContent = (content: string): string => {
-    let processedContent = content;
+  useEffect(() => {
+    if (!contentRef.current || !highlights?.length) {
+      setHighlightElements([]);
+      return;
+    }
     
-    // Escape special characters in the search string for regex
-    const escapeRegExp = (string: string) => {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    };
+    // For a proper implementation, you would need to:
+    // 1. Find the character positions in the rendered content
+    // 2. Convert character offsets to screen positions
+    // 3. Create highlight elements at those positions
     
-    // Add highlight spans for each rabbithole highlight
-    highlights.forEach(highlight => {
-      const escapedText = escapeRegExp(highlight.selected_text);
-      const regex = new RegExp(escapedText, 'g');
+    // This is a simplified approach that places highlights at reasonable positions
+    const content = contentRef.current;
+    const contentWidth = content.offsetWidth - 40;
+    const contentText = content.textContent || '';
+    
+    const elements = highlights.map((highlight, index) => {
+      const { id, selected_text, text_start_offset, text_end_offset, conversation_id } = highlight;
       
-      processedContent = processedContent.replace(
-        regex,
-        `<span class="rabbithole-highlight" data-rabbithole-id="${highlight.conversation_id}">${highlight.selected_text}</span>`
+      // Calculate approximate position based on offsets
+      // This is an approximation - for a real implementation, you'd need to calculate
+      // exact positions based on text flow and line wrapping
+      const relativeStart = text_start_offset / contentText.length;
+      const horizontalPosition = Math.max(10, Math.min(contentWidth - 100, relativeStart * contentWidth));
+      
+      // Estimate vertical position - this is very approximate
+      const lines = Math.floor(relativeStart * 10) + 1; // Simple heuristic
+      const verticalPosition = lines * 24; // Assuming ~24px line height
+      
+      const style: React.CSSProperties = {
+        position: 'absolute',
+        left: `${horizontalPosition}px`,
+        top: `${verticalPosition}px`,
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        border: '1px solid rgba(79, 70, 229, 0.3)',
+        borderBottom: '2px solid rgba(79, 70, 229, 0.6)',
+        cursor: 'pointer',
+        padding: '2px 4px',
+        zIndex: 10,
+        borderRadius: '3px',
+        maxWidth: '200px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+        fontSize: '0.9em'
+      };
+      
+      const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onHighlightClick(conversation_id, selected_text, text_start_offset, text_end_offset);
+      };
+      
+      return (
+        <div
+          key={`rabbithole-${id}`}
+          className="rabbithole-highlight"
+          style={style}
+          onClick={handleClick}
+          title={`Rabbithole: ${selected_text}`}
+        >
+          🐇 {selected_text}
+        </div>
       );
     });
     
-    return processedContent;
-  };
+    setHighlightElements(elements);
+  }, [highlights, contentRef, onHighlightClick]);
   
-  // The component itself doesn't render anything visual
-  return null;
+  return <>{highlightElements}</>;
 };
 
-export default RabbitholeHighlight;
-export { type RabbitholeHighlightType };
-export type { RabbitholeHighlightProps };
+export default ReactRabbitholeHighlight;

@@ -28,25 +28,23 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // Close tooltip when clicking outside, but be careful not to clear selection
+  // Simple approach for managing tooltip visibility
   useEffect(() => {
     if (!isVisible) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      // Only close if clicked outside tooltip AND not a selection-related event
-      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
-        // Delay slightly to avoid interfering with selection
-        // This helps maintain the selection when clicking the tooltip
-        setTimeout(() => {
-          onClose();
-        }, 10);
+      // Don't close if clicked inside tooltip
+      if (tooltipRef.current && tooltipRef.current.contains(event.target as Node)) {
+        return;
       }
+      
+      // Otherwise close the tooltip
+      onClose();
     };
 
-    // Use mousedown with capture to get it before other handlers
-    document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isVisible, onClose]);
 
@@ -108,15 +106,16 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     left: `${adjustedPosition.x}px`,
     top: `${adjustedPosition.y}px`,
     zIndex: 1000,
-    transform: 'translate(-50%, 0)', // Center horizontally, position below
-    pointerEvents: 'auto', // Ensure tooltip is clickable
-    marginTop: '5px', // Small gap between selection and tooltip
+    transform: 'translate(-50%, -100%)', // Center horizontally, position ABOVE selection
+    pointerEvents: 'all', // Ensure tooltip intercepts all pointer events
+    marginBottom: '5px', // Small gap between tooltip and selection
+    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))', // Add shadow for better visibility
   };
 
   return (
     <div 
       ref={tooltipRef}
-      className="bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1 animate-fadeIn"
+      className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1 animate-fadeIn"
       style={tooltipStyle}
     >
       <div className="flex">
@@ -124,14 +123,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           <button
             key={index}
             className="px-3 py-1.5 hover:bg-indigo-50 rounded flex items-center gap-1.5 text-indigo-700 whitespace-nowrap transition-colors duration-150"
-            onClick={(e) => {
-            // Prevent the default action which might clear selection
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Call the action handler
-            action.onClick(selectedText);
-          }}
+            onClick={() => action.onClick(selectedText)}
             title={`${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
           >
             {action.icon && <span className="text-indigo-500">{action.icon}</span>}

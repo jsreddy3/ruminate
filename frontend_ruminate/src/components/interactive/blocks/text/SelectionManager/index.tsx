@@ -1,134 +1,141 @@
-import React, { useEffect, useState, useRef } from 'react';
-import SelectionOverlay from './SelectionOverlay';
-
-interface SelectionRect {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-export interface TextSelectionInfo {
-  text: string;
-  rects: SelectionRect[];
-  anchorNode: Node | null;
-  focusNode: Node | null;
-  anchorOffset: number;
-  focusOffset: number;
-}
+import React, { useState, useEffect, useRef } from 'react';
 
 interface SelectionManagerProps {
-  containerRef: React.RefObject<HTMLElement>;
-  onSelectionChange?: (selection: TextSelectionInfo | null) => void;
+  children: React.ReactNode;
+  onTextSelected: (
+    text: string, 
+    position: { x: number, y: number }, 
+    selectionRects: DOMRect[]
+  ) => void;
 }
 
-/**
- * SelectionManager handles text selection within a container and generates selection rectangles
- * for visual feedback. It also captures selection information for the Rabbithole feature.
- */
-const SelectionManager: React.FC<SelectionManagerProps> = ({
-  containerRef,
-  onSelectionChange
-}) => {
-  const [selectionInfo, setSelectionInfo] = useState<TextSelectionInfo | null>(null);
-  const selectionTimeout = useRef<NodeJS.Timeout | null>(null);
+// Selection highlight component
+const SelectionHighlight: React.FC<{ rect: { left: number, top: number, width: number, height: number }; index: number }> = ({ rect, index }) => {
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    backgroundColor: 'rgba(0, 102, 204, 0.25)', // Subtle blue highlight similar to browser default
+    pointerEvents: 'none',
+    zIndex: 1,
+  };
 
-  // Listen for text selections in the document
+  return <div className="selection-highlight" style={style} />;
+};
+
+/**
+ * Handles text selection and provides selection information to parent components
+ */
+const SelectionManager: React.FC<SelectionManagerProps> = ({ 
+  children, 
+  onTextSelected 
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectionRects, setSelectionRects] = useState<DOMRect[]>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
+  
   useEffect(() => {
-    const handleSelectionChange = () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseUp = () => {
       const selection = window.getSelection();
       
-      // Clear any pending selection timeouts
-      if (selectionTimeout.current) {
-        clearTimeout(selectionTimeout.current);
-        selectionTimeout.current = null;
-      }
+      if (!selection || selection.isCollapsed) return;
       
-      // If there's no selection or it's empty, clear selection info
-      if (!selection || selection.isCollapsed) {
-        setSelectionInfo(null);
-        if (onSelectionChange) onSelectionChange(null);
-        return;
-      }
-      
-      // Ensure the selection is within our target container
-      const container = containerRef.current;
-      if (!container) return;
-      
-      // Check if the selection is within our container
-      let isSelectionInContainer = false;
-      const range = selection.getRangeAt(0);
-      let currentNode = range.startContainer;
-      
-      while (currentNode && currentNode !== document.body) {
-        if (currentNode === container) {
-          isSelectionInContainer = true;
-          break;
-        }
-        currentNode = currentNode.parentNode as Node;
-      }
-      
-      if (!isSelectionInContainer) {
-        setSelectionInfo(null);
-        if (onSelectionChange) onSelectionChange(null);
-        return;
-      }
-      
-      // Get selection text and client rects
       const selectionText = selection.toString().trim();
-      const clientRects = Array.from(range.getClientRects());
+      if (!selectionText) return;
       
-      // Convert DOMRect to our simpler SelectionRect format
-      const selectionRects: SelectionRect[] = clientRects.map(rect => ({
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height
-      }));
+      // Get selection coordinates for positioning the tooltip
+      const range = selection.getRangeAt(0);
+      const rects = Array.from(range.getClientRects());
       
-      // Create selection info with node and offset information for precise placement
-      const newSelectionInfo: TextSelectionInfo = {
-        text: selectionText,
-        rects: selectionRects,
-        anchorNode: selection.anchorNode,
-        focusNode: selection.focusNode,
-        anchorOffset: selection.anchorOffset,
-        focusOffset: selection.focusOffset
+      if (rects.length === 0) return;
+      
+      // Use the last rect for position (usually at the end of selection)
+      const rect = rects[rects.length - 1];
+      const position = {
+        x: rect.left + rect.width / 2,
+        y: rect.top
       };
       
-      // Small delay to avoid flickering when user is still selecting
-      selectionTimeout.current = setTimeout(() => {
-        if (selectionText.length > 0) {
-          setSelectionInfo(newSelectionInfo);
-          if (onSelectionChange) onSelectionChange(newSelectionInfo);
-        } else {
-          setSelectionInfo(null);
-          if (onSelectionChange) onSelectionChange(null);
-        }
-      }, 200);
+      // Save the selection rects for rendering highlights
+      setSelectionRects(rects);
+      setIsSelecting(true);
+      
+      onTextSelected(selectionText, position, rects);
     };
-    
-    // Add event listener
-    document.addEventListener('selectionchange', handleSelectionChange);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      if (selectionTimeout.current) {
-        clearTimeout(selectionTimeout.current);
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // Only clear selection if clicking outside of selection-related elements
+      const target = e.target as HTMLElement;
+      const isTooltipClick = target.closest('.selection-tooltip, .definition-popup');
+      
+      if (!isTooltipClick) {
+        setSelectionRects([]);
+        setIsSelecting(false);
       }
     };
-  }, [containerRef, onSelectionChange]);
+    
+    container.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousedown', handleMouseDown);
+    
+    return () => {
+      container.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [onTextSelected]);
+  
+  // Convert DOMRect to a plain object and adjust coordinates to be relative to container
+  const adjustedRects = selectionRects.map(rect => {
+    // Get container position if available
+    if (!containerRef.current) return null;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    
+    // Make coordinates relative to the container
+    return {
+      left: rect.left - containerRect.left,
+      top: rect.top - containerRect.top,
+      width: rect.width,
+      height: rect.height
+    };
+  }).filter(Boolean); // Remove any null values
   
   return (
-    <>
-      {selectionInfo && (
-        <SelectionOverlay 
-          selectionRects={selectionInfo.rects} 
-          containerRef={containerRef}
-        />
+    <div 
+      ref={containerRef} 
+      style={{ position: 'relative' }}
+      className="selection-manager-container"
+    >
+      {children}
+      
+      {/* Render selection highlights as absolutely positioned divs */}
+      {isSelecting && adjustedRects.length > 0 && (
+        <div 
+          className="selection-highlights" 
+          style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none',
+            zIndex: 1
+          }}
+        >
+          {adjustedRects.map((rect, index) => (
+            <SelectionHighlight 
+              key={`selection-${index}`} 
+              rect={rect} 
+              index={index}
+            />
+          ))}
+        </div>
       )}
-    </>
+    </div>
   );
 };
 
