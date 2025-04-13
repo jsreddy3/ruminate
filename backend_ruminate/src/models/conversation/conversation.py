@@ -1,11 +1,16 @@
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from enum import Enum
 from uuid import uuid4
 from pydantic import Field
 from src.models.base.base_model import BaseModel
 from sqlalchemy import Column, String, JSON, Boolean
 from src.database.base import Base
 from enum import Enum
+
+class ConversationType(str, Enum):
+    DOCUMENT = "document"
+    RABBITHOLE = "rabbithole"
 
 class ConversationType(str, Enum):
     DOCUMENT = "document"
@@ -19,7 +24,8 @@ class Conversation(BaseModel):
     is_demo: bool = False
     root_message_id: Optional[str] = None
     included_pages: Dict[str, str] = Field(default_factory=dict)  # Maps page_number -> message_id
-    
+    active_thread_ids: List[str] = Field(default_factory=list)  # Ordered list of message IDs in the active thread
+
     # New fields for rabbithole support
     type: ConversationType = ConversationType.DOCUMENT
     source_block_id: Optional[str] = None  # Block ID that contains the highlighted text
@@ -58,7 +64,8 @@ class ConversationModel(Base):
     is_demo = Column(Boolean, default=False)
     root_message_id = Column(String, nullable=True)
     included_pages = Column(JSON, nullable=True)  # Store as JSON serialized dict
-    
+    active_thread_ids = Column(JSON, nullable=True)  # Store as JSON serialized list of message IDs
+
     # New columns for rabbithole support
     type = Column(String, default=ConversationType.DOCUMENT.value)
     source_block_id = Column(String, nullable=True, index=True)

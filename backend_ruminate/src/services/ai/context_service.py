@@ -23,19 +23,13 @@ class ContextService:
             return ""
         return re.sub(r'<[^>]+>', ' ', html_content).strip()
     
-    async def build_message_context(self, conversation_id: str, new_message: Message) -> List[Message]:
+    async def build_message_context(self, conversation_id: str, new_message: Message, active_thread_ids: List[str]) -> List[Message]:
         """Build context for LLM by getting the active thread of messages"""
-        # Get active thread
-        thread = await self.conversation_repo.get_active_thread(conversation_id)
-        if not thread:
-            # Get conversation to verify it exists
-            conversation = await self.conversation_repo.get_conversation(conversation_id)
-            if not conversation:
-                raise ValueError(f"Conversation {conversation_id} not found")
-            thread = []
+        all_messages = await self.conversation_repo.get_messages(conversation_id)
+        messages_by_id = {msg.id: msg for msg in all_messages}
         
-        # Add new message to context
-        context = thread.copy()  # Make a copy to avoid modifying the original
+        # Build context from the provided thread IDs
+        context = [messages_by_id[msg_id] for msg_id in active_thread_ids if msg_id in messages_by_id]
         context.append(new_message)
         return context
     

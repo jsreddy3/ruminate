@@ -54,7 +54,7 @@ async def initialize_repositories():
             from src.models.conversation.conversation import ConversationModel
             from src.models.conversation.message import MessageModel
             
-            # Create tables
+            # # Create tables
             # async with engine.begin() as conn:
             #     # For PostgreSQL, drop and recreate tables for clean start
             #     if settings.document_storage_type == "rds":

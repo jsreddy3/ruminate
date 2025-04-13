@@ -131,7 +131,8 @@ class ChatService:
     async def send_message(self,
                            conversation_id: str,
                            content: str,
-                           parent_version_id: Optional[str] = None,
+                           parent_id: str,
+                           active_thread_ids: List[str],
                            selected_block_id: Optional[str] = None,
                            session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Send a user message and get AI response, incorporating selected block context if provided"""
@@ -147,17 +148,15 @@ class ChatService:
             conversation.included_pages = {}
             logger.info(f"Initialized included_pages tracking for conversation {conversation_id}")
 
-        # Get parent message ID
-        thread = await self.conversation_repo.get_active_thread(conversation_id, session)
-        parent_id = None
-        if parent_version_id:
-             parent_msg = next((msg for msg in thread if msg.id == parent_version_id), None)
-             if not parent_msg:
-                 raise ValueError(f"Parent version {parent_version_id} not found")
-             parent_id = parent_version_id
-        else:
-             parent_id = thread[-1].id if thread else conversation.root_message_id # Fallback to root if thread is empty
-
+        # --- Add Verification for the provided parent_id ---
+        # (Optional but recommended) Fetch the parent message to ensure it exists
+        # Note: get_messages fetches all, which might be slightly inefficient if you only need one.
+        # Consider adding a get_message(message_id) to the repository interface if performance becomes an issue.
+        messages = await self.conversation_repo.get_messages(conversation_id, session) # Or use a direct fetch if available
+        if not any(msg.id == parent_id for msg in messages):
+            logger.error(f"Parent message {parent_id} not found in conversation {conversation_id}")
+            raise ValueError(f"Parent message {parent_id} not found in conversation {conversation_id}")
+        
         # --- Create User Message ---
         user_msg_content = content # Keep original user content clean
         user_msg = Message(
@@ -168,8 +167,11 @@ class ChatService:
             parent_id=parent_id
         )
         await self.conversation_repo.add_message(user_msg, session)
-        if user_msg.parent_id:
-             await self.conversation_repo.set_active_version(user_msg.parent_id, user_msg.id, session)
+        
+        # Update the active thread in the conversation record
+        # This ensures the backend's active thread matches what the user sees
+        updated_active_thread_ids = active_thread_ids + [user_msg.id]
+        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
 
         # --- Enhanced Context Preparation ---
         selected_block = None
@@ -219,8 +221,12 @@ class ChatService:
             selected_block_text = self._strip_html(selected_block.html_content)
             logger.info(f"Fetched content for selected block {selected_block_id}")
 
-        # Build the message list for the LLM
-        context_messages = await self.context_service.build_message_context(conversation_id, user_msg)
+        # Build the message list for the LLM using the frontend's active thread
+        context_messages = await self.context_service.build_message_context(
+            conversation_id, 
+            user_msg, 
+            active_thread_ids
+        )
 
         # Modify the last user message to include page context and selected block
         enhanced_content = ""
@@ -269,27 +275,32 @@ class ChatService:
             parent_id=user_msg.id
         )
         await self.conversation_repo.add_message(ai_msg, session)
-        await self.conversation_repo.set_active_version(user_msg.id, ai_msg.id, session)
+        
+        # Update the active thread to include the AI response
+        updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
+        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
 
         return ai_msg, user_msg.id # Return AI message and the *actual* user message ID 
     
-    async def edit_message(self, message_id: str, content: str, session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
+    async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""
         # Create new version as sibling
         edited_msg, edited_msg_id = await self.conversation_repo.edit_message(message_id, content, session)
         
-        # Update parent to point to new version as active child
-        if edited_msg.parent_id:
-            await self.conversation_repo.set_active_version(edited_msg.parent_id, edited_msg.id, session)
+        # Update the active thread in the conversation record
+        # Instead of updating individual active_child_id pointers, store the complete thread
+        updated_active_thread_ids = active_thread_ids + [edited_msg.id]
+        await self.conversation_repo.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
         
-        # Find any existing AI response to the original message
-        thread = await self.conversation_repo.get_active_thread(edited_msg.conversation_id, session)
-        
-        # Build context and generate new AI response
-        context = await self.context_service.build_message_context(edited_msg.conversation_id, edited_msg)
+        # Build context using the provided active thread IDs and generate new AI response
+        context = await self.context_service.build_message_context(
+            edited_msg.conversation_id, 
+            edited_msg,
+            active_thread_ids
+        )
         response_content = await self.llm_service.generate_response(context)
         
-        # Create new AI response as sibling to any existing response
+        # Create new AI response as child of edited message
         ai_msg = Message(
             id=str(uuid.uuid4()),
             conversation_id=edited_msg.conversation_id,
@@ -301,8 +312,9 @@ class ChatService:
         # Save AI message
         await self.conversation_repo.add_message(ai_msg, session)
         
-        # Set edited message's active child to new AI response
-        await self.conversation_repo.set_active_version(edited_msg.id, ai_msg.id, session)
+        # Update the active thread to include the AI response
+        updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
+        await self.conversation_repo.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
         
         return ai_msg, edited_msg_id
     

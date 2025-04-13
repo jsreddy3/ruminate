@@ -388,9 +388,52 @@ class RDSConversationRepository(ConversationRepository):
     
     async def get_message_tree(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         """Get all messages in a conversation as a tree structure, including versions and branches"""
-        # Since our tree structure is maintained through parent_id and active_child_id links,
-        # we can simply return all messages for the conversation
-        return await self.get_messages(conversation_id, session)
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Get all messages for the conversation
+            messages = await self.get_messages(conversation_id, session)
+            
+            # Get the conversation record to access active_thread_ids
+            result = await session.execute(
+                select(ConversationModel).where(ConversationModel.id == conversation_id)
+            )
+            conversation_model = result.scalars().first()
+            
+            # Get active thread IDs from conversation model
+            active_thread_ids = []
+            if conversation_model and hasattr(conversation_model, 'active_thread_ids'):
+                active_thread_ids = conversation_model.active_thread_ids or []
+                
+            # Create a map of messages by ID for easy access
+            messages_by_id = {msg.id: msg for msg in messages}
+            
+            # Set active_child_id pointers based on active_thread_ids
+            # This ensures the frontend can still traverse the tree using active_child_id
+            if len(active_thread_ids) >= 2:
+                for i in range(len(active_thread_ids) - 1):
+                    parent_id = active_thread_ids[i]
+                    child_id = active_thread_ids[i + 1]
+                    
+                    if parent_id in messages_by_id:
+                        # Set active_child_id on the parent message to point to its child in the active thread
+                        messages_by_id[parent_id].active_child_id = child_id
+                        
+                        logger.debug(f"Set active_child_id of {parent_id} to {child_id} for frontend compatibility")
+                
+            # Add a log message to help with debugging
+            logger.debug(f"Returning message tree for conversation {conversation_id} with {len(messages)} messages, {len(active_thread_ids)} in active thread")
+            
+            return messages
+        except Exception as e:
+            logger.error(f"Error retrieving message tree: {str(e)}")
+            if local_session:
+                await session.close()
+            raise e
+        finally:
+            if local_session:
+                await session.close()
     
     async def set_active_version(self, parent_id: str, child_id: str, session: Optional[AsyncSession] = None) -> None:
         """Set a message's active child version"""
@@ -415,44 +458,115 @@ class RDSConversationRepository(ConversationRepository):
         finally:
             if local_session:
                 await session.close()
-    
-    async def get_active_thread(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
-        """Get the active thread of messages in a conversation"""
+                
+    async def update_active_thread(self, conversation_id: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> None:
+        """Update the active thread IDs in the conversation record
+        
+        This stores the complete ordered list of message IDs representing the active thread
+        in the conversation record, rather than using active_child_id pointers.
+        """
+        if not active_thread_ids:
+            logger.warning(f"Empty active_thread_ids provided for conversation {conversation_id}")
+            return
+            
         local_session = session is None
         session = session or self.session_factory()
         
         try:
-            # Get conversation to find root message
-            conversation = await self.get_conversation(conversation_id, session)
-            if not conversation or not conversation.root_message_id:
-                return []
-            
-            messages = []
-            current_id = conversation.root_message_id
-            
-            # Follow the active_child_id chain
-            while current_id:
-                result = await session.execute(
-                    select(MessageModel).where(MessageModel.id == current_id)
+            # Get messages to verify they exist and belong to this conversation
+            result = await session.execute(
+                select(MessageModel).where(
+                    MessageModel.id.in_(active_thread_ids),
+                    MessageModel.conversation_id == conversation_id
                 )
-                msg_model = result.scalars().first()
+            )
+            message_models = result.scalars().all()
+            
+            # Create a set of message IDs for quick lookup
+            message_ids = {msg.id for msg in message_models}
+            
+            # Check if all provided IDs exist in this conversation
+            if len(message_ids) != len(active_thread_ids):
+                missing_ids = set(active_thread_ids) - message_ids
+                logger.warning(f"Some messages in active_thread_ids not found: {missing_ids}")
+                # Filter out any IDs that don't exist
+                active_thread_ids = [id for id in active_thread_ids if id in message_ids]
+            
+            # Update the conversation record with the active thread IDs
+            stmt = update(ConversationModel).where(
+                ConversationModel.id == conversation_id
+            ).values(
+                active_thread_ids=active_thread_ids
+            )
+            await session.execute(stmt)
+            
+            if local_session:
+                await session.commit()
                 
-                if not msg_model:
-                    break
-                    
-                # Convert model to message
-                msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
+            logger.info(f"Updated active thread for conversation {conversation_id}")
+            
+        except Exception as e:
+            if local_session:
+                await session.rollback()
+            logger.error(f"Error updating active thread: {str(e)}")
+            raise e
+        finally:
+            if local_session:
+                await session.close()
+    
+    async def get_active_thread(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
+        """Get the active thread of messages in a conversation
+        
+        Uses the stored active_thread_ids list from the conversation record to retrieve
+        messages in the correct order, rather than traversing active_child_id pointers.
+        """
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Get conversation to get the active thread IDs
+            result = await session.execute(
+                select(ConversationModel).where(ConversationModel.id == conversation_id)
+            )
+            conversation_model = result.scalars().first()
+            
+            if not conversation_model:
+                logger.warning(f"Conversation {conversation_id} not found")
+                return []
+                
+            # Get active thread IDs from conversation
+            active_thread_ids = conversation_model.active_thread_ids or []
+            
+            # If active_thread_ids is empty but we have a root_message_id, use that as a fallback
+            if not active_thread_ids and conversation_model.root_message_id:
+                active_thread_ids = [conversation_model.root_message_id]
+                
+            if not active_thread_ids:
+                return []
+                
+            # Fetch all messages in the active thread
+            result = await session.execute(
+                select(MessageModel).where(
+                    MessageModel.id.in_(active_thread_ids)
+                )
+            )
+            message_models = result.scalars().all()
+            
+            # Convert models to messages and sort in the same order as active_thread_ids
+            messages_by_id = {}
+            for model in message_models:
+                msg_dict = {c.name: getattr(model, c.name) for c in model.__table__.columns}
                 
                 # Parse datetime string
                 if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
                     msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
                     
-                messages.append(Message.from_dict(msg_dict))
-                current_id = msg_model.active_child_id
+                messages_by_id[model.id] = Message.from_dict(msg_dict)
+                
+            # Return messages in the correct order from active_thread_ids
+            messages = [messages_by_id[id] for id in active_thread_ids if id in messages_by_id]
             
-            for i in range(len(messages)):
-                logger.debug(f"Message {i}: {messages[i].content}")
-            
+            logger.debug(f"Retrieved active thread for conversation {conversation_id} with {len(messages)} messages")
             return messages
         except Exception as e:
             if local_session:

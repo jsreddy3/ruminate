@@ -186,31 +186,112 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [documentId]);
 
   // Initialize document conversation
+  // Static variable to track ongoing initialization promises across all PDFViewer instances
+  // This prevents race conditions between multiple components trying to initialize at once
+  // Using a static variable outside of component instances to coordinate across components
+  const ConversationInitPromises: Record<string, Promise<string> | undefined> = {};
+
+  // Helper functions to interact with localStorage for conversation caching
+  const getStoredConversationId = (docId: string): string | null => {
+    try {
+      const key = `document-conversation-${docId}`;
+      const storedData = localStorage.getItem(key);
+      if (storedData) {
+        const id = JSON.parse(storedData);
+        console.log(`Found cached conversation ID in localStorage: ${id}`); 
+        return id;
+      }
+      return null;
+    } catch (e) {
+      console.error("Error reading from localStorage:", e);
+      return null;
+    }
+  };
+
+  const storeConversationId = (docId: string, convId: string): void => {
+    try {
+      const key = `document-conversation-${docId}`;
+      localStorage.setItem(key, JSON.stringify(convId));
+      console.log(`Cached conversation ID in localStorage: ${convId}`);
+    } catch (e) {
+      console.error("Error writing to localStorage:", e);
+    }
+  };
+
   useEffect(() => {
+    // Single initialization function with proper coordination
     const initializeDocumentConversation = async () => {
       if (!documentId) return;
-      try {
-        // Try fetching existing conversations for the document
-        const existingConvos = await conversationApi.getDocumentConversations(documentId);
-        // Simple strategy: use the first one found, or create if none exist
-        if (existingConvos && existingConvos.length > 0) {
-          setDocumentConversationId(existingConvos[0].id);
-          console.log("Using existing document conversation:", existingConvos[0].id);
-        } else {
-          console.log("No existing document conversation found, creating new one...");
-          // Create a document-level conversation
-          const newConv = await conversationApi.create(documentId);
-          setDocumentConversationId(newConv.id);
-          console.log("Created new document conversation:", newConv.id);
+      
+      // If we already have the conversation ID set, no need to initialize
+      if (documentConversationId) return;
+      
+      // First check localStorage to avoid unnecessary API calls
+      const cachedId = getStoredConversationId(documentId);
+      if (cachedId) {
+        setDocumentConversationId(cachedId);
+        return;
+      }
+      
+      // Check if there's already an ongoing initialization for this document
+      if (documentId in ConversationInitPromises && ConversationInitPromises[documentId]) {
+        try {
+          // Wait for the existing promise to resolve
+          const id = await ConversationInitPromises[documentId]!; // Using non-null assertion since we've checked it exists
+          setDocumentConversationId(id);
+          return;
+        } catch (error) {
+          // If the existing promise failed, we'll try again below
+          console.error("Error waiting for existing initialization:", error);
+          delete ConversationInitPromises[documentId];
         }
+      }
+      
+      // Create a promise for this initialization and store it
+      const initPromise = (async () => {
+        try {
+          // Try fetching existing conversations for the document
+          const existingConvos = await conversationApi.getDocumentConversations(documentId);
+          
+          // Use the first one found, or create if none exist
+          if (existingConvos && existingConvos.length > 0) {
+            const id = existingConvos[0].id;
+            setDocumentConversationId(id);
+            storeConversationId(documentId, id);
+            console.log("Using existing document conversation:", id);
+            return id;
+          } else {
+            console.log("No existing document conversation found, creating new one...");
+            // Create a document-level conversation
+            const newConv = await conversationApi.create(documentId);
+            const id = newConv.id;
+            setDocumentConversationId(id);
+            storeConversationId(documentId, id);
+            console.log("Created new document conversation:", id);
+            return id;
+          }
+        } catch (error) {
+          console.error("Error initializing document conversation:", error);
+          throw error; // Re-throw to properly handle promise rejection
+        } finally {
+          // Clean up the promise when done
+          delete ConversationInitPromises[documentId];
+        }
+      })();
+      
+      // Store the promise for coordination with other components
+      ConversationInitPromises[documentId] = initPromise;
+      
+      try {
+        await initPromise;
       } catch (error) {
-        console.error("Error initializing document conversation:", error);
+        // Already logged in the inner function
       }
     };
+    
     initializeDocumentConversation();
   }, [documentId]);
 
-  const [currentObjective, setCurrentObjective] = useState("Focus on key vocabulary and jargon that a novice reader would not be familiar with.");
 
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
     toolbarPlugin: {
