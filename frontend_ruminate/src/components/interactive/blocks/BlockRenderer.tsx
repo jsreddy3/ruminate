@@ -20,6 +20,7 @@ interface BlockRendererProps {
   rabbitholeHighlights?: RabbitholeHighlight[];
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
+  onRabbitholeCreate?: (text: string, startOffset: number, endOffset: number) => void;
 }
 
 /**
@@ -34,7 +35,8 @@ export default function BlockRenderer({
   highlights = [],
   rabbitholeHighlights = [],
   onAddTextToChat,
-  onRabbitholeClick
+  onRabbitholeClick,
+  onRabbitholeCreate
 }: BlockRendererProps) {
   console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
 
@@ -115,6 +117,7 @@ export default function BlockRenderer({
           rabbitholeHighlights={rabbitholeHighlights}
           onAddTextToChat={onAddTextToChat}
           onRabbitholeClick={onRabbitholeClick}
+          onRabbitholeCreate={onRabbitholeCreate}
         />
       );
   }

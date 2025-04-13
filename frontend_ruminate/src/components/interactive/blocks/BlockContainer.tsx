@@ -14,6 +14,7 @@ interface BlockContainerProps {
   }>;
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
+  onRabbitholeCreate?: (text: string, startOffset: number, endOffset: number) => void;
 }
 
 /**
@@ -27,7 +28,8 @@ export default function BlockContainer({
   images = {},
   highlights = [],
   onAddTextToChat,
-  onRabbitholeClick
+  onRabbitholeClick,
+  onRabbitholeCreate
 }: BlockContainerProps) {
   // Add component lifecycle logging
   console.log(`BlockContainer MOUNT - blockId: ${blockId}`);
@@ -68,6 +70,7 @@ export default function BlockContainer({
       rabbitholeHighlights={rabbitholeHighlights}
       onAddTextToChat={onAddTextToChat}
       onRabbitholeClick={onRabbitholeClick}
+      onRabbitholeCreate={onRabbitholeCreate}
     />
   );
 }

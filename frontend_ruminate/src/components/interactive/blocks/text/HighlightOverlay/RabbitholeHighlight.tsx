@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RabbitholeHighlight as RabbitholeHighlightType } from '../../../../../services/rabbithole';
 
 interface ReactRabbitholeHighlightProps {
@@ -9,7 +9,7 @@ interface ReactRabbitholeHighlightProps {
 
 /**
  * Renders rabbithole highlights as React components
- * Uses text positions to overlay highlights on content
+ * Uses text offsets to create properly positioned highlights
  */
 const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
   contentRef,
@@ -17,78 +17,178 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
   onHighlightClick
 }) => {
   const [highlightElements, setHighlightElements] = useState<React.ReactNode[]>([]);
+  const overlayRef = useRef<HTMLDivElement>(null);
   
+  // Helper function to find text position from character offset
+  const findTextPositionFromOffset = (
+    root: HTMLElement, 
+    startOffset: number, 
+    endOffset: number
+  ): DOMRect[] | null => {
+    // Gather all text nodes in order
+    const textNodes: Node[] = [];
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+      textNodes.push(node);
+    }
+    
+    if (textNodes.length === 0) return null;
+    
+    // Find start and end positions
+    let currentOffset = 0;
+    let startNode: Node | null = null;
+    let startNodeOffset = 0;
+    let endNode: Node | null = null;
+    let endNodeOffset = 0;
+    
+    // Find start and end nodes based on character offsets
+    for (const node of textNodes) {
+      const nodeLength = node.textContent?.length || 0;
+      
+      // Find start node and offset
+      if (startNode === null && currentOffset + nodeLength > startOffset) {
+        startNode = node;
+        startNodeOffset = startOffset - currentOffset;
+      }
+      
+      // Find end node and offset
+      if (endNode === null && currentOffset + nodeLength >= endOffset) {
+        endNode = node;
+        endNodeOffset = endOffset - currentOffset;
+        break;
+      }
+      
+      currentOffset += nodeLength;
+    }
+    
+    // If we found start and end nodes, create a range
+    if (startNode && endNode) {
+      try {
+        const range = document.createRange();
+        range.setStart(startNode, startNodeOffset);
+        range.setEnd(endNode, endNodeOffset);
+        
+        // Get client rects of the range
+        return Array.from(range.getClientRects());
+      } catch (err) {
+        console.error('Error creating range:', err);
+        return null;
+      }
+    }
+    
+    return null;
+  };
+  
+  // Calculate and render highlights when content or highlights change
   useEffect(() => {
     if (!contentRef.current || !highlights?.length) {
       setHighlightElements([]);
       return;
     }
     
-    // For a proper implementation, you would need to:
-    // 1. Find the character positions in the rendered content
-    // 2. Convert character offsets to screen positions
-    // 3. Create highlight elements at those positions
+    // Get container position for coordinate adjustment
+    const contentRect = contentRef.current.getBoundingClientRect();
     
-    // This is a simplified approach that places highlights at reasonable positions
-    const content = contentRef.current;
-    const contentWidth = content.offsetWidth - 40;
-    const contentText = content.textContent || '';
-    
-    const elements = highlights.map((highlight, index) => {
+    // Process each highlight
+    const newElements = highlights.map((highlight, index) => {
       const { id, selected_text, text_start_offset, text_end_offset, conversation_id } = highlight;
       
-      // Calculate approximate position based on offsets
-      // This is an approximation - for a real implementation, you'd need to calculate
-      // exact positions based on text flow and line wrapping
-      const relativeStart = text_start_offset / contentText.length;
-      const horizontalPosition = Math.max(10, Math.min(contentWidth - 100, relativeStart * contentWidth));
-      
-      // Estimate vertical position - this is very approximate
-      const lines = Math.floor(relativeStart * 10) + 1; // Simple heuristic
-      const verticalPosition = lines * 24; // Assuming ~24px line height
-      
-      const style: React.CSSProperties = {
-        position: 'absolute',
-        left: `${horizontalPosition}px`,
-        top: `${verticalPosition}px`,
-        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-        border: '1px solid rgba(79, 70, 229, 0.3)',
-        borderBottom: '2px solid rgba(79, 70, 229, 0.6)',
-        cursor: 'pointer',
-        padding: '2px 4px',
-        zIndex: 10,
-        borderRadius: '3px',
-        maxWidth: '200px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-        fontSize: '0.9em'
-      };
-      
-      const handleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onHighlightClick(conversation_id, selected_text, text_start_offset, text_end_offset);
-      };
-      
-      return (
-        <div
-          key={`rabbithole-${id}`}
-          className="rabbithole-highlight"
-          style={style}
-          onClick={handleClick}
-          title={`Rabbithole: ${selected_text}`}
-        >
-          🐇 {selected_text}
-        </div>
+      // Get positioned rectangles for this text range
+      const rects = findTextPositionFromOffset(
+        contentRef.current as HTMLElement,
+        text_start_offset,
+        text_end_offset
       );
-    });
+      
+      if (!rects || rects.length === 0) {
+        console.log(`Could not find position for highlight: ${selected_text}`);
+        return null;
+      }
+      
+      // Create a highlight element for each rect
+      return rects.map((rect, rectIndex) => {
+        // Convert coordinates to be relative to the container
+        const style: React.CSSProperties = {
+          position: 'absolute',
+          left: `${rect.left - contentRect.left}px`,
+          top: `${rect.top - contentRect.top}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+          backgroundColor: 'rgba(79, 70, 229, 0.15)',
+          border: 'none',
+          borderBottom: '2px solid rgba(79, 70, 229, 0.6)',
+          cursor: 'pointer',
+          zIndex: 10,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          pointerEvents: 'auto',
+        };
+        
+        const handleClick = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onHighlightClick(conversation_id, selected_text, text_start_offset, text_end_offset);
+        };
+        
+        return (
+          <div
+            key={`rabbithole-${id}-${rectIndex}`}
+            className="rabbithole-highlight"
+            style={style}
+            onClick={handleClick}
+            title={`Rabbithole: ${selected_text}`}
+          >
+            {/* Only show the rabbit icon on the first rect */}
+            {rectIndex === 0 && (
+              <div 
+                className="rabbithole-icon"
+                style={{
+                  position: 'absolute',
+                  top: '-16px',
+                  left: '0',
+                  fontSize: '12px',
+                  lineHeight: 1,
+                  padding: '2px 4px',
+                  backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                  border: '1px solid rgba(79, 70, 229, 0.3)',
+                  borderRadius: '4px',
+                  pointerEvents: 'none'
+                }}
+              >
+                🐇
+              </div>
+            )}
+          </div>
+        );
+      });
+    })
+    .filter(Boolean)
+    .flat();
     
-    setHighlightElements(elements);
+    setHighlightElements(newElements as React.ReactNode[]);
   }, [highlights, contentRef, onHighlightClick]);
   
-  return <>{highlightElements}</>;
+  return (
+    <div 
+      ref={overlayRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+        zIndex: 5
+      }}
+    >
+      {highlightElements}
+    </div>
+  );
 };
 
 export default ReactRabbitholeHighlight;

@@ -17,6 +17,11 @@ interface TextRendererProps {
     startOffset: number, 
     endOffset: number
   ) => void;
+  onRabbitholeCreate?: (
+    text: string,
+    startOffset: number,
+    endOffset: number
+  ) => void;
   rabbitholeHighlights?: RabbitholeHighlight[];
   getBlockClassName?: (blockType?: string) => string;
   highlights?: Array<{
@@ -31,6 +36,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   blockId,
   onAddTextToChat,
   onRabbitholeClick,
+  onRabbitholeCreate,
   rabbitholeHighlights = [],
   getBlockClassName,
   highlights = []
@@ -42,6 +48,13 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [selectedText, setSelectedText] = useState('');
+  
+  // State for selected text range
+  const [selectedRange, setSelectedRange] = useState<{
+    text: string,
+    startOffset: number,
+    endOffset: number
+  } | null>(null);
   
   // State for definition popup
   const [definitionVisible, setDefinitionVisible] = useState(false);
@@ -66,6 +79,35 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setSelectedText(text);
     setTooltipPosition(position);
     setTooltipVisible(true);
+    
+    // Calculate text offsets for the selected text
+    if (contentRef.current) {
+      const contentText = contentRef.current.textContent || '';
+      const selection = window.getSelection();
+      
+      // If we have a selection, try to get the range and offsets
+      if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        // Find container nodes to calculate offsets
+        const preSelectionRange = range.cloneRange();
+        preSelectionRange.selectNodeContents(contentRef.current);
+        preSelectionRange.setEnd(range.startContainer, range.startOffset);
+        const startOffset = preSelectionRange.toString().length;
+        
+        // Calculate end offset
+        const endOffset = startOffset + text.length;
+        
+        // Save selection range data
+        setSelectedRange({
+          text,
+          startOffset,
+          endOffset
+        });
+        
+        console.log('Selection range:', { startOffset, endOffset, text });
+      }
+    }
   };
   
   // Clear selection
@@ -90,6 +132,23 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setDefinitionWord(text);
     setDefinitionPosition(tooltipPosition);
     setDefinitionVisible(true);
+    setTooltipVisible(false);
+  };
+  
+  // Handle creating a rabbithole from selected text
+  const handleRabbitholeCreate = (text: string) => {
+    console.log('Creating rabbithole for:', text);
+    
+    // Only proceed if we have valid selection range data
+    if (selectedRange && onRabbitholeCreate) {
+      onRabbitholeCreate(
+        selectedRange.text,
+        selectedRange.startOffset,
+        selectedRange.endOffset
+      );
+    }
+    
+    // Hide tooltip after action
     setTooltipVisible(false);
   };
   
@@ -148,6 +207,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           selectedText={selectedText}
           onAddToChat={handleAddToChat}
           onDefine={handleDefineText}
+          onRabbithole={onRabbitholeCreate ? handleRabbitholeCreate : undefined}
           onClose={() => {
             setTooltipVisible(false);
           }}
