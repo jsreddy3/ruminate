@@ -6,11 +6,11 @@ import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
-
 import ChatPane, { InteractivePaneHandle } from "../interactive/InteractivePane"; 
 import ResizablePanel from "../common/ResizablePanel";
 import MathJaxProvider from "../common/MathJaxProvider";
 import { conversationApi } from "../../services/api/conversation";
+import CollapsibleButton from "../common/CollapsibleButton";
 
 export interface Block {
   id: string;
@@ -23,8 +23,6 @@ export interface Block {
   children?: Block[];
   images?: { [key: string]: string };
 }
-
-
 
 // A minimal Block Info component (for the built-in sidebar tab, if you still want it)
 function BlockInformation({ block }: { block: Block | null }) {
@@ -70,7 +68,7 @@ async function calculateHash(file: File): Promise<string> {
 // Add a type for our cache structure
 interface CachedDocument {
   documentId: string;
-  blockConversations: {[blockId: string]: string};
+  blockConversations: { [blockId: string]: string };
 }
 
 interface PDFViewerProps {
@@ -85,6 +83,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   const [documentConversationId, setDocumentConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Add state for PDFViewer collapsed state
+  const [isPdfCollapsed, setIsPdfCollapsed] = useState(false);
 
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
@@ -98,15 +98,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   useEffect(() => {
     if (blocks.length > 0) {
       // First, collect all non-page blocks that have content (HTML or images) and are chat-enabled
-      const contentBlocks = blocks.filter(block => 
-        block.block_type && 
-        block.block_type.toLowerCase() !== "page" && 
-        (
-          block.html_content || 
-          (block.images && Object.keys(block.images || {}).length > 0) ||
-          ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
-        ) && 
-        chatEnabledBlockTypes.includes(block.block_type.toLowerCase())
+      const contentBlocks = blocks.filter(
+        (b) => b.block_type &&
+          b.block_type.toLowerCase() !== "page" &&
+          (
+            b.html_content ||
+            (b.images && Object.keys(b.images || {}).length > 0) ||
+            ['picture', 'figure', 'image'].includes(b.block_type.toLowerCase())
+          ) &&
+          chatEnabledBlockTypes.includes(b.block_type.toLowerCase())
       );
 
       console.log(`[Blocks Debug] Found ${contentBlocks.length} content blocks`);
@@ -115,20 +115,20 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       // Flatten any blocks with children into a single array
       const flattenAllBlocks = (blocksToProcess: Block[]): Block[] => {
         const result: Block[] = [];
-        
+
         for (const block of blocksToProcess) {
           // Only add blocks that are chat-enabled
           if (block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase())) {
             // Add the current block if it has content (HTML or images)
             if (
-              block.html_content || 
+              block.html_content ||
               (block.images && Object.keys(block.images || {}).length > 0) ||
               ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
             ) {
               result.push(block);
             }
           }
-          
+
           // Recursively add any chat-enabled children
           if (block.children && block.children.length > 0) {
             // Ensure children inherit the parent's page number if they don't have one
@@ -137,22 +137,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 child.page_number = block.page_number;
               }
             }
-            
+
             // Only add children that are chat-enabled
             const chatEnabledChildren = block.children.filter(
               child => child.block_type && chatEnabledBlockTypes.includes(child.block_type.toLowerCase())
             );
-            
+
             result.push(...flattenAllBlocks(chatEnabledChildren));
           }
         }
-        
+
         return result;
       };
-      
+
       // Get all chat-enabled blocks including children
       const allBlocks = flattenAllBlocks(contentBlocks);
-      
+
       console.log(`[Blocks Debug] After flattening, found ${allBlocks.length} total blocks`);
       console.log(`[Blocks Debug] Block types after flattening:`, allBlocks.map(b => b.block_type));
 
@@ -162,25 +162,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         if ((a.page_number ?? 0) !== (b.page_number ?? 0)) {
           return (a.page_number ?? 0) - (b.page_number ?? 0);
         }
-        
+
         // If on same page, sort by vertical position (top-to-bottom)
         if (a.polygon?.[0]?.[1] && b.polygon?.[0]?.[1]) {
           return a.polygon[0][1] - b.polygon[0][1];
         }
-        
+
         // For blocks at same vertical position, sort by horizontal position (left-to-right)
         if (a.polygon?.[0]?.[0] && b.polygon?.[0]?.[0]) {
           return a.polygon[0][0] - b.polygon[0][0];
         }
-        
+
         return 0;
       });
-      
+
       // Update state with the sorted blocks
       setFlattenedBlocks(allBlocks);
     }
   }, [blocks]);
-  
+
   // Fetch blocks when component mounts
   useEffect(() => {
     const fetchBlocks = async () => {
@@ -217,7 +217,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       const storedData = localStorage.getItem(key);
       if (storedData) {
         const id = JSON.parse(storedData);
-        console.log(`Found cached conversation ID in localStorage: ${id}`); 
+        console.log(`Found cached conversation ID in localStorage: ${id}`);
         return id;
       }
       return null;
@@ -241,17 +241,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     // Single initialization function with proper coordination
     const initializeDocumentConversation = async () => {
       if (!documentId) return;
-      
+
       // If we already have the conversation ID set, no need to initialize
       if (documentConversationId) return;
-      
+
       // First check localStorage to avoid unnecessary API calls
       const cachedId = getStoredConversationId(documentId);
       if (cachedId) {
         setDocumentConversationId(cachedId);
         return;
       }
-      
+
       // Check if there's already an ongoing initialization for this document
       if (documentId in ConversationInitPromises && ConversationInitPromises[documentId]) {
         try {
@@ -265,13 +265,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           delete ConversationInitPromises[documentId];
         }
       }
-      
+
       // Create a promise for this initialization and store it
       const initPromise = (async () => {
         try {
           // Try fetching existing conversations for the document
           const existingConvos = await conversationApi.getDocumentConversations(documentId);
-          
+
           // Use the first one found, or create if none exist
           if (existingConvos && existingConvos.length > 0) {
             const id = existingConvos[0].id;
@@ -297,26 +297,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           delete ConversationInitPromises[documentId];
         }
       })();
-      
+
       // Store the promise for coordination with other components
       ConversationInitPromises[documentId] = initPromise;
-      
+
       try {
         await initPromise;
       } catch (error) {
         // Already logged in the inner function
       }
     };
-    
+
     initializeDocumentConversation();
   }, [documentId]);
-
 
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
     toolbarPlugin: {
       fullScreenPlugin: {
-        onEnterFullScreen: () => {},
-        onExitFullScreen: () => {},
+        onEnterFullScreen: () => { },
+        onExitFullScreen: () => { },
       },
       searchPlugin: {
         keyword: [''],
@@ -440,13 +439,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       content: block.html_content,
       fullBlock: block
     });
-    
+
     // If a block is already selected, close any open rabbithole before changing blocks
     if (selectedBlock && interactivePaneRef.current) {
       console.log('Closing rabbithole before selecting new block');
       interactivePaneRef.current.closeRabbithole();
     }
-    
+
     // Set the new selected block
     setSelectedBlock(block);
   }, [selectedBlock, interactivePaneRef]);
@@ -454,11 +453,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
       const { scale, pageIndex } = props;
-      
+
       const filteredBlocks = blocks.filter(
         (b) => b.block_type !== "Page" && (b.page_number ?? 0) === pageIndex
       );
-      
+
       return (
         <div
           style={{
@@ -478,7 +477,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
             const isSelected = selectedBlock?.id === b.id;
 
-            
             // Determine the block's status
             const blockStatus = isSelected ? 'selected' : '';
 
@@ -497,7 +495,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               };
 
 
-              
               if (isSelected) {
                 return {
                   ...baseStyle,
@@ -555,27 +552,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   ].map(type => type.toLowerCase());
 
   // Update the condition name to match
-  const isChatEnabled = selectedBlock?.block_type && 
+  const isChatEnabled = selectedBlock?.block_type &&
     chatEnabledBlockTypes.includes(selectedBlock.block_type.toLowerCase());
 
   // Block navigation functions - defined after chatEnabledBlockTypes to avoid reference errors
   const handlePreviousBlock = useCallback(() => {
     if (!selectedBlock) return;
-    
+
     // Find current block index in the flattened blocks array
     const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-    
+
     if (currentIndex > 0) {
       // Start from the previous block and find the first chat-enabled one
       let prevIndex = currentIndex - 1;
       while (prevIndex >= 0) {
         const prevBlock = flattenedBlocks[prevIndex];
         // Check if block is chat-enabled
-        if (prevBlock.block_type && 
-            chatEnabledBlockTypes.includes(prevBlock.block_type.toLowerCase()) &&
-            (prevBlock.html_content || 
-             (prevBlock.images && Object.keys(prevBlock.images).length > 0) || 
-             ['picture', 'figure'].includes(prevBlock.block_type.toLowerCase()))) {
+        if (prevBlock.block_type &&
+          chatEnabledBlockTypes.includes(prevBlock.block_type.toLowerCase()) &&
+          (prevBlock.html_content ||
+            (prevBlock.images && Object.keys(prevBlock.images).length > 0) ||
+            ['picture', 'figure'].includes(prevBlock.block_type.toLowerCase()))) {
           // Found a chat-enabled block
           setSelectedBlock(prevBlock);
           return;
@@ -587,21 +584,21 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   const handleNextBlock = useCallback(() => {
     if (!selectedBlock) return;
-    
+
     // Find current block index in the flattened blocks array
     const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-    
+
     if (currentIndex < flattenedBlocks.length - 1) {
       // Start from the next block and find the first chat-enabled one
       let nextIndex = currentIndex + 1;
       while (nextIndex < flattenedBlocks.length) {
         const nextBlock = flattenedBlocks[nextIndex];
         // Check if block is chat-enabled
-        if (nextBlock.block_type && 
-            chatEnabledBlockTypes.includes(nextBlock.block_type.toLowerCase()) &&
-            (nextBlock.html_content || 
-             (nextBlock.images && Object.keys(nextBlock.images).length > 0) || 
-             ['picture', 'figure'].includes(nextBlock.block_type.toLowerCase()))) {
+        if (nextBlock.block_type &&
+          chatEnabledBlockTypes.includes(nextBlock.block_type.toLowerCase()) &&
+          (nextBlock.html_content ||
+            (nextBlock.images && Object.keys(nextBlock.images).length > 0) ||
+            ['picture', 'figure'].includes(nextBlock.block_type.toLowerCase()))) {
           // Found a chat-enabled block
           setSelectedBlock(nextBlock);
           return;
@@ -610,24 +607,24 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       }
     }
   }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
-  
+
   // Determine if there are previous/next blocks available
   const hasPreviousBlock = useMemo(() => {
     if (!selectedBlock || flattenedBlocks.length === 0) return false;
     const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-    
+
     console.log(`[Navigation Debug] Current block: ${selectedBlock.id}, index: ${currentIndex}, type: ${selectedBlock.block_type}`);
-    
+
     // Check if there are any previous blocks that are chat-enabled
     for (let i = currentIndex - 1; i >= 0; i--) {
       const block = flattenedBlocks[i];
       const hasValidType = block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
       const hasContent = block.html_content || (block.images && Object.keys(block.images || {}).length > 0);
       const isImageType = ['picture', 'figure'].includes((block.block_type || '').toLowerCase());
-      
+
       console.log(`[Navigation Debug] ← PREV Check for block id: ${block.id}, type: ${block.block_type || 'unknown'}, index: ${i}`);
       console.log(`  └─ Valid type: ${hasValidType}, Has content: ${hasContent}, Is image type: ${isImageType}`);
-      
+
       if (hasValidType && (hasContent || isImageType)) {
         console.log(`  └─ VALID for navigation ✓`);
         return true;
@@ -635,27 +632,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         console.log(`  └─ SKIPPED for navigation ✗`);
       }
     }
-    
+
     console.log(`[Navigation Debug] No previous blocks found that meet criteria`);
     return false;
   }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
-  
+
   const hasNextBlock = useMemo(() => {
     if (!selectedBlock || flattenedBlocks.length === 0) return false;
     const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-    
+
     console.log(`[Navigation Debug] Current block: ${selectedBlock.id}, index: ${currentIndex}, type: ${selectedBlock.block_type}`);
-    
+
     // Check if there are any next blocks that are chat-enabled
     for (let i = currentIndex + 1; i < flattenedBlocks.length; i++) {
       const block = flattenedBlocks[i];
       const hasValidType = block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
       const hasContent = block.html_content || (block.images && Object.keys(block.images || {}).length > 0);
       const isImageType = ['picture', 'figure'].includes((block.block_type || '').toLowerCase());
-      
+
       console.log(`[Navigation Debug] → NEXT Check for block id: ${block.id}, type: ${block.block_type || 'unknown'}, index: ${i}`);
       console.log(`  └─ Valid type: ${hasValidType}, Has content: ${hasContent}, Is image type: ${isImageType}`);
-      
+
       if (hasValidType && (hasContent || isImageType)) {
         console.log(`  └─ VALID for navigation ✓`);
         return true;
@@ -663,83 +660,115 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         console.log(`  └─ SKIPPED for navigation ✗`);
       }
     }
-    
+
     console.log(`[Navigation Debug] No next blocks found that meet criteria`);
     return false;
   }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
 
-
-
   return (
     <MathJaxProvider>
-      <div className="h-screen grid overflow-hidden" style={{ 
-        gridTemplateColumns: selectedBlock && isChatEnabled ? `1fr ${chatPaneWidth}px` : '1fr' 
-      }}>
-        {/* Left side: PDF viewer */}
-        <div className="relative bg-white shadow-lg overflow-hidden">
-          <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-            <div 
-              style={{
-                border: 'none',
-                height: '100%',
-                backgroundColor: 'rgb(243 244 246)',
-              }}
-              className="overflow-auto relative"
-            >
-              <Viewer
-                fileUrl={pdfFile}
-                plugins={[defaultLayoutPluginInstance]}
-                defaultScale={1.2}
-                theme="light"
-                pageLayout={pageLayout}
-                renderLoader={(percentages: number) => (
-                  <div className="flex items-center justify-center p-4">
-                    <div className="w-full max-w-sm">
-                      <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary-600 transition-all duration-300"
-                            style={{ width: `${Math.round(percentages)}%` }}
-                          />
-                        </div>
-                        <div className="text-sm text-neutral-600 mt-2 text-center">
-                          Loading {Math.round(percentages)}%
+      <div className="h-screen flex w-full overflow-hidden">
+        {/* Left side: PDF viewer - conditionally rendered based on collapsed state */}
+        <div
+          className={`relative bg-white shadow-lg overflow-hidden ${
+            isPdfCollapsed ? 'w-10 flex-shrink-0' : 'flex-1'
+          }`}
+        >
+          {/* Position the collapse button on the right edge */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-50">
+            <CollapsibleButton
+              isCollapsed={isPdfCollapsed}
+              onToggle={() => setIsPdfCollapsed(!isPdfCollapsed)}
+              position="right"
+              variant="subtle"
+              size="medium"
+            />
+          </div>
+          
+          {isPdfCollapsed ? (
+            <div className="h-full w-10 bg-neutral-100 flex items-center justify-center">
+              <button
+                onClick={() => setIsPdfCollapsed(false)}
+                className="vertical-text p-2 text-sm font-medium text-neutral-600 hover:text-neutral-900"
+                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
+              >
+                PDF
+              </button>
+            </div>
+          ) : (
+            <div className="h-full w-full">
+              <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                <div 
+                  style={{
+                    border: 'none',
+                    height: '100%',
+                    width: '100%',
+                    backgroundColor: 'rgb(243 244 246)',
+                  }}
+                  className="overflow-auto relative"
+                >
+                  <Viewer
+                    fileUrl={pdfFile}
+                    plugins={[defaultLayoutPluginInstance]}
+                    defaultScale={1.2}
+                    theme="light"
+                    pageLayout={pageLayout}
+                    renderLoader={(percentages: number) => (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="w-full max-w-sm">
+                          <div className="bg-white p-4 rounded-lg shadow-sm">
+                            <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary-600 transition-all duration-300"
+                                style={{ width: `${Math.round(percentages)}%` }}
+                              />
+                            </div>
+                            <div className="text-sm text-neutral-600 mt-2 text-center">
+                              Loading {Math.round(percentages)}%
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-                renderPage={(props) => (
-                  <>
-                    {props.canvasLayer.children}
-                    {props.textLayer.children}
-                    {renderOverlay(props)}
-                  </>
-                )}
-              />
+                    )}
+                    renderPage={(props) => (
+                      <>
+                        {props.canvasLayer.children}
+                        {props.textLayer.children}
+                        {renderOverlay(props)}
+                      </>
+                    )}
+                  />
+                </div>
+              </Worker>
             </div>
-          </Worker>
+          )}
         </div>
 
         {/* Right side: Chat pane */}
         {selectedBlock && isChatEnabled && documentConversationId && (
-          <ResizablePanel 
-            width={chatPaneWidth}
-            onResize={setChatPaneWidth}
-          >
-            <ChatPane
-              ref={interactivePaneRef}
-              key={documentConversationId}
-              block={selectedBlock}
-              documentId={documentId}
-              conversationId={documentConversationId}
-              onClose={() => setSelectedBlock(null)}
-              onNextBlock={handleNextBlock}
-              onPreviousBlock={handlePreviousBlock}
-              hasNextBlock={hasNextBlock}
-              hasPreviousBlock={hasPreviousBlock}
-            />
-          </ResizablePanel>
+          <div className="h-full" style={{ 
+            flex: isPdfCollapsed ? '1 1 auto' : '0 0 auto', 
+            width: isPdfCollapsed ? 'auto' : `${chatPaneWidth}px` 
+          }}>
+            <ResizablePanel
+              width={isPdfCollapsed ? window.innerWidth - 40 : chatPaneWidth}
+              onResize={setChatPaneWidth}
+              className="h-full"
+            >
+              <ChatPane
+                ref={interactivePaneRef}
+                key={documentConversationId}
+                block={selectedBlock}
+                documentId={documentId}
+                conversationId={documentConversationId}
+                onClose={() => setSelectedBlock(null)}
+                onNextBlock={handleNextBlock}
+                onPreviousBlock={handlePreviousBlock}
+                hasNextBlock={hasNextBlock}
+                hasPreviousBlock={hasPreviousBlock}
+              />
+            </ResizablePanel>
+          </div>
         )}
       </div>
     </MathJaxProvider>

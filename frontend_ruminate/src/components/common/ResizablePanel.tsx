@@ -8,6 +8,7 @@ interface ResizablePanelProps {
   minWidth?: number;
   maxWidth?: number;
   onResize?: (width: number) => void;
+  className?: string;
 }
 
 export default function ResizablePanel({
@@ -15,7 +16,8 @@ export default function ResizablePanel({
   width,
   minWidth = 320,
   maxWidth = 1280,
-  onResize
+  onResize,
+  className = ''
 }: ResizablePanelProps) {
   const [isResizing, setIsResizing] = useState(false);
 
@@ -53,7 +55,7 @@ export default function ResizablePanel({
   }, [isResizing, minWidth, maxWidth, onResize]);
 
   return (
-    <div style={{ width: `${width}px` }} className="relative h-full overflow-hidden">
+    <div style={{ width: `${width}px` }} className={`relative h-full overflow-hidden ${className}`}>
       {/* Resize handle */}
       <div
         className="absolute left-0 top-0 w-4 h-full cursor-ew-resize hover:bg-primary-500/20 transition-colors"

@@ -66,13 +66,16 @@ export default function ChatPane({
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 border-t border-neutral-200">
-      <div className="p-3 bg-neutral-100 border-b border-neutral-200">
+    <div className="h-full flex flex-col min-h-0 bg-white">
+      <div className="p-3 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between">
         <h3 className="text-sm font-medium text-neutral-700">Discussion</h3>
+        <div className="text-xs text-neutral-500">
+          {blockId.substring(0, 8)}
+        </div>
       </div>
       
       {/* Messages */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-white messages-container">
+      <div className="flex-1 px-5 py-4 overflow-y-auto space-y-5 bg-white messages-container">
         {displayedThread
           .filter((message) => message.role !== "system")
           .map((message) => (
