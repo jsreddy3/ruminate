@@ -35,7 +35,8 @@ class ContextService:
     
     async def enhance_context_with_block(self, 
                                         conversation: Conversation, 
-                                        user_msg: Message, 
+                                        user_msg: Message,
+                                        active_thread_ids: List[str],
                                         selected_block_id: Optional[str] = None,
                                         session: Optional[object] = None) -> Tuple[List[Message], Dict[str, str]]:
         """
@@ -43,7 +44,7 @@ class ContextService:
         Returns: (enhanced context messages, pages_tracking_info)
         """
         # Build the base message context
-        context_messages = await self.build_message_context(conversation.id, user_msg)
+        context_messages = await self.build_message_context(conversation.id, user_msg, active_thread_ids)
         
         # Track selected block and pages
         selected_block = None

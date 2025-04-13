@@ -173,95 +173,20 @@ class ChatService:
         updated_active_thread_ids = active_thread_ids + [user_msg.id]
         await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
 
-        # --- Enhanced Context Preparation ---
-        selected_block = None
-        pages_content = ""
-        
-        if selected_block_id:
-            selected_block = await self.document_repo.get_block(selected_block_id, session)
-            if selected_block and selected_block.page_number is not None:
-                document_id = selected_block.document_id
-                current_page_num = selected_block.page_number
-                prev_page_num = current_page_num - 1 if current_page_num > 0 else None
-                
-                logger.info(f"Selected block is on page {current_page_num} (document: {document_id})")
-                
-                # Check if current page needs to be included
-                if str(current_page_num) not in conversation.included_pages:
-                    logger.info(f"Current page {current_page_num} not yet included in conversation")
-                    current_page = await self.document_repo.get_page_by_number(document_id, current_page_num, session)
-                    if current_page:
-                        current_page_blocks = await self.document_repo.get_page_blocks(current_page.id, session)
-                        if current_page_blocks:
-                            current_page_text = "\n".join([self._strip_html(block.html_content) for block in current_page_blocks if block.html_content])
-                            pages_content += f"Current page (Page {current_page_num + 1}):\n---\n{current_page_text}\n---\n\n"
-                            conversation.included_pages[str(current_page_num)] = user_msg.id
-                            logger.info(f"Added page {current_page_num} to included pages")
-                
-                # Check if previous page needs to be included
-                if prev_page_num is not None and str(prev_page_num) not in conversation.included_pages:
-                    logger.info(f"Previous page {prev_page_num} not yet included in conversation")
-                    prev_page = await self.document_repo.get_page_by_number(document_id, prev_page_num, session)
-                    if prev_page:
-                        prev_page_blocks = await self.document_repo.get_page_blocks(prev_page.id, session)
-                        if prev_page_blocks:
-                            prev_page_text = "\n".join([self._strip_html(block.html_content) for block in prev_page_blocks if block.html_content])
-                            pages_content = f"Previous page (Page {prev_page_num + 1}):\n---\n{prev_page_text}\n---\n\n" + pages_content
-                            conversation.included_pages[str(prev_page_num)] = user_msg.id
-                            logger.info(f"Added page {prev_page_num} to included pages")
-                
-                # Update conversation with page tracking info if changes were made
-                if pages_content:
-                    await self.conversation_repo.update_conversation(conversation, session)
-                    logger.info(f"Updated conversation included_pages: {conversation.included_pages}")
-
-        # Add selected block content
-        selected_block_text = None
-        if selected_block and selected_block.html_content:
-            selected_block_text = self._strip_html(selected_block.html_content)
-            logger.info(f"Fetched content for selected block {selected_block_id}")
-
-        # Build the message list for the LLM using the frontend's active thread
-        context_messages = await self.context_service.build_message_context(
-            conversation_id, 
-            user_msg, 
-            active_thread_ids
+        # --- Use ContextService to build enhanced context ---
+        context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
+            conversation,
+            user_msg,
+            active_thread_ids,
+            selected_block_id,
+            session
         )
-
-        # Modify the last user message to include page context and selected block
-        enhanced_content = ""
         
-        # Add page content if any pages were included
-        if pages_content:
-            enhanced_content += pages_content
+        # Update conversation if pages were added
+        if conversation.included_pages != updated_included_pages:
+            conversation.included_pages = updated_included_pages
+            await self.conversation_repo.update_conversation(conversation, session)
         
-        # Add selected block content
-        if selected_block_text:
-            enhanced_content += f"Selected block content:\n---\n{selected_block_text}\n---\n\n"
-        
-        # Add user query
-        enhanced_content += user_msg_content
-        
-        # Only modify the content if we have enhancements
-        if enhanced_content:
-            context_messages[-1].content = enhanced_content
-            logger.info(f"Enhanced context with page and block content")
-        
-        # Log detailed context information for verification
-        logger.info("---------- CONTEXT VERIFICATION ----------")
-        logger.info(f"Conversation ID: {conversation_id}")
-        logger.info(f"Included Pages: {conversation.included_pages}")
-        if selected_block:
-            logger.info(f"Selected Block: ID={selected_block_id}, Page={selected_block.page_number}")
-        
-        # Log the messages being sent to the LLM
-        logger.info("Messages being sent to LLM:")
-        for i, msg in enumerate(context_messages):
-            # Truncate long content for readability in logs
-            content_preview = msg.content[:500] + "..." if len(msg.content) > 500 else msg.content
-            logger.info(f"  Message {i+1}: Role={msg.role}, Content Preview={content_preview}")
-        logger.info("----------------------------------------")
-
         # --- Generate AI Response ---
         response_content = await self.llm_service.generate_response(context_messages)
         logger.info("Generated response")

@@ -61,3 +61,8 @@ class ConversationRepository(ABC):
     async def get_conversations_by_criteria(self, criteria: Dict[str, Any], session: Optional[DBSession] = None) -> List[Conversation]:
         """Get conversations matching the provided criteria"""
         pass
+
+    @abstractmethod
+    async def update_active_thread(self, conversation_id: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> None:
+        """Update the active thread IDs in the conversation record"""
+        pass
