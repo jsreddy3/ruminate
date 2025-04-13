@@ -167,7 +167,11 @@ class ChatService:
             parent_id=parent_id
         )
         await self.conversation_repo.add_message(user_msg, session)
-        await self.conversation_repo.set_active_version(user_msg.parent_id, user_msg.id, session)
+        
+        # Update the active thread in the conversation record
+        # This ensures the backend's active thread matches what the user sees
+        updated_active_thread_ids = active_thread_ids + [user_msg.id]
+        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
 
         # --- Enhanced Context Preparation ---
         selected_block = None
@@ -271,7 +275,10 @@ class ChatService:
             parent_id=user_msg.id
         )
         await self.conversation_repo.add_message(ai_msg, session)
-        await self.conversation_repo.set_active_version(user_msg.id, ai_msg.id, session)
+        
+        # Update the active thread to include the AI response
+        updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
+        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
 
         return ai_msg, user_msg.id # Return AI message and the *actual* user message ID 
     
@@ -280,9 +287,10 @@ class ChatService:
         # Create new version as sibling
         edited_msg, edited_msg_id = await self.conversation_repo.edit_message(message_id, content, session)
         
-        # Update parent to point to new version as active child
-        if edited_msg.parent_id:
-            await self.conversation_repo.set_active_version(edited_msg.parent_id, edited_msg.id, session)
+        # Update the active thread in the conversation record
+        # Instead of updating individual active_child_id pointers, store the complete thread
+        updated_active_thread_ids = active_thread_ids + [edited_msg.id]
+        await self.conversation_repo.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
         
         # Build context using the provided active thread IDs and generate new AI response
         context = await self.context_service.build_message_context(
@@ -304,8 +312,9 @@ class ChatService:
         # Save AI message
         await self.conversation_repo.add_message(ai_msg, session)
         
-        # Set edited message's active child to new AI response
-        await self.conversation_repo.set_active_version(edited_msg.id, ai_msg.id, session)
+        # Update the active thread to include the AI response
+        updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
+        await self.conversation_repo.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
         
         return ai_msg, edited_msg_id
     
