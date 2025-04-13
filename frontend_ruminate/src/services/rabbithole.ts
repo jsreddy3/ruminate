@@ -2,12 +2,12 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export interface RabbitholeHighlight {
-  id: string;
+  id: string;                   // This is the primary ID returned by the backend
   selected_text: string;
   text_start_offset: number;
   text_end_offset: number;
   created_at: string;
-  conversation_id: string;  // Add this to store the associated conversation ID
+  conversation_id?: string;     // Make this optional since the backend doesn't return it
 }
 
 export interface CreateRabbitholeRequest {
