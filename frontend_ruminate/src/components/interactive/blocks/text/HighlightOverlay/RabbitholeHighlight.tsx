@@ -120,12 +120,15 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           top: `${rect.top - contentRect.top}px`,
           width: `${rect.width}px`,
           height: `${rect.height}px`,
-          backgroundColor: 'rgba(79, 70, 229, 0.15)',
-          border: 'none',
-          borderBottom: '2px solid rgba(79, 70, 229, 0.6)',
+          backgroundColor: 'transparent',  // Remove background color
+          borderBottom: '1.5px solid rgba(99, 102, 241, 0.8)', // Stronger underline
+          textDecoration: 'underline',
+          textDecorationColor: 'rgba(99, 102, 241, 0.8)',
+          textDecorationStyle: 'dotted',
+          borderRadius: '0px',  // Remove rounded corners
           cursor: 'pointer',
           zIndex: 10,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          boxShadow: 'none',
           pointerEvents: 'auto',
         };
         
@@ -154,29 +157,8 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
             className="rabbithole-highlight"
             style={style}
             onClick={handleClick}
-            title={`Rabbithole: ${selected_text}`}
-          >
-            {/* Only show the rabbit icon on the first rect */}
-            {rectIndex === 0 && (
-              <div 
-                className="rabbithole-icon"
-                style={{
-                  position: 'absolute',
-                  top: '-16px',
-                  left: '0',
-                  fontSize: '12px',
-                  lineHeight: 1,
-                  padding: '2px 4px',
-                  backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                  border: '1px solid rgba(79, 70, 229, 0.3)',
-                  borderRadius: '4px',
-                  pointerEvents: 'none'
-                }}
-              >
-                🐇
-              </div>
-            )}
-          </div>
+            title={`Rabbithole conversation: ${selected_text}`}
+          />
         );
       });
     })

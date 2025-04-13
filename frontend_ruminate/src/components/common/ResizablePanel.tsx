@@ -30,14 +30,23 @@ export default function ResizablePanel({
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      // Restore normal text selection when resize is complete
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
     };
 
     if (isResizing) {
+      // Prevent text selection during resize operation
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
 
     return () => {
+      // Clean up by restoring text selection
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -47,8 +56,15 @@ export default function ResizablePanel({
     <div style={{ width: `${width}px` }} className="relative h-full overflow-hidden">
       {/* Resize handle */}
       <div
-        className="absolute left-0 top-0 w-1 h-full cursor-ew-resize hover:bg-primary-500/50 transition-colors"
-        onMouseDown={() => setIsResizing(true)}
+        className="absolute left-0 top-0 w-4 h-full cursor-ew-resize hover:bg-primary-500/20 transition-colors"
+        style={{ 
+          userSelect: 'none',
+          touchAction: 'none'
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault(); // Prevent text selection
+          setIsResizing(true);
+        }}
       />
       {children}
     </div>

@@ -24,9 +24,19 @@ const TextContent = forwardRef<HTMLDivElement, TextContentProps>((
 ) => {
   return (
     <div
-      className={`p-4 bg-slate-50 text-slate-900 rounded-md border-l-4 border-l-indigo-500 border-t border-r border-b border-slate-200 font-reading leading-relaxed shadow-md ${getBlockClassName(blockType)}`}
+      className={`p-4 bg-stone-50 text-stone-900 rounded-md border border-amber-200 leading-relaxed ${getBlockClassName(blockType)}`}
       ref={ref}
       onClick={onClickHighlight}
+      style={{
+        fontFamily: '"Times New Roman", Times, serif',
+        fontSize: '1.05rem',
+        lineHeight: '1.5',
+        color: '#222',
+        textAlign: 'justify',
+        textRendering: 'optimizeLegibility',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        background: 'linear-gradient(to right, rgba(255,253,242,1) 0%, rgba(255,251,235,1) 100%)'
+      }}
       dangerouslySetInnerHTML={{ __html: processedContent }}
     />
   );

@@ -45,7 +45,7 @@ class MarkerService:
             'output_format': (None, 'json'),
             "paginate": (None, True),
             "force_ocr": (None, False),
-            "use_llm": (None, False),
+            "use_llm": (None, True),
             "strip_existing_ocr": (None, False),
             "disable_image_extraction": (None, False)
         }
