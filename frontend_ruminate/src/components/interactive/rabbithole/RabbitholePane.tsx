@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useConversation } from "../../../hooks/useConversation";
 import ChatMessage from "../chat/ChatMessage";
 import ChatInput from "../chat/ChatInput";
@@ -10,6 +10,7 @@ interface RabbitholePaneProps {
   selectedText: string;
   documentId: string;
   conversationId?: string;
+  documentConversationId?: string;
   blockId?: string; 
   textStartOffset?: number; 
   textEndOffset?: number;
@@ -20,6 +21,7 @@ export default function RabbitholePane({
   selectedText,
   documentId, 
   conversationId,
+  documentConversationId,
   blockId,
   textStartOffset,
   textEndOffset,
@@ -63,17 +65,24 @@ export default function RabbitholePane({
     blockId: blockId
   });
 
-  // Handle creating a new rabbithole if needed - only runs once
   useEffect(() => {
-    // If we already have a conversation ID, use that and don't create a new one
     if (conversationId) {
-      console.log('Using existing rabbithole conversation:', conversationId);
+      console.log('Using existing rabbithole conversation:', conversationId, {
+        selectedText,
+        textStartOffset,
+        textEndOffset,
+        blockId
+      });
       setRabbitholeConversationId(conversationId);
       return;
     }
     
     // Skip if we're already creating a rabbithole or have an ID generated
     if (isCreatingRabbithole || rabbitholeConversationId) {
+      console.log('Skipping rabbithole creation - already creating or have ID:', {
+        isCreatingRabbithole,
+        rabbitholeConversationId
+      });
       return;
     }
     
@@ -88,7 +97,15 @@ export default function RabbitholePane({
         return;
       }
       
-      console.log('Creating new rabbithole conversation');
+      console.log('Creating new rabbithole conversation with details:', {
+        documentId,
+        blockId,
+        selectedText,
+        textStartOffset,
+        textEndOffset,
+        conversationId,
+        documentConversationId
+      });
       setIsCreatingRabbithole(true);
       
       try {
@@ -98,7 +115,8 @@ export default function RabbitholePane({
           selected_text: selectedText,
           start_offset: textStartOffset,
           end_offset: textEndOffset,
-          type: 'rabbithole'
+          type: 'rabbithole',
+          document_conversation_id: documentConversationId
         });
         
         console.log('Created rabbithole with ID:', newRabbitholeId);
@@ -114,11 +132,15 @@ export default function RabbitholePane({
     createNewRabbithole();
   }, [blockId, documentId, conversationId, isCreatingRabbithole, rabbitholeConversationId, selectedText, textEndOffset, textStartOffset]);
 
+  // Track whether we've initialized the message
+  const hasSetInitialMessage = useRef(false);
+
   useEffect(() => {
-    if (selectedText && !newMessage) {
+    if (selectedText && !hasSetInitialMessage.current) {
       setNewMessage(`Explain this: "${selectedText}"`);
+      hasSetInitialMessage.current = true;
     }
-  }, [selectedText, newMessage, setNewMessage]);
+  }, [selectedText]);
 
   const handleSend = () => {
     sendMessage(newMessage);

@@ -7,6 +7,9 @@ from src.models.viewer.block import Block
 import uuid
 import logging
 import re
+import yaml
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +19,95 @@ class ContextService:
                  document_repository: DocumentRepository):
         self.conversation_repo = conversation_repository
         self.document_repo = document_repository
+        self.prompts = self._load_prompts()
     
+    def _load_prompts(self) -> Dict:
+        """Load prompt templates from YAML file"""
+        try:
+            # Path is relative to this file's location
+            prompts_path = Path(__file__).parent.parent / "conversation" / "prompts.yaml"
+            with open(prompts_path, 'r') as f:
+                return yaml.safe_load(f) or {}
+        except Exception as e:
+            logger.error(f"Error loading prompts: {e}")
+            return {}  # Return empty dict if file not found or invalid
+    
+    async def create_system_message(self, 
+                                    conversation_id: str, 
+                                    template_key: str, 
+                                    template_vars: Dict) -> Message:
+        """
+        Create a system message using a template from prompts.yaml
+        Args:
+            conversation_id: ID of the conversation
+            template_key: Key for the template in prompts.yaml (e.g., 'regular_conversation')
+            template_vars: Dictionary of variables to substitute in the template
+        Returns:
+            System message with populated content
+        """
+        content = self._render_template(template_key, template_vars)
+        
+        # Create system message
+        system_msg = Message(
+            id=str(uuid.uuid4()),
+            conversation_id=conversation_id,
+            role=MessageRole.SYSTEM,
+            content=content
+        )
+        
+        return system_msg
+    
+    def _render_template(self, template_key: str, template_vars: Dict) -> str:
+        """Render a template with the provided variables"""
+        if not self.prompts:
+            logger.warning("No prompts loaded, using fallback message")
+            return f"This is a conversation about a document. (Prompts failed to load)"
+        
+        try:
+            # Get the template for the specified key
+            template_path = template_key.split('.')
+            template = self.prompts
+            for key in template_path:
+                template = template.get(key, {})
+            
+            if not template or not isinstance(template, str):
+                template = self.prompts.get(template_key, {}).get('system_message', '')
+            
+            # Render optional sections first
+            rendered_sections = {}
+            sections = self.prompts.get('sections', {})
+            for section_name, section_template in sections.items():
+                section_key = f"{section_name}_section"
+                # Only include section if all its variables are present
+                section_vars = {k: v for k, v in template_vars.items() 
+                                if k in section_template and v is not None}
+                
+                if section_name in template_vars.get('include_sections', []):
+                    # Render the section with its variables
+                    rendered_section = section_template
+                    for var_name, var_value in section_vars.items():
+                        rendered_section = rendered_section.replace(f"{{{{ {var_name} }}}}", str(var_value))
+                    rendered_sections[section_key] = rendered_section
+                else:
+                    rendered_sections[section_key] = ""
+            
+            # Combine template variables with rendered sections
+            all_vars = {**template_vars, **rendered_sections}
+            
+            # Render the main template with all variables
+            content = template
+            for var_name, var_value in all_vars.items():
+                if var_value is not None:
+                    content = content.replace(f"{{{{ {var_name} }}}}", str(var_value))
+            
+            # Remove any unreplaced variable placeholders
+            content = re.sub(r'{{.*?}}', '', content)
+            
+            return content.strip()
+        except Exception as e:
+            logger.error(f"Template rendering error: {e}")
+            return f"This is a conversation about a document. (Template error: {e})"
+
     def _strip_html(self, html_content: Optional[str]) -> str:
         """Simple text extraction from HTML content"""
         if not html_content:

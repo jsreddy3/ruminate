@@ -15,6 +15,7 @@ interface BlockContainerProps {
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onRabbitholeCreate?: (text: string, startOffset: number, endOffset: number) => void;
+  onRefreshRabbitholes?: (refreshFn: () => void) => void;
 }
 
 /**
@@ -29,7 +30,8 @@ export default function BlockContainer({
   highlights = [],
   onAddTextToChat,
   onRabbitholeClick,
-  onRabbitholeCreate
+  onRabbitholeCreate,
+  onRefreshRabbitholes
 }: BlockContainerProps) {
   // Add component lifecycle logging
   // console.log(`BlockContainer MOUNT - blockId: ${blockId}`);
@@ -42,11 +44,18 @@ export default function BlockContainer({
   // }, [blockId]);
 
   // Use the hook to fetch rabbithole highlights
-  const { rabbitholeHighlights, isLoading, error } = useBlockData(blockId);
+  const { rabbitholeHighlights, isLoading, error, refetch } = useBlockData(blockId);
   
   if (error) {
     console.error('Error loading block data:', error);
   }
+  
+  // Expose refetch function through callback
+  useEffect(() => {
+    if (onRefreshRabbitholes) {
+      onRefreshRabbitholes(refetch);
+    }
+  }, [refetch, onRefreshRabbitholes]);
   
   // Render a loading state if data is being fetched
   if (isLoading) {

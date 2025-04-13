@@ -48,24 +48,25 @@ class ChatService:
         )
         conversation = await self.conversation_repo.create_conversation(conversation, session)
         
-        # Create system message with document context
+        # Get document details for system message
         document = await self.document_repo.get_document(document_id, session)
         if not document:
             raise ValueError(f"Document {document_id} not found")
-            
-        # Build system message content
-        content = f"This is a conversation about the document: {document.title}\n"
-        # Add document summary if available
-        if document.summary:
-            content += f"\nDocument Summary:\n{document.summary}\n"
         
-        # Create and save system message
-        system_msg = Message(
-            id=str(uuid.uuid4()),
+        # Create system message using template
+        template_vars = {
+            "document_title": document.title,
+            "include_sections": ["document_summary"] if document.summary else [],
+            "document_summary": document.summary
+        }
+        
+        system_msg = await self.context_service.create_system_message(
             conversation_id=conversation.id,
-            role=MessageRole.SYSTEM,
-            content=content
+            template_key="regular_conversation",
+            template_vars=template_vars
         )
+        
+        # Set root message
         conversation.root_message_id = system_msg.id
         
         # Save conversation and message

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import type { ChatPaneProps } from "../../types/chat";
 import ChatPane from "./chat/ChatPane";
 import BlockContainer from "./blocks/BlockContainer";
@@ -24,7 +24,12 @@ const chatEnabledBlockTypes = [
   "figure"
 ].map(type => type.toLowerCase());
 
-export default function InteractivePane({ 
+// Define the handle type for the ref
+export interface InteractivePaneHandle {
+  closeRabbithole: () => void;
+}
+
+export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function InteractivePane({ 
   block, 
   documentId, 
   conversationId,
@@ -33,15 +38,16 @@ export default function InteractivePane({
   onPreviousBlock,
   hasNextBlock,
   hasPreviousBlock
-}: ChatPaneProps) {
+}, ref) {
   // console.log(`InteractivePane MOUNT with block ID: ${block.id}`);
   
   // Add cleanup log in useEffect
   useEffect(() => {
+    console.log(`InteractivePane mounted with documentId: ${documentId}, conversationId: ${conversationId}`);
     return () => {
       // console.log(`InteractivePane UNMOUNT with block ID: ${block.id}`);
     };
-  }, [block.id]);
+  }, [block.id, documentId, conversationId]);
   
   // Track current block ID to handle block changes without remounting
   const [currentBlockId, setCurrentBlockId] = useState(block.id);
@@ -62,6 +68,9 @@ export default function InteractivePane({
   const [activeRabbitholeStartOffset, setActiveRabbitholeStartOffset] = useState<number>(0);
   const [activeRabbitholeEndOffset, setActiveRabbitholeEndOffset] = useState<number>(0);
   
+  // Ref to store the rabbithole refresh function
+  const rabbitholeRefreshRef = useRef<(() => void) | null>(null);
+  
   // Function to handle adding text to chat from the block content
   const handleAddTextToChat = (text: string) => {
     setSelectedText(text);
@@ -69,18 +78,24 @@ export default function InteractivePane({
   
   // Function to handle creating a new rabbithole from selected text
   const handleRabbitholeCreate = (text: string, startOffset: number, endOffset: number) => {
-    // console.log('InteractivePane.handleRabbitholeCreate called with:', {
-    //   text,
-    //   startOffset,
-    //   endOffset
-    // });
+    console.log('InteractivePane.handleRabbitholeCreate called with:', {
+      text,
+      startOffset,
+      endOffset,
+      currentBlockId
+    });
     
     // Set the active rabbithole information
     setActiveRabbitholeText(text);
     setActiveRabbitholeStartOffset(startOffset);
     setActiveRabbitholeEndOffset(endOffset);
     
+    // IMPORTANT: Clear the active rabbithole ID to ensure we create a new one
+    // instead of reusing an existing one
+    setActiveRabbitholeId("");
+    
     // Switch to rabbithole mode - no ID yet, RabbitholePane will create one
+    console.log('Setting rabbithole mode to true, activeRabbitholeId:', activeRabbitholeId);
     setRabbitholeMode(true);
     
     // We don't set activeRabbitholeId because it will be created by RabbitholePane
@@ -88,48 +103,68 @@ export default function InteractivePane({
   
   // Function to handle rabbithole click
   const handleRabbitholeClick = (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
-    // console.log('InteractivePane.handleRabbitholeClick called with:', {
-    //   rabbitholeId,
-    //   selectedText,
-    //   startOffset,
-    //   endOffset
-    // });
+    console.log('InteractivePane.handleRabbitholeClick called with:', {
+      rabbitholeId,
+      selectedText,
+      startOffset,
+      endOffset,
+      currentBlockId
+    });
     
     // Log component state before changes
-    // console.log('InteractivePane state BEFORE changes:', {
-    //   rabbitholeMode,
-    //   activeRabbitholeId,
-    //   currentBlockId,
-    //   selectedText: activeRabbitholeText
-    // });
+    console.log('InteractivePane state BEFORE changes:', {
+      rabbitholeMode,
+      activeRabbitholeId,
+      currentBlockId,
+      selectedText: activeRabbitholeText
+    });
     
     setActiveRabbitholeId(rabbitholeId);
     setActiveRabbitholeText(selectedText);
     if (startOffset !== undefined) setActiveRabbitholeStartOffset(startOffset);
     if (endOffset !== undefined) setActiveRabbitholeEndOffset(endOffset);
     
-    // console.log('Setting rabbithole mode to true');
+    console.log('Setting rabbithole mode to true');
     setRabbitholeMode(true);
     
     // Log current state after update
     setTimeout(() => {
-      // console.log('InteractivePane state AFTER changes:', {
-      //   rabbitholeMode,
-      //   activeRabbitholeId,
-      //   currentBlockId,
-      //   selectedText: activeRabbitholeText
-      // });
+      console.log('InteractivePane state AFTER changes:', {
+        rabbitholeMode,
+        activeRabbitholeId,
+        currentBlockId,
+        selectedText: activeRabbitholeText
+      });
     }, 100);
   };
   
   // Function to exit rabbithole mode
   const handleCloseRabbithole = () => {
     setRabbitholeMode(false);
+    
+    // Refresh rabbithole data after closing to ensure UI is updated
+    if (rabbitholeRefreshRef.current) {
+      console.log('Refreshing rabbithole data after closing');
+      // Small delay to ensure state updates have processed
+      setTimeout(() => {
+        rabbitholeRefreshRef.current?.();
+      }, 100);
+    }
+  };
+  
+  // Handler to capture the refresh function from BlockContainer
+  const handleRefreshRabbitholes = (refreshFn: () => void) => {
+    rabbitholeRefreshRef.current = refreshFn;
   };
 
   // Update the condition to check against supported types
   const blockIsChatEnabled = block.block_type && 
     chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
+
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    closeRabbithole: handleCloseRabbithole
+  }));
 
   return (
     <div className="h-full flex flex-col bg-white text-neutral-800 border-l border-neutral-200 shadow-lg">
@@ -141,7 +176,8 @@ export default function InteractivePane({
           <RabbitholePane
             selectedText={activeRabbitholeText}
             documentId={documentId}
-            conversationId={activeRabbitholeId}
+            conversationId={activeRabbitholeId} // For existing rabbitholes
+            documentConversationId={conversationId} // Pass the main document conversation ID
             blockId={currentBlockId}
             textStartOffset={activeRabbitholeStartOffset}
             textEndOffset={activeRabbitholeEndOffset}
@@ -178,10 +214,10 @@ export default function InteractivePane({
                     blockId={currentBlockId}
                     blockType={block.block_type.toLowerCase()}
                     htmlContent={block.html_content}
-                    images={block.images}
+                    images={block.images || {}}
                     onAddTextToChat={handleAddTextToChat}
-                    onRabbitholeClick={handleRabbitholeClick}
                     onRabbitholeCreate={handleRabbitholeCreate}
+                    onRefreshRabbitholes={handleRefreshRabbitholes}
                   />
                 </div>
               </div>
@@ -264,5 +300,7 @@ export default function InteractivePane({
         )}
       </div>
     </div>
-  );
+  );  
 }
+
+)

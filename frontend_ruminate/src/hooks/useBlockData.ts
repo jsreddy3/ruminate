@@ -18,13 +18,13 @@ export function useBlockData(blockId: string | undefined) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   
-  const fetchBlockData = useCallback(async (id: string) => {
+  const fetchBlockData = useCallback(async (id: string, forceRefresh = false) => {
     // Skip if no id
     if (!id) return;
     
-    // Check cache first
+    // Check cache first (unless force refresh is requested)
     const cachedData = blockDataCache[id];
-    if (cachedData && Date.now() - cachedData.timestamp < 60000) {
+    if (!forceRefresh && cachedData && Date.now() - cachedData.timestamp < 60000) {
       setRabbitholeHighlights(cachedData.rabbitholeHighlights);
       setIsLoading(false);
       setError(cachedData.error);
@@ -72,7 +72,8 @@ export function useBlockData(blockId: string | undefined) {
   
   const refetch = useCallback(() => {
     if (blockId) {
-      fetchBlockData(blockId);
+      console.log(`Forcing refresh of rabbithole data for block ${blockId}`);
+      fetchBlockData(blockId, true); // Pass true to force refresh and bypass cache
     }
   }, [blockId, fetchBlockData]);
   

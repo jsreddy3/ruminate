@@ -7,7 +7,7 @@ import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
 
-import ChatPane from "../interactive/InteractivePane"; 
+import ChatPane, { InteractivePaneHandle } from "../interactive/InteractivePane"; 
 import ResizablePanel from "../common/ResizablePanel";
 import MathJaxProvider from "../common/MathJaxProvider";
 import { conversationApi } from "../../services/api/conversation";
@@ -90,6 +90,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
   // Add state for chat pane width
   const [chatPaneWidth, setChatPaneWidth] = useState(384);
+
+  // Ref to access the InteractivePane methods
+  const interactivePaneRef = useRef<InteractivePaneHandle>(null);
 
   // Flatten blocks for easy navigation
   useEffect(() => {
@@ -437,8 +440,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       content: block.html_content,
       fullBlock: block
     });
+    
+    // If a block is already selected, close any open rabbithole before changing blocks
+    if (selectedBlock && interactivePaneRef.current) {
+      console.log('Closing rabbithole before selecting new block');
+      interactivePaneRef.current.closeRabbithole();
+    }
+    
+    // Set the new selected block
     setSelectedBlock(block);
-  }, []);
+  }, [selectedBlock, interactivePaneRef]);
 
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
@@ -717,6 +728,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             onResize={setChatPaneWidth}
           >
             <ChatPane
+              ref={interactivePaneRef}
               key={documentConversationId}
               block={selectedBlock}
               documentId={documentId}

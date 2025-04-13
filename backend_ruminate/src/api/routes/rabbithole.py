@@ -15,6 +15,7 @@ class CreateRabbitholeRequest(BaseModel):
     selected_text: str
     start_offset: int
     end_offset: int
+    document_conversation_id: Optional[str] = None
 
 def get_rabbithole_service():
     """Dependency to get the rabbithole service"""
@@ -29,7 +30,6 @@ def get_rabbithole_service():
     return RabbitholeConversationService(
         conversation_repository=conversation_repo,
         document_repository=document_repo,
-        llm_service=llm_service
     )
 
 @router.post("", response_model=Dict[str, str])
@@ -46,8 +46,9 @@ async def create_rabbithole(
             selected_text=request.selected_text,
             start_offset=request.start_offset,
             end_offset=request.end_offset,
+            document_conversation_id=request.document_conversation_id,
             session=session
-        )
+        ) 
         return {"conversation_id": conversation_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

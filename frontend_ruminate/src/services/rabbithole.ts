@@ -17,6 +17,7 @@ export interface CreateRabbitholeRequest {
   start_offset: number;
   end_offset: number;
   type: 'rabbithole';
+  document_conversation_id?: string; // Optional field for the main document conversation ID
 }
 
 export async function createRabbithole(data: CreateRabbitholeRequest): Promise<string> {
