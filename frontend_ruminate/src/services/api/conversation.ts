@@ -32,6 +32,7 @@ export const conversationApi = {
     conversationId: string, 
     content: string, 
     parentId: string,
+    activeThreadIds: string[],
     selectedBlockId?: string
   ): Promise<[any, string]> => {
     const response = await fetch(
@@ -41,7 +42,8 @@ export const conversationApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           content, 
-          parent_version_id: parentId,
+          parent_id: parentId,
+          active_thread_ids: activeThreadIds,
           selected_block_id: selectedBlockId 
         })
       }
@@ -53,14 +55,18 @@ export const conversationApi = {
   editMessage: async (
     conversationId: string, 
     messageId: string, 
-    content: string
+    content: string,
+    activeThreadIds: string[]
   ): Promise<[any, string]> => {
     const response = await fetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ 
+          content,
+          active_thread_ids: activeThreadIds
+        })
       }
     );
     if (!response.ok) throw new Error("Failed to edit message");

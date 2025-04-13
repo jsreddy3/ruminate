@@ -68,33 +68,47 @@ export function useConversation({
     if (!content.trim() || isLoading || !conversationId) return;
     setIsLoading(true);
 
-    const parentMessage = displayedThread.length > 0 ? displayedThread[displayedThread.length - 1] : messageTree[0]; // Use root if thread empty
-    if (!parentMessage) {
-      console.error("Cannot send message: No parent message found.");
-      setIsLoading(false);
-      return;
+    // --- Determine the correct parent ID ---
+    // Find the last message in the currently displayed thread
+    const lastDisplayedMessage = displayedThread.length > 0
+    ? displayedThread[displayedThread.length - 1]
+    : null;
+
+    // If no message is displayed (only system message exists), use the root message ID
+    const parentIdToSend = lastDisplayedMessage
+      ? lastDisplayedMessage.id
+      : messageTree[0]?.id; // Use root message (system) if thread is empty
+
+    if (!parentIdToSend) {
+        console.error("Cannot send message: Could not determine parent message ID.");
+        setIsLoading(false);
+        return; // Prevent sending if parent cannot be determined
     }
+    // --- End: Determine the correct parent ID ---
 
     // Create optimistic user message
     const userMessage: Message = {
       id: "unset-user-message-id",
       role: "user",
       content,
-      parent_id: parentMessage.id,
+      parent_id: parentIdToSend,
       children: [],
       active_child_id: null,
       created_at: new Date().toISOString()
     };
 
-    // --- Optimistic Update ---
     const tempThread = [...displayedThread, userMessage];
     setDisplayedThread(tempThread);
 
     try {
+      // Collect IDs of all messages in the current displayed thread
+      const activeThreadIds = displayedThread.map(msg => msg.id);
+      
       const [aiResponse, backendUserId] = await conversationApi.sendMessage(
         conversationId,
         content,
-        parentMessage.id,
+        parentIdToSend,
+        activeThreadIds, // Pass the active thread IDs
         selectedBlockId // Pass selected block ID to API
       );
 
@@ -103,12 +117,15 @@ export function useConversation({
       messagesById.set(backendUserId, userMessage); // Add to map with correct ID
 
       // Update parent's children and active_child_id in the map
-      const parent = messagesById.get(parentMessage.id);
+      const parent = messagesById.get(parentIdToSend);
       if (parent) {
         if (!parent.children.some(c => c.id === userMessage.id)) { // Avoid duplicates if already optimistically added
           parent.children.push(userMessage);
         }
         parent.active_child_id = userMessage.id;
+      } else {
+        // This case should be rare if parentIdToSend was validated or fetched correctly
+        console.warn(`Parent message ${parentIdToSend} not found in map during update.`);
       }
 
       const aiMessage: Message = {
@@ -131,17 +148,17 @@ export function useConversation({
       setDisplayedThread(newActiveThread);
 
     } catch (error) {
-      console.error("Error sending message:", error);
-      // Revert optimistic update: remove the temp user message
-      setDisplayedThread(prev => prev.slice(0, -1));
-      // Also remove from map if added optimistically
+      console.error("Error sending message:", error); // Keep error handling
+      // Revert optimistic update
+      setDisplayedThread(prev => prev.filter(msg => msg.id !== "unset-user-message-id")); // More robust removal
       messagesById.delete("unset-user-message-id");
-      // Reset parent's active child if needed
-      const parent = messagesById.get(parentMessage.id);
+      // Reset parent's active child if it was the optimistic one
+      const parent = messagesById.get(parentIdToSend);
       if (parent && parent.active_child_id === "unset-user-message-id") {
-        parent.active_child_id = null; // Or find the previous active child if necessary
+        // Find the last *real* child of the parent before the optimistic one was added
+        const realChildren = parent.children.filter(c => c.id !== "unset-user-message-id");
+        parent.active_child_id = realChildren.length > 0 ? realChildren[realChildren.length - 1].id : null;
       }
-
     } finally {
       setNewMessage("");
       setIsLoading(false);
@@ -153,10 +170,14 @@ export function useConversation({
 
     setIsLoading(true);
     try {
+      // Collect IDs of all messages in the current displayed thread
+      const activeThreadIds = displayedThread.map(msg => msg.id);
+      
       const [aiResponse, editedMessageId] = await conversationApi.editMessage(
         conversationId,
         messageId,
-        editingContent
+        editingContent,
+        activeThreadIds
       );
       
       const originalMessage = messagesById.get(messageId)!;

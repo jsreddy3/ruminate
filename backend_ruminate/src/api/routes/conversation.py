@@ -12,11 +12,13 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 class SendMessageRequest(BaseModel):
     content: str
-    parent_version_id: Optional[str] = None
+    parent_id: str
+    active_thread_ids: List[str]
     selected_block_id: Optional[str] = None
 
 class EditMessageRequest(BaseModel):
     content: str
+    active_thread_ids: List[str]
 
 @router.post("", response_model=Conversation)
 async def create_conversation(
@@ -63,7 +65,8 @@ async def send_message(
         return await chat_service.send_message(
             conversation_id, 
             request.content, 
-            parent_version_id=request.parent_version_id,
+            parent_id=request.parent_id,
+            active_thread_ids=request.active_thread_ids,
             selected_block_id=request.selected_block_id,
             session=session
         )
@@ -89,7 +92,12 @@ async def edit_message(
 ) -> Tuple[Message, str]:
     """Edit a message in a conversation and generate a new AI response"""
     try:
-        return await chat_service.edit_message(message_id, request.content, session)
+        return await chat_service.edit_message(
+            message_id, 
+            request.content, 
+            active_thread_ids=request.active_thread_ids, 
+            session=session
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
