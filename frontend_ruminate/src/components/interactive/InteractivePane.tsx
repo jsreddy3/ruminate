@@ -216,6 +216,7 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
                     htmlContent={block.html_content}
                     images={block.images || {}}
                     onAddTextToChat={handleAddTextToChat}
+                    onRabbitholeClick={handleRabbitholeClick}
                     onRabbitholeCreate={handleRabbitholeCreate}
                     onRefreshRabbitholes={handleRefreshRabbitholes}
                   />
