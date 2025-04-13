@@ -63,6 +63,6 @@ class ConversationRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_active_thread(self, conversation_id: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> None:
+    async def update_active_thread(self, conversation_id: str, active_thread_ids: List[str], session: Optional[DBSession] = None) -> None:
         """Update the active thread IDs in the conversation record"""
         pass
