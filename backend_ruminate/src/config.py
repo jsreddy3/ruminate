@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     DATALAB_API_KEY: str
     GEMINI_API_KEY: str
-    GOOGLE_API_KEY: str
     
     # Storage type settings
     DOCUMENT_STORAGE_TYPE: str = "sqlite"  # Default to SQLite storage
