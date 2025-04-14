@@ -149,11 +149,19 @@ class RabbitholeConversationService:
         Get all rabbithole conversations for a specific block.
         Returns a list of rabbithole info dictionaries with metadata for UI display.
         """
-        # Get all rabbithole conversations for this block
-        rabbitholes = await self.conversation_repo.get_conversations_by_criteria(
+        # Get both regular rabbitholes and agent rabbitholes for this block
+        regular_rabbitholes = await self.conversation_repo.get_conversations_by_criteria(
             criteria={"source_block_id": block_id, "type": ConversationType.RABBITHOLE.value},
             session=session
         )
+        
+        agent_rabbitholes = await self.conversation_repo.get_conversations_by_criteria(
+            criteria={"source_block_id": block_id, "type": ConversationType.AGENT_RABBITHOLE.value},
+            session=session
+        )
+        
+        # Combine both types
+        all_rabbitholes = regular_rabbitholes + agent_rabbitholes
         
         # Format for UI display
         return [
@@ -162,9 +170,10 @@ class RabbitholeConversationService:
                 "selected_text": r.selected_text,
                 "text_start_offset": r.text_start_offset,
                 "text_end_offset": r.text_end_offset,
-                "created_at": r.created_at.isoformat() if hasattr(r.created_at, 'isoformat') else r.created_at
+                "created_at": r.created_at.isoformat() if hasattr(r.created_at, 'isoformat') else r.created_at,
+                "conversation_id": r.id  # Include the conversation_id explicitly
             }
-            for r in rabbitholes
+            for r in all_rabbitholes
         ]
     
     async def get_rabbitholes_for_document(self, document_id: str, session: Optional[AsyncSession] = None) -> List[Dict]:

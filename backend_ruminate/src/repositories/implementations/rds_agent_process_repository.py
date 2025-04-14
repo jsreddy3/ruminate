@@ -193,3 +193,37 @@ class RDSAgentProcessRepository(AgentProcessRepository):
         finally:
             if local_session:
                 await session.close()
+                
+    async def get_process_steps_for_assistant_message(self, assistant_message_id: str, session: Optional[AsyncSession] = None) -> List[AgentProcessStep]:
+        """Get all process steps related to a specific assistant message"""
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Query for steps
+            query = select(AgentProcessStepModel).where(
+                AgentProcessStepModel.assistant_message_id == assistant_message_id
+            ).order_by(AgentProcessStepModel.step_number)
+            
+            result = await session.execute(query)
+            step_models = result.scalars().all()
+            
+            # Convert to domain models
+            steps = []
+            for model in step_models:
+                # Create dict from model attributes
+                step_dict = {c.name: getattr(model, c.name) for c in model.__table__.columns}
+                
+                # Rename meta_data back to metadata for Pydantic
+                if 'meta_data' in step_dict:
+                    step_dict['metadata'] = step_dict.pop('meta_data')
+                    
+                steps.append(AgentProcessStep.from_dict(step_dict))
+            
+            return steps
+        except Exception as e:
+            logger.error(f"Error getting agent process steps for assistant message: {e}")
+            raise
+        finally:
+            if local_session:
+                await session.close()

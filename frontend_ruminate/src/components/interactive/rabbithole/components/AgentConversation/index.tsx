@@ -19,6 +19,9 @@ export default function AgentConversation({
 }: AgentConversationProps) {
   const [newMessage, setNewMessage] = useState(initialMessageDraft);
   
+  // Reference to the messages container for auto-scrolling
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
   // Use our custom agent conversation hook
   const {
     displayedThread,
@@ -41,9 +44,23 @@ export default function AgentConversation({
     }
   };
   
+  // Auto-scroll when new events or messages are added
+  useEffect(() => {
+    if (messagesContainerRef.current && (isLoading || displayedThread.length > 0)) {
+      const container = messagesContainerRef.current;
+      // Smooth scrolling with a slight delay to ensure content is rendered
+      setTimeout(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [currentEvents.length, displayedThread.length, isLoading]);
+  
   return (
     <>
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-white messages-container">
+      <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 bg-white messages-container">
         {displayedThread
           .filter(message => message.role !== "system")
           .map(message => (

@@ -6,8 +6,10 @@ from pydantic import BaseModel
 import asyncio
 
 from src.models.conversation.message import Message
+from src.models.conversation.agent_process_step import AgentProcessStep
 from src.services.conversation.agent_rabbithole_service import AgentRabbitholeService
-from src.api.dependencies import get_db, get_agent_rabbithole_service, get_agent_sse_manager
+from src.repositories.interfaces.agent_process_repository import AgentProcessRepository
+from src.api.dependencies import get_db, get_agent_rabbithole_service, get_agent_sse_manager, get_agent_process_repository
 
 
 router = APIRouter(prefix="/agent-rabbitholes", tags=["agent-rabbitholes"])
@@ -28,6 +30,14 @@ class AgentMessageResponse(BaseModel):
     message_id: str
     content: str
     role: str
+    
+class AgentStepResponse(BaseModel):
+    id: str
+    step_type: str
+    content: str
+    step_number: int
+    created_at: str
+    metadata: Optional[Dict[str, Any]] = None
 
 @router.post("", response_model=Dict[str, str])
 async def create_agent_rabbithole(
@@ -125,3 +135,41 @@ async def event_stream(
         event_generator(),
         media_type="text/event-stream"
     )
+
+@router.get("/{conversation_id}/messages/{message_id}/steps", response_model=List[AgentStepResponse])
+async def get_message_steps(
+    conversation_id: str,
+    message_id: str,
+    agent_process_repo: AgentProcessRepository = Depends(get_agent_process_repository),
+    session: Optional[AsyncSession] = Depends(get_db)
+) -> List[AgentStepResponse]:
+    """Get agent process steps for a specific message
+    
+    Args:
+        conversation_id: ID of the conversation
+        message_id: ID of the assistant message to get steps for
+        
+    Returns:
+        List of agent process steps
+    """
+    try:
+        # First try to get steps by assistant message ID
+        steps = await agent_process_repo.get_process_steps_for_assistant_message(message_id, session)
+        
+        # If no steps found, try by user message ID as fallback
+        if not steps:
+            steps = await agent_process_repo.get_process_steps_for_message(message_id, session)
+        
+        # Convert to response model
+        return [
+            AgentStepResponse(
+                id=step.id,
+                step_type=step.step_type,
+                content=step.content,
+                step_number=step.step_number,
+                created_at=step.created_at.isoformat() if hasattr(step.created_at, 'isoformat') else step.created_at,
+                metadata=step.metadata
+            ) for step in steps
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving agent steps: {str(e)}")

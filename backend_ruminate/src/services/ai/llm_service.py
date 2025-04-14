@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 class LLMService:
-    CHAT_MODEL = "gpt-4o"  # Default model
+    CHAT_MODEL = "gpt-4o-mini"  # Default model
 
     def __init__(self, api_key: Optional[str] = None, gemini_api_key: Optional[str] = None):
         self.api_key = api_key

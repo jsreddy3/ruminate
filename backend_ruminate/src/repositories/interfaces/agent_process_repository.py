@@ -24,3 +24,8 @@ class AgentProcessRepository:
     async def update_with_assistant_message(self, user_message_id: str, assistant_message_id: str, session: Optional[AsyncSession] = None) -> None:
         """Update all process steps for a user message with the final assistant message ID"""
         raise NotImplementedError
+    
+    async def get_process_steps_for_assistant_message(self, assistant_message_id: str, session: Optional[AsyncSession] = None) -> List[AgentProcessStep]:
+        """Get all process steps related to a specific assistant message"""
+        raise NotImplementedError
+        
