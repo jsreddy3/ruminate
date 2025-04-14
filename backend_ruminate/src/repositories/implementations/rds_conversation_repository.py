@@ -321,6 +321,37 @@ class RDSConversationRepository(ConversationRepository):
         finally:
             if local_session:
                 await session.close()
+
+    async def get_message(self, message_id: str, session: Optional[AsyncSession] = None) -> Optional[Message]:
+        """Get a message by ID"""
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Query for message
+            result = await session.execute(
+                select(MessageModel).where(MessageModel.id == message_id)
+            )
+            msg_model = result.scalars().first()
+            
+            if not msg_model:
+                return None
+                
+            # Convert model to message
+            msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
+                
+            # Parse datetime string
+            if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
+                msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
+                
+            return Message.from_dict(msg_dict)
+        except Exception as e:
+            if local_session:
+                await session.rollback()
+            raise e
+        finally:
+            if local_session:
+                await session.close()
     
     async def get_message_versions(self, message_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         """Get all versions of a message (original + edited versions)"""

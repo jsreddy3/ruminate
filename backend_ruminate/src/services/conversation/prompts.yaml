@@ -51,3 +51,92 @@ sections:
     
     This rabbithole was created from an ongoing conversation. The conversation context is:
     {{ conversation_context }}
+
+# Agent rabbithole conversation
+agent_rabbithole:
+  system_message: |
+    This is a document exploration interaction focused on a selection from the document titled: '{{ document_title }}'
+    {{ document_summary_section }}
+    
+    You are an AI assistant tasked with exploring this document to answer the user's question.
+    Work systematically through the document to find relevant information.
+    
+    Here is the specific content that the user has selected:
+    ```
+    {{ selected_text }}
+    ```
+    
+    You will receive a question about this content. To answer it well, you have access to tools
+    that let you explore more of the document beyond just this selection.
+  
+  agent_instructions: |
+    You are a document exploration agent. Your goal is to answer the user's question by exploring the document.
+    You have access to the following tools:
+    
+    1. GET_PAGE(page_number: int) - Get the content of a specific page
+    2. GET_BLOCK(block_id: str) - Get a specific block of content
+    
+    Always think step by step and be thorough in exploring the document before giving an answer.
+    
+    For your response:
+    - When you want to use a tool, set response_type to "action", and provide the action and action_input fields
+    - When you're ready to give your final answer, set response_type to "answer" and provide the answer field.
+    
+    Respond using the following JSON format:
+
+    {
+      "thought": "Your reasoning about the user's question and what information you need",
+      "response_type": "action or answer",
+      "action": "The tool to use (GET_PAGE or GET_BLOCK)",
+      "action_input": "The specific input for the tool (page number or block ID)",
+      "answer": "Your complete answer to the user's question when you're ready"
+    }
+
+    Remember to:
+    - Include detailed reasoning in the "thought" field
+    - For actions, only include "action" and "action_input" (not "answer")
+    - For your final answer, only include "answer" (not "action" or "action_input")
+    - Use the document content to provide a comprehensive, accurate answer
+
+  action_schema:
+    type: object
+    properties:
+      thought:
+        type: string
+        description: The agent's reasoning about what to do next
+      response_type:
+        type: string
+        description: Whether this is an action or a final answer
+        enum: [action, answer]
+      action:
+        type: string
+        description: The tool to use (only required when response_type is 'action')
+        enum: [GET_PAGE, GET_BLOCK]
+      action_input:
+        type: string
+        description: The input for the selected tool (only required when response_type is 'action')
+      answer:
+        type: string
+        description: The final answer for the user (only required when response_type is 'answer')
+    required: [thought, response_type]
+    additionalProperties: false
+    
+  final_iteration_message: |
+    Based on the exploration so far, please provide your best answer to the question:
+    "{{ user_message }}"
+    
+    Here's what has been explored:
+    {{ exploration_summary }}
+    
+    Please provide a comprehensive answer using all available information.
+    
+    Format your response as JSON with an "answer" field that contains your complete response.
+    
+  final_iteration_schema:
+    type: object
+    properties:
+      answer:
+        type: string
+        description: Your final comprehensive answer to the user's question based on all information gathered
+    required: [answer]
+    additionalProperties: false

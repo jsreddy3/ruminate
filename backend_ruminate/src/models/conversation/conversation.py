@@ -11,10 +11,7 @@ from enum import Enum
 class ConversationType(str, Enum):
     DOCUMENT = "document"
     RABBITHOLE = "rabbithole"
-
-class ConversationType(str, Enum):
-    DOCUMENT = "document"
-    RABBITHOLE = "rabbithole"
+    AGENT_RABBITHOLE = "agent_rabbithole"
 
 class Conversation(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))

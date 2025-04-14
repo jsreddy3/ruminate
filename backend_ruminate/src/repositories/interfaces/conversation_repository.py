@@ -53,6 +53,11 @@ class ConversationRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_message(self, message_id: str, session: Optional[DBSession] = None) -> Optional[Message]:
+        """Get a message by ID"""
+        pass
+
+    @abstractmethod
     async def set_active_version(self, message_id: str, active_child_id: str, session: Optional[DBSession] = None) -> None:
         """Set the active version of a message"""
         pass
@@ -66,3 +71,9 @@ class ConversationRepository(ABC):
     async def update_active_thread(self, conversation_id: str, active_thread_ids: List[str], session: Optional[DBSession] = None) -> None:
         """Update the active thread IDs in the conversation record"""
         pass
+
+    @abstractmethod
+    async def get_active_thread(self, conversation_id: str, session: Optional[DBSession] = None) -> List[Message]:
+        """Get the active thread of messages in a conversation"""
+        pass
+    

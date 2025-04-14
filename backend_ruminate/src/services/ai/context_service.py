@@ -10,6 +10,7 @@ import re
 import yaml
 import os
 from pathlib import Path
+from jinja2 import Template
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ class ContextService:
         # Initialize included_pages if not present
         if not hasattr(conversation, 'included_pages') or conversation.included_pages is None:
             conversation.included_pages = {}
-            logger.info(f"Initialized included_pages tracking for conversation {conversation.id}")
+            # logger.info(f"Initialized included_pages tracking for conversation {conversation.id}")
         
         # Get selected block content if specified
         if selected_block_id:
@@ -154,11 +155,11 @@ class ContextService:
                 current_page_num = selected_block.page_number
                 prev_page_num = current_page_num - 1 if current_page_num > 0 else None
                 
-                logger.info(f"Selected block is on page {current_page_num} (document: {document_id})")
+                # logger.info(f"Selected block is on page {current_page_num} (document: {document_id})")
                 
                 # Check if current page needs to be included
                 if str(current_page_num) not in conversation.included_pages:
-                    logger.info(f"Current page {current_page_num} not yet included in conversation")
+                    # logger.info(f"Current page {current_page_num} not yet included in conversation")
                     current_page = await self.document_repo.get_page_by_number(document_id, current_page_num, session)
                     if current_page:
                         current_page_blocks = await self.document_repo.get_page_blocks(current_page.id, session)
@@ -166,11 +167,11 @@ class ContextService:
                             current_page_text = "\n".join([self._strip_html(block.html_content) for block in current_page_blocks if block.html_content])
                             pages_content += f"Current page (Page {current_page_num + 1}):\n---\n{current_page_text}\n---\n\n"
                             conversation.included_pages[str(current_page_num)] = user_msg.id
-                            logger.info(f"Added page {current_page_num} to included pages")
+                            # logger.info(f"Added page {current_page_num} to included pages")
                 
                 # Check if previous page needs to be included
                 if prev_page_num is not None and str(prev_page_num) not in conversation.included_pages:
-                    logger.info(f"Previous page {prev_page_num} not yet included in conversation")
+                    # logger.info(f"Previous page {prev_page_num} not yet included in conversation")
                     prev_page = await self.document_repo.get_page_by_number(document_id, prev_page_num, session)
                     if prev_page:
                         prev_page_blocks = await self.document_repo.get_page_blocks(prev_page.id, session)
@@ -178,13 +179,13 @@ class ContextService:
                             prev_page_text = "\n".join([self._strip_html(block.html_content) for block in prev_page_blocks if block.html_content])
                             pages_content = f"Previous page (Page {prev_page_num + 1}):\n---\n{prev_page_text}\n---\n\n" + pages_content
                             conversation.included_pages[str(prev_page_num)] = user_msg.id
-                            logger.info(f"Added page {prev_page_num} to included pages")
+                            # logger.info(f"Added page {prev_page_num} to included pages")
         
         # Add selected block content
         selected_block_text = None
         if selected_block and selected_block.html_content:
             selected_block_text = self._strip_html(selected_block.html_content)
-            logger.info(f"Fetched content for selected block {selected_block_id}")
+            # logger.info(f"Fetched content for selected block {selected_block_id}")
         
         # Enhance user message content
         enhanced_content = ""
@@ -205,10 +206,10 @@ class ContextService:
             # Create a copy of the last message to avoid modifying the original
             enhanced_user_msg = context_messages[-1]
             enhanced_user_msg.content = enhanced_content
-            logger.info(f"Enhanced context with page and block content")
+            # logger.info(f"Enhanced context with page and block content")
         
         # Log context information for verification
-        self._log_context_info(conversation.id, conversation.included_pages, selected_block, selected_block_id, context_messages)
+        # self._log_context_info(conversation.id, conversation.included_pages, selected_block, selected_block_id, context_messages)
         
         return context_messages, conversation.included_pages
     
@@ -227,3 +228,147 @@ class ContextService:
             content_preview = msg.content[:500] + "..." if len(msg.content) > 500 else msg.content
             logger.info(f"  Message {i+1}: Role={msg.role}, Content Preview={content_preview}")
         logger.info("----------------------------------------")
+
+    async def build_agent_system_prompt(self, conversation_id: str, document_id: str, session: Optional[object] = None) -> str:
+        """Build the complete system prompt for the agent including instructions.
+        
+        This handles all template variables and combines system message with instructions.
+        """
+        # Fetch the conversation to get selected text and other metadata
+        conversation = await self.conversation_repo.get_conversation(conversation_id, session)
+        
+        # Fetch document metadata
+        document = await self.document_repo.get_document(document_id, session)
+        document_title = document.title if document and hasattr(document, 'title') else "Document"
+        
+        # Get document summary if available
+        document_summary = document.summary if document and hasattr(document, 'summary') else ""
+        
+        # Prepare template variables
+        template_vars = {
+            "document_id": document_id,
+            "document_title": document_title,
+            "selected_text": conversation.selected_text or "",
+            "document_summary_section": document_summary or ""
+        }
+        
+        # Get system prompt and instructions
+        system_prompt = self.get_agent_system_prompt(template_vars)
+        agent_instructions = self.get_agent_instructions()
+        
+        # Combine them
+        combined_prompt = f"{system_prompt}\n\n{agent_instructions}"
+        
+        return combined_prompt
+    
+    def get_agent_system_prompt(self, template_vars: Dict) -> str:
+        """Get the agent system prompt from the prompts.yaml file
+        
+        Args:
+            template_vars: Variables to render in the template (document_title, selected_text, etc.)
+            
+        Returns:
+            Rendered system prompt string
+        """
+        return self._render_template("agent_rabbithole.system_message", template_vars)
+    
+    def get_agent_instructions(self) -> str:
+        """Get the agent instructions from the prompts.yaml file
+        
+        Returns:
+            Agent instructions string
+        """
+        try:
+            return self.prompts.get("agent_rabbithole", {}).get("agent_instructions", "")
+        except Exception as e:
+            logger.error(f"Error getting agent instructions: {e}")
+            # Fallback instructions if there's an error
+            return "You are a document exploration agent. Answer the user's question by exploring the document."
+    
+    def get_agent_action_schema(self) -> Dict:
+        """Get the agent action schema from the prompts.yaml file
+        
+        Returns:
+            Action schema dictionary
+        """
+        try:
+            schema = self.prompts.get("agent_rabbithole", {}).get("action_schema", {})
+            if not schema:
+                logger.warning("Agent action schema not found in prompts.yaml, using fallback")
+                # Fallback schema
+                return {
+                    "type": "object",
+                    "properties": {
+                        "thought": {"type": "string", "description": "The agent's reasoning"},
+                        "response_type": {"type": "string", "enum": ["action", "answer"]},
+                        "action": {"type": "string", "enum": ["GET_PAGE", "GET_BLOCK"]},
+                        "action_input": {"type": "string"},
+                        "answer": {"type": "string"}
+                    },
+                    "required": ["thought", "response_type"],
+                    "additionalProperties": False
+                }
+            return schema
+        except Exception as e:
+            logger.error(f"Error getting agent action schema: {e}")
+            # Fallback schema
+            return {
+                "type": "object",
+                "properties": {
+                    "thought": {"type": "string"},
+                    "response_type": {"type": "string", "enum": ["action", "answer"]},
+                    "action": {"type": "string", "enum": ["GET_PAGE", "GET_BLOCK"]},
+                    "action_input": {"type": "string"},
+                    "answer": {"type": "string"}
+                },
+                "required": ["thought", "response_type"],
+                "additionalProperties": False
+            }
+
+    def get_final_iteration_message(self, template_vars: Dict) -> str:
+        """Get the final iteration message template from prompts.yaml and render it
+        
+        Args:
+            template_vars: Variables to use in template rendering
+                
+        Returns:
+            Rendered final iteration message
+        """
+        try:
+            template = self.prompts.get("agent_rabbithole", {}).get("final_iteration_message", "")
+            return Template(template).render(**template_vars)
+        except Exception as e:
+            logger.error(f"Error rendering final iteration message: {e}")
+            return "Please provide your final answer based on all information gathered."
+    
+    def get_final_iteration_schema(self) -> Dict:
+        """Get the final iteration schema from the prompts.yaml file
+        
+        Returns:
+            Final iteration schema dictionary
+        """
+        try:
+            schema = self.prompts.get("agent_rabbithole", {}).get("final_iteration_schema", {})
+            if not schema:
+                logger.warning("Final iteration schema not found in prompts.yaml, using fallback")
+                # Fallback schema
+                return {
+                    "type": "object",
+                    "properties": {
+                        "answer": {"type": "string", "description": "Your final answer"}
+                    },
+                    "required": ["answer"],
+                    "additionalProperties": False
+                }
+            return schema
+        except Exception as e:
+            logger.error(f"Error getting final iteration schema: {e}")
+            # Fallback schema
+            return {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string"}
+                },
+                "required": ["answer"],
+                "additionalProperties": False
+            }

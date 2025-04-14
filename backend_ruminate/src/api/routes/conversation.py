@@ -58,7 +58,7 @@ async def send_message(
     conversation_id: str,
     request: SendMessageRequest,
     chat_service: ChatService = Depends(get_chat_service),
-    session: Optional[AsyncSession] = Depends(get_db)
+    # Session is now managed by the service to handle LLM transaction splitting
 ) -> Tuple[Message, str]:
     """Send a message in a conversation"""
     try:
@@ -68,7 +68,7 @@ async def send_message(
             parent_id=request.parent_id,
             active_thread_ids=request.active_thread_ids,
             selected_block_id=request.selected_block_id,
-            session=session
+            # No session provided - service will manage transactions around LLM call
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -88,15 +88,15 @@ async def edit_message(
     message_id: str,
     request: EditMessageRequest,
     chat_service: ChatService = Depends(get_chat_service),
-    session: Optional[AsyncSession] = Depends(get_db)
+    # Session is now managed by the service to handle LLM transaction splitting
 ) -> Tuple[Message, str]:
     """Edit a message in a conversation and generate a new AI response"""
     try:
         return await chat_service.edit_message(
             message_id, 
             request.content, 
-            active_thread_ids=request.active_thread_ids, 
-            session=session
+            active_thread_ids=request.active_thread_ids,
+            # No session provided - service will manage transactions around LLM call
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

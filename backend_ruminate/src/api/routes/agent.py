@@ -1,0 +1,127 @@
+from typing import List, Optional, Dict, Any, Tuple
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+import asyncio
+
+from src.models.conversation.message import Message
+from src.services.conversation.agent_rabbithole_service import AgentRabbitholeService
+from src.api.dependencies import get_db, get_agent_rabbithole_service, get_agent_sse_manager
+
+
+router = APIRouter(prefix="/agent-rabbitholes", tags=["agent-rabbitholes"])
+
+class CreateAgentRabbitholeRequest(BaseModel):
+    document_id: str
+    block_id: str
+    selected_text: str
+    start_offset: int
+    end_offset: int
+    document_conversation_id: Optional[str] = None
+
+class AgentMessageRequest(BaseModel):
+    content: str
+    parent_id: str
+
+class AgentMessageResponse(BaseModel):
+    message_id: str
+    content: str
+    role: str
+
+@router.post("", response_model=Dict[str, str])
+async def create_agent_rabbithole(
+    request: CreateAgentRabbitholeRequest,
+    agent_service: AgentRabbitholeService = Depends(get_agent_rabbithole_service),
+    session: Optional[AsyncSession] = Depends(get_db)
+) -> Dict[str, str]:
+    """Create a new agent rabbithole conversation"""
+    try:
+        conversation_id = await agent_service.create_agent_rabbithole(
+            request.document_id,
+            request.block_id,
+            request.selected_text,
+            request.start_offset,
+            request.end_offset,
+            request.document_conversation_id,
+            session
+        )
+        
+        return {"conversation_id": conversation_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{conversation_id}/messages", response_model=AgentMessageResponse)
+async def send_agent_message(
+    conversation_id: str,
+    request: AgentMessageRequest,
+    agent_service: AgentRabbitholeService = Depends(get_agent_rabbithole_service),
+    session: Optional[AsyncSession] = Depends(get_db)
+) -> AgentMessageResponse:
+    """Send a message to an agent rabbithole conversation"""
+    try:
+        message = await agent_service.send_agent_message(
+            conversation_id,
+            request.content,
+            request.parent_id,
+            session
+        )
+        
+        return AgentMessageResponse(
+            message_id=message.id,
+            content=message.content,
+            role=message.role.value
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/{conversation_id}/events")
+async def event_stream(
+    conversation_id: str,
+    request: Request,
+    sse_manager = Depends(get_agent_sse_manager)
+):
+    """SSE endpoint for real-time updates on agent progress"""
+    
+    # Create a queue for this specific client connection
+    client_queue = asyncio.Queue()
+    
+    # Define a client object that the SSE manager can use
+    class ClientConnection:
+        async def send(self, message: str):
+            await client_queue.put(message)
+    
+    client = ClientConnection()
+    
+    async def event_generator():
+        # Send initial connection event
+        yield "event: connected\ndata: {\"conversation_id\": \"" + conversation_id + "\"}\n\n"
+        
+        # Using the SSE manager directly from app state
+        if sse_manager:
+            # Register this client connection
+            await sse_manager.register_client(conversation_id, client)
+            
+            try:
+                # Keep checking for messages in the queue
+                while True:
+                    # Either get a message from the queue or send a ping after 20 seconds
+                    try:
+                        message = await asyncio.wait_for(client_queue.get(), timeout=20)
+                        yield message
+                        client_queue.task_done()
+                    except asyncio.TimeoutError:
+                        # No message received for 20 seconds, send ping to keep connection alive
+                        yield "event: ping\ndata: {}\n\n"
+            except asyncio.CancelledError:
+                # Client disconnected
+                await sse_manager.unregister_client(conversation_id, client)
+            finally:
+                # Make sure to clean up
+                if sse_manager:
+                    await sse_manager.unregister_client(conversation_id, client)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )

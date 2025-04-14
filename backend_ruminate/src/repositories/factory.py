@@ -4,6 +4,7 @@ from typing import Optional
 from .interfaces.document_repository import DocumentRepository
 from .interfaces.storage_repository import StorageRepository
 from .interfaces.conversation_repository import ConversationRepository
+from .interfaces.agent_process_repository import AgentProcessRepository
 
 class StorageType(Enum):
     SQLITE = "sqlite"
@@ -16,6 +17,7 @@ class RepositoryFactory:
         self._document_repo: Optional[DocumentRepository] = None
         self._storage_repo: Optional[StorageRepository] = None
         self._conversation_repo: Optional[ConversationRepository] = None
+        self._agent_process_repo: Optional[AgentProcessRepository] = None
         
     def init_repositories(
         self,
@@ -53,9 +55,13 @@ class RepositoryFactory:
                 engine = create_async_engine(url, echo=False)  # Reduced logging verbosity
                 kwargs['session_factory'] = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             
-            # Use RDS for document, conversation, and chunk index repositories
+            # Import agent process repository
+            from .implementations.rds_agent_process_repository import RDSAgentProcessRepository
+            
+            # Use RDS for document, conversation, agent process, and chunk index repositories
             self._document_repo = RDSDocumentRepository(kwargs['session_factory'])
             self._conversation_repo = RDSConversationRepository(kwargs['session_factory'])
+            self._agent_process_repo = RDSAgentProcessRepository(kwargs['session_factory'])
 
         if storage_type == "local":
             from .implementations.local_storage_repository import LocalStorageRepository
@@ -86,3 +92,10 @@ class RepositoryFactory:
         if not self._conversation_repo:
             raise RuntimeError("Conversation repository not initialized")
         return self._conversation_repo
+    
+    @property
+    def agent_process_repository(self) -> AgentProcessRepository:
+        """Get agent process repository instance"""
+        if not self._agent_process_repo:
+            raise RuntimeError("Agent process repository not initialized")
+        return self._agent_process_repo

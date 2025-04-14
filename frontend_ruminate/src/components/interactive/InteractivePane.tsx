@@ -186,11 +186,12 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
         ) : (
           <PanelGroup direction="vertical">
             {/* Content Panel */}
-            <Panel defaultSize={40} minSize={25}>
+            <Panel defaultSize={30} minSize={20}>
               <div
-                className="flex flex-col h-full w-full bg-white overflow-y-auto p-5"
+                className="flex flex-col h-full w-full bg-white overflow-y-auto p-4"
                 style={{
-                  borderBottom: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                 }}
               >
                 <div className="mb-4">
@@ -200,28 +201,18 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
                     </h2>
                     <button
                       onClick={onClose}
-                      className="text-gray-600 hover:text-gray-900"
-                      aria-label="Close panel"
+                      className="text-gray-500 hover:text-gray-700"
+                      title="Close interactive pane"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
+                      Close
                     </button>
                   </div>
+                </div>
+
+                <div className="flex-grow">
                   <BlockContainer
                     blockId={currentBlockId}
-                    blockType={block.block_type}
+                    blockType={block.block_type.toLowerCase()}
                     htmlContent={block.html_content}
                     images={block.images || {}}
                     onAddTextToChat={handleAddTextToChat}
@@ -234,14 +225,14 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
             </Panel>
 
             {/* Navigation Controls */}
-            <div className="flex justify-center items-center h-10 bg-neutral-100 border-t border-b border-neutral-200">
-              <div className="flex space-x-4">
+            <div className="flex justify-center items-center h-8 bg-neutral-100 border-t border-b border-neutral-200">
+              <div className="flex space-x-2">
                 <button
                   onClick={hasPreviousBlock ? onPreviousBlock : undefined}
                   disabled={!hasPreviousBlock}
-                  className="flex items-center space-x-1 py-1 px-3 rounded border border-neutral-200 bg-white"
+                  className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
                   style={{
-                    fontSize: '13px',
+                    fontSize: '12px',
                     fontWeight: 500,
                     color: '#4b5563',
                     cursor: hasPreviousBlock ? 'pointer' : 'not-allowed',
@@ -261,9 +252,9 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
                 <button
                   onClick={hasNextBlock ? onNextBlock : undefined}
                   disabled={!hasNextBlock}
-                  className="flex items-center space-x-1 py-1 px-3 rounded border border-neutral-200 bg-white"
+                  className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
                   style={{
-                    fontSize: '13px',
+                    fontSize: '12px',
                     fontWeight: 500,
                     color: '#4b5563',
                     cursor: hasNextBlock ? 'pointer' : 'not-allowed',
@@ -282,13 +273,13 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
               </div>
             </div>
 
-            {/* Resize Handle - thicker and more visible */}
-            <PanelResizeHandle className="h-2 bg-neutral-200 hover:bg-neutral-300 transition-colors duration-150 cursor-row-resize flex items-center justify-center">
-              <div className="w-10 h-1.5 bg-neutral-300 rounded-full"></div>
+            {/* Resize Handle */}
+            <PanelResizeHandle className="h-1 bg-neutral-200 hover:bg-neutral-300 transition-colors duration-150 cursor-row-resize flex items-center justify-center">
+              <div className="w-8 h-1 bg-neutral-300 rounded-full"></div>
             </PanelResizeHandle>
 
             {/* Chat/Rabbithole Panel */}
-            <Panel defaultSize={60}>
+            <Panel defaultSize={70}>
               {!blockIsChatEnabled ? (
                 <div className="h-full flex items-center justify-center p-4 text-neutral-700 bg-white">
                   <div className="p-6 bg-neutral-50 rounded-lg border border-neutral-200 text-center max-w-md">

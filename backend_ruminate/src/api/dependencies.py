@@ -3,7 +3,7 @@ API dependencies module for FastAPI dependency injection.
 """
 from functools import lru_cache
 from typing import Optional
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer
@@ -14,12 +14,18 @@ from src.repositories.factory import RepositoryFactory
 from src.repositories.interfaces.document_repository import DocumentRepository
 from src.repositories.interfaces.storage_repository import StorageRepository
 from src.repositories.interfaces.conversation_repository import ConversationRepository
+from src.repositories.interfaces.agent_process_repository import AgentProcessRepository
 from src.services.document.upload_service import UploadService
 from src.services.document.marker_service import MarkerService
 from src.services.conversation.chat_service import ChatService
 from src.services.ai.llm_service import LLMService
 from src.config import get_settings, Settings
 from src.services.document.critical_content_service import CriticalContentService
+from src.services.conversation.agent_rabbithole_service import AgentRabbitholeService
+from src.services.conversation.agent.sse_manager import SSEManager
+from src.services.conversation.conversation_manager import ConversationManager
+from src.services.ai.context_service import ContextService
+# from src.services.ai.web_search_service import WebSearchService
 
 # Global instances
 repository_factory = RepositoryFactory()
@@ -123,6 +129,10 @@ def get_conversation_repository() -> ConversationRepository:
     """Dependency for conversation repository"""
     return repository_factory.conversation_repository
 
+def get_agent_process_repository() -> AgentProcessRepository:
+    """Dependency for agent process repository"""
+    return repository_factory.agent_process_repository
+
 def get_marker_service() -> MarkerService:
     """Dependency for marker service"""
     settings = get_settings()
@@ -139,6 +149,25 @@ def get_llm_service() -> LLMService:
 def get_critical_content_service() -> CriticalContentService:
     llm_service = get_llm_service()
     return CriticalContentService(llm_service)
+
+def get_context_service(
+    conversation_repository: ConversationRepository = Depends(get_conversation_repository),
+    document_repository: DocumentRepository = Depends(get_document_repository)
+) -> ContextService:
+    """Dependency for context service"""
+    return ContextService(conversation_repository, document_repository)
+
+def get_conversation_manager(
+    conversation_repository: ConversationRepository = Depends(get_conversation_repository),
+    document_repository: DocumentRepository = Depends(get_document_repository),
+    context_service: ContextService = Depends(get_context_service)
+) -> ConversationManager:
+    """Dependency for conversation manager"""
+    return ConversationManager(
+        conversation_repository=conversation_repository,
+        document_repository=document_repository,
+        context_service=context_service
+    )
 
 def get_upload_service(
     document_repository: DocumentRepository = Depends(get_document_repository),
@@ -157,11 +186,40 @@ def get_upload_service(
 def get_chat_service(
     conversation_repository: ConversationRepository = Depends(get_conversation_repository),
     document_repository: DocumentRepository = Depends(get_document_repository),
-    llm_service: LLMService = Depends(get_llm_service)
+    llm_service: LLMService = Depends(get_llm_service),
+    conversation_manager: ConversationManager = Depends(get_conversation_manager)
 ) -> ChatService:
     """Dependency for chat service"""
     return ChatService(
         conversation_repository=conversation_repository,
         document_repository=document_repository,
-        llm_service=llm_service
+        llm_service=llm_service,
+        conversation_manager=conversation_manager
+    )
+
+def get_agent_sse_manager(request: Request):
+    """Get the singleton instance of the agent SSE manager"""
+    from src.services.conversation.agent.sse_manager import SSEManager
+    return request.app.state.agent_sse_manager
+
+def get_agent_rabbithole_service(
+    conversation_repository: ConversationRepository = Depends(get_conversation_repository),
+    document_repository: DocumentRepository = Depends(get_document_repository),
+    agent_process_repository: AgentProcessRepository = Depends(get_agent_process_repository),
+    llm_service: LLMService = Depends(get_llm_service),
+    conversation_manager: ConversationManager = Depends(get_conversation_manager),
+    sse_manager = Depends(get_agent_sse_manager)
+) -> AgentRabbitholeService:
+    """Dependency for agent rabbithole service"""
+    settings = get_settings()
+    # web_search_service = WebSearchService(api_key=settings.google_search_api_key)
+    
+    return AgentRabbitholeService(
+        conversation_repository=conversation_repository,
+        document_repository=document_repository,
+        agent_process_repository=agent_process_repository,
+        llm_service=llm_service,
+        sse_manager=sse_manager,
+        conversation_manager=conversation_manager
+        # web_search_service=web_search_service
     )
