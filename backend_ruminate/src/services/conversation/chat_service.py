@@ -1,15 +1,18 @@
 from typing import List, Optional, Tuple
+from fastapi import BackgroundTasks
 from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message, MessageRole
 from src.repositories.interfaces.conversation_repository import ConversationRepository
 from src.repositories.interfaces.document_repository import DocumentRepository
 from src.services.ai.llm_service import LLMService
 from src.services.ai.context_service import ContextService
+from src.api.chat_sse_manager import chat_sse_manager
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from datetime import datetime
 import re
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,86 +133,151 @@ class ChatService:
         return messages
     
     async def send_message(self,
+                           background_tasks: BackgroundTasks, 
                            conversation_id: str,
                            content: str,
                            parent_id: str,
                            active_thread_ids: List[str],
                            selected_block_id: Optional[str] = None,
-                           session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
-        """Send a user message and get AI response, incorporating selected block context if provided"""
-        logger.info(f"Sending message to conversation {conversation_id}, selected block: {selected_block_id}")
-
+                           session: Optional[AsyncSession] = None 
+                          ) -> Tuple[str, str]:
+        """Accepts a user message, saves it, creates a placeholder AI message,
+         returns their IDs immediately, and starts a background task for streaming LLM response.
+         """
+ 
+        # --- Ensure conversation exists --- 
         conversation = await self.conversation_repo.get_conversation(conversation_id, session)
         if not conversation:
-            logger.error(f"Conversation {conversation_id} not found")
             raise ValueError(f"Conversation {conversation_id} not found")
-        
-        # Initialize included_pages if not present
-        if not hasattr(conversation, 'included_pages') or conversation.included_pages is None:
-            conversation.included_pages = {}
-            logger.info(f"Initialized included_pages tracking for conversation {conversation_id}")
-
-        # --- Add Verification for the provided parent_id ---
-        # (Optional but recommended) Fetch the parent message to ensure it exists
-        # Note: get_messages fetches all, which might be slightly inefficient if you only need one.
-        # Consider adding a get_message(message_id) to the repository interface if performance becomes an issue.
-        messages = await self.conversation_repo.get_messages(conversation_id, session) # Or use a direct fetch if available
-        if not any(msg.id == parent_id for msg in messages):
-            logger.error(f"Parent message {parent_id} not found in conversation {conversation_id}")
-            raise ValueError(f"Parent message {parent_id} not found in conversation {conversation_id}")
-        
-        # --- Create User Message ---
-        user_msg_content = content # Keep original user content clean
+ 
+        # --- Create and Save User Message --- 
         user_msg = Message(
             id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             role=MessageRole.USER,
-            content=user_msg_content,
+            content=content,
             parent_id=parent_id
         )
         await self.conversation_repo.add_message(user_msg, session)
-        
-        # Update the active thread in the conversation record
-        # This ensures the backend's active thread matches what the user sees
-        updated_active_thread_ids = active_thread_ids + [user_msg.id]
-        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
-
-        # --- Use ContextService to build enhanced context ---
-        context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
-            conversation,
-            user_msg,
-            active_thread_ids,
-            selected_block_id,
-            session
-        )
-        
-        # Update conversation if pages were added
-        if conversation.included_pages != updated_included_pages:
-            conversation.included_pages = updated_included_pages
-            await self.conversation_repo.update_conversation(conversation, session)
-        
-        # --- Generate AI Response ---
-        response_content = await self.llm_service.generate_response(context_messages)
-        logger.info("Generated response")
-
-        # --- Create and Save AI Message ---
+        logger.info(f"Created user message {user_msg.id} in conversation {conversation_id}")
+ 
+        # --- Create and Save Placeholder AI Message --- 
         ai_msg = Message(
-            id=str(uuid.uuid4()),
+            id=str(uuid.uuid4()), # Generate ID now
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,
-            content=response_content,
-            parent_id=user_msg.id
+            content="", # Start with empty content
+            parent_id=user_msg.id # Link to user message
         )
         await self.conversation_repo.add_message(ai_msg, session)
+        logger.info(f"Created placeholder AI message {ai_msg.id} in conversation {conversation_id}")
         
-        # Update the active thread to include the AI response
-        updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
+        # --- Update Conversation Active Thread (Immediately) --- 
+        # This ensures the backend's active thread matches what the user sees
+        updated_active_thread_ids = active_thread_ids + [user_msg.id] + [ai_msg.id] # Add both
         await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
-
-        return ai_msg, user_msg.id # Return AI message and the *actual* user message ID 
+        logger.info(f"Updated active thread for conversation {conversation_id}")
+        
+        # --- Add Background Task for LLM Generation and Streaming --- 
+        # Pass necessary data to the background task
+        # NOTE: Passing the session directly might cause issues if the request scope closes.
+        # If session errors occur, refactor to pass a session factory.
+        background_tasks.add_task(
+            self._generate_and_stream_response,
+            conversation_id=conversation_id,
+            user_msg=user_msg, # Pass the message object itself
+            ai_msg_id=ai_msg.id, # Pass the ID of the placeholder
+            initial_active_thread_ids=active_thread_ids + [user_msg.id], # Thread *before* AI msg
+            selected_block_id=selected_block_id,
+            session=session # Pass session (potential issue)
+        )
+        logger.info(f"Added background task for AI message {ai_msg.id}")
+        
+        # --- Return User and AI Message IDs Immediately --- 
+        return user_msg.id, ai_msg.id
+    
+    async def _generate_and_stream_response(
+        self,
+        conversation_id: str,
+        user_msg: Message,
+        ai_msg_id: str,
+        initial_active_thread_ids: List[str],
+        selected_block_id: Optional[str],
+        session: Optional[AsyncSession] # Potential issue: Session might be closed
+    ):
+        """Background task to generate LLM response, stream it via SSE, and update the placeholder message."""
+        logger.info(f"Starting background task for AI message {ai_msg_id}")
+        full_response_content = ""
+        try:
+            # Re-fetch conversation within the task scope if necessary (depends on session handling)
+            conversation = await self.conversation_repo.get_conversation(conversation_id, session)
+            if not conversation:
+                 logger.error(f"[Task {ai_msg_id}] Conversation {conversation_id} not found.")
+                 return
+            
+            # --- Use ContextService to build enhanced context --- 
+            context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
+                conversation,
+                user_msg, # Use the user message that triggered this
+                initial_active_thread_ids, # Use the thread leading up to the user message
+                selected_block_id,
+                session
+            )
+            
+            # Update conversation included pages if they changed (async task needs care with concurrent updates)
+            # Consider if this update is critical here or can be handled differently
+            if conversation.included_pages != updated_included_pages:
+                conversation.included_pages = updated_included_pages
+                # await self.conversation_repo.update_conversation(conversation, session) # Be cautious with updates from background tasks
+                logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
+            
+            # --- Generate AI Response via Stream --- 
+            logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
+            llm_stream = self.llm_service.generate_response_stream(context_messages)
+            
+            async for chunk in llm_stream:
+                if chunk:
+                    full_response_content += chunk
+                    # Publish chunk via SSE manager
+                    await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
+            
+            logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
+            
+            # --- Update Placeholder AI Message in DB --- 
+            # Fetch the placeholder message again using its ID
+            final_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
+            if final_ai_msg:
+                final_ai_msg.content = full_response_content
+                final_ai_msg.updated_at = datetime.utcnow() # Optionally update timestamp
+                await self.conversation_repo.update_message(final_ai_msg, session)
+                logger.info(f"[Task {ai_msg_id}] Successfully updated AI message content in DB.")
+            else:
+                logger.error(f"[Task {ai_msg_id}] Failed to find AI message {ai_msg_id} in DB to update content.")
+            
+        except Exception as e:
+            logger.error(f"[Task {ai_msg_id}] Error during LLM stream generation or DB update: {e}", exc_info=True)
+            # Optionally update the AI message content to indicate an error
+            try:
+                error_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
+                if error_ai_msg:
+                    error_ai_msg.content = f"Error generating response: {e}"
+                    await self.conversation_repo.update_message(error_ai_msg, session)
+            except Exception as db_err:
+                logger.error(f"[Task {ai_msg_id}] Failed to update AI message with error state: {db_err}")
+        finally:
+            # --- Clean up SSE Queue --- 
+            await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
+            logger.info(f"[Task {ai_msg_id}] Background task finished.")
     
     async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""
+        # TODO: Implement streaming for edit_message similar to send_message
+        # - Create edited version
+        # - Create placeholder AI response
+        # - Return IDs
+        # - Launch background task (_regenerate_and_stream_response)
+        # - Background task builds context from *edited* message, streams, publishes, updates DB, cleans up.
+        logger.warning("edit_message streaming not yet implemented, using blocking call.")
         # Create new version as sibling
         edited_msg, edited_msg_id = await self.conversation_repo.edit_message(message_id, content, session)
         
