@@ -708,28 +708,21 @@ class RDSConversationRepository(ConversationRepository):
         session = session or self.session_factory()
         
         try:
-            # Fetch the existing message object
-            result = await session.execute(
-                select(MessageModel).where(MessageModel.id == message_id)
+            # Use sqlalchemy update statement for efficiency
+            stmt = (
+                update(MessageModel)
+                .where(MessageModel.id == message_id)
+                .values(content=new_content)
+                .execution_options(synchronize_session="fetch") # Important for session sync
             )
-            message = result.scalars().first()
+            result = await session.execute(stmt)
             
-            if not message:
-                logger.warning(f"Attempted to update message {message_id}, but it was not found.")
-                return # Or raise an exception if preferred
-            
-            # Update the content attribute directly
-            message.content = new_content
-            
-            # --- Log content *after* assignment within the repository method --- 
-            logger.info(f"[Repo Update {message_id}] Assigned content length: {len(message.content)}")
-            assigned_snippet = message.content[:100] + ('...' if len(message.content) > 100 else '')
-            logger.info(f"[Repo Update {message_id}] Assigned content snippet: {assigned_snippet}")
-            # -----------------------------------------------------------------
-            
-            # The commit will be handled by the calling context (service layer's 'async with')
-            logger.info(f"Updated content attribute for message {message_id}. Commit pending in outer scope.")
-            
+            if result.rowcount == 0:
+                 logger.warning(f"Attempted to update message {message_id}, but it was not found.")
+                 # Optionally raise an error if the message *must* exist
+                 # raise ValueError(f"Message with ID {message_id} not found for update.")
+            else:
+                 logger.info(f"Updated content for message {message_id}.")
         except Exception as e:
             logger.error(f"Error updating message {message_id}: {e}", exc_info=True)
             if local_session:
