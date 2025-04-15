@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+import logging
 
 from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message
@@ -10,6 +11,7 @@ from src.services.conversation.chat_service import ChatService
 from src.api.dependencies import get_chat_service, get_db
 from src.api.chat_sse_manager import chat_sse_manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 class SendMessageRequest(BaseModel):
