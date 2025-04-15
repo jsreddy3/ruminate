@@ -320,9 +320,21 @@ class ChatService:
                     new_content=full_response_content, 
                     session=session
                 )
-                # Logging for success is now handled within update_message_content
-                # Error/warning for message not found is also handled there
-                
+                # --- Explicit Commit and Re-fetch within same session ---
+                logger.info(f"[Task {ai_msg_id}] Attempting explicit commit...")
+                await session.commit()
+                logger.info(f"[Task {ai_msg_id}] Explicit commit done. Re-fetching message within same session...")
+                committed_message = await self.conversation_repo.get_message(ai_msg_id, session)
+                if committed_message:
+                    committed_len = len(committed_message.content)
+                    committed_snippet = committed_message.content[:100] + ('...' if committed_len > 100 else '')
+                    logger.info(f"[Task {ai_msg_id}] Content after commit (same session): Length={committed_len}, Snippet={committed_snippet}")
+                else:
+                    logger.warning(f"[Task {ai_msg_id}] Could not re-fetch message {ai_msg_id} after commit within the same session.")
+                # --------------------------------------------------------
+ 
+                # --- Clean up SSE Stream Queue ---
+                await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
             except Exception as e:
                 logger.error(f"[Task {ai_msg_id}] Error during LLM stream generation or DB update: {e}", exc_info=True)
                 # Optionally update the AI message content to indicate an error
