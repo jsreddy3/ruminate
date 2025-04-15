@@ -60,9 +60,12 @@ export default function ChatPane({
     }
   }, [selectedText, setNewMessage, setSelectedText]);
 
-  // Handle sending messages
-  const handleSend = () => {
-    sendMessage(newMessage, blockId || "");
+  // Wrapper function to pass to ChatInput
+  // Reads content from the 'newMessage' state variable
+  const handleSendMessage = () => {
+    if (!newMessage.trim()) return; 
+    // Pass the current blockId as context and the content from state
+    sendMessage(newMessage, blockId);
   };
 
   return (
@@ -114,7 +117,7 @@ export default function ChatPane({
         value={newMessage}
         isLoading={isLoading}
         onChange={(e) => setNewMessage(e.target.value)}
-        onSend={handleSend}
+        onSend={handleSendMessage} // Reverted prop name to match ChatInput definition
       />
     </div>
   );
