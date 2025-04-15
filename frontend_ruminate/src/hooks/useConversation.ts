@@ -176,7 +176,7 @@ export function useConversation({
           // Optionally: Fetch full tree again to ensure consistency, or trust stream
           // fetchConversationHistory(); 
         } else {
-          // Update the content of the streaming message
+          // Update messagesById (important for full content on completion)
           setMessagesById(prevMap => {
             const newMap = new Map(prevMap);
             const streamingMsg = newMap.get(aiMsgId);
@@ -186,10 +186,16 @@ export function useConversation({
             }
             return newMap;
           });
-          // Force displayedThread update by creating new message object reference
-          setDisplayedThread(prevThread => prevThread.map(msg => 
-              msg.id === aiMsgId ? { ...messagesById.get(aiMsgId)! } : msg
-          ));
+          // Update displayedThread directly
+          setDisplayedThread(prevThread => {
+            return prevThread.map(msg => {
+              if (msg.id === aiMsgId) {
+                // Directly update content of the existing message object
+                return { ...msg, content: msg.content + chunk };
+              }
+              return msg;
+            });
+          });
         }
       };
 
