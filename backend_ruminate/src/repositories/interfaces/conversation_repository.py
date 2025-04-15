@@ -73,7 +73,11 @@ class ConversationRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_active_thread(self, conversation_id: str, session: Optional[DBSession] = None) -> List[Message]:
-        """Get the active thread of messages in a conversation"""
+    async def get_message_by_id(self, message_id: str, session: Optional[DBSession] = None) -> Optional[Message]:
+        """Get a single message by its unique ID."""
         pass
-    
+
+    @abstractmethod
+    async def update_message_content(self, message_id: str, new_content: str, session: Optional[DBSession] = None) -> None:
+        """Update the content of a specific message."""
+        pass

@@ -6,7 +6,7 @@ from src.repositories.interfaces.conversation_repository import ConversationRepo
 from src.repositories.interfaces.document_repository import DocumentRepository
 from src.services.ai.llm_service import LLMService
 from src.services.ai.context_service import ContextService
-from src.api.chat_sse_manager import chat_sse_manager
+from src.api.chat_sse_manager import chat_sse_manager # Import the singleton instance
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -288,16 +288,14 @@ class ChatService:
             
             logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
             
-            # --- Update Placeholder AI Message in DB --- 
-            # Fetch the placeholder message again using its ID
-            final_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
-            if final_ai_msg:
-                final_ai_msg.content = full_response_content
-                final_ai_msg.updated_at = datetime.utcnow() # Optionally update timestamp
-                await self.conversation_repo.update_message(final_ai_msg, session)
-                logger.info(f"[Task {ai_msg_id}] Successfully updated AI message content in DB.")
-            else:
-                logger.error(f"[Task {ai_msg_id}] Failed to find AI message {ai_msg_id} in DB to update content.")
+            # --- Update Placeholder AI Message in DB using new method --- 
+            await self.conversation_repo.update_message_content(
+                message_id=ai_msg_id, 
+                new_content=full_response_content, 
+                session=session
+            )
+            # Logging for success is now handled within update_message_content
+            # Error/warning for message not found is also handled there
             
         except Exception as e:
             logger.error(f"[Task {ai_msg_id}] Error during LLM stream generation or DB update: {e}", exc_info=True)

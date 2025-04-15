@@ -651,3 +651,70 @@ class RDSConversationRepository(ConversationRepository):
         finally:
             if local_session:
                 await session.close()
+
+    async def get_message_by_id(self, message_id: str, session: Optional[AsyncSession] = None) -> Optional[Message]:
+        """Get a single message by its unique ID."""
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            result = await session.execute(
+                select(MessageModel).where(MessageModel.id == message_id)
+            )
+            msg_model = result.scalars().first()
+            
+            if not msg_model:
+                return None
+            
+            # Convert model to message
+            msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
+            
+            # Parse datetime string
+            if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
+                msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
+                
+            return Message.from_dict(msg_dict)
+            
+        except Exception as e:
+            logger.error(f"Error fetching message {message_id}: {e}", exc_info=True)
+            # Don't rollback on reads generally, but handle session closing
+            raise e # Re-raise the exception after logging
+        finally:
+            if local_session:
+                await session.close()
+
+    async def update_message_content(self, message_id: str, new_content: str, session: Optional[AsyncSession] = None) -> None:
+        """Update the content of a specific message.
+        
+        The 'updated_at' timestamp is assumed to be handled automatically by the database or ORM.
+        """
+        local_session = session is None
+        session = session or self.session_factory()
+        
+        try:
+            # Use sqlalchemy update statement for efficiency
+            stmt = (
+                update(MessageModel)
+                .where(MessageModel.id == message_id)
+                .values(content=new_content)
+                .execution_options(synchronize_session="fetch") # Important for session sync
+            )
+            result = await session.execute(stmt)
+            
+            if result.rowcount == 0:
+                 logger.warning(f"Attempted to update message {message_id}, but it was not found.")
+                 # Optionally raise an error if the message *must* exist
+                 # raise ValueError(f"Message with ID {message_id} not found for update.")
+            else:
+                 logger.info(f"Updated content for message {message_id}.")
+            
+            if local_session:
+                await session.commit()
+        except Exception as e:
+            logger.error(f"Error updating message {message_id}: {e}", exc_info=True)
+            if local_session:
+                await session.rollback()
+            raise e
+        finally:
+            if local_session:
+                await session.close()
