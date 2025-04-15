@@ -68,7 +68,7 @@ export default function ChatPane({
     if (!newMessage.trim()) return; 
     // Pass the current blockId as context and the content from state
     sendMessage(newMessage, blockId);
-  };
+  }
 
   return (
     <div className="h-full flex flex-col min-h-0 bg-white">

@@ -200,43 +200,5 @@ def get_chat_service(
         conversation_repository=conversation_repository,
         document_repository=document_repository,
         llm_service=llm_service,
-        conversation_manager=conversation_manager
-    )
-
-def get_agent_sse_manager(request: Request):
-    """Get the singleton instance of the agent SSE manager"""
-    from src.services.conversation.agent.sse_manager import SSEManager
-    return request.app.state.agent_sse_manager
-
-def get_note_service(
-    notes_repository: NotesRepository = Depends(get_notes_repository),
-    context_service: ContextService = Depends(get_context_service),
-    llm_service: LLMService = Depends(get_llm_service)
-) -> NoteService:
-    """Dependency for note service"""
-    note_service = NoteService(notes_repository=notes_repository)
-    note_service.set_context_service(context_service)
-    note_service.set_llm_service(llm_service)
-    return note_service
-
-def get_agent_rabbithole_service(
-    conversation_repository: ConversationRepository = Depends(get_conversation_repository),
-    document_repository: DocumentRepository = Depends(get_document_repository),
-    agent_process_repository: AgentProcessRepository = Depends(get_agent_process_repository),
-    llm_service: LLMService = Depends(get_llm_service),
-    conversation_manager: ConversationManager = Depends(get_conversation_manager),
-    sse_manager = Depends(get_agent_sse_manager)
-) -> AgentRabbitholeService:
-    """Dependency for agent rabbithole service"""
-    settings = get_settings()
-    # web_search_service = WebSearchService(api_key=settings.google_search_api_key)
-    
-    return AgentRabbitholeService(
-        conversation_repository=conversation_repository,
-        document_repository=document_repository,
-        agent_process_repository=agent_process_repository,
-        llm_service=llm_service,
-        sse_manager=sse_manager,
-        conversation_manager=conversation_manager
-        # web_search_service=web_search_service
+        db_session_factory=db_session_factory
     )
