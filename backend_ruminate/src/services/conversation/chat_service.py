@@ -9,6 +9,7 @@ from src.services.ai.context_service import ContextService
 from src.api.chat_sse_manager import chat_sse_manager # Import the singleton instance
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import sessionmaker
 import logging
 from datetime import datetime
 import re
@@ -26,11 +27,14 @@ class ChatService:
     def __init__(self, 
                  conversation_repository: ConversationRepository,
                  document_repository: DocumentRepository,
-                 llm_service: LLMService):
+                 llm_service: LLMService,
+                 db_session_factory: sessionmaker):
         self.conversation_repo = conversation_repository
         self.document_repo = document_repository
         self.llm_service = llm_service
         self.context_service = ContextService(conversation_repository, document_repository)
+        self.db_session_factory = db_session_factory
+        logger.info("ChatService initialized.")
     
     def _strip_html(self, html_content: Optional[str]) -> str:
         """Simple text extraction from HTML content"""
@@ -38,7 +42,7 @@ class ChatService:
             return ""
         return re.sub(r'<[^>]+>', ' ', html_content).strip()
     
-    async def create_conversation(self, document_id: str, session: Optional[AsyncSession] = None) -> Conversation:
+    async def create_conversation(self, document_id: str, session: AsyncSession) -> Conversation:
         """Create a new conversation"""
         # Verify document exists
         document = await self.document_repo.get_document(document_id, session)
@@ -180,16 +184,13 @@ class ChatService:
         
         # --- Add Background Task for LLM Generation and Streaming --- 
         # Pass necessary data to the background task
-        # NOTE: Passing the session directly might cause issues if the request scope closes.
-        # If session errors occur, refactor to pass a session factory.
         background_tasks.add_task(
             self._generate_and_stream_response,
             conversation_id=conversation_id,
             user_msg=user_msg, # Pass the message object itself
             ai_msg_id=ai_msg.id, # Pass the ID of the placeholder
             initial_active_thread_ids=active_thread_ids + [user_msg.id], # Thread *before* AI msg
-            selected_block_id=selected_block_id,
-            session=session # Pass session (potential issue)
+            selected_block_id=selected_block_id
         )
         logger.info(f"Added background task for AI message {ai_msg.id}")
         
@@ -202,70 +203,75 @@ class ChatService:
         user_msg: Message,
         ai_msg_id: str,
         initial_active_thread_ids: List[str],
-        selected_block_id: Optional[str],
-        session: Optional[AsyncSession] # Potential issue: Session might be closed
+        selected_block_id: Optional[str]
     ):
         """Background task to generate LLM response, stream it via SSE, and update the placeholder message."""
         logger.info(f"Starting background task for AI message {ai_msg_id}")
         full_response_content = ""
-        try:
-            # Re-fetch conversation within the task scope if necessary (depends on session handling)
-            conversation = await self.conversation_repo.get_conversation(conversation_id, session)
-            if not conversation:
-                 logger.error(f"[Task {ai_msg_id}] Conversation {conversation_id} not found.")
-                 return
-            
-            # --- Use ContextService to build enhanced context --- 
-            context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
-                conversation,
-                user_msg, # Use the user message that triggered this
-                initial_active_thread_ids, # Use the thread leading up to the user message
-                selected_block_id,
-                session
-            )
-            
-            # Update conversation included pages if they changed (async task needs care with concurrent updates)
-            # Consider if this update is critical here or can be handled differently
-            if conversation.included_pages != updated_included_pages:
-                conversation.included_pages = updated_included_pages
-                # await self.conversation_repo.update_conversation(conversation, session) # Be cautious with updates from background tasks
-                logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
-            
-            # --- Generate AI Response via Stream --- 
-            logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
-            llm_stream = self.llm_service.generate_response_stream(context_messages)
-            
-            async for chunk in llm_stream:
-                if chunk:
-                    full_response_content += chunk
-                    # Publish chunk via SSE manager
-                    await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
-            
-            logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
-            
-            # --- Update Placeholder AI Message in DB using new method --- 
-            await self.conversation_repo.update_message_content(
-                message_id=ai_msg_id, 
-                new_content=full_response_content, 
-                session=session
-            )
-            # Logging for success is now handled within update_message_content
-            # Error/warning for message not found is also handled there
-            
-        except Exception as e:
-            logger.error(f"[Task {ai_msg_id}] Error during LLM stream generation or DB update: {e}", exc_info=True)
-            # Optionally update the AI message content to indicate an error
+        
+        # Create a new session scope for this background task
+        async with self.db_session_factory() as session:
             try:
-                error_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
-                if error_ai_msg:
-                    error_ai_msg.content = f"Error generating response: {e}"
-                    await self.conversation_repo.update_message(error_ai_msg, session)
-            except Exception as db_err:
-                logger.error(f"[Task {ai_msg_id}] Failed to update AI message with error state: {db_err}")
-        finally:
-            # --- Clean up SSE Queue --- 
-            await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
-            logger.info(f"[Task {ai_msg_id}] Background task finished.")
+                conversation = await self.conversation_repo.get_conversation(conversation_id, session)
+                if not conversation:
+                    logger.error(f"[Task {ai_msg_id}] Conversation {conversation_id} not found within new session.")
+                    await chat_sse_manager.publish_chunk(ai_msg_id, "Error: Conversation not found.")
+                    # Cannot update DB if conversation not found
+                    return # Exit early
+
+                # --- Use ContextService to build enhanced context --- 
+                context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
+                    conversation,
+                    user_msg, # Use the user message that triggered this
+                    initial_active_thread_ids, # Use the thread leading up to the user message
+                    selected_block_id,
+                    session
+                )
+                
+                # Update conversation included pages if they changed (async task needs care with concurrent updates)
+                # Consider if this update is critical here or can be handled differently
+                if conversation.included_pages != updated_included_pages:
+                    conversation.included_pages = updated_included_pages
+                    # await self.conversation_repo.update_conversation(conversation, session) # Be cautious with updates from background tasks
+                    logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
+                
+                # --- Generate AI Response via Stream --- 
+                logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
+                llm_stream = self.llm_service.generate_response_stream(context_messages)
+                
+                async for chunk in llm_stream:
+                    if chunk:
+                        full_response_content += chunk
+                        # Publish chunk via SSE manager
+                        await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
+                
+                logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
+                
+                # --- Update Placeholder AI Message in DB using new method --- 
+                await self.conversation_repo.update_message_content(
+                    message_id=ai_msg_id, 
+                    new_content=full_response_content, 
+                    session=session
+                )
+                # Logging for success is now handled within update_message_content
+                # Error/warning for message not found is also handled there
+                
+            except Exception as e:
+                logger.error(f"[Task {ai_msg_id}] Error during LLM stream generation or DB update: {e}", exc_info=True)
+                # Optionally update the AI message content to indicate an error
+                try:
+                    error_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
+                    if error_ai_msg:
+                        error_ai_msg.content = f"Error generating response: {e}"
+                        await self.conversation_repo.update_message(error_ai_msg, session)
+                except Exception as db_err:
+                    logger.error(f"[Task {ai_msg_id}] Failed to update AI message with error state: {db_err}")
+            finally:
+                # --- Clean up SSE Queue --- 
+                await chat_sse_manager.publish_chunk(ai_msg_id, "[DONE]")
+                await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
+                # The session will be committed/rolled back automatically by the context manager
+                logger.info(f"[Task {ai_msg_id}] Background task finished, session closed.")
     
     async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""

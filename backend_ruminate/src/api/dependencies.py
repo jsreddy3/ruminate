@@ -163,5 +163,6 @@ def get_chat_service(
     return ChatService(
         conversation_repository=conversation_repository,
         document_repository=document_repository,
-        llm_service=llm_service
+        llm_service=llm_service,
+        db_session_factory=db_session_factory
     )
