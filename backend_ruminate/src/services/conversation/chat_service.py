@@ -313,7 +313,7 @@ class ChatService:
                         await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
                 
                 logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
-                
+                logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}") 
                 # --- Update Placeholder AI Message in DB using new method --- 
                 await self.conversation_repo.update_message_content(
                     message_id=ai_msg_id, 
@@ -334,11 +334,28 @@ class ChatService:
                 except Exception as db_err:
                     logger.error(f"[Task {ai_msg_id}] Failed to update AI message with error state: {db_err}")
             finally:
-                # --- Clean up SSE Queue --- 
+                # Signal end of stream and clean up queue regardless of success/failure
                 await chat_sse_manager.publish_chunk(ai_msg_id, "[DONE]")
                 await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
                 # The session will be committed/rolled back automatically by the context manager
-                logger.info(f"[Task {ai_msg_id}] Background task finished, session closed.")
+                logger.info(f"[Task {ai_msg_id}] Background task session closed.")
+        
+        # === Verification Step: Check DB content *after* task session closes ===
+        try:
+            async with self.db_session_factory() as verify_session:
+                logger.info(f"[Task {ai_msg_id}] Verifying message content in DB...")
+                verified_message = await self.conversation_repo.get_message(ai_msg_id, verify_session)
+                if verified_message:
+                    logger.info(f"[Task {ai_msg_id}] Verified content length: {len(verified_message.content)}")
+                    # Log a snippet for sanity check, avoid logging potentially huge content
+                    content_snippet = verified_message.content[:100] + ('...' if len(verified_message.content) > 100 else '')
+                    logger.info(f"[Task {ai_msg_id}] Verified content snippet: {content_snippet}")
+                else:
+                    logger.warning(f"[Task {ai_msg_id}] Verification failed: Message {ai_msg_id} not found in DB after task completion.")
+        except Exception as verification_err:
+            logger.error(f"[Task {ai_msg_id}] Error during post-task verification: {verification_err}", exc_info=True)
+        # =======================================================================
+        logger.info(f"[Task {ai_msg_id}] Background task fully finished.")
     
     async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""

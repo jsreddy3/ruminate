@@ -652,6 +652,22 @@ class RDSConversationRepository(ConversationRepository):
             if local_session:
                 await session.close()
 
+    async def get_message(self, message_id: str, session: AsyncSession) -> Optional[Message]:
+        """Retrieve a single message by its ID."""
+        try:
+            result = await session.execute(
+                select(MessageModel).where(MessageModel.id == message_id)
+            )
+            message = result.scalars().first()
+            if message:
+                # Eager load relationships if needed, similar to get_messages_by_ids
+                # For now, just return the message
+                pass 
+            return message
+        except Exception as e:
+            logger.error(f"Error retrieving message {message_id}: {e}", exc_info=True)
+            raise # Re-raise the exception after logging
+
     async def get_message_by_id(self, message_id: str, session: Optional[AsyncSession] = None) -> Optional[Message]:
         """Get a single message by its unique ID."""
         local_session = session is None
@@ -692,24 +708,28 @@ class RDSConversationRepository(ConversationRepository):
         session = session or self.session_factory()
         
         try:
-            # Use sqlalchemy update statement for efficiency
-            stmt = (
-                update(MessageModel)
-                .where(MessageModel.id == message_id)
-                .values(content=new_content)
-                .execution_options(synchronize_session="fetch") # Important for session sync
+            # Fetch the existing message object
+            result = await session.execute(
+                select(MessageModel).where(MessageModel.id == message_id)
             )
-            result = await session.execute(stmt)
+            message = result.scalars().first()
             
-            if result.rowcount == 0:
-                 logger.warning(f"Attempted to update message {message_id}, but it was not found.")
-                 # Optionally raise an error if the message *must* exist
-                 # raise ValueError(f"Message with ID {message_id} not found for update.")
-            else:
-                 logger.info(f"Updated content for message {message_id}.")
+            if not message:
+                logger.warning(f"Attempted to update message {message_id}, but it was not found.")
+                return # Or raise an exception if preferred
             
-            if local_session:
-                await session.commit()
+            # Update the content attribute directly
+            message.content = new_content
+            
+            # --- Log content *after* assignment within the repository method --- 
+            logger.info(f"[Repo Update {message_id}] Assigned content length: {len(message.content)}")
+            assigned_snippet = message.content[:100] + ('...' if len(message.content) > 100 else '')
+            logger.info(f"[Repo Update {message_id}] Assigned content snippet: {assigned_snippet}")
+            # -----------------------------------------------------------------
+            
+            # The commit will be handled by the calling context (service layer's 'async with')
+            logger.info(f"Updated content attribute for message {message_id}. Commit pending in outer scope.")
+            
         except Exception as e:
             logger.error(f"Error updating message {message_id}: {e}", exc_info=True)
             if local_session:

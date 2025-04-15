@@ -81,3 +81,7 @@ class ConversationRepository(ABC):
     async def update_message_content(self, message_id: str, new_content: str, session: Optional[DBSession] = None) -> None:
         """Update the content of a specific message."""
         pass
+
+    @abstractmethod
+    async def get_message(self, message_id: str, session: Optional[DBSession] = None) -> Optional[Message]:
+        pass
