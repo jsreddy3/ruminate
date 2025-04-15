@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -7,6 +8,7 @@ from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message
 from src.services.conversation.chat_service import ChatService
 from src.api.dependencies import get_chat_service, get_db
+from src.api.chat_sse_manager import chat_sse_manager
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -53,18 +55,20 @@ async def get_conversation_thread(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/{conversation_id}/messages", response_model=tuple[Message, str])
+@router.post("/{conversation_id}/messages", response_model=Tuple[str, str])
 async def send_message(
     conversation_id: str,
     request: SendMessageRequest,
+    background_tasks: BackgroundTasks,
     chat_service: ChatService = Depends(get_chat_service),
     session: Optional[AsyncSession] = Depends(get_db)
-) -> Tuple[Message, str]:
-    """Send a message in a conversation"""
+) -> Tuple[str, str]:
+    """Send a message in a conversation and start streaming the response."""
     try:
         return await chat_service.send_message(
-            conversation_id, 
-            request.content, 
+            background_tasks=background_tasks,
+            conversation_id=conversation_id, 
+            content=request.content, 
             parent_id=request.parent_id,
             active_thread_ids=request.active_thread_ids,
             selected_block_id=request.selected_block_id,
@@ -72,6 +76,22 @@ async def send_message(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/{conversation_id}/messages/{message_id}/stream")
+async def stream_message_response(
+    conversation_id: str,
+    message_id: str
+):
+    """Endpoint to stream content chunks for a specific AI message ID."""
+    logger.info(f"SSE connection requested for message_id: {message_id}")
+    try:
+        return StreamingResponse(
+            chat_sse_manager.subscribe_to_stream(message_id),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Error setting up SSE stream for message {message_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start stream: {e}")
 
 @router.get("/document/{document_id}", response_model=List[Conversation])
 async def get_document_conversations(
