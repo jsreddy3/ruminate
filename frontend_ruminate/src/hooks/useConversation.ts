@@ -158,7 +158,8 @@ export function useConversation({
       setIsLoading(true); // Keep loading while streaming
 
       // --- Initiate SSE Connection --- 
-      const eventSourceUrl = `/api/conversations/${conversationId}/messages/${aiMsgId}/stream`;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      const eventSourceUrl = `${apiBaseUrl}/conversations/${conversationId}/messages/${aiMsgId}/stream`;
       console.log(`Connecting to SSE: ${eventSourceUrl}`);
       const es = new EventSource(eventSourceUrl);
       setCurrentEventSource(es); // Store the connection
