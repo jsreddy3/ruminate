@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Message } from '../../../types/chat';
+import MessageActions from '../../common/MessageActions';
 
 interface ChatMessageProps {
   message: Message;
@@ -13,6 +14,12 @@ interface ChatMessageProps {
   onCancelEdit: () => void;
   onSaveEdit: (messageId: string) => void;
   onVersionSwitch: (message: Message, newVersionId: string) => void;
+  // New props for note generation
+  documentId: string;
+  blockId: string;
+  conversationId: string;
+  blockSequenceNo?: number;
+  onSwitchToNotesTab?: () => void; // Callback to switch to notes tab
 }
 
 const getVersionInfo = (message: Message, messagesById: Map<string, Message>) => {
@@ -45,7 +52,13 @@ export default function ChatMessage({
   onChangeEdit,
   onCancelEdit,
   onSaveEdit,
-  onVersionSwitch
+  onVersionSwitch,
+  // New props for note generation
+  documentId,
+  blockId,
+  conversationId,
+  blockSequenceNo,
+  onSwitchToNotesTab
 }: ChatMessageProps) {
   const isEditing = editingMessageId === message.id;
   const versionInfo = message.role === 'user' ? getVersionInfo(message, messagesById) : null;
@@ -110,23 +123,51 @@ export default function ChatMessage({
         message.role === 'user' ? 'justify-end' : 'justify-start'
       } w-full`}>
         {message.role === 'user' && (
-          <button
-            onClick={() => onStartEdit(message)}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors duration-200 mr-2 mt-2"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+          <div className="flex items-center mr-2 mt-2">
+            <button
+              onClick={() => onStartEdit(message)}
+              className="text-neutral-400 hover:text-neutral-600 transition-colors duration-200 mr-1"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            
+            <MessageActions
+              message={message}
+              documentId={documentId}
+              blockId={blockId}
+              conversationId={conversationId}
+              blockSequenceNo={blockSequenceNo}
+              onSwitchToNotesTab={onSwitchToNotesTab}
+            />
+          </div>
         )}
-        <div
-          className={`whitespace-pre-wrap break-words ${
-            message.role === 'assistant'
-              ? 'bg-primary-50 text-neutral-800 p-3 rounded-lg shadow-sm w-fit max-w-[70%] border border-primary-100'
-              : message.role === 'system'
-              ? 'bg-neutral-100 text-neutral-600 p-3 rounded-lg shadow-sm w-fit max-w-[70%] border border-neutral-200 italic'
-              : 'bg-primary-600 text-white p-3 rounded-lg shadow-sm w-fit max-w-[70%]'
-          }`}
-        >
-          {message.content}
+        <div className="flex flex-col relative group">
+          <div
+            className={`whitespace-pre-wrap break-words ${
+              message.role === 'assistant'
+                ? 'bg-primary-50 text-neutral-800 p-3 rounded-lg shadow-sm w-fit max-w-[70%] border border-primary-100'
+                : message.role === 'system'
+                ? 'bg-neutral-100 text-neutral-600 p-3 rounded-lg shadow-sm w-fit max-w-[70%] border border-neutral-200 italic'
+                : 'bg-primary-600 text-white p-3 rounded-lg shadow-sm w-fit max-w-[70%]'
+            }`}
+          >
+            {message.content}
+          </div>
+          
+          {/* Only show note actions for assistant messages */}
+          {message.role === 'assistant' && (
+            <div className="absolute top-1 right-1">
+              <MessageActions
+                message={message}
+                documentId={documentId}
+                blockId={blockId}
+                conversationId={conversationId}
+                blockSequenceNo={blockSequenceNo}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onSwitchToNotesTab={onSwitchToNotesTab}
+              />
+            </div>
+          )}
         </div>
       </div>
 

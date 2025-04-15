@@ -12,6 +12,8 @@ from src.services.conversation.agent.agent_loop_runner import AgentLoopRunner
 from src.services.conversation.agent.document_exploration_tools import DocumentExplorationTools
 from src.services.conversation.agent.response_parser import AgentResponseParser
 import logging
+import contextlib
+from typing import Dict, List, Optional, Tuple, Any, Callable, AsyncContextManager
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -57,7 +59,28 @@ class AgentRabbitholeService:
             max_iterations=max_iterations
         )
         
+        self.get_session = self._create_session_factory()
+        
         logger.debug("AgentRabbitholeService initialized")
+    
+    def _create_session_factory(self) -> Callable[[], AsyncContextManager[AsyncSession]]:
+        """Returns a function that creates database sessions"""
+        from src.api.dependencies import db_session_factory
+        
+        # Return a callable that creates an async context manager for sessions
+        @contextlib.asynccontextmanager
+        async def session_factory():
+            session = db_session_factory()
+            try:
+                yield session
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                raise e
+            finally:
+                await session.close()
+        
+        return session_factory
     
     async def create_agent_rabbithole(self,
                                      document_id: str,
@@ -92,34 +115,36 @@ class AgentRabbitholeService:
         logger.info(f"Processing agent message for conversation: {conversation_id}")
         logger.debug(f"Message content: {content[:50]}{'...' if len(content) > 50 else ''}")
         
-        # Create user message
-        user_msg = await self.conversation_manager.create_user_message(
-            conversation_id=conversation_id,
-            content=content,
-            parent_id=parent_id,
-            session=session
-        )
-        
-        # Get conversation
-        conversation = await self.conversation_repo.get_conversation(conversation_id, session)
-        if not conversation:
-            raise ValueError(f"Conversation {conversation_id} not found")
-        
-        # Get the active thread
-        active_thread = await self.conversation_repo.get_active_thread(conversation_id, session)
-        active_thread = [self._ensure_id_string(msg) for msg in active_thread]
-        logger.debug(f"Active thread has {len(active_thread)} message IDs")
-        
-        # Initialize agent state
-        agent_state = {
-            "conversation_id": conversation_id,
-            "document_id": conversation.document_id,
-            "user_message": content,
-            "user_message_id": user_msg.id,
-            "process_steps": [],
-            "exploration_history": [],
-            "final_answer": None
-        }
+        # Use provided session or create a new one for initial database operations
+        async with self.get_session() if session is None else contextlib.nullcontext(session) as db_session:
+            # Create user message and get required data for agent processing
+            user_msg = await self.conversation_manager.create_user_message(
+                conversation_id=conversation_id,
+                content=content,
+                parent_id=parent_id,
+                session=db_session
+            )
+            
+            # Get conversation
+            conversation = await self.conversation_repo.get_conversation(conversation_id, db_session)
+            if not conversation:
+                raise ValueError(f"Conversation {conversation_id} not found")
+            
+            # Get the active thread
+            active_thread = await self.conversation_repo.get_active_thread(conversation_id, db_session)
+            active_thread = [self._ensure_id_string(msg) for msg in active_thread]
+            logger.debug(f"Active thread has {len(active_thread)} message IDs")
+            
+            # Initialize agent state
+            agent_state = {
+                "conversation_id": conversation_id,
+                "document_id": conversation.document_id,
+                "user_message": content,
+                "user_message_id": user_msg.id,
+                "process_steps": [],
+                "exploration_history": [],
+                "final_answer": None
+            }
         
         # Send a start event to the client
         if self.sse_manager:
@@ -130,42 +155,42 @@ class AgentRabbitholeService:
                 {"message": "Agent is analyzing your question..."}
             )
         
-        # Run the agent loop - note that system_msg is no longer passed
+        # Run the agent loop without holding the DB session
+        # Pass session factory instead of session
         logger.info(f"Starting agent exploration loop for conversation: {conversation_id}")
         final_answer = await self.agent_loop_runner.run_agent_loop(
             agent_state=agent_state,
             active_thread=active_thread,
-            session=session
+            session_factory=self.get_session
         )
         logger.info(f"Agent exploration completed with answer length: {len(final_answer)}")
         
-        # The final answer message is already created and added to the active_thread 
-        # by the AgentLoopRunner, so we just need to ensure our active thread is updated
-        
-        # Update active thread to include user message
-        if user_msg.id not in active_thread:
-            active_thread.append(user_msg.id)
-            await self.conversation_repo.update_active_thread(conversation_id, active_thread, session)
-            logger.debug("Updated active thread with user message ID")
-        
-        # Get the final answer message that was created by the agent loop
-        # It should be the last message in the active thread
-        assistant_msg_id = active_thread[-1] if active_thread else None
-        if assistant_msg_id:
-            assistant_msg = await self.conversation_repo.get_message(assistant_msg_id, session)
-        else:
-            # This should rarely happen, but as a fallback create a message with the final answer
-            logger.warning("No assistant message found in active thread after agent loop")
-            assistant_msg = await self.conversation_manager.create_ai_message(
-                conversation_id=conversation_id,
-                content=final_answer,
-                parent_id=user_msg.id,
-                session=session,
-                metadata={"message_type": "final_answer"}
-            )
-            # Update active thread
-            active_thread.append(assistant_msg.id)
-            await self.conversation_repo.update_active_thread(conversation_id, active_thread, session)
+        # Create new session for final database updates
+        async with self.get_session() if session is None else contextlib.nullcontext(session) as db_session:
+            # Update active thread to include user message
+            if user_msg.id not in active_thread:
+                active_thread.append(user_msg.id)
+                await self.conversation_repo.update_active_thread(conversation_id, active_thread, db_session)
+                logger.debug("Updated active thread with user message ID")
+            
+            # Get the final answer message that was created by the agent loop
+            # It should be the last message in the active thread
+            assistant_msg_id = active_thread[-1] if active_thread else None
+            if assistant_msg_id:
+                assistant_msg = await self.conversation_repo.get_message(assistant_msg_id, db_session)
+            else:
+                # This should rarely happen, but as a fallback create a message with the final answer
+                logger.warning("No assistant message found in active thread after agent loop")
+                assistant_msg = await self.conversation_manager.create_ai_message(
+                    conversation_id=conversation_id,
+                    content=final_answer,
+                    parent_id=user_msg.id,
+                    session=db_session,
+                    metadata={"message_type": "final_answer"}
+                )
+                # Update active thread
+                active_thread.append(assistant_msg.id)
+                await self.conversation_repo.update_active_thread(conversation_id, active_thread, db_session)
         
         # Send completion event
         if self.sse_manager:

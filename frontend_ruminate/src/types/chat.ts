@@ -19,4 +19,5 @@ export interface ChatPaneProps {
   onPreviousBlock?: () => void;
   hasNextBlock?: boolean;
   hasPreviousBlock?: boolean;
+  onSwitchToNotesTab?: () => void;
 }

@@ -11,6 +11,7 @@ interface ChatPaneProps {
   conversationId?: string; // Conversation ID can be undefined (new conversation)
   selectedText?: string;
   setSelectedText?: (text: string) => void;
+  onSwitchToNotesTab?: () => void; // Callback to switch to notes tab
 }
 
 /**
@@ -22,7 +23,8 @@ export default function ChatPane({
   documentId, 
   conversationId = "", // Default to empty string for new conversations
   selectedText = "",
-  setSelectedText
+  setSelectedText,
+  onSwitchToNotesTab
 }: ChatPaneProps) {
   // Initialize conversation with current block and document
   const {
@@ -97,6 +99,11 @@ export default function ChatPane({
               }}
               onSaveEdit={handleSaveEdit}
               onVersionSwitch={handleVersionSwitch}
+              // Props for note generation
+              documentId={documentId}
+              blockId={blockId}
+              conversationId={conversationId || ""}
+              onSwitchToNotesTab={onSwitchToNotesTab}
             />
           ))}
         

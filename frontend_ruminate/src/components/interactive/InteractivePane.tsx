@@ -37,7 +37,8 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
   onNextBlock,
   onPreviousBlock,
   hasNextBlock,
-  hasPreviousBlock
+  hasPreviousBlock,
+  onSwitchToNotesTab
 }, ref) {
   // console.log(`InteractivePane MOUNT with block ID: ${block.id}`);
   
@@ -182,6 +183,7 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
             textStartOffset={activeRabbitholeStartOffset}
             textEndOffset={activeRabbitholeEndOffset}
             onClose={handleCloseRabbithole}
+            onSwitchToNotesTab={onSwitchToNotesTab}
           />
         ) : (
           <PanelGroup direction="vertical">
@@ -294,6 +296,7 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
                   conversationId={conversationId}
                   selectedText={selectedText}
                   setSelectedText={setSelectedText}
+                  onSwitchToNotesTab={onSwitchToNotesTab}
                 />
               )}
             </Panel>

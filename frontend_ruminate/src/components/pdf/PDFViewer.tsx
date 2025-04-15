@@ -11,6 +11,8 @@ import ResizablePanel from "../common/ResizablePanel";
 import MathJaxProvider from "../common/MathJaxProvider";
 import { conversationApi } from "../../services/api/conversation";
 import CollapsibleButton from "../common/CollapsibleButton";
+import TabView from "../common/TabView";
+import NotesEditor from "../notes/NotesEditor";
 
 export interface Block {
   id: string;
@@ -85,11 +87,31 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [loading, setLoading] = useState(false);
   // Add state for PDFViewer collapsed state
   const [isPdfCollapsed, setIsPdfCollapsed] = useState(false);
+  
+  // Function to switch to the notes tab
+  const switchToNotesTab = useCallback(() => {
+    setActiveTabId('notes');
+  }, []);
 
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
   // Add state for chat pane width
   const [chatPaneWidth, setChatPaneWidth] = useState(384);
+  
+  // Add state for active tab
+  const [activeTabId, setActiveTabId] = useState<string>('pdf');
+  
+  // State for notes content
+  const [notesContent, setNotesContent] = useState<string>('');
+  
+  // Create a map of blockId to sequence number for notes sorting
+  const blockSequenceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    flattenedBlocks.forEach((block, index) => {
+      map.set(block.id, index);
+    });
+    return map;
+  }, [flattenedBlocks]);
 
   // Ref to access the InteractivePane methods
   const interactivePaneRef = useRef<InteractivePaneHandle>(null);
@@ -692,54 +714,85 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 className="vertical-text p-2 text-sm font-medium text-neutral-600 hover:text-neutral-900"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
               >
-                PDF
+                {activeTabId === 'pdf' ? 'PDF' : 'Notes'}
               </button>
             </div>
           ) : (
             <div className="h-full w-full">
-              <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                <div 
-                  style={{
-                    border: 'none',
-                    height: '100%',
-                    width: '100%',
-                    backgroundColor: 'rgb(243 244 246)',
-                  }}
-                  className="overflow-auto relative"
-                >
-                  <Viewer
-                    fileUrl={pdfFile}
-                    plugins={[defaultLayoutPluginInstance]}
-                    defaultScale={1.2}
-                    theme="light"
-                    pageLayout={pageLayout}
-                    renderLoader={(percentages: number) => (
-                      <div className="flex items-center justify-center p-4">
-                        <div className="w-full max-w-sm">
-                          <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary-600 transition-all duration-300"
-                                style={{ width: `${Math.round(percentages)}%` }}
-                              />
-                            </div>
-                            <div className="text-sm text-neutral-600 mt-2 text-center">
-                              Loading {Math.round(percentages)}%
-                            </div>
-                          </div>
+              <TabView
+                tabs={[
+                  {
+                    id: 'pdf',
+                    label: 'PDF',
+                    icon: <span>📄</span>,
+                    content: (
+                      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                        <div 
+                          style={{
+                            border: 'none',
+                            height: '100%',
+                            width: '100%',
+                            backgroundColor: 'rgb(243 244 246)',
+                          }}
+                          className="overflow-auto relative"
+                        >
+                          <Viewer
+                            fileUrl={pdfFile}
+                            plugins={[defaultLayoutPluginInstance]}
+                            defaultScale={1.2}
+                            theme="light"
+                            pageLayout={pageLayout}
+                            renderLoader={(percentages: number) => (
+                              <div className="flex items-center justify-center p-4">
+                                <div className="w-full max-w-sm">
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-primary-600 transition-all duration-300"
+                                        style={{ width: `${Math.round(percentages)}%` }}
+                                      />
+                                    </div>
+                                    <div className="text-sm text-neutral-600 mt-2 text-center">
+                                      Loading {Math.round(percentages)}%
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            renderPage={(props) => (
+                              <>
+                                {props.canvasLayer.children}
+                                {props.textLayer.children}
+                                {renderOverlay(props)}
+                              </>
+                            )}
+                          />
                         </div>
+                      </Worker>
+                    )
+                  },
+                  {
+                    id: 'notes',
+                    label: 'Notes',
+                    icon: <span>📝</span>,
+                    content: (
+                      <div className="h-full bg-white">
+                        <NotesEditor
+                          documentId={documentId}
+                          initialContent={notesContent}
+                          onSave={(content) => setNotesContent(content)}
+                          className="h-full"
+                          blockSequenceMap={blockSequenceMap}
+                          activeTabId={activeTabId}
+                        />
                       </div>
-                    )}
-                    renderPage={(props) => (
-                      <>
-                        {props.canvasLayer.children}
-                        {props.textLayer.children}
-                        {renderOverlay(props)}
-                      </>
-                    )}
-                  />
-                </div>
-              </Worker>
+                    )
+                  }
+                ]}
+                activeTabId={activeTabId}
+                onTabChange={setActiveTabId}
+                className="h-full"
+              />
             </div>
           )}
         </div>
@@ -766,6 +819,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 onPreviousBlock={handlePreviousBlock}
                 hasNextBlock={hasNextBlock}
                 hasPreviousBlock={hasPreviousBlock}
+                onSwitchToNotesTab={switchToNotesTab}
               />
             </ResizablePanel>
           </div>

@@ -15,6 +15,7 @@ interface RabbitholePaneProps {
   textStartOffset?: number;
   textEndOffset?: number;
   onClose: () => void;
+  onSwitchToNotesTab?: () => void;
 }
 
 export default function RabbitholePane({
@@ -25,7 +26,8 @@ export default function RabbitholePane({
   blockId,
   textStartOffset,
   textEndOffset,
-  onClose
+  onClose,
+  onSwitchToNotesTab
 }: RabbitholePaneProps) {
   const [isCreatingRabbithole, setIsCreatingRabbithole] = useState<boolean>(false);
   const [rabbitholeConversationId, setRabbitholeConversationId] = useState<string | null>(conversationId || null);
@@ -85,7 +87,9 @@ export default function RabbitholePane({
         <AgentConversation
           conversationId={rabbitholeConversationId}
           documentId={documentId}
+          blockId={blockId}
           initialMessageDraft={`Explain this: "${selectedText}"`}
+          onSwitchToNotesTab={onSwitchToNotesTab}
         />
       )}
     </div>

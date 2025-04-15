@@ -4,15 +4,20 @@ import { Message } from "../../../../../types/chat";
 import { AgentEvent, AgentStep } from "../../../../../services/rabbithole";
 import { useAgentSteps } from "../../../../../hooks/useAgentSteps";
 import ExplorationPanel from "./ExplorationEvents/ExplorationPanel";
+import MessageActions from "../../../../common/MessageActions";
 
 interface AgentMessageProps {
   message: Message;
   conversationId: string;
   events: AgentEvent[];
   isLoading: boolean;
+  documentId: string;
+  blockId: string; // Required parameter
+  blockSequenceNo?: number;
+  onSwitchToNotesTab?: () => void;
 }
 
-export default function AgentMessage({ message, conversationId, events, isLoading }: AgentMessageProps) {
+export default function AgentMessage({ message, conversationId, events, isLoading, documentId, blockId, blockSequenceNo, onSwitchToNotesTab }: AgentMessageProps) {
   const [showExploration, setShowExploration] = useState(false);
   
   // Get stored process steps for this message
@@ -70,7 +75,7 @@ export default function AgentMessage({ message, conversationId, events, isLoadin
         )}
         
         {/* AI message after exploration steps */}
-        <div className="bg-indigo-50 text-neutral-800 p-3 rounded-lg shadow-sm border border-indigo-100">
+        <div className="bg-indigo-50 text-neutral-800 p-3 rounded-lg shadow-sm border border-indigo-100 relative group">
           {isLoading ? (
             <div className="flex items-center">
               <div className="thinking-animation mr-2">
@@ -81,9 +86,24 @@ export default function AgentMessage({ message, conversationId, events, isLoadin
               <em>AI is exploring...</em>
             </div>
           ) : (
-            <div className="prose prose-sm max-w-none">
-              {message.content}
-            </div>
+            <>
+              <div className="prose prose-sm max-w-none">
+                {message.content}
+              </div>
+              
+              {/* Note generation button - only visible on hover */}
+              <div className="absolute top-1 right-1">
+                <MessageActions
+                  message={message}
+                  documentId={documentId}
+                  blockId={blockId}
+                  conversationId={conversationId}
+                  blockSequenceNo={blockSequenceNo}
+                  onSwitchToNotesTab={onSwitchToNotesTab}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+              </div>
+            </>
           )}
         </div>
         

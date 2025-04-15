@@ -23,8 +23,6 @@ export interface AgentEvent {
   timestamp: number;
 }
 
-// Use the functions from the rabbithole service instead of defining them here
-
 // The hook
 export function useAgentConversation({
   documentId,
@@ -80,6 +78,15 @@ export function useAgentConversation({
     
     let eventSource: EventSource | null = null;
     let isActive = true;
+    
+    // Helper to close and cleanup eventSource
+    const closeEventSource = () => {
+      if (eventSource) {
+        console.log('Closing SSE connection for conversation:', conversationId);
+        eventSource.close();
+        eventSource = null;
+      }
+    };
     
     const setupEventSource = () => {
       eventSource = apiConnectToAgentEvents(conversationId);
@@ -160,10 +167,13 @@ export function useAgentConversation({
                 // disappears momentarily
                 setTimeout(() => {
                   setAgentStatus('completed');
+                  // Close connection as the agent process is complete
+                  closeEventSource();
                 }, 200); // Small additional delay for a smooth transition
               } catch (err) {
                 console.error('Error refreshing conversation after agent completion:', err);
                 setAgentStatus('completed'); // Set completed even if refresh fails
+                closeEventSource(); // Close connection even if refresh fails
               }
             }, 800); // Increased delay to ensure backend is ready
           }
@@ -179,7 +189,37 @@ export function useAgentConversation({
         try {
           const data = JSON.parse(e.data);
           setAgentStatus('error');
-          console.error('Agent error:', data);
+          console.log('Agent error:', data);
+          
+          // Add to current events
+          setCurrentEvents(prev => [
+            ...prev,
+            {
+              type: 'agent_error',
+              timestamp: Date.now(),
+              message: data.message || 'An error occurred while processing your request.'
+            }
+          ]);
+          
+          // Add to events map
+          if (currentMessageId) {
+            setEventsMap(prevMap => {
+              const newMap = new Map(prevMap);
+              const messageEvents = newMap.get(currentMessageId) || [];
+              newMap.set(currentMessageId, [
+                ...messageEvents,
+                {
+                  type: 'agent_error',
+                  timestamp: Date.now(),
+                  message: data.message || 'An error occurred while processing your request.'
+                }
+              ]);
+              return newMap;
+            });
+          }
+          
+          // Close connection as the agent process has errored
+          closeEventSource();
         } catch (error) {
           console.error('Error parsing agent_error event:', error);
         }
@@ -192,7 +232,10 @@ export function useAgentConversation({
         try {
           const data = JSON.parse(e.data);
           setAgentStatus('error');
-          console.error('Agent timeout:', data);
+          console.log('Agent timeout:', data);
+          
+          // Close connection as the agent process has timed out
+          closeEventSource();
         } catch (error) {
           console.error('Error parsing agent_timeout event:', error);
         }

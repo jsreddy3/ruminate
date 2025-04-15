@@ -9,13 +9,17 @@ import ExplorationPanel from "./ExplorationEvents/ExplorationPanel";
 interface AgentConversationProps {
   conversationId: string | null;
   documentId: string;
+  blockId?: string;
   initialMessageDraft?: string;
+  onSwitchToNotesTab?: () => void;
 }
 
 export default function AgentConversation({
   conversationId,
   documentId,
-  initialMessageDraft = ""
+  blockId,
+  initialMessageDraft = "",
+  onSwitchToNotesTab
 }: AgentConversationProps) {
   const [newMessage, setNewMessage] = useState(initialMessageDraft);
   
@@ -71,6 +75,9 @@ export default function AgentConversation({
                 conversationId={conversationId || ""}
                 events={getEventsForMessage(message.id)}
                 isLoading={isLoading && message.id === displayedThread[displayedThread.length - 1]?.id}
+                documentId={documentId}
+                blockId={blockId || ''} // Ensure blockId is always a string
+                onSwitchToNotesTab={onSwitchToNotesTab}
               />
             ) : (
               <UserMessage

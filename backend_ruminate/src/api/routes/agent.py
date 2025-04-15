@@ -65,16 +65,15 @@ async def create_agent_rabbithole(
 async def send_agent_message(
     conversation_id: str,
     request: AgentMessageRequest,
-    agent_service: AgentRabbitholeService = Depends(get_agent_rabbithole_service),
-    session: Optional[AsyncSession] = Depends(get_db)
+    agent_service: AgentRabbitholeService = Depends(get_agent_rabbithole_service)
 ) -> AgentMessageResponse:
-    """Send a message to an agent rabbithole conversation"""
+    """Send a message to an agent rabbithole conversation."""
     try:
+        # Service now manages its own database sessions internally
         message = await agent_service.send_agent_message(
             conversation_id,
             request.content,
-            request.parent_id,
-            session
+            request.parent_id
         )
         
         return AgentMessageResponse(

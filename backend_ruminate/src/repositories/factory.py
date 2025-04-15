@@ -5,6 +5,7 @@ from .interfaces.document_repository import DocumentRepository
 from .interfaces.storage_repository import StorageRepository
 from .interfaces.conversation_repository import ConversationRepository
 from .interfaces.agent_process_repository import AgentProcessRepository
+from .interfaces.notes_repository import NotesRepository
 
 class StorageType(Enum):
     SQLITE = "sqlite"
@@ -18,6 +19,7 @@ class RepositoryFactory:
         self._storage_repo: Optional[StorageRepository] = None
         self._conversation_repo: Optional[ConversationRepository] = None
         self._agent_process_repo: Optional[AgentProcessRepository] = None
+        self._notes_repo: Optional[NotesRepository] = None
         
     def init_repositories(
         self,
@@ -55,13 +57,15 @@ class RepositoryFactory:
                 engine = create_async_engine(url, echo=False)  # Reduced logging verbosity
                 kwargs['session_factory'] = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             
-            # Import agent process repository
+            # Import agent process and notes repositories
             from .implementations.rds_agent_process_repository import RDSAgentProcessRepository
+            from .implementations.rds_notes_repository import RDSNotesRepository
             
-            # Use RDS for document, conversation, agent process, and chunk index repositories
+            # Use RDS for document, conversation, agent process, notes, and chunk index repositories
             self._document_repo = RDSDocumentRepository(kwargs['session_factory'])
             self._conversation_repo = RDSConversationRepository(kwargs['session_factory'])
             self._agent_process_repo = RDSAgentProcessRepository(kwargs['session_factory'])
+            self._notes_repo = RDSNotesRepository(kwargs['session_factory'])
 
         if storage_type == "local":
             from .implementations.local_storage_repository import LocalStorageRepository
@@ -99,3 +103,10 @@ class RepositoryFactory:
         if not self._agent_process_repo:
             raise RuntimeError("Agent process repository not initialized")
         return self._agent_process_repo
+        
+    @property
+    def notes_repository(self) -> NotesRepository:
+        """Get notes repository instance"""
+        if not self._notes_repo:
+            raise RuntimeError("Notes repository not initialized")
+        return self._notes_repo

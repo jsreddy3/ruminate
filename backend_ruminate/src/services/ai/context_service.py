@@ -230,9 +230,9 @@ class ContextService:
         logger.info("----------------------------------------")
 
     async def build_agent_system_prompt(self, conversation_id: str, document_id: str, session: Optional[object] = None) -> str:
-        """Build the complete system prompt for the agent including instructions.
+        """Build the system prompt for the agent.
         
-        This handles all template variables and combines system message with instructions.
+        This handles all template variables and renders the system message.
         """
         # Fetch the conversation to get selected text and other metadata
         conversation = await self.conversation_repo.get_conversation(conversation_id, session)
@@ -252,14 +252,10 @@ class ContextService:
             "document_summary_section": document_summary or ""
         }
         
-        # Get system prompt and instructions
+        # Get system prompt which now includes instructions
         system_prompt = self.get_agent_system_prompt(template_vars)
-        agent_instructions = self.get_agent_instructions()
         
-        # Combine them
-        combined_prompt = f"{system_prompt}\n\n{agent_instructions}"
-        
-        return combined_prompt
+        return system_prompt
     
     def get_agent_system_prompt(self, template_vars: Dict) -> str:
         """Get the agent system prompt from the prompts.yaml file
@@ -272,18 +268,8 @@ class ContextService:
         """
         return self._render_template("agent_rabbithole.system_message", template_vars)
     
-    def get_agent_instructions(self) -> str:
-        """Get the agent instructions from the prompts.yaml file
-        
-        Returns:
-            Agent instructions string
-        """
-        try:
-            return self.prompts.get("agent_rabbithole", {}).get("agent_instructions", "")
-        except Exception as e:
-            logger.error(f"Error getting agent instructions: {e}")
-            # Fallback instructions if there's an error
-            return "You are a document exploration agent. Answer the user's question by exploring the document."
+    # The get_agent_instructions method has been removed as the instructions are now
+    # included directly in the system_message template in prompts.yaml
     
     def get_agent_action_schema(self) -> Dict:
         """Get the agent action schema from the prompts.yaml file
@@ -372,3 +358,75 @@ class ContextService:
                 "required": ["answer"],
                 "additionalProperties": False
             }
+            
+    async def enhance_context_for_note_generation(self,
+                                         conversation: Conversation,
+                                         message_id: str,
+                                         session: Optional[object] = None) -> Tuple[List[Message], Dict[str, str]]:
+        """Enhance context for note generation based on a conversation and a specific message
+        
+        Args:
+            conversation: The conversation object
+            message_id: ID of the message to truncate the conversation at
+            session: Optional database session
+            
+        Returns:
+            Tuple of (enhanced context messages, conversation.included_pages)
+        """
+        # Get the active thread of messages
+        all_messages = await self.conversation_repo.get_active_thread(conversation.id, session)
+        
+        # Truncate at the specified message ID
+        messages = []
+        for message in all_messages:
+            messages.append(message)
+            if message.id == message_id:
+                break
+        
+        if not messages or messages[-1].id != message_id:
+            logger.error(f"Message {message_id} not found in active thread of conversation {conversation.id}")
+            raise ValueError(f"Message {message_id} not found in active thread of conversation {conversation.id}")
+            
+        # Initialize the return value for included_pages tracking
+        included_pages = conversation.included_pages or {}
+        
+        # Get document information
+        document = await self.document_repo.get_document(conversation.document_id, session)
+        if not document:
+            logger.error(f"Document {conversation.document_id} not found")
+            raise ValueError(f"Document {conversation.document_id} not found")
+            
+        # Filter out system messages for the conversation context
+        conversation_messages = [msg for msg in messages if msg.role != MessageRole.SYSTEM]
+        
+        # Create system message with the appropriate template for the conversation type
+        template_vars = {
+            "document_title": document.title or "Untitled Document",
+            "include_sections": []
+        }
+        
+        # Include document summary if available
+        if document.summary:
+            template_vars["document_summary"] = document.summary
+            template_vars["include_sections"].append("document_summary")
+        
+        # Create the system message 
+        system_msg = await self.create_system_message(
+            conversation.id, 
+            "regular_conversation.system_message", 
+            template_vars
+        )
+        
+        # Get the note generation request prompt from prompts.yaml
+        note_request_content = self.prompts.get("note_generation", {}).get("user_message", "")
+        if not note_request_content:
+            # Fallback if not found
+            note_request_content = ("Based on our conversation about this document and content, "
+                                  "can you create a concise, well-structured note summarizing the "
+                                  "key insights and information we've discussed?")
+        
+        # Build the enhanced context
+        result = [system_msg] + conversation_messages
+        
+        # Return the context and tracking info
+        return result, included_pages

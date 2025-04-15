@@ -6,6 +6,7 @@ from src.api.routes.document import document_router
 from src.api.routes.conversation import router as conversation_router
 from src.api.routes.rabbithole import router as rabbithole_router
 from src.api.routes.agent import router as agent_router
+from src.api.routes.notes import router as notes_router
 from src.api.dependencies import initialize_repositories
 
 
@@ -43,6 +44,7 @@ app.include_router(document_router)
 app.include_router(conversation_router)
 app.include_router(rabbithole_router)
 app.include_router(agent_router)
+app.include_router(notes_router)
 
 if __name__ == "__main__":
     import uvicorn
