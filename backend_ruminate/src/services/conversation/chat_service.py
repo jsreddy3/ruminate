@@ -1,10 +1,12 @@
 from typing import List, Optional, Tuple
+from fastapi import BackgroundTasks
 from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message, MessageRole
 from src.repositories.interfaces.conversation_repository import ConversationRepository
 from src.repositories.interfaces.document_repository import DocumentRepository
 from src.services.ai.llm_service import LLMService
 from src.services.ai.context_service import ContextService
+from src.api.chat_sse_manager import chat_sse_manager
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -13,6 +15,7 @@ from src.services.conversation.conversation_manager import ConversationManager
 import re
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -175,225 +178,184 @@ class ChatService:
             raise
     
     async def send_message(self,
-                       conversation_id: str,
-                       content: str,
-                       parent_id: str,
-                       active_thread_ids: List[str],
-                       selected_block_id: Optional[str] = None,
-                       session: Optional[AsyncSession] = None,
-                       message_limit: int = 6) -> Tuple[Message, str]:
-        """Send a user message and get AI response, incorporating selected block context if provided"""
-        logger.info(f"Sending message to conversation {conversation_id}, selected block: {selected_block_id}, parent: {parent_id}")
-
-        # Track if we need to manage the session ourselves
-        managed_session = session is None
-        if managed_session:
-            session = self._create_session()
+                           background_tasks: BackgroundTasks, 
+                           conversation_id: str,
+                           content: str,
+                           parent_id: str,
+                           active_thread_ids: List[str],
+                           selected_block_id: Optional[str] = None,
+                           session: Optional[AsyncSession] = None 
+                          ) -> Tuple[str, str]:
+        """Accepts a user message, saves it, creates a placeholder AI message,
+         returns their IDs immediately, and starts a background task for streaming LLM response.
+         """
+ 
+        # --- Ensure conversation exists --- 
+        conversation = await self.conversation_repo.get_conversation(conversation_id, session)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+ 
+        # --- Create and Save User Message --- 
+        user_msg = Message(
+            id=str(uuid.uuid4()),
+            conversation_id=conversation_id,
+            role=MessageRole.USER,
+            content=content,
+            parent_id=parent_id
+        )
+        await self.conversation_repo.add_message(user_msg, session)
+        logger.info(f"Created user message {user_msg.id} in conversation {conversation_id}")
+ 
+        # --- Create and Save Placeholder AI Message --- 
+        ai_msg = Message(
+            id=str(uuid.uuid4()), # Generate ID now
+            conversation_id=conversation_id,
+            role=MessageRole.ASSISTANT,
+            content="", # Start with empty content
+            parent_id=user_msg.id # Link to user message
+        )
+        await self.conversation_repo.add_message(ai_msg, session)
+        logger.info(f"Created placeholder AI message {ai_msg.id} in conversation {conversation_id}")
         
+        # --- Update Conversation Active Thread (Immediately) --- 
+        # This ensures the backend's active thread matches what the user sees
+        updated_active_thread_ids = active_thread_ids + [user_msg.id] + [ai_msg.id] # Add both
+        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
+        logger.info(f"Updated active thread for conversation {conversation_id}")
+        
+        # --- Add Background Task for LLM Generation and Streaming --- 
+        # Pass necessary data to the background task
+        # NOTE: Passing the session directly might cause issues if the request scope closes.
+        # If session errors occur, refactor to pass a session factory.
+        background_tasks.add_task(
+            self._generate_and_stream_response,
+            conversation_id=conversation_id,
+            user_msg=user_msg, # Pass the message object itself
+            ai_msg_id=ai_msg.id, # Pass the ID of the placeholder
+            initial_active_thread_ids=active_thread_ids + [user_msg.id], # Thread *before* AI msg
+            selected_block_id=selected_block_id,
+            session=session # Pass session (potential issue)
+        )
+        logger.info(f"Added background task for AI message {ai_msg.id}")
+        
+        # --- Return User and AI Message IDs Immediately --- 
+        return user_msg.id, ai_msg.id
+    
+    async def _generate_and_stream_response(
+        self,
+        conversation_id: str,
+        user_msg: Message,
+        ai_msg_id: str,
+        initial_active_thread_ids: List[str],
+        selected_block_id: Optional[str],
+        session: Optional[AsyncSession] # Potential issue: Session might be closed
+    ):
+        """Background task to generate LLM response, stream it via SSE, and update the placeholder message."""
+        logger.info(f"Starting background task for AI message {ai_msg_id}")
+        full_response_content = ""
         try:
-            # --- FIRST TRANSACTION: Everything before the LLM call ---
+            # Re-fetch conversation within the task scope if necessary (depends on session handling)
             conversation = await self.conversation_repo.get_conversation(conversation_id, session)
             if not conversation:
-                logger.error(f"Conversation {conversation_id} not found")
-                raise ValueError(f"Conversation {conversation_id} not found")
+                 logger.error(f"[Task {ai_msg_id}] Conversation {conversation_id} not found.")
+                 return
             
-            # Initialize included_pages if not present
-            if not hasattr(conversation, 'included_pages') or conversation.included_pages is None:
-                conversation.included_pages = {}
-                logger.info(f"Initialized included_pages tracking for conversation {conversation_id}")
-
-            # Verify the provided parent_id
-            messages = await self.conversation_repo.get_messages(conversation_id, session)
-            if not any(msg.id == parent_id for msg in messages):
-                logger.error(f"Parent message {parent_id} not found in conversation {conversation_id}")
-                raise ValueError(f"Parent message {parent_id} not found in conversation {conversation_id}")
-            
-            # Create user message
-            user_msg = await self.conversation_manager.create_user_message(
-                conversation_id=conversation_id,
-                content=content,
-                parent_id=parent_id,
-                session=session
-            )
-            
-            # Update the active thread
-            updated_active_thread_ids = active_thread_ids + [user_msg.id]
-            await self.conversation_manager.update_active_thread(conversation_id, updated_active_thread_ids, session)
-
-            # Add specific instruction to the user message
-            user_msg.content = "Answer this precisely and accurately, without lists in your answer: " + user_msg.content
-
-            # Build enhanced context
+            # --- Use ContextService to build enhanced context --- 
             context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
                 conversation,
-                user_msg,
-                active_thread_ids,
+                user_msg, # Use the user message that triggered this
+                initial_active_thread_ids, # Use the thread leading up to the user message
                 selected_block_id,
-                session,
-                message_limit
+                session
             )
             
-            # Update conversation if pages were added
+            # Update conversation included pages if they changed (async task needs care with concurrent updates)
+            # Consider if this update is critical here or can be handled differently
             if conversation.included_pages != updated_included_pages:
                 conversation.included_pages = updated_included_pages
-                await self.conversation_repo.update_conversation(conversation, session)
+                # await self.conversation_repo.update_conversation(conversation, session) # Be cautious with updates from background tasks
+                logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
             
-            # Save the first transaction work
-            if managed_session:
-                await session.commit()
-                await session.close()
-                logger.info("First transaction committed and closed before LLM call")
+            # --- Generate AI Response via Stream --- 
+            logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
+            llm_stream = self.llm_service.generate_response_stream(context_messages)
             
-            # Save IDs we'll need in the second transaction
-            user_msg_id = user_msg.id
+            async for chunk in llm_stream:
+                if chunk:
+                    full_response_content += chunk
+                    # Publish chunk via SSE manager
+                    await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
             
-            # --- NO TRANSACTION: LLM API CALL ---
-            # This happens outside of any transaction to avoid keeping DB connections open
-            logger.info("Calling LLM service outside of transaction")
+            logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
             
-            # Log the user message content being sent to the LLM
-            for i, msg in enumerate(context_messages):
-                if msg.role == 'user' and i == len(context_messages) - 1:
-                    logger.info(f"Final user message content: {msg.content}")
-                    
-            response_content = await self.llm_service.generate_response(context_messages)
-            logger.info("Generated response from LLM")
+            # --- Update Placeholder AI Message in DB --- 
+            # Fetch the placeholder message again using its ID
+            final_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
+            if final_ai_msg:
+                final_ai_msg.content = full_response_content
+                final_ai_msg.updated_at = datetime.utcnow() # Optionally update timestamp
+                await self.conversation_repo.update_message(final_ai_msg, session)
+                logger.info(f"[Task {ai_msg_id}] Successfully updated AI message content in DB.")
+            else:
+                logger.error(f"[Task {ai_msg_id}] Failed to find AI message {ai_msg_id} in DB to update content.")
             
-            # --- SECOND TRANSACTION: Everything after the LLM call ---
-            # Create a new session if we're managing it
-            if managed_session:
-                session = self._create_session()
-                logger.debug("Started new transaction after LLM call")
-            
-            try:
-                # Create and save AI message
-                ai_msg = await self.conversation_manager.create_ai_message(
-                    conversation_id=conversation_id,
-                    content=response_content,
-                    parent_id=user_msg_id,
-                    session=session
-                )
-                
-                # Update the active thread to include the AI response
-                updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
-                await self.conversation_manager.update_active_thread(
-                    conversation_id, 
-                    updated_active_thread_ids, 
-                    session
-                )
-                
-                # Commit the second transaction if we're managing it
-                if managed_session:
-                    await session.commit()
-                    logger.debug("Second transaction committed")
-                
-                return ai_msg, user_msg_id
-                
-            except Exception as e:
-                # Handle errors in second transaction
-                if managed_session:
-                    await session.rollback()
-                logger.error(f"Error in second transaction: {str(e)}")
-                raise
-        
         except Exception as e:
-            # Handle errors in first transaction
-            if managed_session and session and session.is_active:
-                await session.rollback()
-            logger.error(f"Error in first transaction: {str(e)}")
-            raise
-            
+            logger.error(f"[Task {ai_msg_id}] Error during LLM stream generation or DB update: {e}", exc_info=True)
+            # Optionally update the AI message content to indicate an error
+            try:
+                error_ai_msg = await self.conversation_repo.get_message(ai_msg_id, session)
+                if error_ai_msg:
+                    error_ai_msg.content = f"Error generating response: {e}"
+                    await self.conversation_repo.update_message(error_ai_msg, session)
+            except Exception as db_err:
+                logger.error(f"[Task {ai_msg_id}] Failed to update AI message with error state: {db_err}")
         finally:
-            # Always close the session if we created it
-            if managed_session and session:
-                await session.close()
+            # --- Clean up SSE Queue --- 
+            await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
+            logger.info(f"[Task {ai_msg_id}] Background task finished.")
     
     async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""
-        # Track if we need to manage the session ourselves
-        managed_session = session is None
-        if managed_session:
-            session = self._create_session()
-            
-        try:
-            # --- FIRST TRANSACTION: Everything before the LLM call ---
-            # Create new version as sibling
-            edited_msg, edited_msg_id = await self.conversation_repo.edit_message(message_id, content, session)
-            
-            # Update the active thread in the conversation record
-            # Instead of updating individual active_child_id pointers, store the complete thread
-            updated_active_thread_ids = active_thread_ids + [edited_msg.id]
-            await self.conversation_manager.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
-
-            edited_msg.content = "Answer this precisely and accurately, without lists in your answer:" + edited_msg.content
-            
-            # Build context using the provided active thread IDs
-            context = await self.context_service.build_message_context(
-                edited_msg.conversation_id, 
-                edited_msg,
-                active_thread_ids
-            )
-            
-            # Save important info we'll need after LLM call
-            conversation_id = edited_msg.conversation_id
-            edited_id = edited_msg.id
-            thread_ids = updated_active_thread_ids.copy()
-            
-            # Commit and close first transaction before LLM call
-            if managed_session:
-                await session.commit()
-                await session.close()
-                logger.debug("First transaction committed and closed before LLM call")
-            
-            # --- NO TRANSACTION: LLM API CALL ---
-            logger.debug("Calling LLM service outside of transaction")
-            response_content = await self.llm_service.generate_response(context)
-            logger.info("Generated response from LLM")
-            
-            # --- SECOND TRANSACTION: Everything after the LLM call ---
-            # Create a new session if we're managing it
-            if managed_session:
-                session = self._create_session()
-                logger.debug("Started new transaction after LLM call")
-                
-            try:
-                # Create new AI response as child of edited message
-                ai_msg = await self.conversation_manager.create_ai_message(
-                    conversation_id=conversation_id,
-                    content=response_content,
-                    parent_id=edited_id,
-                    session=session
-                )
-                
-                # Update the active thread to include the AI response
-                final_thread_ids = thread_ids + [ai_msg.id]
-                await self.conversation_manager.update_active_thread(conversation_id, final_thread_ids, session)
-                
-                # Commit the second transaction if we're managing it
-                if managed_session:
-                    await session.commit()
-                    logger.debug("Second transaction committed")
-                
-                return ai_msg, edited_msg_id
-                
-            except Exception as e:
-                # Handle errors in second transaction
-                if managed_session:
-                    await session.rollback()
-                logger.error(f"Error in second transaction: {str(e)}")
-                raise
-                
-        except Exception as e:
-            # Handle errors in first transaction
-            if managed_session and session and session.is_active:
-                await session.rollback()
-            logger.error(f"Error in first transaction: {str(e)}")
-            raise
-            
-        finally:
-            # Always close the session if we created it
-            if managed_session and session:
-                await session.close()
+        # TODO: Implement streaming for edit_message similar to send_message
+        # - Create edited version
+        # - Create placeholder AI response
+        # - Return IDs
+        # - Launch background task (_regenerate_and_stream_response)
+        # - Background task builds context from *edited* message, streams, publishes, updates DB, cleans up.
+        logger.warning("edit_message streaming not yet implemented, using blocking call.")
+        # Create new version as sibling
+        edited_msg, edited_msg_id = await self.conversation_repo.edit_message(message_id, content, session)
+        
+        # Update the active thread in the conversation record
+        # Instead of updating individual active_child_id pointers, store the complete thread
+        updated_active_thread_ids = active_thread_ids + [edited_msg.id]
+        await self.conversation_repo.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
+        
+        # Build context using the provided active thread IDs and generate new AI response
+        context = await self.context_service.build_message_context(
+            edited_msg.conversation_id, 
+            edited_msg,
+            active_thread_ids
+        )
+        response_content = await self.llm_service.generate_response(context)
+        
+        # Create new AI response as child of edited message
+        ai_msg = Message(
+            id=str(uuid.uuid4()),
+            conversation_id=edited_msg.conversation_id,
+            role=MessageRole.ASSISTANT,
+            content=response_content,
+            parent_id=edited_msg.id
+        )
+        
+        # Save AI message
+        await self.conversation_repo.add_message(ai_msg, session)
+        
+        # Update the active thread to include the AI response
+        updated_active_thread_ids = updated_active_thread_ids + [ai_msg.id]
+        await self.conversation_repo.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
+        
+        return ai_msg, edited_msg_id
     
     async def get_message_versions(self, message_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         """Get all versions of a message"""

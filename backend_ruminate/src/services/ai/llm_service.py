@@ -1,8 +1,8 @@
 # llm_service.py
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, AsyncGenerator
 from src.models.conversation.message import Message, MessageRole
-from litellm import acompletion
+from litellm import acompletion, ModelResponse
 import google.generativeai as genai
 from google.generativeai import types # Keep this import
 import base64
@@ -126,6 +126,52 @@ class LLMService:
             logger.error(f"Error calling LiteLLM acompletion: {e}")
             return f"Error generating response: {e}"
 
+    async def generate_response_stream(self, messages: List[Message]) -> AsyncGenerator[str, None]:
+        """Generate LLM response for the given messages via stream
+
+        Args:
+            messages: List of messages in the conversation thread
+
+        Yields:
+            String chunks of the generated response text
+        """
+        # Convert our Message objects to the format expected by litellm
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                "role": msg.role,  # MessageRole enum is already a string
+                "content": msg.content
+            })
+
+        completion_stream: Optional[ModelResponse] = None
+        try:
+            logger.debug(f"Calling LiteLLM acompletion with stream=True for model {self.CHAT_MODEL}")
+            completion_stream = await acompletion(
+                model=self.CHAT_MODEL,
+                messages=formatted_messages,
+                api_key=self.api_key,
+                stream=True  # Enable streaming
+            )
+            logger.debug("LiteLLM acompletion stream started.")
+            
+            async for chunk in completion_stream:
+                # Extract content delta from the chunk
+                # The exact structure might vary slightly depending on the underlying LLM API
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    content_delta = chunk.choices[0].delta.content
+                    # logger.debug(f"Received chunk: {content_delta}")
+                    yield content_delta
+                # else:
+                    # logger.debug(f"Received non-content chunk or empty delta: {chunk}") # Can be noisy
+            
+            logger.debug("Finished iterating through LiteLLM stream.")
+
+        except Exception as e:
+            logger.error(f"Error during LiteLLM stream: {e}", exc_info=True)
+            yield f"Error during generation: {e}" # Yield an error message if streaming fails
+        finally:
+            logger.debug("Stream generation process completed.")
+            # Optional: Any stream-specific cleanup if needed
 
     async def generate_structured_response(
         self,
