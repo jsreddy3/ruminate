@@ -22,9 +22,22 @@ export function useConversation({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [newMessage, setNewMessage] = useState("");
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [currentEventSource, setCurrentEventSource] = useState<EventSource | null>(null);
 
   // Add scroll effect
   useScrollEffect(displayedThread);
+
+  // Cleanup EventSource on component unmount or conversation change
+  useEffect(() => {
+    return () => {
+      if (currentEventSource) {
+        console.log("Closing EventSource connection due to unmount/change.");
+        currentEventSource.close();
+        setCurrentEventSource(null);
+      }
+    };
+  }, [currentEventSource]);
 
   // Fetch conversation history
   useEffect(() => {
@@ -64,103 +77,151 @@ export function useConversation({
     fetchConversationHistory();
   }, [conversationId]); // Only depends on conversationId, not blockId
 
-  const sendMessage = async (content: string, selectedBlockId?: string) => {
+  const sendMessage = async (content: string, contextBlockId?: string) => {
     if (!content.trim() || isLoading || !conversationId) return;
+
+    console.log("Sending message:", content, "Block ID:", contextBlockId);
     setIsLoading(true);
+    setNewMessage(""); 
 
-    // --- Determine the correct parent ID ---
-    // Find the last message in the currently displayed thread
-    const lastDisplayedMessage = displayedThread.length > 0
-    ? displayedThread[displayedThread.length - 1]
-    : null;
-
-    // If no message is displayed (only system message exists), use the root message ID
-    const parentIdToSend = lastDisplayedMessage
-      ? lastDisplayedMessage.id
-      : messageTree[0]?.id; // Use root message (system) if thread is empty
-
-    if (!parentIdToSend) {
-        console.error("Cannot send message: Could not determine parent message ID.");
-        setIsLoading(false);
-        return; // Prevent sending if parent cannot be determined
-    }
-    // --- End: Determine the correct parent ID ---
-
-    // Create optimistic user message
-    const userMessage: Message = {
-      id: "unset-user-message-id",
+    // --- Optimistic UI Update for User Message --- 
+    const tempUserMessageId = `temp-user-${Date.now()}`;
+    const parentId = displayedThread.length > 0 ? displayedThread[displayedThread.length - 1].id : messageTree[0]?.id; // Get last message ID or root system message ID
+    const userMsg: Message = {
+      id: tempUserMessageId, // Temporary ID until backend confirms
       role: "user",
-      content,
-      parent_id: parentIdToSend,
+      content: content,
+      parent_id: parentId,
       children: [],
       active_child_id: null,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
-    const tempThread = [...displayedThread, userMessage];
-    setDisplayedThread(tempThread);
+    // Update state: add user message
+    setMessagesById(prev => new Map(prev).set(userMsg.id, userMsg));
+    setDisplayedThread(prev => [...prev, userMsg]);
 
     try {
-      // Collect IDs of all messages in the current displayed thread
       const activeThreadIds = displayedThread.map(msg => msg.id);
       
-      const [aiResponse, backendUserId] = await conversationApi.sendMessage(
+      // --- Call Backend (gets user_msg_id, ai_msg_id) --- 
+      const [ actualUserMsgId, aiMsgId ] = await conversationApi.sendMessage(
         conversationId,
         content,
-        parentIdToSend,
-        activeThreadIds, // Pass the active thread IDs
-        selectedBlockId // Pass selected block ID to API
+        parentId ?? "", 
+        activeThreadIds, // Send current displayed thread IDs
+        contextBlockId // Optional block ID for context
       );
 
-      // --- Update with Backend Data ---
-      userMessage.id = backendUserId; // Update ID
-      messagesById.set(backendUserId, userMessage); // Add to map with correct ID
-
-      // Update parent's children and active_child_id in the map
-      const parent = messagesById.get(parentIdToSend);
-      if (parent) {
-        if (!parent.children.some(c => c.id === userMessage.id)) { // Avoid duplicates if already optimistically added
-          parent.children.push(userMessage);
-        }
-        parent.active_child_id = userMessage.id;
-      } else {
-        // This case should be rare if parentIdToSend was validated or fetched correctly
-        console.warn(`Parent message ${parentIdToSend} not found in map during update.`);
+      // Update user message ID if backend returned a different one (unlikely but good practice)
+      if (tempUserMessageId !== actualUserMsgId) {
+         setMessagesById(prev => {
+           const newMap = new Map(prev);
+           const msg = newMap.get(tempUserMessageId);
+           if (msg) {
+             newMap.delete(tempUserMessageId);
+             msg.id = actualUserMsgId;
+             newMap.set(actualUserMsgId, msg);
+           }
+           return newMap;
+         });
+         setDisplayedThread(prev => 
+           prev.map(msg => msg.id === tempUserMessageId ? { ...msg, id: actualUserMsgId } : msg)
+         );
       }
 
-      const aiMessage: Message = {
-        id: aiResponse.id,
-        role: aiResponse.role as "user" | "assistant" | "system",
-        content: aiResponse.content,
-        parent_id: userMessage.id,
+      // --- Add Placeholder AI Message --- 
+      const placeholderAiMsg: Message = {
+        id: aiMsgId,
+        role: "assistant",
+        content: "", // Empty content initially
+        parent_id: actualUserMsgId, // Parent is the confirmed user message
         children: [],
         active_child_id: null,
-        created_at: aiResponse.created_at
+        created_at: new Date().toISOString(),
       };
-      messagesById.set(aiMessage.id, aiMessage);
 
-      // Update user message's children and active_child_id in the map
-      userMessage.children.push(aiMessage);
-      userMessage.active_child_id = aiMessage.id;
+      setMessagesById(prev => new Map(prev).set(aiMsgId, placeholderAiMsg));
+      // Add placeholder to the *end* of the displayed thread
+      setDisplayedThread(prev => {
+          // Ensure user message exists before adding AI message
+          const userMsgIndex = prev.findIndex(m => m.id === actualUserMsgId);
+          if (userMsgIndex !== -1) {
+              return [...prev, placeholderAiMsg];
+          } else {
+              // Handle case where user message might not be in state yet (should be rare)
+              console.warn("User message not found in displayedThread when adding placeholder AI message");
+              return [...prev, placeholderAiMsg];
+          }
+      });
+      setStreamingMessageId(aiMsgId);
+      setIsLoading(true); // Keep loading while streaming
 
-      // Recalculate displayed thread based on updated map/tree
-      const newActiveThread = getActiveThread(messageTree[0], messagesById);
-      setDisplayedThread(newActiveThread);
+      // --- Initiate SSE Connection --- 
+      const eventSourceUrl = `/api/conversations/${conversationId}/messages/${aiMsgId}/stream`;
+      console.log(`Connecting to SSE: ${eventSourceUrl}`);
+      const es = new EventSource(eventSourceUrl);
+      setCurrentEventSource(es); // Store the connection
+
+      es.onmessage = (event) => {
+        const chunk = event.data;
+        // console.log("SSE chunk received:", chunk);
+        if (chunk === "[DONE]") {
+          console.log("SSE stream finished.");
+          es.close();
+          setCurrentEventSource(null);
+          setStreamingMessageId(null);
+          setIsLoading(false); // Stop loading indicator
+          // Optionally: Fetch full tree again to ensure consistency, or trust stream
+          // fetchConversationHistory(); 
+        } else {
+          // Update the content of the streaming message
+          setMessagesById(prevMap => {
+            const newMap = new Map(prevMap);
+            const streamingMsg = newMap.get(aiMsgId);
+            if (streamingMsg) {
+              streamingMsg.content += chunk;
+              newMap.set(aiMsgId, { ...streamingMsg }); // Create new object reference
+            }
+            return newMap;
+          });
+          // Force displayedThread update by creating new message object reference
+          setDisplayedThread(prevThread => prevThread.map(msg => 
+              msg.id === aiMsgId ? { ...messagesById.get(aiMsgId)! } : msg
+          ));
+        }
+      };
+
+      es.onerror = (error) => {
+        console.error("SSE Error:", error);
+        es.close();
+        setCurrentEventSource(null);
+        setStreamingMessageId(null);
+        setIsLoading(false);
+        // Update message to show error
+        setMessagesById(prevMap => {
+            const newMap = new Map(prevMap);
+            const streamingMsg = newMap.get(aiMsgId);
+            if (streamingMsg) {
+              streamingMsg.content = "Error receiving response.";
+              newMap.set(aiMsgId, { ...streamingMsg });
+            }
+            return newMap;
+        });
+        setDisplayedThread(prevThread => prevThread.map(msg => 
+            msg.id === aiMsgId ? { ...messagesById.get(aiMsgId)! } : msg
+        ));
+      };
 
     } catch (error) {
-      console.error("Error sending message:", error); // Keep error handling
-      // Revert optimistic update
-      setDisplayedThread(prev => prev.filter(msg => msg.id !== "unset-user-message-id")); // More robust removal
-      messagesById.delete("unset-user-message-id");
-      // Reset parent's active child if it was the optimistic one
-      const parent = messagesById.get(parentIdToSend);
-      if (parent && parent.active_child_id === "unset-user-message-id") {
-        // Find the last *real* child of the parent before the optimistic one was added
-        const realChildren = parent.children.filter(c => c.id !== "unset-user-message-id");
-        parent.active_child_id = realChildren.length > 0 ? realChildren[realChildren.length - 1].id : null;
-      }
-    } finally {
-      setNewMessage("");
+      console.error("Failed to send message:", error);
+      // Revert optimistic update on error
+      setMessagesById(prev => { // Remove optimistic user message
+         const newMap = new Map(prev);
+         newMap.delete(tempUserMessageId);
+         return newMap;
+       });
+      setDisplayedThread(prev => prev.filter(msg => msg.id !== tempUserMessageId));
       setIsLoading(false);
     }
   };
