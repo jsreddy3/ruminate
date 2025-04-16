@@ -159,8 +159,8 @@ async def get_message_tree(
     """Get the full tree of messages in a conversation, including all versions and branches"""
     try:
         logger.info(f"Getting message tree for conversation: {conversation_id}")
-        
-        # Add pre-execution logging
+         
+         # Add pre-execution logging
         logger.info(f"Beginning chat_service.get_message_tree call for {conversation_id}")
         
         try:
@@ -185,10 +185,13 @@ async def get_message_tree(
         except Exception as inner_e:
             logger.error(f"Error in get_message_tree service call: {str(inner_e)}", exc_info=True)
             raise inner_e
-            
     except ValueError as e:
         logger.error(f"ValueError in get_message_tree: {str(e)}")
+        logger.error(f"ValueError in get_message_tree: {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in get_message_tree endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error retrieving message tree: {str(e)}")
     except Exception as e:
         logger.error(f"Unexpected error in get_message_tree endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error retrieving message tree: {str(e)}")
