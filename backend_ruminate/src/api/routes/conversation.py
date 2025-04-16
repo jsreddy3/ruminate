@@ -7,6 +7,9 @@ from src.models.conversation.conversation import Conversation
 from src.models.conversation.message import Message
 from src.services.conversation.chat_service import ChatService
 from src.api.dependencies import get_chat_service, get_db
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -136,6 +139,37 @@ async def get_message_tree(
 ) -> List[Message]:
     """Get the full tree of messages in a conversation, including all versions and branches"""
     try:
-        return await chat_service.get_message_tree(conversation_id, session)
+        logger.info(f"Getting message tree for conversation: {conversation_id}")
+        
+        # Add pre-execution logging
+        logger.info(f"Beginning chat_service.get_message_tree call for {conversation_id}")
+        
+        try:
+            message_tree = await chat_service.get_message_tree(conversation_id, session)
+            
+            # Log message count to diagnose potential size issues
+            message_count = len(message_tree) if message_tree else 0
+            logger.info(f"Retrieved {message_count} messages for conversation {conversation_id}")
+            
+            # Check for circular references before attempting to log the full tree
+            try:
+                # Log just the IDs of messages to avoid serializing the whole tree
+                message_ids = [msg.id for msg in message_tree]
+                logger.info(f"Message IDs in tree: {message_ids[:10]}{'...' if len(message_ids) > 10 else ''}")
+            except Exception as ref_err:
+                logger.error(f"Error accessing message IDs: {str(ref_err)}")
+            
+            # Return the message tree - this is where serialization might fail
+            logger.info(f"Attempting to return message tree for {conversation_id}")
+            return message_tree
+            
+        except Exception as inner_e:
+            logger.error(f"Error in get_message_tree service call: {str(inner_e)}", exc_info=True)
+            raise inner_e
+            
     except ValueError as e:
+        logger.error(f"ValueError in get_message_tree: {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in get_message_tree endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error retrieving message tree: {str(e)}")

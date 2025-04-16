@@ -66,49 +66,113 @@ class ChatService:
     
     async def get_message_tree(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         """Get the full tree of messages in a conversation, including all versions and branches"""
+        logger.info(f"ChatService.get_message_tree called for conversation {conversation_id}")
         
-        # First verify the conversation exists
-        conversation = await self.conversation_repo.get_conversation(conversation_id, session)
-        if not conversation:
-            logger.error(f"Conversation {conversation_id} not found")
-            raise ValueError(f"Conversation {conversation_id} not found")
-            
-        # Get all messages in the conversation
-        messages = await self.conversation_repo.get_messages(conversation_id, session)
-        if not messages:
-            return []
-            
-        # Build lookup tables for efficient traversal
-        messages_by_id = {msg.id: msg for msg in messages}
-        children_by_parent = {}
-        
-        # Group messages by parent_id to find all children (including versions)
-        for msg in messages:
-            if msg.parent_id:
-                if msg.parent_id not in children_by_parent:
-                    children_by_parent[msg.parent_id] = []
-                children_by_parent[msg.parent_id].append(msg)
+        try:
+            # First verify the conversation exists
+            logger.info(f"Verifying conversation {conversation_id} exists")
+            conversation = await self.conversation_repo.get_conversation(conversation_id, session)
+            if not conversation:
+                logger.error(f"Conversation {conversation_id} not found")
+                raise ValueError(f"Conversation {conversation_id} not found")
                 
-        # Find root message (system message with no parent)
-        root = next((msg for msg in messages if msg.parent_id is None and msg.role == MessageRole.SYSTEM), None)
-        if not root:
-            logger.error(f"No root message found in conversation {conversation_id}")
-            raise ValueError(f"No root message found in conversation {conversation_id}")
+            # Get all messages in the conversation
+            logger.info(f"Fetching messages for conversation {conversation_id}")
+            messages = await self.conversation_repo.get_messages(conversation_id, session)
             
-        # For each message, ensure active_child_id points to the latest version in its branch
-        for msg_id, children in children_by_parent.items():
-            parent = messages_by_id[msg_id]
-            # If parent has no active_child_id set, set it to the latest child
-            if not parent.active_child_id and children:
-                # Sort by creation time if available, otherwise use the last message
-                latest = sorted(children, key=lambda m: m.created_at if hasattr(m, 'created_at') else float('inf'))[-1]
-                parent.active_child_id = latest.id
+            if not messages:
+                logger.info(f"No messages found for conversation {conversation_id}")
+                return []
+            
+            logger.info(f"Retrieved {len(messages)} messages for conversation {conversation_id}")
+            
+            # Build lookup tables for efficient traversal
+            logger.info("Building message lookup tables")
+            try:
+                messages_by_id = {msg.id: msg for msg in messages}
+                children_by_parent = {}
                 
-        # Return all messages - the tree structure is defined by:
-        # 1. parent_id links showing message relationships
-        # 2. Messages with same parent_id are versions
-        # 3. active_child_id showing which version is current
-        return messages
+                # Group messages by parent_id to find all children (including versions)
+                for msg in messages:
+                    if msg.parent_id:
+                        if msg.parent_id not in children_by_parent:
+                            children_by_parent[msg.parent_id] = []
+                        children_by_parent[msg.parent_id].append(msg)
+                
+                logger.info(f"Found {len(children_by_parent)} parent messages with children")
+                
+                # Find root message (system message with no parent)
+                root = next((msg for msg in messages if msg.parent_id is None and msg.role == MessageRole.SYSTEM), None)
+                if not root:
+                    logger.error(f"No root message found in conversation {conversation_id}")
+                    raise ValueError(f"No root message found in conversation {conversation_id}")
+                
+                logger.info(f"Found root message with ID: {root.id}")
+                
+                # For each message, ensure active_child_id points to the latest version in its branch
+                updated_parents = 0
+                for msg_id, children in children_by_parent.items():
+                    parent = messages_by_id[msg_id]
+                    # If parent has no active_child_id set, set it to the latest child
+                    if not parent.active_child_id and children:
+                        # Sort by creation time if available, otherwise use the last message
+                        latest = sorted(children, key=lambda m: m.created_at if hasattr(m, 'created_at') else float('inf'))[-1]
+                        parent.active_child_id = latest.id
+                        updated_parents += 1
+                
+                logger.info(f"Updated active_child_id for {updated_parents} parents")
+                
+                # Check for potential circular references that might cause serialization issues
+                logger.info("Checking for circular references in the message tree...")
+                circular_refs = set()
+                
+                for msg in messages:
+                    # Check if any message's active_child has the message as its parent
+                    if msg.active_child_id and msg.active_child_id in messages_by_id:
+                        active_child = messages_by_id[msg.active_child_id]
+                        if active_child.parent_id == msg.id:
+                            circular_refs.add(msg.id)
+                            logger.warning(f"Potential circular reference detected: message {msg.id} has active_child {active_child.id} which points back to it")
+                
+                if circular_refs:
+                    logger.warning(f"Found {len(circular_refs)} messages with potential circular references")
+                
+                # Return a clean version of messages to avoid serialization issues
+                logger.info("Removing circular references for serialization")
+                result_messages = []
+                for msg in messages:
+                    try:
+                        # Create a shallow copy using just the basic fields to avoid circular references
+                        msg_dict = {
+                            "id": msg.id,
+                            "conversation_id": msg.conversation_id,
+                            "role": msg.role,
+                            "content": msg.content,
+                            "created_at": msg.created_at,
+                            "parent_id": msg.parent_id,
+                            "meta_data": msg.meta_data,
+                            "block_id": msg.block_id,
+                            "active_child_id": msg.active_child_id,
+                            "version": msg.version,
+                            # Explicitly set these to None to avoid circular references
+                            "children": None,
+                            "active_child": None
+                        }
+                        msg_copy = Message(**msg_dict)
+                        result_messages.append(msg_copy)
+                        logger.debug(f"Successfully processed message {msg.id}")
+                    except Exception as copy_error:
+                        logger.error(f"Error copying message {msg.id}: {str(copy_error)}")
+                
+                logger.info(f"Returning {len(result_messages)} messages with circular references removed")
+                return result_messages
+                
+            except Exception as table_error:
+                logger.error(f"Error building message tree tables: {str(table_error)}", exc_info=True)
+                raise
+        except Exception as e:
+            logger.error(f"Unexpected error in get_message_tree: {str(e)}", exc_info=True)
+            raise
     
     async def send_message(self,
                        conversation_id: str,
