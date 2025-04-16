@@ -115,32 +115,54 @@ class ContextService:
             return ""
         return re.sub(r'<[^>]+>', ' ', html_content).strip()
     
-    async def build_message_context(self, conversation_id: str, new_message: Message, active_thread_ids: List[str]) -> List[Message]:
-        """Build context for LLM by getting the active thread of messages"""
+    async def build_message_context(self, conversation_id: str, new_message: Message, active_thread_ids: List[str], message_limit: int = None) -> List[Message]:
+        """
+        Build context for LLM by getting the active thread of messages
+        If message_limit is provided, only the most recent N non-system messages will be included
+        System messages are always included regardless of the limit
+        """
         all_messages = await self.conversation_repo.get_messages(conversation_id)
         messages_by_id = {msg.id: msg for msg in all_messages}
         
-        # Build context from the provided thread IDs
-        context = [messages_by_id[msg_id] for msg_id in active_thread_ids if msg_id in messages_by_id]
+        # Get all messages from the active thread
+        all_context = [messages_by_id[msg_id] for msg_id in active_thread_ids if msg_id in messages_by_id]
+        
+        # If no limit is set, use all messages
+        if message_limit is None:
+            context = all_context
+        else:
+            # Separate system and non-system messages
+            system_msgs = [msg for msg in all_context if msg.role == MessageRole.SYSTEM]
+            non_system_msgs = [msg for msg in all_context if msg.role != MessageRole.SYSTEM]
+            
+            # Limit non-system messages to the most recent ones
+            limited_non_system = non_system_msgs[-message_limit:] if len(non_system_msgs) > message_limit else non_system_msgs
+            
+            # Combine system messages with limited non-system messages
+            context = system_msgs + limited_non_system
+        
+        # Add the new message
         context.append(new_message)
         return context
     
     async def enhance_context_with_block(self, 
-                                        conversation: Conversation, 
-                                        user_msg: Message,
-                                        active_thread_ids: List[str],
-                                        selected_block_id: Optional[str] = None,
-                                        session: Optional[object] = None) -> Tuple[List[Message], Dict[str, str]]:
+                                    conversation: Conversation, 
+                                    user_msg: Message,
+                                    active_thread_ids: List[str],
+                                    selected_block_id: Optional[str] = None,
+                                    session: Optional[object] = None,
+                                    message_limit: int = None) -> Tuple[List[Message], Dict[str, str]]:
         """
         Enhance message context with selected block and page content
         Returns: (enhanced context messages, pages_tracking_info)
         """
         # Build the base message context
-        context_messages = await self.build_message_context(conversation.id, user_msg, active_thread_ids)
+        context_messages = await self.build_message_context(conversation.id, user_msg, active_thread_ids, message_limit)
         
         # Track selected block and pages
         selected_block = None
         pages_content = ""
+        enhanced_user_content = ""
         
         # Initialize included_pages if not present
         if not hasattr(conversation, 'included_pages') or conversation.included_pages is None:
@@ -181,32 +203,28 @@ class ContextService:
                             conversation.included_pages[str(prev_page_num)] = user_msg.id
                             # logger.info(f"Added page {prev_page_num} to included pages")
         
-        # Add selected block content
+        # Add selected block content to user message
         selected_block_text = None
         if selected_block and selected_block.html_content:
             selected_block_text = self._strip_html(selected_block.html_content)
-            # logger.info(f"Fetched content for selected block {selected_block_id}")
+            enhanced_user_content += f"Selected block content:\n---\n{selected_block_text}\n---\n\n"
         
-        # Enhance user message content
-        enhanced_content = ""
+        # Add original user query to user message
+        enhanced_user_content += user_msg.content
         
-        # Add page content if any pages were included
+        # Find system message and add page content to it
         if pages_content:
-            enhanced_content += pages_content
+            for i, msg in enumerate(context_messages):
+                if msg.role == MessageRole.SYSTEM:
+                    # Store original system content
+                    original_system = msg.content
+                    # Add page content after system instructions
+                    msg.content = f"{original_system}\n\nDocument Context:\n{pages_content}"
+                    break
         
-        # Add selected block content
-        if selected_block_text:
-            enhanced_content += f"Selected block content:\n---\n{selected_block_text}\n---\n\n"
-        
-        # Add original user query
-        enhanced_content += user_msg.content
-        
-        # Modify the context with enhanced content if needed
-        if enhanced_content:
-            # Create a copy of the last message to avoid modifying the original
-            enhanced_user_msg = context_messages[-1]
-            enhanced_user_msg.content = enhanced_content
-            # logger.info(f"Enhanced context with page and block content")
+        # Update user message with block content + query
+        enhanced_user_msg = context_messages[-1]  # Last message is the user message
+        enhanced_user_msg.content = enhanced_user_content
         
         # Log context information for verification
         # self._log_context_info(conversation.id, conversation.included_pages, selected_block, selected_block_id, context_messages)

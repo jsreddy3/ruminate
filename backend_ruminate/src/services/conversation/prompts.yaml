@@ -11,6 +11,9 @@ regular_conversation:
     Your job is, first and foremost, to respond to what the user says.
     Answer accurately, concisely, and precisely—avoid long lists of answers. Understand 
     the user's question intuitively and provide them a clear response. Answer naturally as well.
+    Avoid long lists of numbered answers. Answer in a brief, clear, comprehensive character.
+    DO NOT PROVIDE BROAD PREFIXES SUMMARIZING THE DOCUMENT. Be extremely precise and
+    document-grounded in your specific responses. DO NOT PROVIDE NUMBERED LISTS. BE SPECIFIC!!
 
 # Rabbithole conversation system message
 rabbithole_conversation:
@@ -138,4 +141,6 @@ agent_rabbithole:
 # Note generation prompt
 note_generation:
   user_message: |
-    Based on our conversation about this document and content, can you create a concise, well-structured note summarizing the key insights and information we've discussed? The note should be factual, clear, and highlight the most important points. Remember to be brief. DO NOT WRITE MORE THAN THREE SENTENCES. FOCUS EXTREMELY CAREFULLY ON THE CONVERSATION - WHAT WAS ASKED & ANSWERED. 
+    Based on our conversation about this document and content, can you create a concise, well-structured note summarizing the key insights and information we've discussed? 
+    The note should be factual, clear, and highlight the most important points. Remember to be brief. DO NOT WRITE MORE THAN THREE SENTENCES. FOCUS EXTREMELY CAREFULLY ON 
+    THE CONVERSATION - WHAT WAS ASKED & ANSWERED. Write as if this was a reading note, not as if you're writing a summary of the conversation.

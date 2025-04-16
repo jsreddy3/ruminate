@@ -116,7 +116,8 @@ class ChatService:
                        parent_id: str,
                        active_thread_ids: List[str],
                        selected_block_id: Optional[str] = None,
-                       session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
+                       session: Optional[AsyncSession] = None,
+                       message_limit: int = 6) -> Tuple[Message, str]:
         """Send a user message and get AI response, incorporating selected block context if provided"""
         logger.info(f"Sending message to conversation {conversation_id}, selected block: {selected_block_id}, parent: {parent_id}")
 
@@ -155,13 +156,17 @@ class ChatService:
             updated_active_thread_ids = active_thread_ids + [user_msg.id]
             await self.conversation_manager.update_active_thread(conversation_id, updated_active_thread_ids, session)
 
+            # Add specific instruction to the user message
+            user_msg.content = "Answer this precisely and accurately, without lists in your answer: " + user_msg.content
+
             # Build enhanced context
             context_messages, updated_included_pages = await self.context_service.enhance_context_with_block(
                 conversation,
                 user_msg,
                 active_thread_ids,
                 selected_block_id,
-                session
+                session,
+                message_limit
             )
             
             # Update conversation if pages were added
@@ -173,14 +178,20 @@ class ChatService:
             if managed_session:
                 await session.commit()
                 await session.close()
-                logger.debug("First transaction committed and closed before LLM call")
+                logger.info("First transaction committed and closed before LLM call")
             
             # Save IDs we'll need in the second transaction
             user_msg_id = user_msg.id
             
             # --- NO TRANSACTION: LLM API CALL ---
             # This happens outside of any transaction to avoid keeping DB connections open
-            logger.debug("Calling LLM service outside of transaction")
+            logger.info("Calling LLM service outside of transaction")
+            
+            # Log the user message content being sent to the LLM
+            for i, msg in enumerate(context_messages):
+                if msg.role == 'user' and i == len(context_messages) - 1:
+                    logger.info(f"Final user message content: {msg.content}")
+                    
             response_content = await self.llm_service.generate_response(context_messages)
             logger.info("Generated response from LLM")
             
@@ -249,6 +260,8 @@ class ChatService:
             # Instead of updating individual active_child_id pointers, store the complete thread
             updated_active_thread_ids = active_thread_ids + [edited_msg.id]
             await self.conversation_manager.update_active_thread(edited_msg.conversation_id, updated_active_thread_ids, session)
+
+            edited_msg.content = "Answer this precisely and accurately, without lists in your answer:" + edited_msg.content
             
             # Build context using the provided active thread IDs
             context = await self.context_service.build_message_context(
