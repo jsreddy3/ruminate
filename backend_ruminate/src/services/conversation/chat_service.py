@@ -204,65 +204,73 @@ class ChatService:
             raise
     
     async def send_message(self,
-                           background_tasks: BackgroundTasks, 
-                           conversation_id: str,
-                           content: str,
-                           parent_id: str,
-                           active_thread_ids: List[str],
-                           selected_block_id: Optional[str] = None,
-                           session: Optional[AsyncSession] = None 
-                          ) -> Tuple[str, str]:
-        """Accepts a user message, saves it, creates a placeholder AI message,
-         returns their IDs immediately, and starts a background task for streaming LLM response.
-         """
- 
-        # --- Ensure conversation exists --- 
+                       background_tasks: BackgroundTasks,
+                       conversation_id: str,
+                       content: str,
+                       parent_id: str,
+                       active_thread_ids: List[str],
+                       selected_block_id: Optional[str] = None,
+                       session: Optional[AsyncSession] = None,
+                       message_limit: int = 6) -> Tuple[str, str]:
+        """Send a user message and get AI response, incorporating selected block context if provided"""
+        logger.info(
+            f"Streaming send_message → conv={conversation_id} parent={parent_id} block={selected_block_id}"
+        )
+
+        # ── session handling ───────────────────────────────────────────────────────
+        managed = session is None
+        if managed:
+            session = self._create_session()
+
+        # ── 1 conversation / parent checks (same as before) ────────────────────────
         conversation = await self.conversation_repo.get_conversation(conversation_id, session)
         if not conversation:
             raise ValueError(f"Conversation {conversation_id} not found")
- 
-        # --- Create and Save User Message --- 
-        user_msg = Message(
-            id=str(uuid.uuid4()),
+
+        msgs = await self.conversation_repo.get_messages(conversation_id, session)
+        if not any(m.id == parent_id for m in msgs):
+            raise ValueError(f"Parent {parent_id} not in conversation")
+
+        # ── 2 User message ─────────────────────────────────────────────────────────
+        user_msg = await self.conversation_manager.create_user_message(
             conversation_id=conversation_id,
             role=MessageRole.USER,
             content=content,
-            parent_id=parent_id
+            parent_id=parent_id,
+            session=session,
         )
-        await self.conversation_repo.add_message(user_msg, session)
-        logger.info(f"Created user message {user_msg.id} in conversation {conversation_id}")
- 
-        # --- Create and Save Placeholder AI Message --- 
-        ai_msg = Message(
-            id=str(uuid.uuid4()), # Generate ID now
+
+        # ── 3 Assistant placeholder (empty content) ───────────────────────────────
+        ai_msg_id = str(uuid.uuid4())
+        ai_placeholder = Message(
+            id=ai_msg_id,
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,
-            content="", # Start with empty content
-            parent_id=user_msg.id # Link to user message
+            content="",
+            parent_id=user_msg.id,
         )
-        await self.conversation_repo.add_message(ai_msg, session)
-        logger.info(f"Created placeholder AI message {ai_msg.id} in conversation {conversation_id}")
-        
-        # --- Update Conversation Active Thread (Immediately) --- 
-        # This ensures the backend's active thread matches what the user sees
-        updated_active_thread_ids = active_thread_ids + [user_msg.id] + [ai_msg.id] # Add both
-        await self.conversation_repo.update_active_thread(conversation_id, updated_active_thread_ids, session)
-        logger.info(f"Updated active thread for conversation {conversation_id}")
-        
-        # --- Add Background Task for LLM Generation and Streaming --- 
-        # Pass necessary data to the background task
+        await self.conversation_repo.add_message(ai_placeholder, session)
+
+        # ── 4 active‑thread update (user + placeholder) ────────────────────────────
+        thread_ids = active_thread_ids + [user_msg.id, ai_msg_id]
+        await self.conversation_repo.update_active_thread(conversation_id, thread_ids, session)
+
+        if managed:
+            await session.commit()
+            await session.close()
+
+        # ── 5 kick off background streaming task ──────────────────────────────────
         background_tasks.add_task(
             self._generate_and_stream_response,
             conversation_id=conversation_id,
-            user_msg=user_msg, # Pass the message object itself
-            ai_msg_id=ai_msg.id, # Pass the ID of the placeholder
-            initial_active_thread_ids=active_thread_ids + [user_msg.id], # Thread *before* AI msg
-            selected_block_id=selected_block_id
+            user_msg=user_msg,                      # full object for context building
+            ai_msg_id=ai_msg_id,
+            initial_active_thread_ids=active_thread_ids + [user_msg.id],
+            selected_block_id=selected_block_id,
         )
-        logger.info(f"Added background task for AI message {ai_msg.id}")
-        
-        # --- Return User and AI Message IDs Immediately --- 
-        return user_msg.id, ai_msg.id
+
+        # ── 6 return exactly what the frontend expects ─────────────────────────────
+        return user_msg.id, ai_msg_id
     
     async def _generate_and_stream_response(
         self,
