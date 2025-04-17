@@ -378,6 +378,25 @@ class ChatService:
         # =======================================================================
         logger.info(f"[Task {ai_msg_id}] Background task fully finished.")
     
+    def _create_session(self) -> AsyncSession:
+        """Create an ad‑hoc async session (used when DI didn’t inject one)."""
+        from src.config import get_settings
+        settings = get_settings()
+
+        if settings.document_storage_type == "rds":
+            url = (
+                f"postgresql+asyncpg://{settings.db_user}:{settings.db_password}"
+                f"@{settings.db_host}:{settings.db_port}/{settings.db_name}"
+            )
+        else:  # sqlite
+            url = f"sqlite+aiosqlite:///{settings.db_path}"
+
+        engine = create_async_engine(url, echo=False)
+        async_session = sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
+        return async_session()
+    
     async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""
         # TODO: Implement streaming for edit_message similar to send_message
