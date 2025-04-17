@@ -240,5 +240,4 @@ def get_agent_rabbithole_service(
         sse_manager=sse_manager,
         conversation_manager=conversation_manager,
         # web_search_service=web_search_service
-        db_session_factory=db_session_factory
     )
