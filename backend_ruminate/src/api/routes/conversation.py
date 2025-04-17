@@ -192,6 +192,3 @@ async def get_message_tree(
     except Exception as e:
         logger.error(f"Unexpected error in get_message_tree endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error retrieving message tree: {str(e)}")
-    except Exception as e:
-        logger.error(f"Unexpected error in get_message_tree endpoint: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving message tree: {str(e)}")

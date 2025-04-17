@@ -31,11 +31,13 @@ class ChatService:
                  conversation_repository: ConversationRepository,
                  document_repository: DocumentRepository,
                  llm_service: LLMService,
+                 conversation_manager: ConversationManager,
                  db_session_factory: sessionmaker):
         self.conversation_repo = conversation_repository
         self.document_repo = document_repository
         self.llm_service = llm_service
         self.context_service = ContextService(conversation_repository, document_repository)
+        self.conversation_manager = conversation_manager
         self.db_session_factory = db_session_factory
         logger.info("ChatService initialized.")
     
@@ -234,7 +236,6 @@ class ChatService:
         # ── 2 User message ─────────────────────────────────────────────────────────
         user_msg = await self.conversation_manager.create_user_message(
             conversation_id=conversation_id,
-            role=MessageRole.USER,
             content=content,
             parent_id=parent_id,
             session=session,
