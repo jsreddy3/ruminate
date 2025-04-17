@@ -23,6 +23,26 @@ class RDSConversationRepository(ConversationRepository):
             session_factory: SQLAlchemy session factory for database operations
         """
         self.session_factory = session_factory
+    
+    def _row_to_message_dict(self, model) -> Dict[str, Any]:
+        """
+        Copy SQLAlchemy model→dict and normalise types
+        (datetime → datetime, role → MessageRole enum).
+        """
+        msg_dict = {c.name: getattr(model, c.name) for c in model.__table__.columns}
+
+        # created_at comes back as text from SQLite / JSON fields
+        if isinstance(msg_dict.get("created_at"), str):
+            msg_dict["created_at"] = datetime.fromisoformat(msg_dict["created_at"])
+
+        # ** critical fix ** — convert role string → enum
+        if isinstance(msg_dict.get("role"), str):
+            try:
+                msg_dict["role"] = MessageRole(msg_dict["role"])
+            except ValueError:
+                logger.warning("Unknown role %s in DB; leaving as string", msg_dict["role"])
+
+        return msg_dict
         
     async def create_conversation(self, conversation: Conversation, session: Optional[AsyncSession] = None) -> Conversation:
         """Create a new conversation"""
@@ -230,14 +250,18 @@ class RDSConversationRepository(ConversationRepository):
             
             # Convert models to messages
             messages = []
-            for msg_model in msg_models:
-                msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
+            
+            # for msg_model in msg_models:
+            #     msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
                 
-                # Parse datetime string
-                if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
-                    msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
+            #     # Parse datetime string
+            #     if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
+            #         msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
                     
-                messages.append(Message.from_dict(msg_dict))
+            #     messages.append(Message.from_dict(msg_dict))
+                
+            for msg_model in msg_models:
+                messages.append(Message.from_dict(self._row_to_message_dict(msg_model)))
                 
             # Build message tree structure
             message_map = {message.id: message for message in messages}
@@ -278,14 +302,8 @@ class RDSConversationRepository(ConversationRepository):
             if not original_model:
                 raise ValueError(f"Message {message_id} not found")
                 
-            # Convert model to message
-            original_dict = {c.name: getattr(original_model, c.name) for c in original_model.__table__.columns}
-            
-            # Parse datetime string
-            if 'created_at' in original_dict and isinstance(original_dict['created_at'], str):
-                original_dict['created_at'] = datetime.fromisoformat(original_dict['created_at'])
-                
-            original_msg = Message.from_dict(original_dict)
+            # Convert model to message using helper
+            original_msg = Message.from_dict(self._row_to_message_dict(original_model))
             
             logger.debug(f"Original message: {original_msg.id}, parent_id: {original_msg.parent_id}")
             
@@ -337,14 +355,8 @@ class RDSConversationRepository(ConversationRepository):
             if not msg_model:
                 return None
                 
-            # Convert model to message
-            msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
-                
-            # Parse datetime string
-            if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
-                msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
-                
-            return Message.from_dict(msg_dict)
+            # Convert model to message using helper
+            return Message.from_dict(self._row_to_message_dict(msg_model))
         except Exception as e:
             if local_session:
                 await session.rollback()
@@ -368,14 +380,8 @@ class RDSConversationRepository(ConversationRepository):
             if not current_model:
                 return []
                 
-            # Convert model to message
-            current_dict = {c.name: getattr(current_model, c.name) for c in current_model.__table__.columns}
-            
-            # Parse datetime string
-            if 'created_at' in current_dict and isinstance(current_dict['created_at'], str):
-                current_dict['created_at'] = datetime.fromisoformat(current_dict['created_at'])
-                
-            current_msg = Message.from_dict(current_dict)
+            # Convert model to message using helper
+            current_msg = Message.from_dict(self._row_to_message_dict(current_model))
             logger.debug(f"Current message: {current_msg.id}, parent_id: {current_msg.parent_id}, role: {current_msg.role}")
             
             # Get all messages with same parent_id as this message (siblings)
@@ -396,13 +402,7 @@ class RDSConversationRepository(ConversationRepository):
             # Convert models to messages
             versions = []
             for msg_model in msg_models:
-                msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
-                
-                # Parse datetime string
-                if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
-                    msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
-                    
-                versions.append(Message.from_dict(msg_dict))
+                versions.append(Message.from_dict(self._row_to_message_dict(msg_model)))
                 
             logger.debug(f"Found {len(versions)} versions:")
             for v in versions:
@@ -546,11 +546,7 @@ class RDSConversationRepository(ConversationRepository):
                 await session.close()
     
     async def get_active_thread(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
-        """Get the active thread of messages in a conversation
-        
-        Uses the stored active_thread_ids list from the conversation record to retrieve
-        messages in the correct order, rather than traversing active_child_id pointers.
-        """
+        """Get messages in the active thread for a conversation."""
         local_session = session is None
         session = session or self.session_factory()
         
@@ -586,22 +582,16 @@ class RDSConversationRepository(ConversationRepository):
             # Convert models to messages and sort in the same order as active_thread_ids
             messages_by_id = {}
             for model in message_models:
-                msg_dict = {c.name: getattr(model, c.name) for c in model.__table__.columns}
-                
-                # Parse datetime string
-                if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
-                    msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
-                    
-                messages_by_id[model.id] = Message.from_dict(msg_dict)
+                messages_by_id[model.id] = Message.from_dict(self._row_to_message_dict(model))
                 
             # Return messages in the correct order from active_thread_ids
             messages = [messages_by_id[id] for id in active_thread_ids if id in messages_by_id]
             
-            logger.debug(f"Retrieved active thread for conversation {conversation_id} with {len(messages)} messages")
             return messages
         except Exception as e:
             if local_session:
                 await session.rollback()
+            logger.error(f"Error in get_active_thread: {str(e)}")
             raise e
         finally:
             if local_session:
@@ -652,22 +642,6 @@ class RDSConversationRepository(ConversationRepository):
             if local_session:
                 await session.close()
 
-    async def get_message(self, message_id: str, session: AsyncSession) -> Optional[Message]:
-        """Retrieve a single message by its ID."""
-        try:
-            result = await session.execute(
-                select(MessageModel).where(MessageModel.id == message_id)
-            )
-            message = result.scalars().first()
-            if message:
-                # Eager load relationships if needed, similar to get_messages_by_ids
-                # For now, just return the message
-                pass 
-            return message
-        except Exception as e:
-            logger.error(f"Error retrieving message {message_id}: {e}", exc_info=True)
-            raise # Re-raise the exception after logging
-
     async def get_message_by_id(self, message_id: str, session: Optional[AsyncSession] = None) -> Optional[Message]:
         """Get a single message by its unique ID."""
         local_session = session is None
@@ -682,14 +656,8 @@ class RDSConversationRepository(ConversationRepository):
             if not msg_model:
                 return None
             
-            # Convert model to message
-            msg_dict = {c.name: getattr(msg_model, c.name) for c in msg_model.__table__.columns}
-            
-            # Parse datetime string
-            if 'created_at' in msg_dict and isinstance(msg_dict['created_at'], str):
-                msg_dict['created_at'] = datetime.fromisoformat(msg_dict['created_at'])
-                
-            return Message.from_dict(msg_dict)
+            # Convert model to message using helper
+            return Message.from_dict(self._row_to_message_dict(msg_model))
             
         except Exception as e:
             logger.error(f"Error fetching message {message_id}: {e}", exc_info=True)

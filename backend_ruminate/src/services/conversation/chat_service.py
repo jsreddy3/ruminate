@@ -144,6 +144,9 @@ class ChatService:
                 updated_parents = 0
                 for msg_id, children in children_by_parent.items():
                     parent = messages_by_id[msg_id]
+                    if parent is None:
+                        logger.warning("Dangling child list: parent %s missing in DB result", msg_id)
+                        continue
                     # If parent has no active_child_id set, set it to the latest child
                     if not parent.active_child_id and children:
                         # Sort by creation time if available, otherwise use the last message

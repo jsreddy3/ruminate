@@ -8,8 +8,9 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.models.conversation.conversation import Conversation
-from src.models.conversation.message import Message
+from src.models.conversation.message import Message, MessageRole
 from src.repositories.interfaces.conversation_repository import ConversationRepository
+from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -50,6 +51,23 @@ class SQLiteConversationRepository(ConversationRepository):
                 )
             """)
             db.commit()
+    
+    def _row_to_message_dict(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize message data from JSON and convert role to MessageRole enum.
+        """
+        # Handle datetime conversion
+        if isinstance(data.get("created_at"), str):
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
+
+        # Convert role string → enum
+        if isinstance(data.get("role"), str):
+            try:
+                data["role"] = MessageRole(data["role"])
+            except ValueError:
+                logger.warning("Unknown role %s in DB; leaving as string", data["role"])
+
+        return data
     
     async def create_conversation(self, conversation: Conversation, session: Optional[AsyncSession] = None) -> Conversation:
         # logger.debug(f"Creating conversation with ID: {conversation.id}")
