@@ -21,6 +21,7 @@ interface BlockRendererProps {
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onRabbitholeCreate?: (text: string, startOffset: number, endOffset: number) => void;
+  customStyle?: React.CSSProperties;
 }
 
 /**
@@ -36,7 +37,8 @@ export default function BlockRenderer({
   rabbitholeHighlights = [],
   onAddTextToChat,
   onRabbitholeClick,
-  onRabbitholeCreate
+  onRabbitholeCreate,
+  customStyle
 }: BlockRendererProps) {
   // console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
 
@@ -62,63 +64,64 @@ export default function BlockRenderer({
     );
   }
   
-  // Choose which block component to render based on type
-  switch (type) {
-    case 'picture':
-      return <PictureBlock images={images} />;
-      
-    case 'figure':
-      return <FigureBlock images={images} />;
-      
-    case 'textinlinemath':
-      return (
-        <MathBlock 
-          html_content={htmlContent} 
-          block_type={blockType} 
-          getBlockClassName={() => ''}
-        />
-      );
-      
-    case 'equation':
-      return (
-        <EquationBlock 
-          html_content={htmlContent} 
-          block_type={blockType} 
-          getBlockClassName={() => ''}
-        />
-      );
-      
-    case 'table':
-      return (
-        <Table 
-          html_content={htmlContent} 
-          block_type={blockType} 
-          getBlockClassName={() => ''}
-        />
-      );
-      
-    case 'code':
-      return (
-        <CodeBlock 
-          html_content={htmlContent} 
-          block_type={blockType} 
-          getBlockClassName={() => ''}
-        />
-      );
-      
-    default:
-      // Default to TextRenderer for text-like content
-      return (
-        <TextRenderer 
-          htmlContent={htmlContent} 
-          blockType={blockType} 
-          blockId={blockId}
-          highlights={highlights} 
-          rabbitholeHighlights={rabbitholeHighlights}
-          onAddTextToChat={onAddTextToChat}
-          onRabbitholeClick={onRabbitholeClick}
-          onRabbitholeCreate={onRabbitholeCreate}
-        />
-      );
-  }
+  // Wrap content based on block type
+  const content = (() => {
+    switch (type) {
+      case 'picture':
+        return <PictureBlock images={images} />;
+      case 'figure':
+        return <FigureBlock images={images} />;
+      case 'textinlinemath':
+        return (
+          <MathBlock
+            html_content={htmlContent}
+            block_type={blockType}
+            getBlockClassName={() => ''}
+          />
+        );
+      case 'equation':
+        return (
+          <EquationBlock
+            html_content={htmlContent}
+            block_type={blockType}
+            getBlockClassName={() => ''}
+          />
+        );
+      case 'table':
+        return (
+          <Table
+            html_content={htmlContent}
+            block_type={blockType}
+            getBlockClassName={() => ''}
+          />
+        );
+      case 'code':
+        return (
+          <CodeBlock
+            html_content={htmlContent}
+            block_type={blockType}
+            getBlockClassName={() => ''}
+          />
+        );
+      default:
+        return (
+          <TextRenderer
+            htmlContent={htmlContent}
+            blockType={blockType}
+            blockId={blockId}
+            highlights={highlights}
+            rabbitholeHighlights={rabbitholeHighlights}
+            onAddTextToChat={onAddTextToChat}
+            onRabbitholeClick={onRabbitholeClick}
+            onRabbitholeCreate={onRabbitholeCreate}
+            customStyle={customStyle}
+          />
+        );
+    }
+  })();
+  return (
+    <div style={customStyle}>
+      {content}
+    </div>
+  );
 }

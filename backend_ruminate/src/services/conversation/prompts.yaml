@@ -142,5 +142,5 @@ agent_rabbithole:
 note_generation:
   user_message: |
     Based on our conversation about this document and content, can you create a concise, well-structured note summarizing the key insights and information we've discussed? 
-    The note should be factual, clear, and highlight the most important points. Remember to be brief. DO NOT WRITE MORE THAN THREE SENTENCES. FOCUS EXTREMELY CAREFULLY ON 
-    THE CONVERSATION - WHAT WAS ASKED & ANSWERED. Write as if this was a reading note, not as if you're writing a summary of the conversation.
+    The note should be factual, clear, and highlight the most important points. Remember to be brief. DO NOT WRITE MORE THAN THREE SENTENCES. FOCUS EXTREMELY CAREFULLY ON ONLY THE LAST 2-3
+    MESSAGES OF THE CONVERSATION - WHAT WAS ASKED & ANSWERED. Write as if this was a reading note, not as if you're writing a summary of the conversation.

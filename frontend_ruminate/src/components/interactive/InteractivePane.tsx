@@ -69,6 +69,10 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
   const [activeRabbitholeStartOffset, setActiveRabbitholeStartOffset] = useState<number>(0);
   const [activeRabbitholeEndOffset, setActiveRabbitholeEndOffset] = useState<number>(0);
   
+  // Font customization state
+  const [fontSize, setFontSize] = useState<string>("16px");
+  const [fontFamily, setFontFamily] = useState<string>("serif");
+  
   // Ref to store the rabbithole refresh function
   const rabbitholeRefreshRef = useRef<(() => void) | null>(null);
   
@@ -212,6 +216,35 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
                 </div>
 
                 <div className="flex-grow">
+                  {/* Font style controls */}
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div>
+                      <label className="mr-2 text-sm font-medium">Font Size:</label>
+                      <select
+                        value={fontSize}
+                        onChange={e => setFontSize(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="14px">14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="20px">20px</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mr-2 text-sm font-medium">Font Family:</label>
+                      <select
+                        value={fontFamily}
+                        onChange={e => setFontFamily(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="serif">Serif</option>
+                        <option value="sans-serif">Sans-Serif</option>
+                        <option value="monospace">Monospace</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <BlockContainer
                     blockId={currentBlockId}
                     blockType={block.block_type.toLowerCase()}
@@ -221,6 +254,7 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
                     onRabbitholeClick={handleRabbitholeClick}
                     onRabbitholeCreate={handleRabbitholeCreate}
                     onRefreshRabbitholes={handleRefreshRabbitholes}
+                    customStyle={{ fontSize, fontFamily }}
                   />
                 </div>
               </div>

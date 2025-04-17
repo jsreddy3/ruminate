@@ -28,6 +28,7 @@ interface TextRendererProps {
     phrase: string;
     insight: string;
   }>;
+  customStyle?: React.CSSProperties;
 }
 
 const TextRenderer: React.FC<TextRendererProps> = ({
@@ -39,7 +40,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   onRabbitholeCreate,
   rabbitholeHighlights = [],
   getBlockClassName,
-  highlights = []
+  highlights = [],
+  customStyle
 }) => {
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -82,7 +84,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     
     // Calculate text offsets for the selected text
     if (contentRef.current) {
-      const contentText = contentRef.current.textContent || '';
       const selection = window.getSelection();
       
       // If we have a selection, try to get the range and offsets
@@ -185,9 +186,10 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           <TextContent 
             htmlContent={htmlContent}
             blockType={blockType}
-            processedContent={htmlContent} 
-            onClickHighlight={() => {}} 
+            processedContent={htmlContent}
+            onClickHighlight={() => {}}
             getBlockClassName={getBlockClassName}
+            customStyle={customStyle}
           />
         </div>
       </SelectionManager>

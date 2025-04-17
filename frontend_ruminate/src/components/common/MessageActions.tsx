@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Eye } from 'lucide-react';
 import { useNotes } from '../../hooks/useNotes';
 import { Message } from '../../types/chat';
 import { Notes } from '../../types/notes';
@@ -29,6 +29,7 @@ export default function MessageActions({
   const [showTooltip, setShowTooltip] = useState(false);
   const [success, setSuccess] = useState(false);
   const [generatingToast, setGeneratingToast] = useState(false);
+  const [generatedNote, setGeneratedNote] = useState<Notes | null>(null);
 
   const handleGenerateNote = async () => {
     if (isGenerating) return;
@@ -48,6 +49,9 @@ export default function MessageActions({
       // Hide generating toast
       setGeneratingToast(false);
       
+      // Store the generated note
+      setGeneratedNote(note);
+      
       // Show success message
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -56,16 +60,15 @@ export default function MessageActions({
       if (onNoteGenerated) {
         onNoteGenerated(note);
       }
-      
-      // Switch to notes tab after a short delay to let the success message show
-      if (onSwitchToNotesTab) {
-        setTimeout(() => {
-          onSwitchToNotesTab();
-        }, 1000);
-      }
     } catch (error) {
       console.error('Failed to generate note:', error);
       setGeneratingToast(false);
+    }
+  };
+
+  const handleViewNote = () => {
+    if (onSwitchToNotesTab) {
+      onSwitchToNotesTab();
     }
   };
 
@@ -73,20 +76,32 @@ export default function MessageActions({
     <>
       {/* Note Generation Button */}
       <div className={`relative ${className}`}>
-        <button
-          onClick={handleGenerateNote}
-          disabled={isGenerating}
-          className="text-neutral-400 hover:text-indigo-600 transition-colors duration-200 p-1 rounded-full hover:bg-neutral-100"
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
-          aria-label="Generate note from message"
-        >
-          <BookOpen className="w-4 h-4" />
-        </button>
+        {!generatedNote ? (
+          <button
+            onClick={handleGenerateNote}
+            disabled={isGenerating}
+            className="text-neutral-400 hover:text-indigo-600 transition-colors duration-200 p-1 rounded-full hover:bg-neutral-100"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            aria-label="Generate note from message"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            onClick={handleViewNote}
+            className="text-indigo-600 hover:text-indigo-700 transition-colors duration-200 p-1 rounded-full hover:bg-indigo-50"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            aria-label="View generated note"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        )}
         
         {showTooltip && (
           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-neutral-800 text-white text-xs rounded whitespace-nowrap z-10">
-            {isGenerating ? 'Generating note...' : 'Generate note'}
+            {isGenerating ? 'Generating note...' : generatedNote ? 'View note' : 'Generate note'}
             <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-neutral-800"></div>
           </div>
         )}
