@@ -135,14 +135,6 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
         const handleClick = (e: React.MouseEvent) => {
           e.stopPropagation();
           e.preventDefault();
-          console.log('[RabbitholeHighlight] Highlight clicked with data:', {
-            conversation_id,
-            id,
-            selected_text,
-            text_start_offset,
-            text_end_offset,
-            highlightId: id
-          });
           
           // Use the id field as the conversation_id if conversation_id is undefined
           // This fixes a naming mismatch between frontend and backend

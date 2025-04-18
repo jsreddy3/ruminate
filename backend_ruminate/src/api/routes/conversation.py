@@ -24,6 +24,11 @@ class EditMessageRequest(BaseModel):
     content: str
     active_thread_ids: List[str]
 
+class EditMessageStreamingRequest(BaseModel):
+    content: str
+    active_thread_ids: List[str]
+    selected_block_id: Optional[str] = None
+
 @router.post("", response_model=Conversation)
 async def create_conversation(
     document_id: str,
@@ -103,6 +108,28 @@ async def get_document_conversations(
 ) -> List[Conversation]:
     """Get all conversations for a document"""
     return await chat_service.get_document_conversations(document_id, session)
+
+@router.put(
+    "/{conversation_id}/messages/{message_id}/edit_streaming",
+    response_model=tuple[str, str],
+)
+async def edit_message_streaming(
+    conversation_id: str,
+    message_id: str,
+    request: EditMessageStreamingRequest,
+    background_tasks: BackgroundTasks,          # ← let FastAPI inject this
+    chat_service: ChatService = Depends(get_chat_service),
+):
+    try:
+        return await chat_service.edit_message_streaming(
+            background_tasks=background_tasks,  # ← pass it straight through
+            message_id=message_id,
+            new_content=request.content,
+            active_thread_ids=request.active_thread_ids,
+            selected_block_id=request.selected_block_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.put("/{conversation_id}/messages/{message_id}", response_model=tuple[Message, str])
 async def edit_message(

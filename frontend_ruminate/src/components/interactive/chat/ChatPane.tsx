@@ -36,7 +36,7 @@ export default function ChatPane({
     newMessage,
     setNewMessage,
     sendMessage,
-    handleSaveEdit,
+    handleSaveEditStreaming: handleSaveEdit,
     handleVersionSwitch,
     setEditingMessageId,
     setEditingContent
@@ -109,14 +109,6 @@ export default function ChatPane({
               onSwitchToNotesTab={onSwitchToNotesTab}
             />
           ))}
-        
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-primary-50 text-neutral-800 p-3 rounded-lg shadow-sm border border-primary-100">
-              <em>AI is typing...</em>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Input area */}

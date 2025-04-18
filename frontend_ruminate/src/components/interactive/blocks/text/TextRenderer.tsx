@@ -106,7 +106,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           endOffset
         });
         
-        console.log('Selection range:', { startOffset, endOffset, text });
       }
     }
   };

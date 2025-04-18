@@ -69,7 +69,7 @@ export function useAgentConversation({
     setIsMessageTreeLoaded(false);
     setCurrentMessageId(null);
     optimisticMessageId.current = null;
-    console.log('Conversation changed, resetting agent state');
+    // console.log('Conversation changed, resetting agent state');
   }, [conversationId]);
   
   // Setup SSE connection
@@ -327,10 +327,7 @@ export function useAgentConversation({
     // Cleanup function
     return () => {
       isActive = false;
-      if (eventSource) {
-        eventSource.close();
-        setIsConnected(false);
-      }
+      closeEventSource();
     };
   }, [conversationId]);
   

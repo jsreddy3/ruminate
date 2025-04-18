@@ -46,7 +46,9 @@ class ChatSSEManager:
                 yield chunk
                 if chunk == "data: [DONE]\n\n": # Check for the end-of-stream message
                     logger.info(f"End-of-stream signal received for stream {stream_id}")
+                    queue.task_done()
                     break
+                  
                 queue.task_done()
         except asyncio.CancelledError:
             logger.info(f"Subscription cancelled for stream {stream_id}")

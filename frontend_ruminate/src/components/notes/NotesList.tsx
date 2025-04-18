@@ -63,9 +63,7 @@ export default function NotesList({
       setError(null);
       
       try {
-        console.log('Fetching notes for document:', documentId);
         const fetchedNotes = await fetchDocumentNotes(documentId);
-        console.log('Fetched notes:', fetchedNotes.length);
         
         // Sort notes by the most reliable ordering available
         const sortedNotes = fetchedNotes.sort((a, b) => {

@@ -233,6 +233,50 @@ export function useConversation({
     }
   };
 
+  async function streamAssistant(
+    aiMsgId: string,
+    conversationId: string,
+    setMessagesById: (arg0: (prev: Map<string, Message>) => Map<string, Message>) => void,
+    setDisplayedThread: (arg0: (prev: Message[]) => Message[]) => void,
+    setIsLoading: (arg0: boolean) => void,
+    setCurrentEventSource: (arg0: EventSource | null) => void,
+  ) {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const es = new EventSource(
+      `${apiBaseUrl}/conversations/${conversationId}/messages/${aiMsgId}/stream`
+    );
+    setCurrentEventSource(es);
+  
+    // Handle messages from the stream
+    es.onmessage = (event) => {
+      const chunk = event.data;
+      if (chunk === "[DONE]") {
+        es.close();
+        setCurrentEventSource(null);
+        setIsLoading(false);
+      } else {
+        setMessagesById((prev) => {
+          const m = new Map(prev);
+          const msg = m.get(aiMsgId);
+          if (msg) msg.content += chunk;
+          return m;
+        });
+        setDisplayedThread((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMsgId ? { ...msg, content: msg.content + chunk } : msg
+          )
+        );
+      }
+    };
+  
+    es.onerror = (err) => {
+      console.error("SSE error:", err);
+      es.close();
+      setCurrentEventSource(null);
+      setIsLoading(false);
+    };
+  }
+
   const handleSaveEdit = async (messageId: string) => {
     if (!conversationId || !editingContent.trim() || isLoading) return;
 
@@ -279,8 +323,8 @@ export function useConversation({
       messagesById.set(editedMessageId, editedMessage);
       messagesById.set(aiMessage.id, aiMessage);
 
-      const newThread = getActiveThread(messageTree[0], messagesById);
-      setDisplayedThread(newThread);
+      parent.active_child_id = editedMessageId;
+      setMessagesById(prev => new Map(prev).set(parent.id, { ...parent }));
     } catch (error) {
       console.error("Error saving edit:", error);
     } finally {
@@ -289,6 +333,131 @@ export function useConversation({
       setEditingContent("");
     }
   };
+
+  const handleSaveEditStreaming = async (messageId: string) => {
+    if (!conversationId || !editingContent.trim() || isLoading) return;
+  
+    setIsLoading(true);
+  
+    /* ---------- 1. build optimistic state  ---------- */
+  
+    const tempEditedId = `temp-edit-${Date.now()}`;
+    const parentOriginal = messagesById.get(
+      messagesById.get(messageId)!.parent_id!
+    )!;
+  
+    // brand‑new optimistic edit
+    const optimisticEdited: Message = {
+      id: tempEditedId,
+      role: "user",
+      content: editingContent,
+      parent_id: parentOriginal.id,
+      children: [],
+      active_child_id: null,
+      created_at: new Date().toISOString(),
+    };
+  
+    // fresh copy of parent that points at the edit
+    const parentUpdated: Message = {
+      ...parentOriginal,
+      children: [...parentOriginal.children, optimisticEdited],
+      active_child_id: tempEditedId,
+    };
+  
+    // build one coherent map
+    const optimisticMap = new Map(messagesById);
+    optimisticMap.set(parentUpdated.id, parentUpdated);
+    optimisticMap.set(tempEditedId, optimisticEdited);
+  
+    // write it once
+    setMessagesById(optimisticMap);
+    setDisplayedThread(getActiveThread(messageTree[0], optimisticMap));
+  
+    /* ---------- 2. talk to backend  ---------- */
+    try {
+      const [realEditedId, aiMsgId] = await conversationApi.editMessageStreaming(
+        conversationId,
+        messageId,
+        editingContent,
+        Array.from(optimisticMap.keys()), // current active ids
+        blockId
+      );
+  
+      /* ---- swap temp id if server generated a real one ---- */
+      let currentMap = optimisticMap;
+      if (realEditedId !== tempEditedId) {
+        const realEdited = { ...optimisticEdited, id: realEditedId };
+        const parentFix   = {
+          ...parentUpdated,
+          active_child_id: realEditedId,
+          children: parentUpdated.children.map(c =>
+            c.id === tempEditedId ? realEdited : c
+          ),
+        };
+  
+        currentMap = new Map(currentMap);
+        currentMap.delete(tempEditedId);
+        currentMap.set(realEditedId, realEdited);
+        currentMap.set(parentFix.id, parentFix);
+        setMessagesById(currentMap);
+      }
+  
+      /* ---------- 3. insert AI placeholder right after the edit ---------- */
+      const placeholder: Message = {
+        id: aiMsgId,
+        role: "assistant",
+        content: "",
+        parent_id: realEditedId,
+        children: [],
+        active_child_id: null,
+        created_at: new Date().toISOString(),
+      };
+      currentMap = new Map(currentMap).set(aiMsgId, placeholder);
+      setMessagesById(currentMap);
+  
+      // rebuild thread, then splice in the placeholder just below the edit
+      setDisplayedThread(thread => {
+        const fresh = getActiveThread(messageTree[0], currentMap);
+        const idx   = fresh.findIndex(m => m.id === realEditedId);
+        return [
+          ...fresh.slice(0, idx + 1),
+          placeholder,
+          ...fresh.slice(idx + 1),
+        ];
+      });
+  
+      /* ---------- 4. stream tokens ---------- */
+      await streamAssistant(
+        aiMsgId,
+        conversationId,
+        setMessagesById,
+        setDisplayedThread,
+        setIsLoading,
+        setCurrentEventSource
+      );
+  
+    } catch (err) {
+      console.error("edit stream failed:", err);
+  
+      // rollback: restore original branch
+      const rolledBackParent: Message = {
+        ...parentOriginal,
+        // parentOriginal.children already contains the old user msg
+        active_child_id: messageId,
+      };
+      const rolledBackMap = new Map(messagesById)
+        .set(rolledBackParent.id, rolledBackParent); // clear temp edit indirectly
+      setMessagesById(rolledBackMap);
+      setDisplayedThread(getActiveThread(messageTree[0], rolledBackMap));
+      setIsLoading(false);
+    } finally {
+      setEditingMessageId(null);
+      setEditingContent("");
+    }
+  };
+  
+  
+  
 
   const handleVersionSwitch = (message: Message, newVersionId: string) => {
     if (!message.parent_id) return;
@@ -312,6 +481,7 @@ export function useConversation({
     setNewMessage,
     sendMessage,
     handleSaveEdit,
+    handleSaveEditStreaming,
     handleVersionSwitch,
     setEditingMessageId,
     setEditingContent,

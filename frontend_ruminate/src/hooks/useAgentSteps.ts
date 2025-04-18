@@ -22,9 +22,7 @@ export function useAgentSteps(conversationId: string | null, messageId: string |
       setLoading(true);
       try {
         if (conversationId && messageId) {
-          console.log(`Fetching agent steps for message ${messageId} in conversation ${conversationId}`);
           const fetchedSteps = await getAgentSteps(conversationId, messageId);
-          console.log(`Fetched ${fetchedSteps.length} agent steps`);
           setSteps(fetchedSteps);
           setError(null);
         }

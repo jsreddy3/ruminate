@@ -47,7 +47,7 @@ export default function AgentMessage({ message, conversationId, events, isLoadin
   }, [events, storedSteps, isLoading]);
   
   // Log for debugging
-  console.log(`AgentMessage ${message.id}: ${events.length} real-time events, ${storedSteps.length} stored steps, isLoading=${isLoading}`);
+  // console.log(`AgentMessage ${message.id}: ${events.length} real-time events, ${storedSteps.length} stored steps, isLoading=${isLoading}`);
   
   // Don't auto-show exploration steps anymore - keep collapsed by default
   // The previous code automatically expanded steps, but we now want them collapsed

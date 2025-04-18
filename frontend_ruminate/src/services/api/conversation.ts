@@ -71,5 +71,28 @@ export const conversationApi = {
     );
     if (!response.ok) throw new Error("Failed to edit message");
     return response.json();
+  },
+
+  editMessageStreaming: async (
+    conversationId: string, 
+    messageId: string, 
+    content: string,
+    activeThreadIds: string[],
+    selectedBlockId?: string
+  ): Promise<[any, string]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}/edit_streaming`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          content,
+          active_thread_ids: activeThreadIds,
+          selected_block_id: selectedBlockId 
+        })
+      }
+    );
+    if (!response.ok) throw new Error("Failed to edit message streaming");
+    return response.json();
   }
 };

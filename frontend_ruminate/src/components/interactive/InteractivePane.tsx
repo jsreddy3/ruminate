@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import type { ChatPaneProps } from "../../types/chat";
-import ChatPane from "./chat/ChatPane";
 import BlockContainer from "./blocks/BlockContainer";
-import RabbitholePane from "./rabbithole/RabbitholePane";
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { RabbitholeHighlight } from "../../services/rabbithole";
+import UnifiedConversation from "./shared/UnifiedConversation";
+import { createAgentRabbithole } from "../../services/rabbithole";
 
 // Add array of supported block types (matching PDFViewer)
 const chatEnabledBlockTypes = [
@@ -44,7 +43,7 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
   
   // Add cleanup log in useEffect
   useEffect(() => {
-    console.log(`InteractivePane mounted with documentId: ${documentId}, conversationId: ${conversationId}`);
+    // console.log(`InteractivePane mounted with documentId: ${documentId}, conversationId: ${conversationId}`);
     return () => {
       // console.log(`InteractivePane UNMOUNT with block ID: ${block.id}`);
     };
@@ -62,12 +61,10 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
   // State for selected text from block content to be passed to chat
   const [selectedText, setSelectedText] = useState("");
   
-  // State for rabbithole mode
-  const [rabbitholeMode, setRabbitholeMode] = useState(false);
-  const [activeRabbitholeId, setActiveRabbitholeId] = useState<string>("");
-  const [activeRabbitholeText, setActiveRabbitholeText] = useState<string>("");
-  const [activeRabbitholeStartOffset, setActiveRabbitholeStartOffset] = useState<number>(0);
-  const [activeRabbitholeEndOffset, setActiveRabbitholeEndOffset] = useState<number>(0);
+  // Unified chat vs agentic mode
+  const [conversationMode, setConversationMode] = useState<"chat"|"agent"|"loadingAgent">("chat");
+  const [agentConvId, setAgentConvId] = useState<string>("");
+  const [isCreatingAgent, setIsCreatingAgent] = useState<boolean>(false);
   
   // Font customization state
   const [fontSize, setFontSize] = useState<string>("16px");
@@ -81,71 +78,31 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
     setSelectedText(text);
   };
   
-  // Function to handle creating a new rabbithole from selected text
-  const handleRabbitholeCreate = (text: string, startOffset: number, endOffset: number) => {
-    console.log('InteractivePane.handleRabbitholeCreate called with:', {
-      text,
-      startOffset,
-      endOffset,
-      currentBlockId
-    });
-    
-    // Set the active rabbithole information
-    setActiveRabbitholeText(text);
-    setActiveRabbitholeStartOffset(startOffset);
-    setActiveRabbitholeEndOffset(endOffset);
-    
-    // IMPORTANT: Clear the active rabbithole ID to ensure we create a new one
-    // instead of reusing an existing one
-    setActiveRabbitholeId("");
-    
-    // Switch to rabbithole mode - no ID yet, RabbitholePane will create one
-    console.log('Setting rabbithole mode to true, activeRabbitholeId:', activeRabbitholeId);
-    setRabbitholeMode(true);
-    
-    // We don't set activeRabbitholeId because it will be created by RabbitholePane
+  // Handle creating a new agentic rabbithole
+  const handleRabbitholeCreate = async (text: string, startOffset: number, endOffset: number) => {
+    setIsCreatingAgent(true);
+    try {
+      const newId = await createAgentRabbithole({ document_id: documentId, block_id: currentBlockId, selected_text: text, start_offset: startOffset, end_offset: endOffset, type: 'rabbithole', document_conversation_id: conversationId });
+      setAgentConvId(newId);
+      setConversationMode("agent");
+    } catch (error) {
+      console.error("Failed to create agent rabbithole:", error);
+    } finally {
+      setIsCreatingAgent(false);
+    }
   };
   
-  // Function to handle rabbithole click
-  const handleRabbitholeClick = (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
-    console.log('InteractivePane.handleRabbitholeClick called with:', {
-      rabbitholeId,
-      selectedText,
-      startOffset,
-      endOffset,
-      currentBlockId
-    });
-    
-    // Log component state before changes
-    console.log('InteractivePane state BEFORE changes:', {
-      rabbitholeMode,
-      activeRabbitholeId,
-      currentBlockId,
-      selectedText: activeRabbitholeText
-    });
-    
-    setActiveRabbitholeId(rabbitholeId);
-    setActiveRabbitholeText(selectedText);
-    if (startOffset !== undefined) setActiveRabbitholeStartOffset(startOffset);
-    if (endOffset !== undefined) setActiveRabbitholeEndOffset(endOffset);
-    
-    console.log('Setting rabbithole mode to true');
-    setRabbitholeMode(true);
-    
-    // Log current state after update
-    setTimeout(() => {
-      console.log('InteractivePane state AFTER changes:', {
-        rabbitholeMode,
-        activeRabbitholeId,
-        currentBlockId,
-        selectedText: activeRabbitholeText
-      });
-    }, 100);
+  // Handle click on existing rabbithole highlight
+  const handleRabbitholeClick = (id: string, text: string, startOffset?: number, endOffset?: number) => {
+    setAgentConvId(id);
+    // Animate transition: set shallow state first, then switch mode
+    setConversationMode("loadingAgent");
+    setTimeout(() => setConversationMode("agent"), 200);
   };
   
   // Function to exit rabbithole mode
   const handleCloseRabbithole = () => {
-    setRabbitholeMode(false);
+    setConversationMode("chat");
     
     // Refresh rabbithole data after closing to ensure UI is updated
     if (rabbitholeRefreshRef.current) {
@@ -176,166 +133,161 @@ export default forwardRef<InteractivePaneHandle, ChatPaneProps>(function Interac
 
       {/* Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Conditional rendering based on rabbithole mode */}
-        {rabbitholeMode ? (
-          <RabbitholePane
-            selectedText={activeRabbitholeText}
-            documentId={documentId}
-            conversationId={activeRabbitholeId} // For existing rabbitholes
-            documentConversationId={conversationId} // Pass the main document conversation ID
-            blockId={currentBlockId}
-            textStartOffset={activeRabbitholeStartOffset}
-            textEndOffset={activeRabbitholeEndOffset}
-            onClose={handleCloseRabbithole}
-            onSwitchToNotesTab={onSwitchToNotesTab}
-          />
-        ) : (
-          <PanelGroup direction="vertical">
-            {/* Content Panel */}
-            <Panel defaultSize={30} minSize={20}>
-              <div
-                className="flex flex-col h-full w-full bg-white overflow-y-auto p-4"
-                style={{
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-                }}
-              >
-                <div className="mb-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Block Content
-                    </h2>
-                    <button
-                      onClick={onClose}
-                      className="text-gray-500 hover:text-gray-700"
-                      title="Close interactive pane"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-grow">
-                  {/* Font style controls */}
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div>
-                      <label className="mr-2 text-sm font-medium">Font Size:</label>
-                      <select
-                        value={fontSize}
-                        onChange={e => setFontSize(e.target.value)}
-                        className="border rounded px-2 py-1 text-sm"
-                      >
-                        <option value="14px">14px</option>
-                        <option value="16px">16px</option>
-                        <option value="18px">18px</option>
-                        <option value="20px">20px</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mr-2 text-sm font-medium">Font Family:</label>
-                      <select
-                        value={fontFamily}
-                        onChange={e => setFontFamily(e.target.value)}
-                        className="border rounded px-2 py-1 text-sm"
-                      >
-                        <option value="serif">Serif</option>
-                        <option value="sans-serif">Sans-Serif</option>
-                        <option value="monospace">Monospace</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <BlockContainer
-                    blockId={currentBlockId}
-                    blockType={block.block_type.toLowerCase()}
-                    htmlContent={block.html_content}
-                    images={block.images || {}}
-                    onAddTextToChat={handleAddTextToChat}
-                    onRabbitholeClick={handleRabbitholeClick}
-                    onRabbitholeCreate={handleRabbitholeCreate}
-                    onRefreshRabbitholes={handleRefreshRabbitholes}
-                    customStyle={{ fontSize, fontFamily }}
-                  />
+        <PanelGroup direction="vertical">
+          {/* Content Panel */}
+          <Panel defaultSize={30} minSize={20}>
+            <div
+              className="flex flex-col h-full w-full bg-white overflow-y-auto p-4"
+              style={{
+                borderRadius: "8px",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+              }}
+            >
+              <div className="mb-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Block Content
+                  </h2>
+                  <button
+                    onClick={onClose}
+                    className="text-gray-500 hover:text-gray-700"
+                    title="Close interactive pane"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
-            </Panel>
 
-            {/* Navigation Controls */}
-            <div className="flex justify-center items-center h-8 bg-neutral-100 border-t border-b border-neutral-200">
-              <div className="flex space-x-2">
-                <button
-                  onClick={hasPreviousBlock ? onPreviousBlock : undefined}
-                  disabled={!hasPreviousBlock}
-                  className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#4b5563',
-                    cursor: hasPreviousBlock ? 'pointer' : 'not-allowed',
-                    opacity: hasPreviousBlock ? 1 : 0.5,
-                    transition: 'all 0.2s ease',
-                    boxShadow: hasPreviousBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
-                  }}
-                  title="Previous Block"
-                  aria-label="Navigate to previous block"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                    <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
-                  </svg>
-                  <span>Previous</span>
-                </button>
+              <div className="flex-grow">
+                {/* Font style controls */}
+                <div className="flex items-center space-x-4 mb-4">
+                  <div>
+                    <label className="mr-2 text-sm font-medium">Font Size:</label>
+                    <select
+                      value={fontSize}
+                      onChange={e => setFontSize(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="14px">14px</option>
+                      <option value="16px">16px</option>
+                      <option value="18px">18px</option>
+                      <option value="20px">20px</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mr-2 text-sm font-medium">Font Family:</label>
+                    <select
+                      value={fontFamily}
+                      onChange={e => setFontFamily(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="serif">Serif</option>
+                      <option value="sans-serif">Sans-Serif</option>
+                      <option value="monospace">Monospace</option>
+                    </select>
+                  </div>
+                </div>
 
-                <button
-                  onClick={hasNextBlock ? onNextBlock : undefined}
-                  disabled={!hasNextBlock}
-                  className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#4b5563',
-                    cursor: hasNextBlock ? 'pointer' : 'not-allowed',
-                    opacity: hasNextBlock ? 1 : 0.5,
-                    transition: 'all 0.2s ease',
-                    boxShadow: hasNextBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
-                  }}
-                  title="Next Block"
-                  aria-label="Navigate to next block"
-                >
-                  <span>Next</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                    <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
-                  </svg>
-                </button>
+                <BlockContainer
+                  blockId={currentBlockId}
+                  blockType={block.block_type.toLowerCase()}
+                  htmlContent={block.html_content}
+                  images={block.images || {}}
+                  onAddTextToChat={handleAddTextToChat}
+                  onRabbitholeClick={handleRabbitholeClick}
+                  onRabbitholeCreate={handleRabbitholeCreate}
+                  onRefreshRabbitholes={handleRefreshRabbitholes}
+                  customStyle={{ fontSize, fontFamily }}
+                />
               </div>
             </div>
+          </Panel>
 
-            {/* Resize Handle */}
-            <PanelResizeHandle className="h-1 bg-neutral-200 hover:bg-neutral-300 transition-colors duration-150 cursor-row-resize flex items-center justify-center">
-              <div className="w-8 h-1 bg-neutral-300 rounded-full"></div>
-            </PanelResizeHandle>
+          {/* Navigation Controls */}
+          <div className="flex justify-center items-center h-8 bg-neutral-100 border-t border-b border-neutral-200">
+            <div className="flex space-x-2">
+              <button
+                onClick={hasPreviousBlock ? onPreviousBlock : undefined}
+                disabled={!hasPreviousBlock}
+                className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: '#4b5563',
+                  cursor: hasPreviousBlock ? 'pointer' : 'not-allowed',
+                  opacity: hasPreviousBlock ? 1 : 0.5,
+                  transition: 'all 0.2s ease',
+                  boxShadow: hasPreviousBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
+                }}
+                title="Previous Block"
+                aria-label="Navigate to previous block"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                  <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                </svg>
+                <span>Previous</span>
+              </button>
 
-            {/* Chat/Rabbithole Panel */}
-            <Panel defaultSize={70}>
-              {!blockIsChatEnabled ? (
-                <div className="h-full flex items-center justify-center p-4 text-neutral-700 bg-white">
-                  <div className="p-6 bg-neutral-50 rounded-lg border border-neutral-200 text-center max-w-md">
-                    <p className="mb-2">This block type does not support chat interaction.</p>
-                    <p className="text-sm text-neutral-500">Select a different block to start a conversation.</p>
-                  </div>
+              <button
+                onClick={hasNextBlock ? onNextBlock : undefined}
+                disabled={!hasNextBlock}
+                className="flex items-center space-x-1 py-1 px-2 rounded border border-neutral-200 bg-white"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: '#4b5563',
+                  cursor: hasNextBlock ? 'pointer' : 'not-allowed',
+                  opacity: hasNextBlock ? 1 : 0.5,
+                  transition: 'all 0.2s ease',
+                  boxShadow: hasNextBlock ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
+                }}
+                title="Next Block"
+                aria-label="Navigate to next block"
+              >
+                <span>Next</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                  <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Resize Handle */}
+          <PanelResizeHandle className="h-1 bg-neutral-200 hover:bg-neutral-300 transition-colors duration-150 cursor-row-resize flex items-center justify-center">
+            <div className="w-8 h-1 bg-neutral-300 rounded-full"></div>
+          </PanelResizeHandle>
+
+          {/* Conversation Panel */}
+          <Panel defaultSize={70}>
+            {isCreatingAgent ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="loader w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <p>Creating rabbithole...</p>
+              </div>
+            ) : conversationMode === "loadingAgent" ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="loader w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <p>Loading agent conversation...</p>
+              </div>
+            ) : !blockIsChatEnabled ? (
+              <div className="h-full flex items-center justify-center p-4 text-neutral-700 bg-white">
+                <div className="p-6 bg-neutral-50 rounded-lg border border-neutral-200 text-center max-w-md">
+                  <p className="mb-2">This block type does not support chat interaction.</p>
+                  <p className="text-sm text-neutral-500">Select a different block to start a conversation.</p>
                 </div>
-              ) : (
-                <ChatPane
-                  blockId={currentBlockId}
-                  documentId={documentId}
-                  conversationId={conversationId}
-                  selectedText={selectedText}
-                  setSelectedText={setSelectedText}
-                  onSwitchToNotesTab={onSwitchToNotesTab}
-                />
-              )}
-            </Panel>
-          </PanelGroup>
-        )}
+              </div>
+            ) : (
+              <UnifiedConversation
+                mode={conversationMode}
+                blockId={currentBlockId}
+                documentId={documentId}
+                conversationId={conversationMode === "chat" ? conversationId : agentConvId}
+                onSwitchToNotesTab={onSwitchToNotesTab}
+                onClose={() => setConversationMode("chat")}
+              />
+            )}
+          </Panel>
+        </PanelGroup>
       </div>
     </div>
   );  
