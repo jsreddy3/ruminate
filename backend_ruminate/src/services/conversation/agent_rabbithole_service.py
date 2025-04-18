@@ -15,6 +15,8 @@ import logging
 import contextlib
 from typing import Dict, List, Optional, Tuple, Any, Callable, AsyncContextManager
 from sqlalchemy.ext.asyncio import AsyncSession
+from contextlib import nullcontext
+from asyncio import create_task
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +203,76 @@ class AgentRabbitholeService:
             )
         
         return assistant_msg
+
+    async def edit_agent_message(
+        self,
+        conversation_id: str,
+        message_id: str,
+        new_content: str,
+        session: Optional[AsyncSession] = None,
+    ) -> Tuple[str, str]:
+
+        async with self.get_session() if session is None else nullcontext(session) as db:
+            # ── 1. fetch original
+            original = await self.conversation_repo.get_message(message_id, db)
+            if not original:
+                raise ValueError(f"Message {message_id} not found")
+
+            # ── 2. determine parent
+            if original.parent_id:
+                parent = await self.conversation_repo.get_message(original.parent_id, db)
+            else:
+                # first user turn → use the root system message
+                parent = await self.conversation_repo.get_root_message(conversation_id, db)
+                # ^‑ implement this helper to SELECT role='system' AND parent_id IS NULL
+
+            if not parent:
+                raise ValueError(f"Parent message for {message_id} not found")
+
+            # ── 3. create sibling user message
+            edited_user = await self.conversation_manager.create_user_message(
+                conversation_id=conversation_id,
+                content=new_content,
+                parent_id=parent.id,
+                session=db,
+            )
+
+            # ── 4. flip parent pointers
+            parent.active_child_id = edited_user.id
+            parent.children.append(edited_user)
+            await db.flush()
+
+            # ── 5. assistant placeholder
+            assistant_placeholder = await self.conversation_manager.create_ai_message(
+                conversation_id=conversation_id,
+                content="",
+                parent_id=edited_user.id,
+                session=db,
+                metadata={"message_type": "placeholder"},
+            )
+
+            # ── 6. update active thread (dedupe)
+            active_thread = await self.conversation_repo.get_active_thread(conversation_id, db)
+            if edited_user.id not in active_thread:
+                active_thread.append(edited_user.id)
+                await self.conversation_repo.update_active_thread(conversation_id, active_thread, db)
+
+        # ── 7. notify client + kick off exploration *outside* transaction
+        if self.sse_manager:
+            await self.sse_manager.send_event(
+                conversation_id, "agent_started",
+                {"message": "Agent is analyzing your edit..."}
+            )
+
+        async def _run():
+            await self.send_agent_message(   # reuse the proven pipeline
+                conversation_id=conversation_id,
+                content=new_content,
+                parent_id=edited_user.id,
+            )
+        create_task(_run())
+
+        return edited_user.id, assistant_placeholder.id
     
     def _ensure_id_string(self, id_or_message):
         """Convert a Message object to its ID string if needed"""

@@ -4,6 +4,8 @@ import { Message } from '../types/chat';
 import { sendAgentMessage as apiSendAgentMessage, connectToAgentEvents as apiConnectToAgentEvents } from '../services/rabbithole';
 import { conversationApi } from '../services/api/conversation';
 import { buildMessageTree, getActiveThread } from '../utils/messageTreeUtils';
+import { editAgentMessage } from "../services/rabbithole";
+import { applyOptimisticEdit } from "../utils/applyOptimisticEdit";
 
 // Define agent event types
 export type AgentEventType = 
@@ -46,7 +48,8 @@ export function useAgentConversation({
     messagesById,
     isLoading: isChatLoading,
     setDisplayedThread,
-    setNewMessage
+    setNewMessage,
+    setMessagesById
   } = conversationHook;
   
   // Agent-specific state
@@ -330,6 +333,61 @@ export function useAgentConversation({
       closeEventSource();
     };
   }, [conversationId]);
+
+  const handleSaveEditAgent = useCallback(
+    async (messageId: string, newText: string) => {
+      if (
+        !conversationId ||
+        !newText.trim() ||
+        isLoading ||
+        !messagesById ||                       // 👈 guard
+        messageTree.length === 0               //      guard
+      ) {
+        return;
+      }
+  
+      /* optimistic branch */
+      const result = applyOptimisticEdit(
+        messageId,
+        newText,
+        messageTree,
+        messagesById,
+        displayedThread,  // new arg
+      );
+      if (!result) return;                 // guard against the rare null
+      const { tempId, newMap } = result;
+      setMessagesById(newMap);
+      setDisplayedThread(getActiveThread(messageTree[0], newMap));
+      setIsLoading(true);
+
+      try {
+        // ── 2. call backend
+        const parentId = messagesById.get(messageId)?.parent_id ?? messageTree[0].id;
+        const { message_id: editedId } = await editAgentMessage(
+          conversationId,
+          messageId,
+          parentId,
+          newText,
+        );
+        
+        // swap temp → real
+        setMessagesById(prev => {
+          const m = new Map(prev);
+          const msg = m.get(tempId)!;
+          m.delete(tempId);
+          msg.id = editedId;
+          return m.set(editedId, msg);
+        });
+        setDisplayedThread(getActiveThread(messageTree[0], messagesById));
+        // no streamAssistant call – SSE will populate content
+      } catch (err) {
+        console.error("agent edit failed", err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [conversationId, messagesById, messageTree, isLoading],
+  );
   
   // Implementation of message tree refresh
   const refreshMessageTree = useCallback(async () => {
@@ -495,6 +553,7 @@ export function useAgentConversation({
     agentStatus,
     isConnected,
     isLoading,
-    refreshMessageTree // Add our refresh method
+    refreshMessageTree, // Add our refresh method
+    handleSaveEditAgent
   };
 }

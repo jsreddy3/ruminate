@@ -286,6 +286,14 @@ class RDSConversationRepository(ConversationRepository):
         finally:
             if local_session:
                 await session.close()
+
+    async def get_root_message(self, conversation_id, session):
+        stmt = select(Message).where(
+            Message.conversation_id == conversation_id,
+            Message.role == "system",
+            Message.parent_id.is_(None),
+        )
+        return await session.scalar(stmt)
     
     async def edit_message(self, message_id: str, new_content: str, session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Create a new version of a message as a sibling (sharing the same parent)"""

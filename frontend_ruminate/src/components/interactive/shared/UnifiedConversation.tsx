@@ -5,7 +5,6 @@ import { useAgentConversation } from "../../../hooks/useAgentConversation";
 import ChatInput from "../chat/ChatInput";
 import ChatMessage from "../chat/ChatMessage";
 import AgentMessage from "../rabbithole/components/AgentConversation/AgentMessage";
-import UserMessage from "../rabbithole/components/AgentConversation/UserMessage";
 import ExplorationPanel from "../rabbithole/components/AgentConversation/ExplorationEvents/ExplorationPanel";
 import type { Message } from "../../../types/chat";
 import type { AgentEvent } from "../../../services/rabbithole";
@@ -35,20 +34,32 @@ export default function UnifiedConversation({
   const agentHook = useAgentConversation({ documentId, conversationId: agentConversationId });
 
   // unify hook output
-  const {
-    displayedThread,
-    isLoading,
-    sendMessage,
-    newMessage,
-    setNewMessage,
-    editingMessageId,
-    editingContent,
-    setEditingMessageId,
-    setEditingContent,
-    handleSaveEditStreaming: handleSaveEdit,
-    handleVersionSwitch,
-    messagesById
-  } = mode === "chat" ? chatHook : agentHook;
+  // pick the hook first
+const activeHook = mode === "chat" ? chatHook : agentHook;
+
+// pull common fields
+const {
+  displayedThread,
+  isLoading,
+  sendMessage,
+  newMessage,
+  setNewMessage,
+  editingMessageId,
+  editingContent,
+  setEditingMessageId,
+  setEditingContent,
+  handleVersionSwitch,
+  messagesById,
+} = activeHook as typeof chatHook & Partial<typeof agentHook>; // cast for TS inference
+
+const handleSaveEdit = (msgId: string) => {
+  if (mode === "chat") {
+    chatHook.handleSaveEditStreaming(msgId);            // chat path
+  } else {
+    agentHook.handleSaveEditAgent(msgId, editingContent); // agent path
+  }
+};
+
 
   // Agent exploration events state
   const { currentEvents, agentStatus } = agentHook;
@@ -90,42 +101,49 @@ export default function UnifiedConversation({
 
   const body = (
     <div ref={messagesContainerRef} className="flex-1 px-5 py-4 overflow-y-auto space-y-5 bg-white messages-container">
-      {displayedThread.filter((m: Message) => m.role !== 'system').map((m: Message) =>
-        mode === "chat" ? (
-          <ChatMessage
-            key={m.id}
-            message={m}
-            editingMessageId={editingMessageId}
-            editingContent={editingContent}
-            isLoading={isLoading}
-            messagesById={messagesById}
-            onStartEdit={(msg) => { setEditingMessageId(msg.id); setEditingContent(msg.content); }}
-            onChangeEdit={setEditingContent}
-            onCancelEdit={() => { setEditingMessageId(null); setEditingContent(''); }}
-            onSaveEdit={handleSaveEdit}
-            onVersionSwitch={handleVersionSwitch}
-            documentId={documentId}
-            blockId={blockId}
-            conversationId={conversationId}
-            onSwitchToNotesTab={onSwitchToNotesTab}
-          />
-        ) : (
-          m.role === 'assistant' ? (
+      {displayedThread
+        .filter((m: Message) => m.role !== "system")
+        .map((m: Message) =>
+          mode === "agent" && m.role === "assistant" ? (
             <AgentMessage
               key={m.id}
               message={m}
               conversationId={conversationId}
               events={getAgentEvents(m.id)}
-              isLoading={agentStatus === 'exploring' && m.id === displayedThread[displayedThread.length - 1]?.id}
+              isLoading={
+                agentStatus === "exploring" &&
+                m.id === displayedThread[displayedThread.length - 1]?.id
+              }
               documentId={documentId}
               blockId={blockId}
               onSwitchToNotesTab={onSwitchToNotesTab}
             />
           ) : (
-            <UserMessage key={m.id} message={m} />
+            <ChatMessage
+              key={m.id}
+              message={m}
+              editingMessageId={editingMessageId}
+              editingContent={editingContent}
+              isLoading={isLoading}
+              messagesById={messagesById}
+              onStartEdit={(msg) => {
+                setEditingMessageId(msg.id);
+                setEditingContent(msg.content);
+              }}
+              onChangeEdit={setEditingContent}
+              onCancelEdit={() => {
+                setEditingMessageId(null);
+                setEditingContent("");
+              }}
+              onSaveEdit={handleSaveEdit}
+              onVersionSwitch={handleVersionSwitch}
+              documentId={documentId}
+              blockId={blockId}
+              conversationId={conversationId}
+              onSwitchToNotesTab={onSwitchToNotesTab}
+            />
           )
-        )
-      )}
+        )}
       {/* Initial loading spinner when no messages */}
       {isLoading && displayedThread.length === 0 && (
         <div className="flex-1 flex justify-center items-center py-10">

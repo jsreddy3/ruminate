@@ -84,6 +84,33 @@ async def send_agent_message(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@router.post(
+    "/{conversation_id}/messages/{message_id}/edit",
+    response_model=AgentMessageResponse,
+)
+async def edit_agent_message(
+    conversation_id: str,
+    message_id: str,
+    request: AgentMessageRequest,
+    agent_service: AgentRabbitholeService = Depends(get_agent_rabbithole_service),
+) -> AgentMessageResponse:
+    """
+    Edit a user turn inside an agent‑rabbithole conversation.
+    Returns the *edited* user‑message id plus the assistant placeholder id.
+    """
+    edited_id, assistant_id = await agent_service.edit_agent_message(
+        conversation_id=conversation_id,
+        message_id=message_id,
+        new_content=request.content,
+    )
+
+    return AgentMessageResponse(
+        message_id=edited_id,      # placeholder bubble will use this
+        content="",                # filled later by SSE + refresh
+        role="assistant",
+    )
+
+
 @router.get("/{conversation_id}/events")
 async def event_stream(
     conversation_id: str,

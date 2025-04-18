@@ -485,6 +485,7 @@ export function useConversation({
     handleVersionSwitch,
     setEditingMessageId,
     setEditingContent,
-    setDisplayedThread
+    setDisplayedThread,
+    setMessagesById
   };
 }

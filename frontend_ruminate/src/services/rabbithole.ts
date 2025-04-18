@@ -151,3 +151,21 @@ export async function getAgentSteps(conversationId: string, messageId: string): 
     return []; // Return empty array on error
   }
 }
+
+export async function editAgentMessage(
+  conversationId: string,
+  messageId: string,
+  parentId: string,          // ← new arg
+  newContent: string,
+) {
+  const res = await fetch(
+    `${API_BASE_URL}/agent-rabbitholes/${conversationId}/messages/${messageId}/edit`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: newContent, parent_id: parentId }),
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return await res.json();   // { message_id: … }
+}
