@@ -31,6 +31,7 @@ export function applyOptimisticEdit(
     );
     return null;
   }
+  console.log("Found parent: ", original.parent_id);
 
   /* build the optimistic edit exactly like before … */
   const tempId = `temp-edit-${Date.now()}`;

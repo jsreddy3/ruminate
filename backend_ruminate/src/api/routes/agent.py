@@ -98,6 +98,7 @@ async def edit_agent_message(
     Edit a user turn inside an agent‑rabbithole conversation.
     Returns the *edited* user‑message id plus the assistant placeholder id.
     """
+    print("request:", request)
     edited_id, assistant_id = await agent_service.edit_agent_message(
         conversation_id=conversation_id,
         message_id=message_id,

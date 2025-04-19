@@ -56,6 +56,7 @@ const handleSaveEdit = (msgId: string) => {
   if (mode === "chat") {
     chatHook.handleSaveEditStreaming(msgId);            // chat path
   } else {
+    console.log(`Editing content ${editingContent} from id ${msgId}`);
     agentHook.handleSaveEditAgent(msgId, editingContent); // agent path
   }
 };

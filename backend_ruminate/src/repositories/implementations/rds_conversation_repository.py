@@ -364,11 +364,24 @@ class RDSConversationRepository(ConversationRepository):
                 return None
                 
             # Convert model to message using helper
-            return Message.from_dict(self._row_to_message_dict(msg_model))
+            msg = Message.from_dict(self._row_to_message_dict(msg_model))
+            
+            # load immediate children
+            child_result = await session.execute(
+                select(MessageModel).where(MessageModel.parent_id == message_id)
+            )
+            child_models = child_result.scalars().all()
+            msg.children = [
+                Message.from_dict(self._row_to_message_dict(cm)) for cm in child_models
+            ]
+            
+            return msg
         except Exception as e:
             if local_session:
                 await session.rollback()
-            raise e
+            logger.error(f"Error fetching message {message_id}: {e}", exc_info=True)
+            # Don't rollback on reads generally, but handle session closing
+            raise e # Re-raise the exception after logging
         finally:
             if local_session:
                 await session.close()
@@ -504,6 +517,9 @@ class RDSConversationRepository(ConversationRepository):
         This stores the complete ordered list of message IDs representing the active thread
         in the conversation record, rather than using active_child_id pointers.
         """
+        # Normalize to IDs if Message objects are passed
+        active_thread_ids = [m.id if hasattr(m, 'id') else m for m in active_thread_ids]
+        
         if not active_thread_ids:
             logger.warning(f"Empty active_thread_ids provided for conversation {conversation_id}")
             return
@@ -665,7 +681,18 @@ class RDSConversationRepository(ConversationRepository):
                 return None
             
             # Convert model to message using helper
-            return Message.from_dict(self._row_to_message_dict(msg_model))
+            msg = Message.from_dict(self._row_to_message_dict(msg_model))
+            
+            # load immediate children
+            child_result = await session.execute(
+                select(MessageModel).where(MessageModel.parent_id == message_id)
+            )
+            child_models = child_result.scalars().all()
+            msg.children = [
+                Message.from_dict(self._row_to_message_dict(cm)) for cm in child_models
+            ]
+            
+            return msg
             
         except Exception as e:
             logger.error(f"Error fetching message {message_id}: {e}", exc_info=True)

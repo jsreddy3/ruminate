@@ -237,6 +237,8 @@ class AgentRabbitholeService:
                 session=db,
             )
 
+            print("Parent: ", parent)
+
             # ── 4. flip parent pointers
             parent.active_child_id = edited_user.id
             parent.children.append(edited_user)
