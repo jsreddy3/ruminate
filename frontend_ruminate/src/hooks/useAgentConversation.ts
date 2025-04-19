@@ -134,7 +134,8 @@ export function useAgentConversation({
       });
       
       // Agent completed
-      eventSource.addEventListener('agent_completed', (e) => {
+      eventSource.addEventListener('agent_answer', (e) => {
+        console.log("Agent completed event received.");
         if (!isActive) return;
         
         try {
@@ -165,6 +166,7 @@ export function useAgentConversation({
             setTimeout(async () => {
               try {
                 // 2. Re-fetch conversation tree to update with AI response
+                console.log("Refreshing message tree.")
                 await refreshMessageTree();
                 
                 // 3. Only after the tree is refreshed, update the agent status
@@ -274,37 +276,6 @@ export function useAgentConversation({
           }
         } catch (error) {
           console.error('Error parsing agent_action event:', error);
-        }
-      });
-      
-      // Agent answer
-      eventSource.addEventListener('agent_answer', (e) => {
-        if (!isActive) return;
-        
-        try {
-          const data = JSON.parse(e.data);
-          const newEvent: AgentEvent = {
-            type: 'agent_answer',
-            message: data.answer,
-            timestamp: Date.now()
-          };
-          
-          setCurrentEvents(prev => [...prev, newEvent]);
-          console.log('Agent answer:', data);
-          
-          // Store current events with the message ID when answer is received
-          if (currentMessageId) {
-            console.log(`Storing ${currentEvents.length} events for message ${currentMessageId}`);
-            setEventsMap(prev => {
-              const newMap = new Map(prev);
-              const existing = prev.get(currentMessageId) || [];
-              newMap.set(currentMessageId, [...existing, newEvent]);
-              return newMap;
-            });
-          }
-          // No teardown or refresh here; defer to agent_completed
-        } catch (error) {
-          console.error('Error parsing agent_answer event:', error);
         }
       });
       
