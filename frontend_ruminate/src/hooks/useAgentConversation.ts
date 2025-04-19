@@ -60,12 +60,14 @@ export function useAgentConversation({
   const [isLoading, setIsLoading] = useState(isChatLoading);
   const [isMessageTreeLoaded, setIsMessageTreeLoaded] = useState(false);
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const [shouldConnectSSE, setShouldConnectSSE] = useState(false);
   
   // Track optimistic message IDs
   const optimisticMessageId = useRef<string | null>(null);
   
   // Reset state when conversation changes
   useEffect(() => {
+    setShouldConnectSSE(false);
     setCurrentEvents([]);
     setEventsMap(new Map());
     setAgentStatus('idle');
@@ -77,7 +79,7 @@ export function useAgentConversation({
   
   // Setup SSE connection
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !shouldConnectSSE) return;
     
     let eventSource: EventSource | null = null;
     let isActive = true;
@@ -178,7 +180,7 @@ export function useAgentConversation({
                 setAgentStatus('completed'); // Set completed even if refresh fails
                 closeEventSource(); // Close connection even if refresh fails
               }
-            }, 800); // Increased delay to ensure backend is ready
+            }, 1500); // Increased delay to ensure backend is ready
           }
         } catch (error) {
           console.error('Error parsing agent_completed event:', error);
@@ -300,6 +302,7 @@ export function useAgentConversation({
               return newMap;
             });
           }
+          // No teardown or refresh here; defer to agent_completed
         } catch (error) {
           console.error('Error parsing agent_answer event:', error);
         }
@@ -332,7 +335,7 @@ export function useAgentConversation({
       isActive = false;
       closeEventSource();
     };
-  }, [conversationId]);
+  }, [conversationId, shouldConnectSSE]);
 
   const handleSaveEditAgent = useCallback(
     async (messageId: string, newText: string) => {
@@ -340,8 +343,8 @@ export function useAgentConversation({
         !conversationId ||
         !newText.trim() ||
         isLoading ||
-        !messagesById ||                       // 👈 guard
-        messageTree.length === 0               //      guard
+        !messagesById ||                       // 
+        messageTree.length === 0               //      
       ) {
         return;
       }
@@ -379,6 +382,7 @@ export function useAgentConversation({
           return m.set(editedId, msg);
         });
         setDisplayedThread(getActiveThread(messageTree[0], messagesById));
+        console.log("Thread: ", displayedThread);
         // no streamAssistant call – SSE will populate content
       } catch (err) {
         console.error("agent edit failed", err);
@@ -438,7 +442,8 @@ export function useAgentConversation({
     }
     
     setIsLoading(true);
-    
+    setShouldConnectSSE(true);
+
     try {
       // Determine parent ID using same approach as regular conversations
       const lastDisplayedMessage = displayedThread.length > 0
@@ -518,7 +523,8 @@ export function useAgentConversation({
     messageTree, 
     displayedThread, 
     setDisplayedThread,
-    setNewMessage
+    setNewMessage,
+    setShouldConnectSSE
   ]);
   
   // Sync loading state with agent status

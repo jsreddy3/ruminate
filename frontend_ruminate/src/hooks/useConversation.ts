@@ -3,6 +3,7 @@ import type { Message } from '../types/chat';
 import { getActiveThread, buildMessageTree } from '../utils/messageTreeUtils';
 import { conversationApi } from '../services/api/conversation';
 import { useScrollEffect } from './useScrollEffect';
+import { applyOptimisticEdit } from '../utils/applyOptimisticEdit';
 
 interface UseConversationProps {
   documentId: string;
@@ -279,60 +280,89 @@ export function useConversation({
 
   const handleSaveEdit = async (messageId: string) => {
     if (!conversationId || !editingContent.trim() || isLoading) return;
-
     setIsLoading(true);
+  
+    // 1) OPTIMISTIC EDIT
+    const result = applyOptimisticEdit(
+      messageId,
+      editingContent,
+      messageTree,
+      messagesById,
+      displayedThread
+    );
+    if (!result) {
+      setIsLoading(false);
+      return;
+    }
+    const { tempId, newMap } = result;
+    setMessagesById(newMap);
+    const updatedRoot = newMap.get(messageTree[0].id);
+    console.log("optimistically showing thread: ", getActiveThread(updatedRoot!, newMap));
+    setDisplayedThread(getActiveThread(updatedRoot!, newMap));
+  
     try {
-      // Collect IDs of all messages in the current displayed thread
-      const activeThreadIds = displayedThread.map(msg => msg.id);
-      
-      const [aiResponse, editedMessageId] = await conversationApi.editMessage(
+      // 2) CALL BACKEND
+      const activeThreadIds = displayedThread.map(m => m.id);
+      const [aiResponse, realEditedId] = await conversationApi.editMessage(
         conversationId,
         messageId,
         editingContent,
         activeThreadIds
       );
-      
-      const originalMessage = messagesById.get(messageId)!;
-      const parent = messagesById.get(originalMessage.parent_id!)!;
-
+  
+      // 3) BUILD FINAL NODES
+      const original = messagesById.get(messageId)!;
+      const parent   = messagesById.get(original.parent_id!)!;
+  
       const editedMessage: Message = {
-        id: editedMessageId,
+        id: realEditedId,
         role: "user",
         content: editingContent,
         parent_id: parent.id,
         children: [],
         active_child_id: null,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
-
+  
       const aiMessage: Message = {
         id: aiResponse.id,
         role: aiResponse.role as "user" | "assistant" | "system",
         content: aiResponse.content,
-        parent_id: editedMessageId,
+        parent_id: editedMessage.id,
         children: [],
         active_child_id: null,
-        created_at: aiResponse.created_at
+        created_at: aiResponse.created_at,
       };
-
-      parent.children.push(editedMessage);
-      parent.active_child_id = editedMessageId;
-      editedMessage.children.push(aiMessage);
-      editedMessage.active_child_id = aiMessage.id;
-
-      messagesById.set(editedMessageId, editedMessage);
-      messagesById.set(aiMessage.id, aiMessage);
-
-      parent.active_child_id = editedMessageId;
-      setMessagesById(prev => new Map(prev).set(parent.id, { ...parent }));
+  
+      // 4) SPICE INTO finalMap
+      const finalMap = new Map(newMap);
+      finalMap.delete(tempId);
+      finalMap.set(parent.id, {
+        ...parent,
+        active_child_id: realEditedId,
+        children: parent.children
+          .filter(c => c.id !== tempId)
+          .concat(editedMessage),
+      });
+      finalMap.set(realEditedId, editedMessage);
+      finalMap.set(aiMessage.id, aiMessage);
+  
+      // 5) COMMIT STATE AND RE‑RENDER THREAD
+      setMessagesById(finalMap);
+      const committedRoot = finalMap.get(messageTree[0].id)!;
+      console.log("Showing new thread:", getActiveThread(committedRoot, finalMap));
+      setDisplayedThread(getActiveThread(committedRoot, finalMap));
+  
     } catch (error) {
       console.error("Error saving edit:", error);
+      // (Optional rollback logic here)
     } finally {
       setIsLoading(false);
       setEditingMessageId(null);
       setEditingContent("");
     }
   };
+  
 
   const handleSaveEditStreaming = async (messageId: string) => {
     if (!conversationId || !editingContent.trim() || isLoading) return;
@@ -340,11 +370,14 @@ export function useConversation({
     setIsLoading(true);
   
     /* ---------- 1. build optimistic state  ---------- */
+
+    const rootId = messageTree[0].id;
   
     const tempEditedId = `temp-edit-${Date.now()}`;
     const parentOriginal = messagesById.get(
       messagesById.get(messageId)!.parent_id!
     )!;
+    console.log("New message content: ", editingContent);
   
     // brand‑new optimistic edit
     const optimisticEdited: Message = {
@@ -363,6 +396,8 @@ export function useConversation({
       children: [...parentOriginal.children, optimisticEdited],
       active_child_id: tempEditedId,
     };
+
+    const originalMap = new Map(messagesById);
   
     // build one coherent map
     const optimisticMap = new Map(messagesById);
@@ -371,7 +406,11 @@ export function useConversation({
   
     // write it once
     setMessagesById(optimisticMap);
-    setDisplayedThread(getActiveThread(messageTree[0], optimisticMap));
+    // pull the mutated root out of the map you just built
+    const updatedRoot = optimisticMap.get(rootId)!;
+    const newThread   = getActiveThread(updatedRoot, optimisticMap);
+    setDisplayedThread(newThread);
+    console.log("Optimistic thread:", newThread);
   
     /* ---------- 2. talk to backend  ---------- */
     try {
@@ -414,18 +453,20 @@ export function useConversation({
       };
       currentMap = new Map(currentMap).set(aiMsgId, placeholder);
       setMessagesById(currentMap);
-  
-      // rebuild thread, then splice in the placeholder just below the edit
-      setDisplayedThread(thread => {
-        const fresh = getActiveThread(messageTree[0], currentMap);
-        const idx   = fresh.findIndex(m => m.id === realEditedId);
-        return [
-          ...fresh.slice(0, idx + 1),
-          placeholder,
-          ...fresh.slice(idx + 1),
-        ];
+      setStreamingMessageId(aiMsgId);
+      const editedNode = currentMap.get(realEditedId)!;
+      currentMap.set(realEditedId, {
+        ...editedNode,
+        children: [...editedNode.children, placeholder],
+        active_child_id: placeholder.id,
       });
-  
+      setMessagesById(currentMap);
+
+      const updatedRoot = currentMap.get(rootId)!;
+      const fresh       = getActiveThread(updatedRoot, currentMap);
+      console.log("After placeholder, fresh thread:", fresh);
+      setDisplayedThread(fresh);
+      
       /* ---------- 4. stream tokens ---------- */
       await streamAssistant(
         aiMsgId,
@@ -435,28 +476,21 @@ export function useConversation({
         setIsLoading,
         setCurrentEventSource
       );
+
+      setStreamingMessageId(null);
   
     } catch (err) {
       console.error("edit stream failed:", err);
   
       // rollback: restore original branch
-      const rolledBackParent: Message = {
-        ...parentOriginal,
-        // parentOriginal.children already contains the old user msg
-        active_child_id: messageId,
-      };
-      const rolledBackMap = new Map(messagesById)
-        .set(rolledBackParent.id, rolledBackParent); // clear temp edit indirectly
-      setMessagesById(rolledBackMap);
-      setDisplayedThread(getActiveThread(messageTree[0], rolledBackMap));
+      setMessagesById(originalMap);
+      setDisplayedThread(getActiveThread(originalMap.get(rootId)!, originalMap));
       setIsLoading(false);
     } finally {
       setEditingMessageId(null);
       setEditingContent("");
     }
   };
-  
-  
   
 
   const handleVersionSwitch = (message: Message, newVersionId: string) => {
