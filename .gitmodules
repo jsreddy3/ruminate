@@ -1,0 +1,3 @@
+[submodule "evaluation_ruminate"]
+	path = evaluation_ruminate
+	url = https://github.com/vivekvajipey/document_analysis_eval.git
