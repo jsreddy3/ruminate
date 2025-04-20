@@ -556,6 +556,7 @@ class RDSConversationRepository(ConversationRepository):
             await session.execute(stmt)
             
             if local_session:
+                print("Update is committing transaction...")
                 await session.commit()
                 
             logger.info(f"Updated active thread for conversation {conversation_id}")

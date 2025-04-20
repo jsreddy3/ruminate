@@ -47,8 +47,8 @@ export function applyOptimisticEdit(
 
   const parentCopy = {
     ...parent,
+    children: parent.children.map(c => ({ ...c })),  // deep clone once
     active_child_id: tempId,
-    children: [...parent.children, edited],
   };
 
   const newMap = new Map(messagesById)

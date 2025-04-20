@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Message } from '../../../types/chat';
 import MessageActions from '../../common/MessageActions';
@@ -14,6 +14,8 @@ interface ChatMessageProps {
   onCancelEdit: () => void;
   onSaveEdit: (messageId: string) => void;
   onVersionSwitch: (message: Message, newVersionId: string) => void;
+  /** When true, disable editing UI and version controls */
+  disableEditing?: boolean;
   // New props for note generation
   documentId: string;
   blockId: string;
@@ -21,26 +23,6 @@ interface ChatMessageProps {
   blockSequenceNo?: number;
   onSwitchToNotesTab?: () => void; // Callback to switch to notes tab
 }
-
-const getVersionInfo = (message: Message, messagesById: Map<string, Message>) => {
-  if (!message.parent_id) return null;
-  
-  const parent = messagesById.get(message.parent_id);
-  if (!parent) return null;
-
-  const siblings = parent.children;
-  const currentIndex = siblings.findIndex(m => m.id === message.id);
-  
-  return {
-    siblings,
-    currentIndex,
-    total: siblings.length,
-    hasPrev: currentIndex > 0,
-    hasNext: currentIndex < siblings.length - 1,
-    prevMessage: currentIndex > 0 ? siblings[currentIndex - 1] : null,
-    nextMessage: currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null
-  };
-};
 
 export default function ChatMessage({
   message,
@@ -53,6 +35,7 @@ export default function ChatMessage({
   onCancelEdit,
   onSaveEdit,
   onVersionSwitch,
+  disableEditing = false,
   // New props for note generation
   documentId,
   blockId,
@@ -62,6 +45,14 @@ export default function ChatMessage({
 }: ChatMessageProps) {
   const isEditing = editingMessageId === message.id;
   const versionInfo = message.role === 'user' ? getVersionInfo(message, messagesById) : null;
+
+  useEffect(() => {
+    console.log(
+      "🫧 ChatMessage render",
+      message.id.slice(0, 6),
+      `"${message.content.slice(0, 20)}"`
+    );
+  }, [message]);
 
   if (isEditing) {
     return (
@@ -122,7 +113,7 @@ export default function ChatMessage({
       <div className={`flex items-start ${
         message.role === 'user' ? 'justify-end' : 'justify-start'
       } w-full`}>
-        {message.role === 'user' && (
+        {message.role === 'user' && !disableEditing && (
           <div className="flex items-center mr-2 mt-2">
             <button
               onClick={() => onStartEdit(message)}
@@ -140,7 +131,7 @@ export default function ChatMessage({
               onSwitchToNotesTab={onSwitchToNotesTab}
             />
           </div>
-        )}
+         )}
         <div className="flex flex-col relative group">
           <div
             className={`whitespace-pre-wrap break-words ${
@@ -172,7 +163,7 @@ export default function ChatMessage({
       </div>
 
       {/* Version controls */}
-      {message.role === 'user' && versionInfo && versionInfo.total > 1 && (
+      {message.role === 'user' && !disableEditing && versionInfo && versionInfo.total > 1 && (
         <div className="flex justify-end items-center space-x-2 mt-1 text-neutral-400">
           <button
             onClick={() => versionInfo.prevMessage && onVersionSwitch(message, versionInfo.prevMessage.id)}
@@ -196,3 +187,23 @@ export default function ChatMessage({
     </div>
   );
 }
+
+const getVersionInfo = (message: Message, messagesById: Map<string, Message>) => {
+  if (!message.parent_id) return null;
+  
+  const parent = messagesById.get(message.parent_id);
+  if (!parent) return null;
+
+  const siblings = parent.children;
+  const currentIndex = siblings.findIndex(m => m.id === message.id);
+  
+  return {
+    siblings,
+    currentIndex,
+    total: siblings.length,
+    hasPrev: currentIndex > 0,
+    hasNext: currentIndex < siblings.length - 1,
+    prevMessage: currentIndex > 0 ? siblings[currentIndex - 1] : null,
+    nextMessage: currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null
+  };
+};

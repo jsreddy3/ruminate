@@ -19,6 +19,14 @@ interface AgentMessageProps {
 
 export default function AgentMessage({ message, conversationId, events, isLoading, documentId, blockId, blockSequenceNo, onSwitchToNotesTab }: AgentMessageProps) {
   const [showExploration, setShowExploration] = useState(false);
+
+  useEffect(() => {
+    console.log(
+      "🫧 AgentMessage render",
+      message.id.slice(0, 6),
+      `"${message.content.slice(0, 20)}"`
+    );
+  }, [message]);
   
   // Get stored process steps for this message
   const { steps: storedSteps, loading: stepsLoading } = useAgentSteps(conversationId, message.id);

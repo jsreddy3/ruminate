@@ -39,7 +39,7 @@ class ChatService:
         self.context_service = ContextService(conversation_repository, document_repository)
         self.conversation_manager = conversation_manager
         self.db_session_factory = db_session_factory
-        logger.info("ChatService initialized.")
+        # logger.info("ChatService initialized.")
     
     def _strip_html(self, html_content: Optional[str]) -> str:
         """Simple text extraction from HTML content"""
@@ -97,7 +97,7 @@ class ChatService:
     
     async def get_message_tree(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         """Get the full tree of messages in a conversation, including all versions and branches"""
-        logger.info(f"ChatService.get_message_tree called for conversation {conversation_id}")
+        # logger.info(f"ChatService.get_message_tree called for conversation {conversation_id}")
         
         try:
             # First verify the conversation exists
@@ -306,7 +306,7 @@ class ChatService:
         selected_block_id: Optional[str]
     ):
         """Background task to generate LLM response, stream it via SSE, and update the placeholder message."""
-        logger.info(f"Starting background task for AI message {ai_msg_id}")
+        # logger.info(f"Starting background task for AI message {ai_msg_id}")
         full_response_content = ""
         
         # Create a new session scope for this background task
@@ -333,10 +333,10 @@ class ChatService:
                 if conversation.included_pages != updated_included_pages:
                     conversation.included_pages = updated_included_pages
                     # await self.conversation_repo.update_conversation(conversation, session) # Be cautious with updates from background tasks
-                    logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
+                    # logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
                 
                 # --- Generate AI Response via Stream --- 
-                logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
+                # logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
                 llm_stream = self.llm_service.generate_response_stream(context_messages)
                 
                 async for chunk in llm_stream:
@@ -345,8 +345,8 @@ class ChatService:
                         # Publish chunk via SSE manager
                         await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
                 
-                logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
-                logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}") 
+                # logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
+                # logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}") 
                 # --- Update Placeholder AI Message in DB using new method --- 
                 await self.conversation_repo.update_message_content(
                     message_id=ai_msg_id, 
@@ -354,14 +354,14 @@ class ChatService:
                     session=session
                 )
                 # --- Explicit Commit and Re-fetch within same session ---
-                logger.info(f"[Task {ai_msg_id}] Attempting explicit commit...")
+                # logger.info(f"[Task {ai_msg_id}] Attempting explicit commit...")
                 await session.commit()
-                logger.info(f"[Task {ai_msg_id}] Explicit commit done. Re-fetching message within same session...")
+                # logger.info(f"[Task {ai_msg_id}] Explicit commit done. Re-fetching message within same session...")
                 committed_message = await self.conversation_repo.get_message(ai_msg_id, session)
                 if committed_message:
                     committed_len = len(committed_message.content)
                     committed_snippet = committed_message.content[:100] + ('...' if committed_len > 100 else '')
-                    logger.info(f"[Task {ai_msg_id}] Content after commit (same session): Length={committed_len}, Snippet={committed_snippet}")
+                    # logger.info(f"[Task {ai_msg_id}] Content after commit (same session): Length={committed_len}, Snippet={committed_snippet}")
                 else:
                     logger.warning(f"[Task {ai_msg_id}] Could not re-fetch message {ai_msg_id} after commit within the same session.")
                 # --------------------------------------------------------
@@ -383,7 +383,7 @@ class ChatService:
                 await chat_sse_manager.publish_chunk(ai_msg_id, "[DONE]")
                 await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
                 # The session will be committed/rolled back automatically by the context manager
-                logger.info(f"[Task {ai_msg_id}] Background task session closed.")
+                # logger.info(f"[Task {ai_msg_id}] Background task session closed.")
         
         # === Verification Step: Check DB content *after* task session closes ===
         try:

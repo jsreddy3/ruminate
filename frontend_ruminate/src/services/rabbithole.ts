@@ -48,6 +48,11 @@ export interface AgentStep {
   metadata?: any;
 }
 
+export interface EditMessageResponse {
+  edited_message_id: string;
+  placeholder_id:     string;
+}
+
 export async function createRabbithole(data: CreateRabbitholeRequest): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/rabbitholes`, {
     method: 'POST',
@@ -167,5 +172,5 @@ export async function editAgentMessage(
     }
   );
   if (!res.ok) throw new Error(await res.text());
-  return await res.json();   // { message_id: … }
+  return (await res.json()) as EditMessageResponse;
 }

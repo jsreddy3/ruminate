@@ -114,8 +114,8 @@ class AgentRabbitholeService:
         Process a user message for an agent rabbithole conversation.
         This initiates the agent's exploration and returns the final answer.
         """
-        logger.info(f"Processing agent message for conversation: {conversation_id}")
-        logger.debug(f"Message content: {content[:50]}{'...' if len(content) > 50 else ''}")
+        # logger.info(f"Processing agent message for conversation: {conversation_id}")
+        # logger.debug(f"Message content: {content[:50]}{'...' if len(content) > 50 else ''}")
         
         # Use provided session or create a new one for initial database operations
         async with self.get_session() if session is None else contextlib.nullcontext(session) as db_session:
@@ -159,13 +159,13 @@ class AgentRabbitholeService:
         
         # Run the agent loop without holding the DB session
         # Pass session factory instead of session
-        logger.info(f"Starting agent exploration loop for conversation: {conversation_id}")
+        # logger.info(f"Starting agent exploration loop for conversation: {conversation_id}")
         final_answer = await self.agent_loop_runner.run_agent_loop(
             agent_state=agent_state,
             active_thread=active_thread,
             session_factory=self.get_session
         )
-        logger.info(f"Agent exploration completed with answer length: {len(final_answer)}")
+        # logger.info(f"Agent exploration completed with answer length: {len(final_answer)}")
         
         # Create new session for final database updates
         async with self.get_session() if session is None else contextlib.nullcontext(session) as db_session:
@@ -173,7 +173,7 @@ class AgentRabbitholeService:
             if user_msg.id not in active_thread:
                 active_thread.append(user_msg.id)
                 await self.conversation_repo.update_active_thread(conversation_id, active_thread, db_session)
-                logger.debug("Updated active thread with user message ID")
+                # logger.debug("Updated active thread with user message ID")
             
             # Get the final answer message that was created by the agent loop
             # It should be the last message in the active thread
@@ -212,39 +212,44 @@ class AgentRabbitholeService:
         session: Optional[AsyncSession] = None,
     ) -> Tuple[str, str]:
 
+        log = logger.getChild("edit_agent_message")
+
         async with self.get_session() if session is None else nullcontext(session) as db:
-            # ── 1. fetch original
+            # 1 ───────── fetch original
             original = await self.conversation_repo.get_message(message_id, db)
             if not original:
+                log.error("✖ original %s not found", message_id)
                 raise ValueError(f"Message {message_id} not found")
+            logger.info("① original  id=%s  parent=%s", original.id, original.parent_id)
 
-            # ── 2. determine parent
+            # 2 ───────── resolve parent
             if original.parent_id:
                 parent = await self.conversation_repo.get_message(original.parent_id, db)
             else:
-                # first user turn → use the root system message
                 parent = await self.conversation_repo.get_root_message(conversation_id, db)
-                # ^‑ implement this helper to SELECT role='system' AND parent_id IS NULL
 
             if not parent:
+                log.error("✖ parent for %s not found", message_id)
                 raise ValueError(f"Parent message for {message_id} not found")
+            logger.info("② parent    id=%s  active_child=%s", parent.id, parent.active_child_id)
 
-            # ── 3. create sibling user message
+            # 3 ───────── create sibling user message
             edited_user = await self.conversation_manager.create_user_message(
                 conversation_id=conversation_id,
                 content=new_content,
                 parent_id=parent.id,
                 session=db,
             )
+            logger.info("③ edited    id=%s (new sibling)", edited_user.id)
 
-            print("Parent: ", parent)
-
-            # ── 4. flip parent pointers
+            # 4 ───────── flip parent pointer
             parent.active_child_id = edited_user.id
             parent.children.append(edited_user)
-            await db.flush()
+            await db.flush()                       # keep ORM state in‑sync
+            logger.info("④ parent.active_child_id → %s  (#children=%d)",
+                      parent.active_child_id, len(parent.children))
 
-            # ── 5. assistant placeholder
+            # 5 ───────── assistant placeholder
             assistant_placeholder = await self.conversation_manager.create_ai_message(
                 conversation_id=conversation_id,
                 content="",
@@ -252,22 +257,37 @@ class AgentRabbitholeService:
                 session=db,
                 metadata={"message_type": "placeholder"},
             )
+            logger.info("⑤ placeholder id=%s parent=%s", assistant_placeholder.id, edited_user.id)
 
-            # ── 6. update active thread (dedupe)
+            # 6 ───────── rebuild active_thread
             active_thread = await self.conversation_repo.get_active_thread(conversation_id, db)
-            if edited_user.id not in active_thread:
-                active_thread.append(edited_user.id)
-                await self.conversation_repo.update_active_thread(conversation_id, active_thread, db)
+            logger.info("⑥ active_thread BEFORE  %s", active_thread)
 
-        # ── 7. notify client + kick off exploration *outside* transaction
+            try:
+                cut = active_thread.index(parent.id) + 1
+                active_thread = active_thread[:cut]
+            except ValueError:
+                active_thread = [parent.id]
+                logger.info("parent not in thread — starting fresh branch")
+
+            active_thread += [edited_user.id, assistant_placeholder.id]
+            logger.info("⑦ active_thread AFTER   %s", active_thread)
+
+            await self.conversation_repo.update_active_thread(conversation_id, active_thread, db)
+            await db.commit()
+            log.info("✓ commit  branch=%s→%s→%s",
+                    parent.id, edited_user.id, assistant_placeholder.id)
+
+        # 7 ───────── notify & kick exploration
         if self.sse_manager:
             await self.sse_manager.send_event(
                 conversation_id, "agent_started",
                 {"message": "Agent is analyzing your edit..."}
             )
+            logger.info("⇢ sent SSE  agent_started")
 
         async def _run():
-            await self.send_agent_message(   # reuse the proven pipeline
+            await self.send_agent_message(
                 conversation_id=conversation_id,
                 content=new_content,
                 parent_id=edited_user.id,
@@ -275,6 +295,8 @@ class AgentRabbitholeService:
         create_task(_run())
 
         return edited_user.id, assistant_placeholder.id
+
+
     
     def _ensure_id_string(self, id_or_message):
         """Convert a Message object to its ID string if needed"""

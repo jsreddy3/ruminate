@@ -122,6 +122,7 @@ const handleSaveEdit = (msgId: string) => {
           ) : (
             <ChatMessage
               key={m.id}
+              disableEditing={mode === 'agent'}
               message={m}
               editingMessageId={editingMessageId}
               editingContent={editingContent}

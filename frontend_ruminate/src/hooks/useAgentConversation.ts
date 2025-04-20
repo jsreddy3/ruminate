@@ -90,6 +90,7 @@ export function useAgentConversation({
         console.log('Closing SSE connection for conversation:', conversationId);
         eventSource.close();
         eventSource = null;
+        setShouldConnectSSE(false);
       }
     };
     
@@ -168,6 +169,18 @@ export function useAgentConversation({
                 // 2. Re-fetch conversation tree to update with AI response
                 console.log("Refreshing message tree.")
                 await refreshMessageTree();
+
+                setMessagesById(prevMap => {
+                  const newMap = new Map(prevMap);
+                  newMap.forEach((msg, id) => {
+                    if (id.startsWith("temp-")) {
+                      newMap.delete(id);
+                    }
+                  });
+                  return newMap;
+                });
+
+                console.log("POST‑REFRESH DISPLAYED:", displayedThread.map(m => m.id));
                 
                 // 3. Only after the tree is refreshed, update the agent status
                 // This ensures we don't have a jarring transition where content
@@ -294,6 +307,7 @@ export function useAgentConversation({
         // Try to reconnect
         if (eventSource && isActive) {
           eventSource.close();
+          setShouldConnectSSE(false);
           setTimeout(setupEventSource, 3000);
         }
       };
@@ -314,55 +328,151 @@ export function useAgentConversation({
         !conversationId ||
         !newText.trim() ||
         isLoading ||
-        !messagesById ||                       // 
-        messageTree.length === 0               //      
+        messageTree.length === 0
       ) {
         return;
       }
   
-      /* optimistic branch */
+      setIsLoading(true);
+  
+      // 0) Grab the root message ID once
+      const rootId = messageTree[0].id;
+  
+      // 1) Snapshot current map for rollback
+      const originalMap = new Map(messagesById);
+  
+      // 2) Build & commit optimistic edit (temp‐ID user message)
       const result = applyOptimisticEdit(
         messageId,
         newText,
         messageTree,
         messagesById,
-        displayedThread,  // new arg
+        displayedThread
       );
-      if (!result) return;                 // guard against the rare null
+      if (!result) {
+        setIsLoading(false);
+        return;
+      }
       const { tempId, newMap } = result;
       setMessagesById(newMap);
-      setDisplayedThread(getActiveThread(messageTree[0], newMap));
-      setIsLoading(true);
-
+      {
+        const updatedRoot      = newMap.get(rootId)!;
+        const optimisticThread = getActiveThread(updatedRoot, newMap);
+        setDisplayedThread(optimisticThread);
+      }
+  
       try {
-        // ── 2. call backend
-        const parentId = messagesById.get(messageId)?.parent_id ?? messageTree[0].id;
-        const { message_id: editedId } = await editAgentMessage(
+        // 3) Send edit to backend, receive both the real user‐message ID and the assistant placeholder ID
+        const parentId =
+          originalMap.get(messageId)?.parent_id ?? rootId;
+        const {
+          edited_message_id: realEditedId,
+          placeholder_id:    placeholderId
+        } = await editAgentMessage(
           conversationId,
           messageId,
           parentId,
-          newText,
+          newText
         );
-        
-        // swap temp → real
-        setMessagesById(prev => {
-          const m = new Map(prev);
-          const msg = m.get(tempId)!;
-          m.delete(tempId);
-          msg.id = editedId;
-          return m.set(editedId, msg);
+
+        console.log("PRE‑REFRESH RAW:", await conversationApi.getMessageTree(conversationId));
+  
+        // 4) Swap stub → real user message
+        const map2 = new Map(newMap);
+
+        // get & remove the temp stub *by key only*
+        const stubNode = map2.get(tempId)!;
+        map2.delete(tempId);
+
+        // 👉  do NOT reuse stubNode object – copy its data first
+        const realEdited: Message = {
+          ...stubNode,      // copies role, content, parent_id, etc.
+          id: realEditedId  // new id
+        };
+        // (stubNode itself is now unreachable — no mutation leaks)
+
+        map2.set(realEditedId, realEdited);
+  
+        // 5) Patch its parent to point at the realEdited node
+        const parentOfEditedId = realEdited.parent_id ?? rootId;
+        const parentNode      = map2.get(parentOfEditedId)!;
+        const updatedParent: Message = {
+          ...parentNode,
+          active_child_id: realEditedId,
+          // keep assistants + the *new* user sibling only
+          children: parentNode.children.filter(c => c.role !== 'user')
+                                       .concat(realEdited),
+        };
+        map2.set(parentOfEditedId, updatedParent);
+  
+        // 6) Insert the assistant placeholder under realEdited
+        const placeholder: Message = {
+          id: placeholderId,
+          role: "assistant",
+          content: "",
+          parent_id: realEditedId,
+          children: [],
+          active_child_id: null,
+          created_at: new Date().toISOString(),
+        };
+        map2.set(placeholderId, placeholder);
+  
+        // 7) Patch realEdited to point at the placeholder
+        map2.set(realEditedId, {
+          ...realEdited,
+          active_child_id: placeholderId,
+          children: [...realEdited.children, placeholder],
         });
-        setDisplayedThread(getActiveThread(messageTree[0], messagesById));
-        console.log("Thread: ", displayedThread);
-        // no streamAssistant call – SSE will populate content
+  
+        // 8) Commit map2 and re‑compute displayedThread
+        setMessagesById(map2);
+        {
+          const updatedRoot2 = map2.get(rootId)!;
+          const newThread2   = getActiveThread(updatedRoot2, map2);
+          console.table(
+            newThread2.map(m => ({
+              id: m.id.slice(0,6),
+              role: m.role,
+              parent: m.parent_id?.slice(0,6),
+              activeChild: messagesById.get(m.parent_id || "")?.active_child_id?.slice(0,6)
+            }))
+          );
+          setDisplayedThread(newThread2);
+        }
+        // right after setDisplayedThread(newThread2) or inside refreshMessageTree
+        
+
+        console.log("Thread walked: ", displayedThread.map(m => m.id));
+  
+        // 9) Reconnect the agent SSE to stream “Agent is exploring…” + events
+        setShouldConnectSSE(true);
+        console.log("Listening to SSE: ", conversationId);
+  
       } catch (err) {
         console.error("agent edit failed", err);
+        // 10) Rollback on error
+        setMessagesById(originalMap);
+        {
+          const originalRoot   = originalMap.get(rootId)!;
+          const rollbackThread = getActiveThread(originalRoot, originalMap);
+          setDisplayedThread(rollbackThread);
+        }
       } finally {
         setIsLoading(false);
       }
     },
-    [conversationId, messagesById, messageTree, isLoading],
-  );
+    [
+      conversationId,
+      messageTree,
+      messagesById,
+      displayedThread,
+      isLoading,
+      applyOptimisticEdit,
+      editAgentMessage,
+      getActiveThread,
+      setShouldConnectSSE
+    ]
+  );  
   
   // Implementation of message tree refresh
   const refreshMessageTree = useCallback(async () => {
@@ -372,7 +482,10 @@ export function useAgentConversation({
       console.log('Refreshing message tree after agent completion...');
       
       // Directly fetch updated message tree from the API
-      const messages = await conversationApi.getMessageTree(conversationId);
+      const originalMessages = await conversationApi.getMessageTree(conversationId);
+      const messages = Array.from(
+        new Map(originalMessages.map(m => [m.id, m])).values()
+      )
       
       if (!messages || messages.length === 0) {
         console.warn('No messages returned when refreshing message tree');

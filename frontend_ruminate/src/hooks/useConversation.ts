@@ -176,6 +176,13 @@ export function useConversation({
           setIsLoading(false); // Stop loading indicator
           // Optionally: Fetch full tree again to ensure consistency, or trust stream
           // fetchConversationHistory(); 
+
+          const allMsgs = Array.from(messagesById.values());
+          const { tree: newTree, messageMap: newMap } = buildMessageTree(allMsgs);
+
+          setMessageTree(newTree);
+          setMessagesById(newMap);
+          setDisplayedThread(getActiveThread(newTree[0], newMap));
         } else {
           // Update messagesById (important for full content on completion)
           setMessagesById(prevMap => {

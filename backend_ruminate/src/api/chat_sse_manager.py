@@ -11,13 +11,13 @@ class ChatSSEManager:
     def __init__(self):
         # stream_id (typically ai_message_id) -> Queue
         self.streaming_queues: Dict[str, asyncio.Queue] = {}
-        logger.info("ChatSSEManager initialized.")
+        # logger.info("ChatSSEManager initialized.")
 
     async def publish_chunk(self, stream_id: str, chunk_content: str):
         """Publish a chunk of content to a specific stream."""
         if stream_id not in self.streaming_queues:
             # Create the queue if a subscriber hasn't connected yet
-            logger.info(f"Creating new SSE queue for stream_id: {stream_id}")
+            # logger.info(f"Creating new SSE queue for stream_id: {stream_id}")
             self.streaming_queues[stream_id] = asyncio.Queue()
         
         # Format as SSE message
@@ -32,11 +32,11 @@ class ChatSSEManager:
         """Subscribe to a stream and yield messages as they arrive."""
         if stream_id not in self.streaming_queues:
             # Create the queue if the publisher hasn't sent anything yet
-            logger.info(f"Subscriber connected, creating queue for stream_id: {stream_id}")
+            # logger.info(f"Subscriber connected, creating queue for stream_id: {stream_id}")
             self.streaming_queues[stream_id] = asyncio.Queue()
         else:
-            logger.info(f"Subscriber connected to existing queue for stream_id: {stream_id}")
-
+            # logger.info(f"Subscriber connected to existing queue for stream_id: {stream_id}")
+            pass
         queue = self.streaming_queues[stream_id]
         
         try:

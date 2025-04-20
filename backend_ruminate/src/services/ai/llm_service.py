@@ -25,7 +25,7 @@ class LLMService:
         if gemini_api_key:
             try:
                 genai.configure(api_key=gemini_api_key)
-                logger.info("Gemini API configured successfully.")
+                # logger.info("Gemini API configured successfully.")
             except Exception as e:
                 logger.error(f"Failed to configure Gemini API: {e}")
                 # Decide if you want to raise an error here or handle it differently

@@ -2,6 +2,11 @@ import { Message } from "../../types/chat";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
+export interface ConversationTreePayload {
+  messages: Message[];
+  active_thread_ids: string[];
+}
+
 export const conversationApi = {
   create: async (documentId: string): Promise<{ id: string }> => {
     const response = await fetch(
