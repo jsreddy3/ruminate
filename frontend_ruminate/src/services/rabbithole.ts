@@ -41,7 +41,7 @@ export type AgentStepType = 'thought' | 'action' | 'result' | 'error' | 'timeout
 
 export interface AgentStep {
   id: string;
-  step_type: AgentStepType;
+  step_type: string;
   content: string;
   step_number: number;
   created_at: string;
@@ -91,63 +91,110 @@ export async function getRabbitholesByDocument(documentId: string): Promise<Rabb
   return await response.json();
 }
 
-// Add new function to create agent rabbitholes
-export async function createAgentRabbithole(data: CreateRabbitholeRequest): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/agent-rabbitholes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to create agent rabbithole');
-  }
-  
-  const result = await response.json();
-  return result.conversation_id;
+/**
+ * Connect to the agent events stream
+ * @param conversationId ID of the agent conversation
+ * @returns EventSource instance
+ */
+export function connectToAgentEvents(conversationId: string): EventSource {
+  const eventSourceUrl = `${API_BASE_URL}/agent-rabbitholes/${conversationId}/events`;
+  return new EventSource(eventSourceUrl);
 }
 
+/**
+ * Fetch the steps for a specific agent message
+ * @param conversationId ID of the agent conversation
+ * @param messageId ID of the message to get steps for
+ * @returns Array of agent steps
+ */
+export async function getAgentSteps(
+  conversationId: string, 
+  messageId: string
+): Promise<AgentStep[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/agent-rabbitholes/${conversationId}/messages/${messageId}/steps`
+  );
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch agent steps: ${response.statusText}`);
+  }
+  
+  return response.json();
+}
+
+/**
+ * Create a new agent rabbithole conversation for a block
+ * @param documentId ID of the document
+ * @param blockId ID of the block
+ * @param selectedText Text selected from the block
+ * @param startOffset Start position of selection
+ * @param endOffset End position of selection
+ * @param documentConversationId Optional parent conversation ID
+ * @returns ID of the created conversation
+ */
+export async function createAgentRabbithole(
+  documentId: string,
+  blockId: string,
+  selectedText: string,
+  startOffset: number,
+  endOffset: number,
+  documentConversationId?: string
+): Promise<string> {
+  const response = await fetch(
+    `${API_BASE_URL}/agent-rabbitholes`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        document_id: documentId,
+        block_id: blockId,
+        selected_text: selectedText,
+        start_offset: startOffset,
+        end_offset: endOffset,
+        document_conversation_id: documentConversationId
+      })
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error(`Failed to create agent rabbithole: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.conversation_id;
+}
+
+/**
+ * Send a message to an agent rabbithole conversation
+ * @param conversationId ID of the agent conversation
+ * @param content Message content
+ * @param parentId ID of the parent message
+ * @returns The created message information
+ */
 export async function sendAgentMessage(
   conversationId: string,
   content: string,
   parentId: string
 ): Promise<{ message_id: string; content: string; role: string }> {
-  const response = await fetch(`${API_BASE_URL}/agent-rabbitholes/${conversationId}/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      content,
-      parent_id: parentId
-    }),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/agent-rabbitholes/${conversationId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content,
+        parent_id: parentId
+      })
+    }
+  );
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to send message to agent');
+    throw new Error(`Failed to send agent message: ${response.statusText}`);
   }
   
-  return await response.json();
-}
-
-// Connect to SSE for real-time events
-export function connectToAgentEvents(conversationId: string): EventSource {
-  return new EventSource(`${API_BASE_URL}/agent-rabbitholes/${conversationId}/events`);
-}
-
-// Fetch stored agent process steps for a message
-export async function getAgentSteps(conversationId: string, messageId: string): Promise<AgentStep[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/agent-rabbitholes/${conversationId}/messages/${messageId}/steps`);
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to fetch agent steps');
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching agent steps:', error);
-    return []; // Return empty array on error
-  }
+  return response.json();
 }

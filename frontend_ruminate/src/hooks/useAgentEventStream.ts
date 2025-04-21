@@ -1,0 +1,189 @@
+import { useState, useEffect } from 'react';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+
+// Define types for agent events
+export type AgentStatus = 'idle' | 'exploring' | 'completed' | 'error';
+
+export interface AgentEvent {
+  type: string;
+  content?: string;
+  metadata?: any;
+  timestamp: number;
+  step_number?: number;
+  conversation_id?: string;
+  message_id?: string;
+}
+
+/**
+ * Hook for streaming agent events during an agent conversation
+ * 
+ * @param conversationId The ID of the agent conversation
+ * @returns Object containing events, connection status, and agent progress status
+ */
+export function useAgentEventStream(conversationId: string | null): {
+  events: AgentEvent[];
+  status: AgentStatus;
+  isConnected: boolean;
+  error: Error | null;
+} {
+  const [events, setEvents] = useState<AgentEvent[]>([]);
+  const [status, setStatus] = useState<AgentStatus>('idle');
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!conversationId) {
+      return;
+    }
+
+    // Reset state when conversation ID changes
+    setEvents([]);
+    setStatus('idle');
+    setIsConnected(false);
+    setError(null);
+
+    // Create EventSource for SSE connection
+    const eventSourceUrl = `${API_BASE_URL}/agent-rabbitholes/${conversationId}/events`;
+    let eventSource: EventSource;
+
+    try {
+      eventSource = new EventSource(eventSourceUrl);
+      
+      // Define event handlers for different types of events
+      
+      // Connection established
+      eventSource.addEventListener('connected', (event) => {
+        setIsConnected(true);
+        console.log('Connected to agent events stream');
+        try {
+          const data = JSON.parse(event.data);
+          // Add a connection event
+          addEvent('connected', 'Connected to agent', data);
+        } catch (err) {
+          console.error('Error parsing connected event data:', err);
+        }
+      });
+
+      // Agent process started
+      eventSource.addEventListener('agent_started', (event) => {
+        setStatus('exploring');
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('agent_started', 'Agent started exploring', data);
+        } catch (err) {
+          console.error('Error parsing agent_started event data:', err);
+        }
+      });
+
+      // Agent performing an action/step
+      eventSource.addEventListener('agent_action', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('agent_action', data.content || 'Agent action', data);
+        } catch (err) {
+          console.error('Error parsing agent_action event data:', err);
+        }
+      });
+
+      // Agent producing an answer
+      eventSource.addEventListener('agent_answer', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('agent_answer', data.content || 'Agent answer', data);
+        } catch (err) {
+          console.error('Error parsing agent_answer event data:', err);
+        }
+      });
+
+      // Step started
+      eventSource.addEventListener('step.started', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('step.started', data.step_type || 'Step started', data);
+        } catch (err) {
+          console.error('Error parsing step.started event data:', err);
+        }
+      });
+
+      // Step completed
+      eventSource.addEventListener('step.completed', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('step.completed', data.content || 'Step completed', data);
+        } catch (err) {
+          console.error('Error parsing step.completed event data:', err);
+        }
+      });
+
+      // Agent process completed
+      eventSource.addEventListener('agent_completed', (event) => {
+        setStatus('completed');
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('agent_completed', 'Agent exploration completed', data);
+        } catch (err) {
+          console.error('Error parsing agent_completed event data:', err);
+        }
+      });
+
+      // Agent encountered an error
+      eventSource.addEventListener('agent_error', (event) => {
+        setStatus('error');
+        try {
+          const data = JSON.parse(event.data);
+          addEvent('agent_error', data.error || 'Agent encountered an error', data);
+          setError(new Error(data.error || 'Agent process failed'));
+        } catch (err) {
+          console.error('Error parsing agent_error event data:', err);
+          setError(new Error('Agent process failed with unknown error'));
+        }
+      });
+
+      // Handle ping events (keep-alive)
+      eventSource.addEventListener('ping', () => {
+        // No state change needed for ping, just keep the connection alive
+      });
+
+      // Handle general errors
+      eventSource.onerror = (event) => {
+        console.error('Error in agent event stream:', event);
+        setError(new Error('Connection to agent events failed'));
+        setStatus('error');
+        eventSource.close();
+      };
+    } catch (err) {
+      console.error('Failed to create EventSource for agent events:', err);
+      setError(err instanceof Error ? err : new Error('Failed to connect to agent events'));
+      setStatus('error');
+    }
+
+    // Helper function to add an event to the events array
+    function addEvent(type: string, content: string, data: any = {}) {
+      const newEvent: AgentEvent = {
+        type,
+        content,
+        metadata: data,
+        timestamp: Date.now(),
+        step_number: data.step_number,
+        conversation_id: data.conversation_id || conversationId,
+        message_id: data.message_id
+      };
+      setEvents(prevEvents => [...prevEvents, newEvent]);
+    }
+
+    // Clean up the connection when the component unmounts or conversationId changes
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [conversationId]);
+
+  return {
+    events,
+    status,
+    isConnected,
+    error,
+  };
+}

@@ -24,6 +24,11 @@ class EditMessageRequest(BaseModel):
     content: str
     active_thread_ids: List[str]
 
+class EditMessageStreamingRequest(BaseModel):
+    content: str
+    active_thread_ids: List[str]
+    selected_block_id: Optional[str] = None
+
 @router.post("", response_model=Conversation)
 async def create_conversation(
     document_id: str,
@@ -104,6 +109,28 @@ async def get_document_conversations(
     """Get all conversations for a document"""
     return await chat_service.get_document_conversations(document_id, session)
 
+@router.put(
+    "/{conversation_id}/messages/{message_id}/edit_streaming",
+    response_model=tuple[str, str],
+)
+async def edit_message_streaming(
+    conversation_id: str,
+    message_id: str,
+    request: EditMessageStreamingRequest,
+    background_tasks: BackgroundTasks,          # ← let FastAPI inject this
+    chat_service: ChatService = Depends(get_chat_service),
+):
+    try:
+        return await chat_service.edit_message_streaming(
+            background_tasks=background_tasks,  # ← pass it straight through
+            message_id=message_id,
+            new_content=request.content,
+            active_thread_ids=request.active_thread_ids,
+            selected_block_id=request.selected_block_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @router.put("/{conversation_id}/messages/{message_id}", response_model=tuple[Message, str])
 async def edit_message(
     conversation_id: str,
@@ -158,28 +185,28 @@ async def get_message_tree(
 ) -> List[Message]:
     """Get the full tree of messages in a conversation, including all versions and branches"""
     try:
-        logger.info(f"Getting message tree for conversation: {conversation_id}")
+        # logger.info(f"Getting message tree for conversation: {conversation_id}")
          
          # Add pre-execution logging
-        logger.info(f"Beginning chat_service.get_message_tree call for {conversation_id}")
+        # logger.info(f"Beginning chat_service.get_message_tree call for {conversation_id}")
         
         try:
             message_tree = await chat_service.get_message_tree(conversation_id, session)
             
             # Log message count to diagnose potential size issues
             message_count = len(message_tree) if message_tree else 0
-            logger.info(f"Retrieved {message_count} messages for conversation {conversation_id}")
+            # logger.info(f"Retrieved {message_count} messages for conversation {conversation_id}")
             
             # Check for circular references before attempting to log the full tree
             try:
                 # Log just the IDs of messages to avoid serializing the whole tree
                 message_ids = [msg.id for msg in message_tree]
-                logger.info(f"Message IDs in tree: {message_ids[:10]}{'...' if len(message_ids) > 10 else ''}")
+                # logger.info(f"Message IDs in tree: {message_ids[:10]}{'...' if len(message_ids) > 10 else ''}")
             except Exception as ref_err:
                 logger.error(f"Error accessing message IDs: {str(ref_err)}")
             
             # Return the message tree - this is where serialization might fail
-            logger.info(f"Attempting to return message tree for {conversation_id}")
+            # logger.info(f"Attempting to return message tree for {conversation_id}")
             return message_tree
             
         except Exception as inner_e:

@@ -1,5 +1,11 @@
 import type { Block } from "../components/pdf/PDFViewer";
 
+export enum MessageRole {
+  USER = "user",
+  ASSISTANT = "assistant",
+  SYSTEM = "system"
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
@@ -8,6 +14,11 @@ export interface Message {
   children: Message[];
   active_child_id: string | null;
   created_at: string;
+}
+
+export interface MessageNode extends Message {
+  children: MessageNode[];
+  isActive: boolean;
 }
 
 export interface ChatPaneProps {

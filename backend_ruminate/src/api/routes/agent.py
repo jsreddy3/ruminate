@@ -30,6 +30,10 @@ class AgentMessageResponse(BaseModel):
     message_id: str
     content: str
     role: str
+
+class EditMessageResponse(BaseModel):
+    edited_message_id: str
+    placeholder_id: str
     
 class AgentStepResponse(BaseModel):
     id: str
@@ -83,6 +87,32 @@ async def send_agent_message(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@router.post(
+    "/{conversation_id}/messages/{message_id}/edit",
+    response_model=EditMessageResponse,
+)
+async def edit_agent_message(
+    conversation_id: str,
+    message_id: str,
+    request: AgentMessageRequest,
+    agent_service: AgentRabbitholeService = Depends(get_agent_rabbithole_service),
+) -> EditMessageResponse:
+    """
+    Edit a user turn inside an agent‑rabbithole conversation.
+    Returns the *edited* user‑message id plus the assistant placeholder id.
+    """
+    edited_id, assistant_id = await agent_service.edit_agent_message(
+        conversation_id=conversation_id,
+        message_id=message_id,
+        new_content=request.content,
+    )
+
+    return EditMessageResponse(
+        edited_message_id=edited_id,
+        placeholder_id=assistant_id
+    )
+
 
 @router.get("/{conversation_id}/events")
 async def event_stream(

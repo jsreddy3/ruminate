@@ -6,13 +6,10 @@ import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
-import ChatPane, { InteractivePaneHandle } from "../interactive/InteractivePane"; 
-import ResizablePanel from "../common/ResizablePanel";
 import MathJaxProvider from "../common/MathJaxProvider";
-import { conversationApi } from "../../services/api/conversation";
-import CollapsibleButton from "../common/CollapsibleButton";
 import TabView from "../common/TabView";
-import NotesEditor from "../notes/NotesEditor";
+import ChatContainer from "../chat/ChatContainer";
+import { conversationApi } from "../../services/api/conversation";
 
 export interface Block {
   id: string;
@@ -46,13 +43,6 @@ function BlockInformation({ block }: { block: Block | null }) {
           <p>
             <span className="font-medium">Type:</span> {block.block_type}
           </p>
-          {/* <p>
-            <span className="font-medium">Content:</span>
-          </p> */}
-          {/* <div
-            className="mt-1 p-2 bg-gray-50 rounded text-sm"
-            dangerouslySetInnerHTML={{ __html: block.html }}
-          /> */}
         </div>
       </div>
     </div>
@@ -67,10 +57,41 @@ async function calculateHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Add a type for our cache structure
-interface CachedDocument {
-  documentId: string;
-  blockConversations: { [blockId: string]: string };
+// A map to track conversation initialization promises by document ID
+const ConversationInitPromises: Record<string, Promise<string>> = {};
+
+// Cache stored conversation IDs
+interface DocumentConversations {
+  mainConversationId?: string;
+  blockConversations: Record<string, string>;
+}
+
+// Storage helpers
+function storeConversationId(documentId: string, conversationId: string): void {
+  try {
+    const storageKey = `document_${documentId}_conversations`;
+    const existing = localStorage.getItem(storageKey);
+    const data: DocumentConversations = existing ? JSON.parse(existing) : { blockConversations: {} };
+    
+    data.mainConversationId = conversationId;
+    localStorage.setItem(storageKey, JSON.stringify(data));
+  } catch (error) {
+    console.error("Error storing conversation ID:", error);
+  }
+}
+
+function getStoredConversationId(documentId: string): string | undefined {
+  try {
+    const storageKey = `document_${documentId}_conversations`;
+    const existing = localStorage.getItem(storageKey);
+    if (existing) {
+      const data = JSON.parse(existing) as DocumentConversations;
+      return data.mainConversationId;
+    }
+  } catch (error) {
+    console.error("Error retrieving conversation ID:", error);
+  }
+  return undefined;
 }
 
 interface PDFViewerProps {
@@ -83,10 +104,72 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [documentId] = useState<string>(initialDocumentId);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
-  const [documentConversationId, setDocumentConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // Add state for PDFViewer collapsed state
   const [isPdfCollapsed, setIsPdfCollapsed] = useState(false);
+  
+  // Add state for conversation management
+  const [mainConversationId, setMainConversationId] = useState<string | null>(null);
+  const [agentConversationId, setAgentConversationId] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState<boolean>(false);
+  const [showAgentChat, setShowAgentChat] = useState<boolean>(false);
+  
+  // Initialize the main document conversation
+  useEffect(() => {
+    if (!documentId) return;
+    
+    // Check if we have a stored conversation ID
+    const storedId = getStoredConversationId(documentId);
+    if (storedId) {
+      setMainConversationId(storedId);
+      return;
+    }
+    
+    // Otherwise, initialize conversation
+    if (!ConversationInitPromises[documentId]) {
+      ConversationInitPromises[documentId] = (async () => {
+        try {
+          // Try fetching existing conversations for the document
+          const existingConvos = await conversationApi.getDocumentConversations(documentId);
+
+          // Use the first one found, or create if none exist
+          if (existingConvos && existingConvos.length > 0) {
+            const id = existingConvos[0].id;
+            setMainConversationId(id);
+            storeConversationId(documentId, id);
+            console.log("Using existing document conversation:", id);
+            return id;
+          } else {
+            console.log("No existing document conversation found, creating new one...");
+            // Create a document-level conversation
+            const newConv = await conversationApi.create(documentId);
+            const id = newConv.id;
+            setMainConversationId(id);
+            storeConversationId(documentId, id);
+            console.log("Created new document conversation:", id);
+            return id;
+          }
+        } catch (error) {
+          console.error("Error initializing document conversation:", error);
+          throw error; // Re-throw to properly handle promise rejection
+        } finally {
+          // Clean up the promise when done
+          delete ConversationInitPromises[documentId];
+        }
+      })();
+    }
+    
+    // Attach to the existing promise if one exists
+    ConversationInitPromises[documentId]
+      .then(id => {
+        if (!mainConversationId) {
+          setMainConversationId(id);
+        }
+      })
+      .catch(error => {
+        console.error("Failed to initialize conversation:", error);
+      });
+  }, [documentId, mainConversationId]);
   
   // Function to switch to the notes tab
   const switchToNotesTab = useCallback(() => {
@@ -95,8 +178,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
-  // Add state for chat pane width
-  const [chatPaneWidth, setChatPaneWidth] = useState(384);
   
   // Add state for active tab
   const [activeTabId, setActiveTabId] = useState<string>('pdf');
@@ -113,13 +194,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return map;
   }, [flattenedBlocks]);
 
-  // Ref to access the InteractivePane methods
-  const interactivePaneRef = useRef<InteractivePaneHandle>(null);
-
   // Flatten blocks for easy navigation
   useEffect(() => {
     if (blocks.length > 0) {
-      // First, collect all non-page blocks that have content (HTML or images) and are chat-enabled
+      // Define chat-enabled block types for filtering
+      const chatEnabledBlockTypes = [
+        "text",
+        "sectionheader",
+        "pageheader",
+        "pagefooter",
+        "listitem",
+        "footnote",
+        "reference",
+        "picture",
+        "figure",
+        "image",
+        "textinlinemath",
+        "equation",
+        "table"
+      ].map(type => type.toLowerCase());
+
+      // First, collect all non-page blocks that have content (HTML or images)
       const contentBlocks = blocks.filter(
         (b) => b.block_type &&
           b.block_type.toLowerCase() !== "page" &&
@@ -151,7 +246,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             }
           }
 
-          // Recursively add any chat-enabled children
+          // Recursively add any children
           if (block.children && block.children.length > 0) {
             // Ensure children inherit the parent's page number if they don't have one
             for (const child of block.children) {
@@ -160,19 +255,19 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               }
             }
 
-            // Only add children that are chat-enabled
-            const chatEnabledChildren = block.children.filter(
+            // Only add children that match our filters
+            const filteredChildren = block.children.filter(
               child => child.block_type && chatEnabledBlockTypes.includes(child.block_type.toLowerCase())
             );
 
-            result.push(...flattenAllBlocks(chatEnabledChildren));
+            result.push(...flattenAllBlocks(filteredChildren));
           }
         }
 
         return result;
       };
 
-      // Get all chat-enabled blocks including children
+      // Get all eligible blocks including children
       const allBlocks = flattenAllBlocks(contentBlocks);
 
       console.log(`[Blocks Debug] After flattening, found ${allBlocks.length} total blocks`);
@@ -226,113 +321,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [documentId]);
 
-  // Initialize document conversation
-  // Static variable to track ongoing initialization promises across all PDFViewer instances
-  // This prevents race conditions between multiple components trying to initialize at once
-  // Using a static variable outside of component instances to coordinate across components
-  const ConversationInitPromises: Record<string, Promise<string> | undefined> = {};
-
-  // Helper functions to interact with localStorage for conversation caching
-  const getStoredConversationId = (docId: string): string | null => {
-    try {
-      const key = `document-conversation-${docId}`;
-      const storedData = localStorage.getItem(key);
-      if (storedData) {
-        const id = JSON.parse(storedData);
-        console.log(`Found cached conversation ID in localStorage: ${id}`);
-        return id;
-      }
-      return null;
-    } catch (e) {
-      console.error("Error reading from localStorage:", e);
-      return null;
-    }
-  };
-
-  const storeConversationId = (docId: string, convId: string): void => {
-    try {
-      const key = `document-conversation-${docId}`;
-      localStorage.setItem(key, JSON.stringify(convId));
-      console.log(`Cached conversation ID in localStorage: ${convId}`);
-    } catch (e) {
-      console.error("Error writing to localStorage:", e);
-    }
-  };
-
-  useEffect(() => {
-    // Single initialization function with proper coordination
-    const initializeDocumentConversation = async () => {
-      if (!documentId) return;
-
-      // If we already have the conversation ID set, no need to initialize
-      if (documentConversationId) return;
-
-      // First check localStorage to avoid unnecessary API calls
-      const cachedId = getStoredConversationId(documentId);
-      if (cachedId) {
-        setDocumentConversationId(cachedId);
-        return;
-      }
-
-      // Check if there's already an ongoing initialization for this document
-      if (documentId in ConversationInitPromises && ConversationInitPromises[documentId]) {
-        try {
-          // Wait for the existing promise to resolve
-          const id = await ConversationInitPromises[documentId]!; // Using non-null assertion since we've checked it exists
-          setDocumentConversationId(id);
-          return;
-        } catch (error) {
-          // If the existing promise failed, we'll try again below
-          console.error("Error waiting for existing initialization:", error);
-          delete ConversationInitPromises[documentId];
-        }
-      }
-
-      // Create a promise for this initialization and store it
-      const initPromise = (async () => {
-        try {
-          // Try fetching existing conversations for the document
-          const existingConvos = await conversationApi.getDocumentConversations(documentId);
-
-          // Use the first one found, or create if none exist
-          if (existingConvos && existingConvos.length > 0) {
-            const id = existingConvos[0].id;
-            setDocumentConversationId(id);
-            storeConversationId(documentId, id);
-            console.log("Using existing document conversation:", id);
-            return id;
-          } else {
-            console.log("No existing document conversation found, creating new one...");
-            // Create a document-level conversation
-            const newConv = await conversationApi.create(documentId);
-            const id = newConv.id;
-            setDocumentConversationId(id);
-            storeConversationId(documentId, id);
-            console.log("Created new document conversation:", id);
-            return id;
-          }
-        } catch (error) {
-          console.error("Error initializing document conversation:", error);
-          throw error; // Re-throw to properly handle promise rejection
-        } finally {
-          // Clean up the promise when done
-          delete ConversationInitPromises[documentId];
-        }
-      })();
-
-      // Store the promise for coordination with other components
-      ConversationInitPromises[documentId] = initPromise;
-
-      try {
-        await initPromise;
-      } catch (error) {
-        // Already logged in the inner function
-      }
-    };
-
-    initializeDocumentConversation();
-  }, [documentId]);
-
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
     toolbarPlugin: {
       fullScreenPlugin: {
@@ -343,11 +331,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         keyword: [''],
       },
     },
-
-    // {/* <Print /> */}
-    // {/* <ShowProperties /> */}
-    // {/* <Download /> */}
-    // {/* <EnterFullScreen /> */}
 
     renderToolbar: (Toolbar) => (
       <Toolbar>
@@ -462,22 +445,26 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       fullBlock: block
     });
 
-    // If a block is already selected, close any open rabbithole before changing blocks
-    if (selectedBlock && interactivePaneRef.current) {
-      console.log('Closing rabbithole before selecting new block');
-      interactivePaneRef.current.closeRabbithole();
-    }
-
     // Set the new selected block
     setSelectedBlock(block);
-  }, [selectedBlock, interactivePaneRef]);
+    
+    // Show the chat panel with this block
+    setShowChat(true);
+  }, []);
+  
+  // Function to toggle the agent chat view
+  const handleAgentClick = useCallback(() => {
+    if (selectedBlock) {
+      setShowAgentChat(!showAgentChat);
+    }
+  }, [selectedBlock, showAgentChat]);
 
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
       const { scale, pageIndex } = props;
 
       const filteredBlocks = blocks.filter(
-        (b) => b.block_type !== "Page" && (b.page_number ?? 0) === pageIndex
+        (b) => b.block_type !== "Page" && (b.page_number ?? 0) === pageIndex + 1
       );
 
       return (
@@ -557,271 +544,113 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     [blocks, selectedBlock, handleBlockClick]
   );
 
-  // Update the array name and contents to include Picture blocks
-  const chatEnabledBlockTypes = [
-    "text",
-    "sectionheader",
-    "pageheader",
-    "pagefooter",
-    "listitem",
-    "footnote",
-    "reference",
-    "picture",
-    "figure",
-    "textinlinemath",
-    "equation",
-    "table"
-  ].map(type => type.toLowerCase());
-
-  // Update the condition name to match
-  const isChatEnabled = selectedBlock?.block_type &&
-    chatEnabledBlockTypes.includes(selectedBlock.block_type.toLowerCase());
-
-  // Block navigation functions - defined after chatEnabledBlockTypes to avoid reference errors
-  const handlePreviousBlock = useCallback(() => {
-    if (!selectedBlock) return;
-
-    // Find current block index in the flattened blocks array
-    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-
-    if (currentIndex > 0) {
-      // Start from the previous block and find the first chat-enabled one
-      let prevIndex = currentIndex - 1;
-      while (prevIndex >= 0) {
-        const prevBlock = flattenedBlocks[prevIndex];
-        // Check if block is chat-enabled
-        if (prevBlock.block_type &&
-          chatEnabledBlockTypes.includes(prevBlock.block_type.toLowerCase()) &&
-          (prevBlock.html_content ||
-            (prevBlock.images && Object.keys(prevBlock.images).length > 0) ||
-            ['picture', 'figure'].includes(prevBlock.block_type.toLowerCase()))) {
-          // Found a chat-enabled block
-          setSelectedBlock(prevBlock);
-          return;
-        }
-        prevIndex--;
-      }
-    }
-  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
-
-  const handleNextBlock = useCallback(() => {
-    if (!selectedBlock) return;
-
-    // Find current block index in the flattened blocks array
-    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-
-    if (currentIndex < flattenedBlocks.length - 1) {
-      // Start from the next block and find the first chat-enabled one
-      let nextIndex = currentIndex + 1;
-      while (nextIndex < flattenedBlocks.length) {
-        const nextBlock = flattenedBlocks[nextIndex];
-        // Check if block is chat-enabled
-        if (nextBlock.block_type &&
-          chatEnabledBlockTypes.includes(nextBlock.block_type.toLowerCase()) &&
-          (nextBlock.html_content ||
-            (nextBlock.images && Object.keys(nextBlock.images).length > 0) ||
-            ['picture', 'figure'].includes(nextBlock.block_type.toLowerCase()))) {
-          // Found a chat-enabled block
-          setSelectedBlock(nextBlock);
-          return;
-        }
-        nextIndex++;
-      }
-    }
-  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
-
-  // Determine if there are previous/next blocks available
-  const hasPreviousBlock = useMemo(() => {
-    if (!selectedBlock || flattenedBlocks.length === 0) return false;
-    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-
-    console.log(`[Navigation Debug] Current block: ${selectedBlock.id}, index: ${currentIndex}, type: ${selectedBlock.block_type}`);
-
-    // Check if there are any previous blocks that are chat-enabled
-    for (let i = currentIndex - 1; i >= 0; i--) {
-      const block = flattenedBlocks[i];
-      const hasValidType = block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
-      const hasContent = block.html_content || (block.images && Object.keys(block.images || {}).length > 0);
-      const isImageType = ['picture', 'figure'].includes((block.block_type || '').toLowerCase());
-
-      console.log(`[Navigation Debug] ← PREV Check for block id: ${block.id}, type: ${block.block_type || 'unknown'}, index: ${i}`);
-      console.log(`  └─ Valid type: ${hasValidType}, Has content: ${hasContent}, Is image type: ${isImageType}`);
-
-      if (hasValidType && (hasContent || isImageType)) {
-        console.log(`  └─ VALID for navigation ✓`);
-        return true;
-      } else {
-        console.log(`  └─ SKIPPED for navigation ✗`);
-      }
-    }
-
-    console.log(`[Navigation Debug] No previous blocks found that meet criteria`);
-    return false;
-  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
-
-  const hasNextBlock = useMemo(() => {
-    if (!selectedBlock || flattenedBlocks.length === 0) return false;
-    const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-
-    console.log(`[Navigation Debug] Current block: ${selectedBlock.id}, index: ${currentIndex}, type: ${selectedBlock.block_type}`);
-
-    // Check if there are any next blocks that are chat-enabled
-    for (let i = currentIndex + 1; i < flattenedBlocks.length; i++) {
-      const block = flattenedBlocks[i];
-      const hasValidType = block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase());
-      const hasContent = block.html_content || (block.images && Object.keys(block.images || {}).length > 0);
-      const isImageType = ['picture', 'figure'].includes((block.block_type || '').toLowerCase());
-
-      console.log(`[Navigation Debug] → NEXT Check for block id: ${block.id}, type: ${block.block_type || 'unknown'}, index: ${i}`);
-      console.log(`  └─ Valid type: ${hasValidType}, Has content: ${hasContent}, Is image type: ${isImageType}`);
-
-      if (hasValidType && (hasContent || isImageType)) {
-        console.log(`  └─ VALID for navigation ✓`);
-        return true;
-      } else {
-        console.log(`  └─ SKIPPED for navigation ✗`);
-      }
-    }
-
-    console.log(`[Navigation Debug] No next blocks found that meet criteria`);
-    return false;
-  }, [selectedBlock, flattenedBlocks, chatEnabledBlockTypes]);
-
   return (
     <MathJaxProvider>
       <div className="h-screen flex w-full overflow-hidden">
-        {/* Left side: PDF viewer - conditionally rendered based on collapsed state */}
-        <div
-          className={`relative bg-white shadow-lg overflow-hidden ${
-            isPdfCollapsed ? 'w-10 flex-shrink-0' : 'flex-1'
-          }`}
-        >
-          {/* Position the collapse button on the right edge */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-50">
-            <CollapsibleButton
-              isCollapsed={isPdfCollapsed}
-              onToggle={() => setIsPdfCollapsed(!isPdfCollapsed)}
-              position="right"
-              variant="subtle"
-              size="medium"
-            />
-          </div>
-          
-          {isPdfCollapsed ? (
-            <div className="h-full w-10 bg-neutral-100 flex items-center justify-center">
-              <button
-                onClick={() => setIsPdfCollapsed(false)}
-                className="vertical-text p-2 text-sm font-medium text-neutral-600 hover:text-neutral-900"
-                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
-              >
-                {activeTabId === 'pdf' ? 'PDF' : 'Notes'}
-              </button>
-            </div>
-          ) : (
-            <div className="h-full w-full">
-              <TabView
-                tabs={[
-                  {
-                    id: 'pdf',
-                    label: 'PDF',
-                    icon: <span>📄</span>,
-                    content: (
-                      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                        <div 
-                          style={{
-                            border: 'none',
-                            height: '100%',
-                            width: '100%',
-                            backgroundColor: 'rgb(243 244 246)',
-                          }}
-                          className="overflow-auto relative"
-                        >
-                          <Viewer
-                            fileUrl={pdfFile}
-                            plugins={[defaultLayoutPluginInstance]}
-                            defaultScale={1.2}
-                            theme="light"
-                            pageLayout={pageLayout}
-                            renderLoader={(percentages: number) => (
-                              <div className="flex items-center justify-center p-4">
-                                <div className="w-full max-w-sm">
-                                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                                    <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                                      <div
-                                        className="h-full bg-primary-600 transition-all duration-300"
-                                        style={{ width: `${Math.round(percentages)}%` }}
-                                      />
-                                    </div>
-                                    <div className="text-sm text-neutral-600 mt-2 text-center">
-                                      Loading {Math.round(percentages)}%
-                                    </div>
+        {/* PDF viewer */}
+        <div className={`${showChat ? 'w-2/3' : 'flex-1'} bg-white shadow-lg overflow-hidden transition-all duration-300 ease-in-out`}>
+          <div className="h-full w-full">
+            <TabView
+              tabs={[
+                {
+                  id: 'pdf',
+                  label: 'PDF',
+                  icon: <span>📄</span>,
+                  content: (
+                    <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                      <div 
+                        style={{
+                          border: 'none',
+                          height: '100%',
+                          width: '100%',
+                          backgroundColor: 'rgb(243 244 246)',
+                        }}
+                        className="overflow-auto relative"
+                      >
+                        <Viewer
+                          fileUrl={pdfFile}
+                          plugins={[defaultLayoutPluginInstance]}
+                          defaultScale={1.2}
+                          theme="light"
+                          pageLayout={pageLayout}
+                          renderLoader={(percentages: number) => (
+                            <div className="flex items-center justify-center p-4">
+                              <div className="w-full max-w-sm">
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                  <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary-600 transition-all duration-300"
+                                      style={{ width: `${Math.round(percentages)}%` }}
+                                    />
+                                  </div>
+                                  <div className="text-sm text-neutral-600 mt-2 text-center">
+                                    Loading {Math.round(percentages)}%
                                   </div>
                                 </div>
                               </div>
-                            )}
-                            renderPage={(props) => (
-                              <>
-                                {props.canvasLayer.children}
-                                {props.textLayer.children}
-                                {renderOverlay(props)}
-                              </>
-                            )}
-                          />
-                        </div>
-                      </Worker>
-                    )
-                  },
-                  {
-                    id: 'notes',
-                    label: 'Notes',
-                    icon: <span>📝</span>,
-                    content: (
-                      <div className="h-full bg-white">
-                        <NotesEditor
-                          documentId={documentId}
-                          initialContent={notesContent}
-                          onSave={(content) => setNotesContent(content)}
-                          className="h-full"
-                          blockSequenceMap={blockSequenceMap}
-                          activeTabId={activeTabId}
+                            </div>
+                          )}
+                          renderPage={(props) => (
+                            <>
+                              {props.canvasLayer.children}
+                              {props.textLayer.children}
+                              {renderOverlay(props)}
+                            </>
+                          )}
                         />
                       </div>
-                    )
-                  }
-                ]}
-                activeTabId={activeTabId}
-                onTabChange={setActiveTabId}
-                className="h-full"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Right side: Chat pane */}
-        {selectedBlock && isChatEnabled && documentConversationId && (
-          <div className="h-full" style={{ 
-            flex: isPdfCollapsed ? '1 1 auto' : '0 0 auto', 
-            width: isPdfCollapsed ? 'auto' : `${chatPaneWidth}px` 
-          }}>
-            <ResizablePanel
-              width={isPdfCollapsed ? window.innerWidth - 40 : chatPaneWidth}
-              onResize={setChatPaneWidth}
+                    </Worker>
+                  )
+                },
+              ]}
+              activeTabId={activeTabId}
+              onTabChange={setActiveTabId}
               className="h-full"
-            >
-              <ChatPane
-                ref={interactivePaneRef}
-                key={documentConversationId}
-                block={selectedBlock}
-                documentId={documentId}
-                conversationId={documentConversationId}
-                onClose={() => setSelectedBlock(null)}
-                onNextBlock={handleNextBlock}
-                onPreviousBlock={handlePreviousBlock}
-                hasNextBlock={hasNextBlock}
-                hasPreviousBlock={hasPreviousBlock}
-                onSwitchToNotesTab={switchToNotesTab}
-              />
-            </ResizablePanel>
+            />
+          </div>
+        </div>
+        
+        {/* Chat panel */}
+        {showChat && (
+          <div className="w-1/3 border-l border-gray-200 flex flex-col h-full">
+            {/* Main chat or agent chat toggle */}
+            <div className="border-b border-gray-200 p-2 flex">
+              <button 
+                className={`flex-1 py-2 text-center text-sm rounded-l-md ${!showAgentChat ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+                onClick={() => setShowAgentChat(false)}
+              >
+                Chat
+              </button>
+              <button 
+                className={`flex-1 py-2 text-center text-sm rounded-r-md ${showAgentChat ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+                onClick={handleAgentClick}
+                disabled={!selectedBlock}
+              >
+                Agent
+              </button>
+            </div>
+            
+            {/* Chat container - show either regular or agent chat */}
+            <div className="flex-1 overflow-hidden">
+              {showAgentChat ? (
+                <ChatContainer 
+                  documentId={documentId}
+                  selectedBlock={selectedBlock}
+                  isAgentChat={true}
+                  conversationId={agentConversationId || undefined}
+                  onClose={() => setShowAgentChat(false)}
+                  onConversationCreated={(id) => setAgentConversationId(id)}
+                />
+              ) : (
+                <ChatContainer 
+                  documentId={documentId}
+                  selectedBlock={selectedBlock}
+                  isAgentChat={false}
+                  conversationId={mainConversationId || undefined}
+                  onClose={() => setShowChat(false)}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>

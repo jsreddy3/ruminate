@@ -105,7 +105,7 @@ class AgentLoopRunner:
             agent_state["exploration_history"] = []
             
         # Log the initialization
-        logger.info(f"Initialized agent state for conversation: {agent_state['conversation_id']}")
+        # logger.info(f"Initialized agent state for conversation: {agent_state['conversation_id']}")
 
     async def _build_context_from_service(self, 
                                 agent_state: Dict, 
@@ -196,7 +196,7 @@ class AgentLoopRunner:
         
         while iterations < self.max_iterations and not final_answer:
             iterations += 1
-            logger.info(f"Agent iteration {iterations}/{self.max_iterations}")
+            # logger.info(f"Agent iteration {iterations}/{self.max_iterations}")
             
             try:
                 # Generate the next agent action (LLM API call - no DB needed)
@@ -350,7 +350,7 @@ class AgentLoopRunner:
                 response_format={"type": "json_object"},
                 json_schema=action_schema
             )
-            logger.info(f"Received structured action data: {action_data}")
+            # logger.info(f"Received structured action data: {action_data}")
             return action_data
         except Exception as e:
             logger.error(f"Error generating agent action: {e}")
@@ -401,7 +401,7 @@ class AgentLoopRunner:
             Tuple[str, str]: (final_answer, message_id)
         """
         final_answer = action_data["answer"]
-        logger.info("Agent has produced a final answer")
+        # logger.info("Agent has produced a final answer")
         
         # Record final thought in exploration history
         agent_state["exploration_history"].append({
@@ -463,7 +463,7 @@ class AgentLoopRunner:
         action_input = action_data["action_input"]
         thought = action_data["thought"]
         
-        logger.info(f"Executing action: {action} with input: {action_input}")
+        # logger.info(f"Executing action: {action} with input: {action_input}")
         
         # First, add the agent's thought as an ASSISTANT message to maintain the right flow
         thought_msg = Message(
@@ -482,7 +482,7 @@ class AgentLoopRunner:
             session=session
         )
         result_summary = result[:100] + "..." if isinstance(result, str) and len(result) > 100 else result
-        logger.debug(f"Action result: {result_summary}")
+        # logger.debug(f"Action result: {result_summary}")
         
         # Record in exploration history
         agent_state["exploration_history"].append({
@@ -626,7 +626,7 @@ class AgentLoopRunner:
             # Extract the answer
             if "answer" in response:
                 final_answer = response["answer"]
-                logger.info("Generated final answer using simplified prompt")
+                # logger.info("Generated final answer using simplified prompt")
                 
                 # Create and save the answer message
                 parent_id = agent_state["user_message_id"]
@@ -744,7 +744,7 @@ class AgentLoopRunner:
                             session: AsyncSession) -> None:
         """Save all process steps to the database in one batch operation."""
         if not agent_state["process_steps"]:
-            logger.info("No process steps to save")
+            # logger.info("No process steps to save")
             return
             
         # Update all steps with the assistant message ID
@@ -753,7 +753,7 @@ class AgentLoopRunner:
         
         # Save in bulk
         await self.agent_process_repo.add_process_steps(agent_state["process_steps"], session)
-        logger.info(f"Saved {len(agent_state['process_steps'])} process steps to database")
+        # logger.info(f"Saved {len(agent_state['process_steps'])} process steps to database")
     
     def _calculate_step_number(self, iteration: int, step_type: str) -> int:
         """Generate a simple sequential step number based on iteration.
@@ -779,7 +779,7 @@ class AgentLoopRunner:
     
     def _summarize_exploration(self, exploration_history: List[Dict]) -> str:
         """Create a summary of the agent's exploration when it times out."""
-        logger.info(f"Summarizing exploration after {len(exploration_history)} steps")
+        # logger.info(f"Summarizing exploration after {len(exploration_history)} steps")
         
         # Focus on the most recent and relevant steps
         summary_parts = []

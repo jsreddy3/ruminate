@@ -39,7 +39,7 @@ class ChatService:
         self.context_service = ContextService(conversation_repository, document_repository)
         self.conversation_manager = conversation_manager
         self.db_session_factory = db_session_factory
-        logger.info("ChatService initialized.")
+        # logger.info("ChatService initialized.")
     
     def _strip_html(self, html_content: Optional[str]) -> str:
         """Simple text extraction from HTML content"""
@@ -97,28 +97,28 @@ class ChatService:
     
     async def get_message_tree(self, conversation_id: str, session: Optional[AsyncSession] = None) -> List[Message]:
         """Get the full tree of messages in a conversation, including all versions and branches"""
-        logger.info(f"ChatService.get_message_tree called for conversation {conversation_id}")
+        # logger.info(f"ChatService.get_message_tree called for conversation {conversation_id}")
         
         try:
             # First verify the conversation exists
-            logger.info(f"Verifying conversation {conversation_id} exists")
+            # logger.info(f"Verifying conversation {conversation_id} exists")
             conversation = await self.conversation_repo.get_conversation(conversation_id, session)
             if not conversation:
                 logger.error(f"Conversation {conversation_id} not found")
                 raise ValueError(f"Conversation {conversation_id} not found")
                 
             # Get all messages in the conversation
-            logger.info(f"Fetching messages for conversation {conversation_id}")
+            # logger.info(f"Fetching messages for conversation {conversation_id}")
             messages = await self.conversation_repo.get_messages(conversation_id, session)
             
             if not messages:
                 logger.info(f"No messages found for conversation {conversation_id}")
                 return []
             
-            logger.info(f"Retrieved {len(messages)} messages for conversation {conversation_id}")
+            # logger.info(f"Retrieved {len(messages)} messages for conversation {conversation_id}")
             
             # Build lookup tables for efficient traversal
-            logger.info("Building message lookup tables")
+            # logger.info("Building message lookup tables")
             try:
                 messages_by_id = {msg.id: msg for msg in messages}
                 children_by_parent = {}
@@ -130,7 +130,7 @@ class ChatService:
                             children_by_parent[msg.parent_id] = []
                         children_by_parent[msg.parent_id].append(msg)
                 
-                logger.info(f"Found {len(children_by_parent)} parent messages with children")
+                # logger.info(f"Found {len(children_by_parent)} parent messages with children")
                 
                 # Find root message (system message with no parent)
                 root = next((msg for msg in messages if msg.parent_id is None and msg.role == MessageRole.SYSTEM), None)
@@ -138,7 +138,7 @@ class ChatService:
                     logger.error(f"No root message found in conversation {conversation_id}")
                     raise ValueError(f"No root message found in conversation {conversation_id}")
                 
-                logger.info(f"Found root message with ID: {root.id}")
+                # logger.info(f"Found root message with ID: {root.id}")
                 
                 # For each message, ensure active_child_id points to the latest version in its branch
                 updated_parents = 0
@@ -154,10 +154,10 @@ class ChatService:
                         parent.active_child_id = latest.id
                         updated_parents += 1
                 
-                logger.info(f"Updated active_child_id for {updated_parents} parents")
+                # logger.info(f"Updated active_child_id for {updated_parents} parents")
                 
                 # Check for potential circular references that might cause serialization issues
-                logger.info("Checking for circular references in the message tree...")
+                # logger.info("Checking for circular references in the message tree...")
                 circular_refs = set()
                 
                 for msg in messages:
@@ -166,13 +166,13 @@ class ChatService:
                         active_child = messages_by_id[msg.active_child_id]
                         if active_child.parent_id == msg.id:
                             circular_refs.add(msg.id)
-                            logger.warning(f"Potential circular reference detected: message {msg.id} has active_child {active_child.id} which points back to it")
+                            # logger.warning(f"Potential circular reference detected: message {msg.id} has active_child {active_child.id} which points back to it")
                 
-                if circular_refs:
-                    logger.warning(f"Found {len(circular_refs)} messages with potential circular references")
+                # if circular_refs:
+                #     logger.warning(f"Found {len(circular_refs)} messages with potential circular references")
                 
                 # Return a clean version of messages to avoid serialization issues
-                logger.info("Removing circular references for serialization")
+                # logger.info("Removing circular references for serialization")
                 result_messages = []
                 for msg in messages:
                     try:
@@ -194,11 +194,11 @@ class ChatService:
                         }
                         msg_copy = Message(**msg_dict)
                         result_messages.append(msg_copy)
-                        logger.debug(f"Successfully processed message {msg.id}")
+                        # logger.debug(f"Successfully processed message {msg.id}")
                     except Exception as copy_error:
                         logger.error(f"Error copying message {msg.id}: {str(copy_error)}")
                 
-                logger.info(f"Returning {len(result_messages)} messages with circular references removed")
+                # logger.info(f"Returning {len(result_messages)} messages with circular references removed")
                 return result_messages
                 
             except Exception as table_error:
@@ -207,6 +207,41 @@ class ChatService:
         except Exception as e:
             logger.error(f"Unexpected error in get_message_tree: {str(e)}", exc_info=True)
             raise
+
+    async def _prepare_and_stream(
+        self,
+        *,
+        conversation: Conversation,
+        user_msg: Message,
+        ai_msg_id: str,
+        active_thread_ids: list[str],
+        selected_block_id: str = None,
+        session: AsyncSession,
+        background_tasks: BackgroundTasks,
+    ):
+        """Add AI placeholder, update thread, commit, and spawn stream task."""
+        ai_placeholder = Message(
+            id=ai_msg_id,
+            conversation_id=conversation.id,
+            role=MessageRole.ASSISTANT,
+            content="",
+            parent_id=user_msg.id,
+        )
+        await self.conversation_repo.add_message(ai_placeholder, session)
+
+        new_thread = active_thread_ids + [user_msg.id, ai_msg_id]
+        await self.conversation_repo.update_active_thread(conversation.id, new_thread, session)
+
+        await session.commit()          # caller created session → we commit for them
+
+        background_tasks.add_task(
+            self._generate_and_stream_response,
+            conversation_id=conversation.id,
+            user_msg=user_msg,
+            ai_msg_id=ai_msg_id,
+            initial_active_thread_ids=active_thread_ids + [user_msg.id],
+            selected_block_id=selected_block_id,
+        )
     
     async def send_message(self,
                        background_tasks: BackgroundTasks,
@@ -246,32 +281,18 @@ class ChatService:
 
         # ── 3 Assistant placeholder (empty content) ───────────────────────────────
         ai_msg_id = str(uuid.uuid4())
-        ai_placeholder = Message(
-            id=ai_msg_id,
-            conversation_id=conversation_id,
-            role=MessageRole.ASSISTANT,
-            content="",
-            parent_id=user_msg.id,
+        await self._prepare_and_stream(
+            conversation=conversation,
+            user_msg=user_msg,
+            ai_msg_id=ai_msg_id,
+            active_thread_ids=active_thread_ids,
+            selected_block_id=selected_block_id,
+            session=session,
+            background_tasks=background_tasks,
         )
-        await self.conversation_repo.add_message(ai_placeholder, session)
-
-        # ── 4 active‑thread update (user + placeholder) ────────────────────────────
-        thread_ids = active_thread_ids + [user_msg.id, ai_msg_id]
-        await self.conversation_repo.update_active_thread(conversation_id, thread_ids, session)
 
         if managed:
-            await session.commit()
             await session.close()
-
-        # ── 5 kick off background streaming task ──────────────────────────────────
-        background_tasks.add_task(
-            self._generate_and_stream_response,
-            conversation_id=conversation_id,
-            user_msg=user_msg,                      # full object for context building
-            ai_msg_id=ai_msg_id,
-            initial_active_thread_ids=active_thread_ids + [user_msg.id],
-            selected_block_id=selected_block_id,
-        )
 
         # ── 6 return exactly what the frontend expects ─────────────────────────────
         return user_msg.id, ai_msg_id
@@ -285,7 +306,7 @@ class ChatService:
         selected_block_id: Optional[str]
     ):
         """Background task to generate LLM response, stream it via SSE, and update the placeholder message."""
-        logger.info(f"Starting background task for AI message {ai_msg_id}")
+        # logger.info(f"Starting background task for AI message {ai_msg_id}")
         full_response_content = ""
         
         # Create a new session scope for this background task
@@ -312,10 +333,10 @@ class ChatService:
                 if conversation.included_pages != updated_included_pages:
                     conversation.included_pages = updated_included_pages
                     # await self.conversation_repo.update_conversation(conversation, session) # Be cautious with updates from background tasks
-                    logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
+                    # logger.info(f"[Task {ai_msg_id}] Included pages updated (update deferred/skipped in background task for now)")
                 
                 # --- Generate AI Response via Stream --- 
-                logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
+                # logger.info(f"[Task {ai_msg_id}] Calling LLM stream generation.")
                 llm_stream = self.llm_service.generate_response_stream(context_messages)
                 
                 async for chunk in llm_stream:
@@ -324,8 +345,8 @@ class ChatService:
                         # Publish chunk via SSE manager
                         await chat_sse_manager.publish_chunk(ai_msg_id, chunk)
                 
-                logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
-                logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}") 
+                # logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}")
+                # logger.info(f"[Task {ai_msg_id}] Finished LLM stream. Full length: {len(full_response_content)}") 
                 # --- Update Placeholder AI Message in DB using new method --- 
                 await self.conversation_repo.update_message_content(
                     message_id=ai_msg_id, 
@@ -333,14 +354,14 @@ class ChatService:
                     session=session
                 )
                 # --- Explicit Commit and Re-fetch within same session ---
-                logger.info(f"[Task {ai_msg_id}] Attempting explicit commit...")
+                # logger.info(f"[Task {ai_msg_id}] Attempting explicit commit...")
                 await session.commit()
-                logger.info(f"[Task {ai_msg_id}] Explicit commit done. Re-fetching message within same session...")
+                # logger.info(f"[Task {ai_msg_id}] Explicit commit done. Re-fetching message within same session...")
                 committed_message = await self.conversation_repo.get_message(ai_msg_id, session)
                 if committed_message:
                     committed_len = len(committed_message.content)
                     committed_snippet = committed_message.content[:100] + ('...' if committed_len > 100 else '')
-                    logger.info(f"[Task {ai_msg_id}] Content after commit (same session): Length={committed_len}, Snippet={committed_snippet}")
+                    # logger.info(f"[Task {ai_msg_id}] Content after commit (same session): Length={committed_len}, Snippet={committed_snippet}")
                 else:
                     logger.warning(f"[Task {ai_msg_id}] Could not re-fetch message {ai_msg_id} after commit within the same session.")
                 # --------------------------------------------------------
@@ -362,7 +383,7 @@ class ChatService:
                 await chat_sse_manager.publish_chunk(ai_msg_id, "[DONE]")
                 await chat_sse_manager.cleanup_stream_queue(ai_msg_id)
                 # The session will be committed/rolled back automatically by the context manager
-                logger.info(f"[Task {ai_msg_id}] Background task session closed.")
+                # logger.info(f"[Task {ai_msg_id}] Background task session closed.")
         
         # === Verification Step: Check DB content *after* task session closes ===
         try:
@@ -399,6 +420,46 @@ class ChatService:
             engine, class_=AsyncSession, expire_on_commit=False
         )
         return async_session()
+    
+    async def edit_message_streaming(
+        self,
+        background_tasks: BackgroundTasks,
+        message_id: str,
+        new_content: str,
+        active_thread_ids: list[str],
+        selected_block_id: str = None,
+        session: AsyncSession = None,
+    ) -> Tuple[str, str]:
+        managed = session is None
+        if managed:
+            session = self._create_session()
+
+        # 1. fetch original + conversation
+        original = await self.conversation_repo.get_message(message_id, session)
+        conv      = await self.conversation_repo.get_conversation(original.conversation_id, session)
+
+        # 2. create sibling version
+        edited_msg, edited_msg_id = await self.conversation_repo.edit_message(
+            message_id, new_content, session
+        )
+
+        # 3. call helper
+        ai_msg_id = str(uuid.uuid4())
+        await self._prepare_and_stream(
+            conversation=conv,
+            user_msg=edited_msg,
+            ai_msg_id=ai_msg_id,
+            active_thread_ids=active_thread_ids,
+            selected_block_id=selected_block_id,
+            session=session,
+            background_tasks=background_tasks,
+        )
+
+        if managed:
+            await session.close()
+
+        return edited_msg_id, ai_msg_id
+
     
     async def edit_message(self, message_id: str, content: str, active_thread_ids: List[str], session: Optional[AsyncSession] = None) -> Tuple[Message, str]:
         """Edit a message and regenerate the AI response"""
