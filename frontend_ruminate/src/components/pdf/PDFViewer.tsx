@@ -10,6 +10,7 @@ import MathJaxProvider from "../common/MathJaxProvider";
 import TabView from "../common/TabView";
 import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
+import BlockContainer from "../interactive/blocks/BlockContainer";
 
 export interface Block {
   id: string;
@@ -110,9 +111,19 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   
   // Add state for conversation management
   const [mainConversationId, setMainConversationId] = useState<string | null>(null);
-  const [agentConversationId, setAgentConversationId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState<boolean>(false);
-  const [showAgentChat, setShowAgentChat] = useState<boolean>(false);
+  
+  // Update the state management to handle multiple conversations
+  // Add state for tracking agent conversations
+  const [agentConversations, setAgentConversations] = useState<{
+    id: string;
+    title: string;
+    selectionText: string;
+    blockId: string;
+  }[]>([]);
+
+  // Add state for tracking the active conversation tab
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   
   // Initialize the main document conversation
   useEffect(() => {
@@ -452,20 +463,49 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setShowChat(true);
   }, []);
   
-  // Function to toggle the agent chat view
-  const handleAgentClick = useCallback(() => {
-    if (selectedBlock) {
-      setShowAgentChat(!showAgentChat);
-    }
-  }, [selectedBlock, showAgentChat]);
+  // Update the handleAgentChatCreated function to manage multiple agent conversations
+  const handleAgentChatCreated = useCallback((
+    conversationId: string, 
+    selectedText: string,
+    blockId: string
+  ) => {
+    // Create a title from the selected text (truncated if needed)
+    const title = selectedText.length > 30 
+      ? `${selectedText.substring(0, 30)}...` 
+      : selectedText;
+    
+    // Add this conversation to our list
+    setAgentConversations(prev => [
+      ...prev, 
+      {
+        id: conversationId,
+        title,
+        selectionText: selectedText,
+        blockId
+      }
+    ]);
+    
+    // Set this as the active conversation
+    setActiveConversationId(conversationId);
+    
+    // Ensure chat is visible
+    setShowChat(true);
+  }, []);
 
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
       const { scale, pageIndex } = props;
 
-      const filteredBlocks = blocks.filter(
-        (b) => b.block_type !== "Page" && (b.page_number ?? 0) === pageIndex + 1
-      );
+      // Fix the page number filtering - there was an off-by-one error
+      // If blocks from page 1 are showing on page 0, then we need to REMOVE the +1 adjustment
+      const filteredBlocks = blocks.filter((b) => {
+        const blockPageNumber = b.page_number ?? 0;
+        // Compare directly with pageIndex instead of pageIndex + 1
+        return b.block_type !== "Page" && blockPageNumber === pageIndex;
+      });
+
+      // Debugging log
+      console.log(`Page ${pageIndex} (UI page ${pageIndex + 1}): Found ${filteredBlocks.length} blocks with matching page_number`);
 
       return (
         <div
@@ -502,7 +542,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 zIndex: isSelected ? 2 : 1,
                 borderRadius: '2px',
               };
-
 
               if (isSelected) {
                 return {
@@ -613,41 +652,118 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         {/* Chat panel */}
         {showChat && (
           <div className="w-1/3 border-l border-gray-200 flex flex-col h-full">
-            {/* Main chat or agent chat toggle */}
-            <div className="border-b border-gray-200 p-2 flex">
-              <button 
-                className={`flex-1 py-2 text-center text-sm rounded-l-md ${!showAgentChat ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-                onClick={() => setShowAgentChat(false)}
-              >
-                Chat
-              </button>
-              <button 
-                className={`flex-1 py-2 text-center text-sm rounded-r-md ${showAgentChat ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-                onClick={handleAgentClick}
-                disabled={!selectedBlock}
-              >
-                Agent
-              </button>
+            {/* Chat header with tabs */}
+            <div className="border-b border-gray-200 p-3 flex flex-col">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium text-gray-900">
+                  Document Chat
+                  {selectedBlock && ` - ${selectedBlock.block_type}`}
+                </h3>
+                
+                {/* Close button */}
+                <button 
+                  onClick={() => setShowChat(false)}
+                  className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
+                >
+                  <span>×</span>
+                </button>
+              </div>
+              
+              {/* Conversation tabs */}
+              <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
+                {/* Main chat tab */}
+                <button 
+                  className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
+                    activeConversationId === null 
+                    ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setActiveConversationId(null)}
+                >
+                  Main Chat
+                </button>
+                
+                {/* Agent chat tabs */}
+                {agentConversations.map(conv => (
+                  <button
+                    key={conv.id}
+                    className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
+                      activeConversationId === conv.id
+                      ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setActiveConversationId(conv.id)}
+                  >
+                    <span>🔍</span>
+                    <span>{conv.title}</span>
+                    <button 
+                      className="ml-1 text-gray-400 hover:text-gray-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAgentConversations(prev => prev.filter(c => c.id !== conv.id));
+                        if (activeConversationId === conv.id) {
+                          setActiveConversationId(null);
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </button>
+                ))}
+              </div>
             </div>
             
-            {/* Chat container - show either regular or agent chat */}
+            {/* Selected block interactive content */}
+            {selectedBlock && (
+              <div className="border-b border-gray-200 overflow-auto max-h-[30%] p-3">
+                <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Selected Content</div>
+                <div className="border border-gray-100 rounded-md p-2 bg-gray-50">
+                  <BlockContainer
+                    blockId={selectedBlock.id}
+                    blockType={selectedBlock.block_type}
+                    htmlContent={selectedBlock.html_content || ''}
+                    documentId={documentId}
+                    images={selectedBlock.images}
+                    onAddTextToChat={(text: string) => {
+                      // Find the active chat's message input and add the text
+                      const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
+                      if (messageInput) {
+                        messageInput.value += (messageInput.value ? ' ' : '') + text;
+                        messageInput.focus();
+                      }
+                    }}
+                    onAgentChatCreated={(conversationId: string) => {
+                      // For the BlockContainer callback, we only receive the conversationId
+                      // We'll use the current selected block's text as the title
+                      const selectedText = selectedBlock.html_content?.replace(/<[^>]*>/g, "") || "";
+                      const truncatedText = selectedText.length > 30 
+                        ? `${selectedText.substring(0, 30)}...` 
+                        : selectedText;
+                      
+                      handleAgentChatCreated(conversationId, truncatedText, selectedBlock.id);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Chat container - show either main chat or selected agent chat */}
             <div className="flex-1 overflow-hidden">
-              {showAgentChat ? (
-                <ChatContainer 
-                  documentId={documentId}
-                  selectedBlock={selectedBlock}
-                  isAgentChat={true}
-                  conversationId={agentConversationId || undefined}
-                  onClose={() => setShowAgentChat(false)}
-                  onConversationCreated={(id) => setAgentConversationId(id)}
-                />
-              ) : (
+              {activeConversationId === null ? (
                 <ChatContainer 
                   documentId={documentId}
                   selectedBlock={selectedBlock}
                   isAgentChat={false}
                   conversationId={mainConversationId || undefined}
                   onClose={() => setShowChat(false)}
+                />
+              ) : (
+                <ChatContainer 
+                  documentId={documentId}
+                  selectedBlock={selectedBlock}
+                  isAgentChat={true}
+                  conversationId={activeConversationId}
+                  onClose={() => setActiveConversationId(null)}
                 />
               )}
             </div>

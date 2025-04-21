@@ -78,8 +78,13 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       
       try {
         if (isAgentChat) {
-          // For agent chats, we ALWAYS create a new conversation when one isn't provided
-          if (selectedBlock) {
+          // For agent chats, we now have two approaches:
+          // 1. Coming from a block selection in PDF viewer - conversation already created
+          // 2. Directly creating an agent chat - need to create it
+          
+          // Only create one if needed (typically when directly clicking "Agent" button)
+          if (!conversationId && selectedBlock) {
+            console.log("Creating new agent chat for block:", selectedBlock.id);
             const { conversation_id } = await agentApi.createAgentRabbithole(
               documentId,
               selectedBlock.id,
@@ -90,6 +95,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
             );
             setConversationId(conversation_id);
             if (onConversationCreated) onConversationCreated(conversation_id);
+          } else {
+            console.log("Using existing agent conversation or waiting for block selection");
           }
         } else {
           // For regular chats, first check if there's an existing conversation for this document
@@ -113,7 +120,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     };
     
     initializeConversation();
-  }, [documentId, conversationId, isAgentChat, selectedBlock, onConversationCreated]);
+  }, [documentId, conversationId, isAgentChat, selectedBlock, onConversationCreated, agentApi]);
   
   // Handle sending a new message
   const handleSendMessage = useCallback(async (content: string) => {

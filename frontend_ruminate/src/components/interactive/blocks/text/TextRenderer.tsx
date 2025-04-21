@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import TextContent from './TextContentFile';
 import TextSelectionTooltip from './TooltipManager/TextSelectionTooltip';
 import DefinitionPopup from './TooltipManager/DefinitionPopup';
+import AgentChatLauncher from './AgentChatLauncher';
 import { RabbitholeHighlight } from '../../../../services/rabbithole';
 import SelectionManager from './SelectionManager';
 import ReactRabbitholeHighlight from './HighlightOverlay/RabbitholeHighlight';
@@ -10,6 +11,7 @@ interface TextRendererProps {
   htmlContent: string;
   blockType: string;
   blockId: string;
+  documentId: string;
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (
     id: string, 
@@ -22,6 +24,7 @@ interface TextRendererProps {
     startOffset: number,
     endOffset: number
   ) => void;
+  onAgentChatCreated?: (conversationId: string) => void;
   rabbitholeHighlights?: RabbitholeHighlight[];
   getBlockClassName?: (blockType?: string) => string;
   highlights?: Array<{
@@ -35,9 +38,11 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   htmlContent,
   blockType,
   blockId,
+  documentId,
   onAddTextToChat,
   onRabbitholeClick,
   onRabbitholeCreate,
+  onAgentChatCreated,
   rabbitholeHighlights = [],
   getBlockClassName,
   highlights = [],
@@ -62,6 +67,9 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [definitionVisible, setDefinitionVisible] = useState(false);
   const [definitionWord, setDefinitionWord] = useState('');
   const [definitionPosition, setDefinitionPosition] = useState({ x: 0, y: 0 });
+  
+  // State for agent chat launcher
+  const [agentLauncherVisible, setAgentLauncherVisible] = useState(false);
   
   // console.log(`TextRenderer(${blockId}) rendering`);
   
@@ -136,21 +144,30 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setTooltipVisible(false);
   };
   
-  // Handle creating a rabbithole from selected text
+  // Handle launching agent chat from selected text
   const handleRabbitholeCreate = (text: string) => {
-    console.log('Creating rabbithole for:', text);
+    console.log('Launching agent chat for:', text);
     
     // Only proceed if we have valid selection range data
-    if (selectedRange && onRabbitholeCreate) {
-      onRabbitholeCreate(
-        selectedRange.text,
-        selectedRange.startOffset,
-        selectedRange.endOffset
-      );
+    if (selectedRange) {
+      // Hide tooltip and show agent launcher
+      setTooltipVisible(false);
+      setAgentLauncherVisible(true);
     }
-    
-    // Hide tooltip after action
-    setTooltipVisible(false);
+  };
+  
+  // Handle agent chat creation completion
+  const handleAgentChatCreated = (conversationId: string) => {
+    if (onAgentChatCreated) {
+      onAgentChatCreated(conversationId);
+    }
+    setAgentLauncherVisible(false);
+    clearSelection();
+  };
+  
+  // Handle canceling agent chat creation
+  const handleAgentChatCancel = () => {
+    setAgentLauncherVisible(false);
   };
   
   // Handle rabbithole highlight click
@@ -224,6 +241,21 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           position={definitionPosition}
           onClose={() => setDefinitionVisible(false)}
         />
+      )}
+      
+      {/* Agent Chat Launcher */}
+      {agentLauncherVisible && selectedRange && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <AgentChatLauncher
+            documentId={documentId}
+            blockId={blockId}
+            selectedText={selectedRange.text}
+            startOffset={selectedRange.startOffset}
+            endOffset={selectedRange.endOffset}
+            onLaunchComplete={handleAgentChatCreated}
+            onCancel={handleAgentChatCancel}
+          />
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageSquarePlus, BookOpen } from 'lucide-react';
+import { MessageSquarePlus, BookOpen, Bot } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
   isVisible: boolean;
@@ -79,11 +79,8 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       onClick: onDefine,
     }] : []),
     ...( onRabbithole ? [{
-      label: 'Rabbithole',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12C18 15.3137 15.3137 18 12 18H6V12Z" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M10 12C10 12.5523 9.55228 13 9 13C8.44772 13 8 12.5523 8 12C8 11.4477 8.44772 11 9 11C9.55228 11 10 11.4477 10 12Z" fill="currentColor" />
-      </svg>,
+      label: 'Explore with Agent',
+      icon: <Bot size={16} />,
       onClick: onRabbithole,
     }] : [])
   ];
@@ -95,7 +92,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   adjustedPosition.y = Math.max(40, position.y); // At least 40px from top of viewport
   
   // Constrain x position to not exceed viewport
-  const tooltipWidth = 140; // Approximate width
+  const tooltipWidth = 160; // Increased width for longer button text
   adjustedPosition.x = Math.min(
     Math.max(tooltipWidth / 2, position.x), 
     window.innerWidth - tooltipWidth / 2
