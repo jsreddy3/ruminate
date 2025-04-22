@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageNode } from '../../../types/chat';
+import { MessageNode, MessageRole } from '../../../types/chat';
 import MessageItem from './MessageItem';
 
 interface MessageListProps {
@@ -58,10 +58,13 @@ const MessageList: React.FC<MessageListProps> = ({
     );
   }
   
+  // Filter out system messages for display
+  const displayMessages = activeThread.filter(message => message.role !== MessageRole.SYSTEM);
+  
   return (
     <div className="p-4 space-y-4">
       {/* Loop through active thread messages */}
-      {activeThread.map(message => {
+      {displayMessages.map(message => {
         // Determine if this message should be streaming
         // Either it has the exact streaming ID or it's a temporary assistant message
         const isMessageStreaming = 

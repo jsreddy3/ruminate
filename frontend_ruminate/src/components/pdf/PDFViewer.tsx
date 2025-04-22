@@ -129,46 +129,61 @@ interface PDFViewerProps {
   initialDocumentId: string;
 }
 
-// A simple resize handle component for panels
-const ResizeHandle = ({ className = "", ...props }) => (
+// Custom resize handle components with improved styling
+const ResizeHandle = () => (
   <PanelResizeHandle
-    className={className}
-    style={{ ...props.style }}
-    {...props}
+    className="w-2 relative flex items-center justify-center hover:bg-gray-200 transition-colors"
   >
-    <div style={{ [props.style?.width ? 'width' : 'height']: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div 
-        className="resize-handle-bar hover:bg-indigo-200 active:bg-indigo-300 transition-colors"
-        style={{ 
-          width: '4px', 
-          height: '32px',
-          borderRadius: '2px',
-          backgroundColor: '#e2e8f0',
-        }}
-      />
+    <div className="absolute h-16 w-1 flex flex-col items-center justify-center space-y-1">
+      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
     </div>
   </PanelResizeHandle>
 );
 
-const HorizontalResizeHandle = ({ className = "", ...props }) => (
+const HorizontalResizeHandle = () => (
   <PanelResizeHandle
-    className={className}
-    style={{ ...props.style }}
-    {...props}
+    className="h-2 relative flex items-center justify-center hover:bg-gray-200 transition-colors"
   >
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div 
-        className="resize-handle-bar hover:bg-indigo-200 active:bg-indigo-300 transition-colors"
-        style={{ 
-          width: '32px',
-          height: '4px', 
-          borderRadius: '2px',
-          backgroundColor: '#e2e8f0',
-        }}
-      />
+    <div className="absolute w-16 h-1 flex flex-row items-center justify-center space-x-1">
+      <div className="h-1 w-1 rounded-full bg-gray-300"></div>
+      <div className="h-1 w-1 rounded-full bg-gray-300"></div>
+      <div className="h-1 w-1 rounded-full bg-gray-300"></div>
     </div>
   </PanelResizeHandle>
 );
+
+// Custom hook for persisting panel layouts
+const usePanelStorage = (id: string, defaultSizes: number[]) => {
+  const storageKey = `panel-layout-${id}`;
+  
+  // Get initial sizes from localStorage or use defaults
+  const loadSizes = useCallback(() => {
+    try {
+      const savedSizes = localStorage.getItem(storageKey);
+      return savedSizes ? JSON.parse(savedSizes) : defaultSizes;
+    } catch (error) {
+      console.error('Failed to load panel sizes:', error);
+      return defaultSizes;
+    }
+  }, [storageKey, defaultSizes]);
+
+  const [sizes, setSizes] = useState(loadSizes);
+  
+  // Save sizes with debouncing for better performance
+  const saveSizes = useCallback((newSizes: number[]) => {
+    setSizes(newSizes);
+    
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newSizes));
+    } catch (error) {
+      console.error('Failed to save panel sizes:', error);
+    }
+  }, [storageKey]);
+
+  return [sizes, saveSizes];
+};
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const [pdfFile] = useState<string>(initialPdfFile);
@@ -665,13 +680,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     [blocks, selectedBlock, handleBlockClick]
   );
 
+  // Use our custom hook for the main panel layout
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
+  
+  // Use our custom hook for the chat panel layout
+  const [chatPanelSizes, saveChatPanelSizes] = usePanelStorage('chat', [50, 50]);
+
   return (
     <MathJaxProvider>
       <div className="h-screen flex w-full overflow-hidden">
-        <PanelGroup direction="horizontal">
+        <PanelGroup 
+          direction="horizontal" 
+          onLayout={(sizes) => saveMainPanelSizes(sizes)}
+          className="w-full"
+        >
           {/* PDF viewer */}
-          <Panel defaultSize={70} minSize={30}>
-            <div className="h-full w-full">
+          <Panel 
+            defaultSize={mainPanelSizes[0]} 
+            minSize={30}
+            className="bg-white shadow-lg overflow-hidden"
+          >
+            <div className="h-full w-full overflow-hidden">
               <TabView
                 tabs={[
                   {
@@ -737,7 +766,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           
           {/* Chat panel */}
           {showChat && (
-            <Panel defaultSize={30} minSize={20}>
+            <Panel 
+              defaultSize={mainPanelSizes[1]} 
+              minSize={20}
+            >
               <div className="border-l border-gray-200 flex flex-col h-full bg-white">
                 {/* Chat header with tabs */}
                 <div className="border-b border-gray-200 p-3 flex flex-col">
@@ -801,11 +833,19 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 </div>
                 
                 {/* Vertically resizable panels for block content and chat */}
-                <PanelGroup direction="vertical" className="flex-1">
+                <PanelGroup 
+                  direction="vertical" 
+                  className="flex-1"
+                  onLayout={(sizes) => saveChatPanelSizes(sizes)}
+                >
                   {/* Selected block interactive content */}
                   {selectedBlock && (
                     <>
-                      <Panel defaultSize={30} minSize={10} maxSize={50}>
+                      <Panel 
+                        defaultSize={chatPanelSizes[0]} 
+                        minSize={30} 
+                        maxSize={50}
+                      >
                         <div className="border-b border-gray-200 overflow-auto h-full p-3">
                           <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Selected Content</div>
                           <div className="border border-gray-100 rounded-md p-2 bg-gray-50 h-[calc(100%-1.5rem)]">
@@ -823,6 +863,38 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                                   messageInput.value += (messageInput.value ? ' ' : '') + text;
                                   messageInput.focus();
                                 }
+                              }}
+                              onRabbitholeClick={(rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
+                                // Open the agent chat for this rabbithole conversation
+                                console.log("Opening rabbithole conversation:", rabbitholeId);
+                                
+                                // Check if this conversation is already in our list
+                                const existingConversation = agentConversations.find(c => c.id === rabbitholeId);
+                                if (existingConversation) {
+                                  // If it exists, just activate it
+                                  setActiveConversationId(rabbitholeId);
+                                  setShowChat(true);
+                                  return;
+                                }
+                                
+                                // Otherwise, add it to our conversations list
+                                const title = selectedText && selectedText.length > 30 
+                                  ? `${selectedText.substring(0, 30)}...` 
+                                  : selectedText || "Rabbithole Chat";
+                                
+                                setAgentConversations(prev => [
+                                  ...prev, 
+                                  {
+                                    id: rabbitholeId,
+                                    title,
+                                    selectionText: selectedText || "",
+                                    blockId: selectedBlock.id
+                                  }
+                                ]);
+                                
+                                // Set this as the active conversation
+                                setActiveConversationId(rabbitholeId);
+                                setShowChat(true);
                               }}
                               onRabbitholeCreate={(text: string, startOffset: number, endOffset: number) => {
                                 // Create a new agent chat for the selected text
@@ -864,7 +936,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   )}
                   
                   {/* Chat container - show either main chat or selected agent chat */}
-                  <Panel defaultSize={selectedBlock ? 70 : 100} minSize={50}>
+                  <Panel 
+                    defaultSize={chatPanelSizes[1]} 
+                    minSize={50}
+                  >
                     <div className="h-full overflow-hidden">
                       {activeConversationId === null ? (
                         <ChatContainer 
