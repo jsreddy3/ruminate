@@ -57,9 +57,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     sendMessage,
     editMessage,
     editMessageStreaming,
+    optimisticSendMessage,
+    optimisticEditMessage,
     switchToVersion,
-    refreshTree,
-    optimisticSendMessage
+    refreshTree
   } = useMessageTree({
     conversationId,
     isAgentChat,
@@ -171,15 +172,15 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     if (!conversationId || isAgentChat) return;
     
     try {
-      // Edit the message and get IDs for edited message and new assistant response using streaming
-      const [_, responseMessageId] = await editMessageStreaming(messageId, content);
+      // Use optimistic edit for immediate feedback
+      const [_, responseMessageId] = await optimisticEditMessage(messageId, content);
       
       // Set up streaming for the new response
       setStreamingMessageId(responseMessageId);
     } catch (error) {
       console.error('Error editing message:', error);
     }
-  }, [conversationId, editMessageStreaming, isAgentChat]);
+  }, [conversationId, optimisticEditMessage, isAgentChat]);
   
   // When streaming completes, refresh the message tree
   useEffect(() => {

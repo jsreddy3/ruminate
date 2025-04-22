@@ -17,6 +17,7 @@ interface UseMessageTreeReturn {
   sendMessage: (content: string, parentId: string) => Promise<[Message, string]>;
   optimisticSendMessage: (content: string, parentId: string) => Promise<[string, string]>;
   editMessage: (messageId: string, content: string) => Promise<[Message, string]>;
+  optimisticEditMessage: (messageId: string, content: string) => Promise<[string, string]>;
   editMessageStreaming: (messageId: string, content: string) => Promise<[string, string]>;
   switchToVersion: (messageId: string) => void;
   refreshTree: () => Promise<void>;
@@ -466,6 +467,93 @@ export function useMessageTree({
     [conversationId, activeThreadIds, flatMessages, buildMessageTree, refreshTree, isAgentChat, selectedBlockId]
   );
 
+  // Function to optimistically edit a message with immediate UI feedback
+  const optimisticEditMessage = useCallback(
+    async (messageId: string, content: string): Promise<[string, string]> => {
+      if (!conversationId || isAgentChat) {
+        throw new Error(isAgentChat ? "Message editing is not supported for agent chats" : "No active conversation");
+      }
+
+      // Find the message to edit
+      const messageToEdit = flatMessages.find(msg => msg.id === messageId);
+      if (!messageToEdit) {
+        throw new Error(`Message with ID ${messageId} not found`);
+      }
+
+      // Generate temporary IDs
+      const tempEditedMessageId = `temp-user-edit-${Date.now()}`;
+      const tempAssistantMessageId = `temp-assistant-${Date.now()}`;
+      
+      // Create optimistic messages
+      const optimisticEditedMessage: Message = {
+        ...messageToEdit,
+        id: tempEditedMessageId,
+        content: content,
+        active_child_id: tempAssistantMessageId
+      };
+      
+      const optimisticAssistantMessage: Message = {
+        id: tempAssistantMessageId,
+        content: "AI is thinking...",
+        role: MessageRole.ASSISTANT,
+        parent_id: tempEditedMessageId,
+        created_at: new Date().toISOString(),
+        active_child_id: null,
+        children: []
+      };
+      
+      // Create a new messages array with the edited message replacing the original
+      const updatedMessages = flatMessages.map(msg => 
+        msg.id === messageId ? optimisticEditedMessage : msg
+      );
+      
+      // Add the new assistant message
+      updatedMessages.push(optimisticAssistantMessage);
+      
+      // Update local state with our optimistic changes
+      setFlatMessages(updatedMessages);
+      
+      // Update message tree and active thread
+      const newActiveThread = [...activeThreadIds];
+      const messageIndex = newActiveThread.indexOf(messageId);
+      
+      if (messageIndex !== -1) {
+        // Replace the edited message ID and remove any subsequent messages
+        newActiveThread[messageIndex] = tempEditedMessageId;
+        newActiveThread.length = messageIndex + 1;
+        // Add the new assistant message
+        newActiveThread.push(tempAssistantMessageId);
+        setActiveThreadIds(newActiveThread);
+      }
+      
+      // Rebuild tree with optimistic messages
+      const updatedTree = buildMessageTree(updatedMessages);
+      setMessageTree(updatedTree);
+      
+      try {
+        // Make the actual API call
+        const [userMessageId, assistantMessageId] = await conversationApi.editMessageStreaming(
+          conversationId,
+          messageId,
+          content,
+          activeThreadIds.filter(id => !id.startsWith('temp-')), // Filter out temp IDs
+          selectedBlockId || undefined
+        );
+        
+        // Refresh tree to get real messages
+        await refreshTree();
+        
+        return [userMessageId, assistantMessageId];
+      } catch (err) {
+        // On error, revert the optimistic update by refreshing
+        refreshTree();
+        setError(err instanceof Error ? err : new Error('Failed to edit message'));
+        throw err;
+      }
+    },
+    [conversationId, activeThreadIds, flatMessages, buildMessageTree, refreshTree, isAgentChat, selectedBlockId]
+  );
+
   return {
     messageTree,
     activeThreadIds, 
@@ -474,6 +562,7 @@ export function useMessageTree({
     sendMessage,
     optimisticSendMessage,
     editMessage,
+    optimisticEditMessage,
     editMessageStreaming,
     switchToVersion,
     refreshTree
