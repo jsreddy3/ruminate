@@ -10,7 +10,6 @@ import { MessageRole } from '../../types/chat';
 // Import components from absolute paths
 import MessageList from '../../components/chat/messages/MessageList';
 import MessageInput from '../../components/chat/messages/MessageInput';
-import AgentEventViewer from '../../components/chat/agent/AgentEventViewer';
 
 interface ChatContainerProps {
   documentId: string;
@@ -215,16 +214,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           onEditMessage={handleEditMessage}
           streamingMessageId={streamingMessageId}
           streamingContent={streamingContent}
+          agentEvents={agentEvents}
+          agentStatus={agentStatus}
+          conversationId={conversationId}
+          isAgentChat={isAgentChat}
         />
-        
-        {/* For agent chats, show the event viewer */}
-        {isAgentChat && conversationId && (
-          <AgentEventViewer 
-            events={agentEvents}
-            status={agentStatus}
-            conversationId={conversationId}
-          />
-        )}
       </div>
       
       {/* Message input */}

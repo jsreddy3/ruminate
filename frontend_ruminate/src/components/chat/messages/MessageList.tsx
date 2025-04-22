@@ -1,5 +1,6 @@
 import React from 'react';
 import { MessageNode, MessageRole } from '../../../types/chat';
+import { AgentEvent, AgentStatus } from '../../../hooks/useAgentEventStream';
 import MessageItem from './MessageItem';
 
 interface MessageListProps {
@@ -9,6 +10,11 @@ interface MessageListProps {
   streamingContent: string;
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
+  // Agent-related props (will be passed to MessageItem for per-message steps)
+  agentEvents?: AgentEvent[];
+  agentStatus?: AgentStatus;
+  conversationId?: string | null;
+  isAgentChat?: boolean;
 }
 
 /**
@@ -20,7 +26,11 @@ const MessageList: React.FC<MessageListProps> = ({
   streamingMessageId,
   streamingContent,
   onSwitchVersion,
-  onEditMessage
+  onEditMessage,
+  agentEvents = [],
+  agentStatus = 'idle',
+  conversationId = null,
+  isAgentChat = false
 }) => {
   // Helper function to find a message in the tree by ID
   const findMessageById = (id: string, nodes: MessageNode[]): MessageNode | null => {
@@ -61,6 +71,27 @@ const MessageList: React.FC<MessageListProps> = ({
   // Filter out system messages for display
   const displayMessages = activeThread.filter(message => message.role !== MessageRole.SYSTEM);
   
+  // Get the events for the current message being generated
+  const getCurrentEvents = (message: MessageNode) => {
+    if (message.role !== MessageRole.ASSISTANT) return [];
+    
+    // Filter events that belong to this specific message
+    // Each event should have a message_id field that matches the current message
+    return agentEvents.filter(event => 
+      // Match events by message_id if available
+      (event.message_id && event.message_id === message.id) ||
+      // If there's no message_id but this is the latest assistant message,
+      // assign events without message_id to this message (for backward compatibility)
+      (!event.message_id && isLatestAssistantMessage(message))
+    );
+  };
+  
+  // Helper to determine if this is the latest assistant message
+  const isLatestAssistantMessage = (message: MessageNode): boolean => {
+    const assistantMessages = displayMessages.filter(msg => msg.role === MessageRole.ASSISTANT);
+    return assistantMessages.length > 0 && assistantMessages[assistantMessages.length - 1].id === message.id;
+  };
+  
   return (
     <div className="p-4 space-y-4">
       {/* Loop through active thread messages */}
@@ -81,6 +112,10 @@ const MessageList: React.FC<MessageListProps> = ({
             versions={getMessageVersions(message.id)}
             onSwitchVersion={onSwitchVersion}
             onEditMessage={onEditMessage}
+            agentEvents={getCurrentEvents(message)}
+            agentStatus={agentStatus}
+            conversationId={conversationId}
+            isAgentChat={isAgentChat}
           />
         );
       })}
