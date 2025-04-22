@@ -5,6 +5,8 @@ interface MessageItemProps {
   message: MessageNode;
   isActive: boolean;
   versions: MessageNode[];
+  isStreaming?: boolean;
+  streamingContent?: string | null;
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
 }
@@ -16,6 +18,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   message,
   isActive,
   versions,
+  isStreaming = false,
+  streamingContent = null,
   onSwitchVersion,
   onEditMessage
 }) => {
@@ -77,8 +81,16 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Streaming indicator */}
+            {isStreaming && message.role === MessageRole.ASSISTANT && (
+              <div className="flex items-center space-x-1">
+                <span className="text-xs text-gray-500">Generating</span>
+                <span className="inline-block w-1.5 h-1.5 bg-gray-500 rounded-full animate-pulse"></span>
+              </div>
+            )}
+            
             {/* Edit button (for user messages) */}
-            {canEdit && (
+            {canEdit && !isStreaming && (
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className="text-xs text-gray-500 hover:text-blue-600"
@@ -88,7 +100,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             )}
             
             {/* Version selector toggle (if multiple versions exist) */}
-            {hasVersions && (
+            {hasVersions && !isStreaming && (
               <button
                 onClick={() => setIsShowingVersions(!isShowingVersions)}
                 className="text-xs text-gray-500 hover:text-blue-600"
@@ -99,7 +111,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         </div>
         
-        {/* Message content - either editable or read-only */}
+        {/* Message content - editable, streaming, or regular read-only */}
         {isEditing ? (
           <div className="mb-2">
             <textarea
@@ -117,6 +129,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
               </button>
             </div>
           </div>
+        ) : isStreaming && message.role === MessageRole.ASSISTANT ? (
+          <div className="prose prose-sm max-w-none mb-2">
+            {streamingContent || "AI is thinking..."}
+          </div>
         ) : (
           <div className="prose prose-sm max-w-none mb-2">
             {message.content}
@@ -124,7 +140,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
         )}
         
         {/* Version selector */}
-        {isShowingVersions && hasVersions && (
+        {isShowingVersions && hasVersions && !isStreaming && (
           <div className="mt-3 pt-2 border-t border-gray-200">
             <div className="text-xs font-medium mb-1">Message Versions:</div>
             <div className="space-y-1">

@@ -15,6 +15,7 @@ interface UseMessageTreeReturn {
   isLoading: boolean;
   error: Error | null;
   sendMessage: (content: string, parentId: string) => Promise<[Message, string]>;
+  optimisticSendMessage: (content: string, parentId: string) => Promise<[string, string]>;
   editMessage: (messageId: string, content: string) => Promise<[Message, string]>;
   editMessageStreaming: (messageId: string, content: string) => Promise<[string, string]>;
   switchToVersion: (messageId: string) => void;
@@ -390,12 +391,88 @@ export function useMessageTree({
     }
   }, [flatMessages, activeThreadIds, refreshTree]);
 
+  // Function to optimistically send a message with immediate UI feedback
+  const optimisticSendMessage = useCallback(
+    async (content: string, parentId: string): Promise<[string, string]> => {
+      if (!conversationId) {
+        throw new Error("No active conversation");
+      }
+
+      // Generate temporary IDs
+      const tempUserMessageId = `temp-user-${Date.now()}`;
+      const tempAssistantMessageId = `temp-assistant-${Date.now()}`;
+      
+      // Create optimistic messages
+      const optimisticUserMessage: Message = {
+        id: tempUserMessageId,
+        content,
+        role: MessageRole.USER,
+        parent_id: parentId,
+        created_at: new Date().toISOString(),
+        active_child_id: tempAssistantMessageId,
+        children: []
+      };
+      
+      const optimisticAssistantMessage: Message = {
+        id: tempAssistantMessageId,
+        content: "AI is thinking...",
+        role: MessageRole.ASSISTANT,
+        parent_id: tempUserMessageId,
+        created_at: new Date().toISOString(),
+        active_child_id: null,
+        children: []
+      };
+      
+      // Update local state optimistically
+      setFlatMessages(prev => [...prev, optimisticUserMessage, optimisticAssistantMessage]);
+      
+      // Update active thread
+      const newActiveThread = [...activeThreadIds, tempUserMessageId, tempAssistantMessageId];
+      setActiveThreadIds(newActiveThread);
+      
+      // Rebuild tree with optimistic messages
+      const updatedTree = buildMessageTree([...flatMessages, optimisticUserMessage, optimisticAssistantMessage]);
+      setMessageTree(updatedTree);
+      
+      try {
+        // Use existing API call
+        if (isAgentChat) {
+          const result = await agentApi.sendAgentMessage(
+            conversationId,
+            content,
+            parentId
+          );
+          
+          return [result.message_id, result.message_id];
+        } else {
+          // For regular chats, use the existing API
+          const [message, responseMessageId] = await conversationApi.sendMessage(
+            conversationId, 
+            content, 
+            parentId, 
+            activeThreadIds.filter(id => !id.startsWith('temp-')), // Filter out temp IDs
+            selectedBlockId || undefined
+          );
+          
+          return [message.id, responseMessageId];
+        }
+      } catch (err) {
+        // On error, revert the optimistic update by refreshing
+        refreshTree();
+        setError(err instanceof Error ? err : new Error('Failed to send message'));
+        throw err;
+      }
+    },
+    [conversationId, activeThreadIds, flatMessages, buildMessageTree, refreshTree, isAgentChat, selectedBlockId]
+  );
+
   return {
     messageTree,
     activeThreadIds, 
     isLoading,
     error,
     sendMessage,
+    optimisticSendMessage,
     editMessage,
     editMessageStreaming,
     switchToVersion,

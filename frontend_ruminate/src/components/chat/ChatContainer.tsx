@@ -35,6 +35,19 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // Track streaming state for displaying content during generation
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   
+  // Add logging whenever streamingMessageId changes
+  useEffect(() => {
+    console.log(`[ChatContainer] streamingMessageId changed to: ${streamingMessageId}`);
+  }, [streamingMessageId]);
+  
+  // Component mount/unmount logging
+  useEffect(() => {
+    console.log("[ChatContainer] Mounted");
+    return () => {
+      console.log("[ChatContainer] Unmounting");
+    };
+  }, []);
+  
   // Core message tree state for the conversation
   const {
     messageTree,
@@ -45,7 +58,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     editMessage,
     editMessageStreaming,
     switchToVersion,
-    refreshTree
+    refreshTree,
+    optimisticSendMessage
   } = useMessageTree({
     conversationId,
     isAgentChat,
@@ -56,6 +70,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const {
     content: streamingContent,
     isComplete: isStreamingComplete,
+    isLoading: isStreamingActive,
     error: streamingError
   } = useMessageStream(conversationId, streamingMessageId);
   
@@ -137,8 +152,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         return;
       }
       
-      // Send the message and get IDs for user and assistant messages
-      const [_, responseMessageId] = await sendMessage(content, parentId);
+      // Use optimistic send message for immediate UI feedback
+      const [_, responseMessageId] = await optimisticSendMessage(content, parentId);
       
       // For regular chats, set up streaming
       if (!isAgentChat) {
@@ -149,7 +164,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     } catch (error) {
       console.error('Error sending message:', error);
     }
-  }, [conversationId, activeThreadIds, messageTree, sendMessage, isAgentChat]);
+  }, [conversationId, activeThreadIds, messageTree, optimisticSendMessage, isAgentChat]);
   
   // Handle editing a message
   const handleEditMessage = useCallback(async (messageId: string, content: string) => {
@@ -168,11 +183,15 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   // When streaming completes, refresh the message tree
   useEffect(() => {
-    if (isStreamingComplete && streamingMessageId) {
+    console.log(`[ChatContainer] Checking streaming completion - isComplete: ${isStreamingComplete}, messageId: ${streamingMessageId}, isActive: ${isStreamingActive}`);
+    
+    // Only process completion if streaming was actually active and then completed
+    if (isStreamingComplete && streamingMessageId && isStreamingActive === false) {
+      console.log(`[ChatContainer] Streaming complete, refreshing tree and clearing streamingMessageId`);
       refreshTree();
       setStreamingMessageId(null);
     }
-  }, [isStreamingComplete, streamingMessageId, refreshTree]);
+  }, [isStreamingComplete, streamingMessageId, refreshTree, isStreamingActive]);
   
   // When agent status changes to completed, refresh the message tree
   useEffect(() => {

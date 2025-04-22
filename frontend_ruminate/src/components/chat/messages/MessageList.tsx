@@ -1,7 +1,6 @@
 import React from 'react';
 import { MessageNode } from '../../../types/chat';
 import MessageItem from './MessageItem';
-import StreamingMessage from './StreamingMessage';
 
 interface MessageListProps {
   messages: MessageNode[];
@@ -62,24 +61,26 @@ const MessageList: React.FC<MessageListProps> = ({
   return (
     <div className="p-4 space-y-4">
       {/* Loop through active thread messages */}
-      {activeThread.map(message => (
-        <MessageItem
-          key={message.id}
-          message={message}
-          isActive={true}
-          versions={getMessageVersions(message.id)}
-          onSwitchVersion={onSwitchVersion}
-          onEditMessage={onEditMessage}
-        />
-      ))}
-      
-      {/* Show streaming content if there's an active streaming message */}
-      {streamingMessageId && (
-        <StreamingMessage 
-          messageId={streamingMessageId} 
-          content={streamingContent}
-        />
-      )}
+      {activeThread.map(message => {
+        // Determine if this message should be streaming
+        // Either it has the exact streaming ID or it's a temporary assistant message
+        const isMessageStreaming = 
+          message.id === streamingMessageId || 
+          (!!streamingMessageId && message.id.startsWith('temp-assistant-'));
+          
+        return (
+          <MessageItem
+            key={message.id}
+            message={message}
+            isActive={true}
+            isStreaming={isMessageStreaming}
+            streamingContent={isMessageStreaming ? streamingContent : null}
+            versions={getMessageVersions(message.id)}
+            onSwitchVersion={onSwitchVersion}
+            onEditMessage={onEditMessage}
+          />
+        );
+      })}
     </div>
   );
 };
