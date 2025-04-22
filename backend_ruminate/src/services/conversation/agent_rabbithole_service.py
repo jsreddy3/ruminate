@@ -109,23 +109,42 @@ class AgentRabbitholeService:
                             conversation_id: str,
                             content: str,
                             parent_id: str,
-                            session: Optional[AsyncSession] = None) -> Message:
+                            session: Optional[AsyncSession] = None,
+                            skip_user_message_creation: bool = False,
+                            existing_user_message_id: Optional[str] = None) -> Message:
         """
         Process a user message for an agent rabbithole conversation.
         This initiates the agent's exploration and returns the final answer.
+        
+        Args:
+            conversation_id: The ID of the conversation
+            content: The content of the message
+            parent_id: The ID of the parent message
+            session: Optional database session
+            skip_user_message_creation: If True, assumes the user message already exists
+            existing_user_message_id: If skip_user_message_creation is True, this is the ID of the existing user message
         """
         # logger.info(f"Processing agent message for conversation: {conversation_id}")
         # logger.debug(f"Message content: {content[:50]}{'...' if len(content) > 50 else ''}")
         
         # Use provided session or create a new one for initial database operations
         async with self.get_session() if session is None else contextlib.nullcontext(session) as db_session:
-            # Create user message and get required data for agent processing
-            user_msg = await self.conversation_manager.create_user_message(
-                conversation_id=conversation_id,
-                content=content,
-                parent_id=parent_id,
-                session=db_session
-            )
+            # Create user message only if not skipped
+            if skip_user_message_creation and existing_user_message_id:
+                # Use the existing user message ID
+                user_msg_id = existing_user_message_id
+                # Retrieve the existing message for consistency
+                user_msg = await self.conversation_repo.get_message(user_msg_id, db_session)
+                if not user_msg:
+                    raise ValueError(f"User message {user_msg_id} not found")
+            else:
+                # Create user message and get required data for agent processing
+                user_msg = await self.conversation_manager.create_user_message(
+                    conversation_id=conversation_id,
+                    content=content,
+                    parent_id=parent_id,
+                    session=db_session
+                )
             
             # Get conversation
             conversation = await self.conversation_repo.get_conversation(conversation_id, db_session)
@@ -291,6 +310,9 @@ class AgentRabbitholeService:
                 conversation_id=conversation_id,
                 content=new_content,
                 parent_id=edited_user.id,
+                # Pass flag to skip creating another user message - use the one we just created
+                skip_user_message_creation=True,
+                existing_user_message_id=edited_user.id
             )
         create_task(_run())
 

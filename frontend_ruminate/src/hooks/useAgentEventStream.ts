@@ -187,6 +187,55 @@ export function useAgentEventStream(conversationId: string | null): {
     };
   }, [conversationId]);
 
+  // Add idle timeout to close connection after period of inactivity
+  useEffect(() => {
+    if (!conversationId) return;
+    
+    // Use a ref to track the EventSource created in the main effect
+    // We can't directly access it, so instead we'll let the main effect cleanup handle closing
+    let isConnectionActive = true;
+    
+    // 30 minutes of inactivity before closing the connection
+    const IDLE_TIMEOUT = 10 * 60 * 1000;
+    let idleTimer: NodeJS.Timeout;
+    
+    // Function to reset the idle timer
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        console.log(`Marking agent connection ${conversationId} as inactive after timeout`);
+        isConnectionActive = false;
+        setIsConnected(false);
+        // We don't directly close the EventSource here,
+        // instead we'll use the isConnected state to indicate the connection is idle
+      }, IDLE_TIMEOUT);
+    };
+    
+    // Events that indicate user activity
+    const userActivityEvents = ['mousedown', 'keypress', 'scroll', 'touchstart'];
+    
+    // Add event listeners for user activity
+    userActivityEvents.forEach(eventType => {
+      window.addEventListener(eventType, resetIdleTimer);
+    });
+    
+    // Also reset on any new agent events
+    if (events.length > 0) {
+      resetIdleTimer();
+    }
+    
+    // Initial timer setup
+    resetIdleTimer();
+    
+    // Clean up event listeners and timer
+    return () => {
+      userActivityEvents.forEach(eventType => {
+        window.removeEventListener(eventType, resetIdleTimer);
+      });
+      clearTimeout(idleTimer);
+    };
+  }, [conversationId, events.length]);
+
   return {
     events,
     status,
