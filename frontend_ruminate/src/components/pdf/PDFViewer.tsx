@@ -12,6 +12,34 @@ import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
 import BlockContainer from "../interactive/blocks/BlockContainer";
 import { agentApi } from "../../services/api/agent";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+
+// Custom CSS styles for resize handles
+const resizeHandleStyles = {
+  vertical: `
+    width: 4px;
+    margin: 0 -2px;
+    background-color: transparent;
+    position: relative;
+    cursor: col-resize;
+    transition: background-color 0.2s;
+  `,
+  horizontal: `
+    height: 4px;
+    margin: -2px 0;
+    background-color: transparent;
+    position: relative;
+    cursor: row-resize;
+    transition: background-color 0.2s;
+  `,
+  dot: `
+    position: absolute;
+    border-radius: 50%;
+    background-color: #cbd5e1;
+    width: 3px;
+    height: 3px;
+  `,
+};
 
 export interface Block {
   id: string;
@@ -100,6 +128,47 @@ interface PDFViewerProps {
   initialPdfFile: string;
   initialDocumentId: string;
 }
+
+// A simple resize handle component for panels
+const ResizeHandle = ({ className = "", ...props }) => (
+  <PanelResizeHandle
+    className={className}
+    style={{ ...props.style }}
+    {...props}
+  >
+    <div style={{ [props.style?.width ? 'width' : 'height']: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div 
+        className="resize-handle-bar hover:bg-indigo-200 active:bg-indigo-300 transition-colors"
+        style={{ 
+          width: '4px', 
+          height: '32px',
+          borderRadius: '2px',
+          backgroundColor: '#e2e8f0',
+        }}
+      />
+    </div>
+  </PanelResizeHandle>
+);
+
+const HorizontalResizeHandle = ({ className = "", ...props }) => (
+  <PanelResizeHandle
+    className={className}
+    style={{ ...props.style }}
+    {...props}
+  >
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div 
+        className="resize-handle-bar hover:bg-indigo-200 active:bg-indigo-300 transition-colors"
+        style={{ 
+          width: '32px',
+          height: '4px', 
+          borderRadius: '2px',
+          backgroundColor: '#e2e8f0',
+        }}
+      />
+    </div>
+  </PanelResizeHandle>
+);
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const [pdfFile] = useState<string>(initialPdfFile);
@@ -599,215 +668,234 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   return (
     <MathJaxProvider>
       <div className="h-screen flex w-full overflow-hidden">
-        {/* PDF viewer */}
-        <div className={`${showChat ? 'w-2/3' : 'flex-1'} bg-white shadow-lg overflow-hidden transition-all duration-300 ease-in-out`}>
-          <div className="h-full w-full">
-            <TabView
-              tabs={[
-                {
-                  id: 'pdf',
-                  label: 'PDF',
-                  icon: <span>📄</span>,
-                  content: (
-                    <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                      <div 
-                        style={{
-                          border: 'none',
-                          height: '100%',
-                          width: '100%',
-                          backgroundColor: 'rgb(243 244 246)',
-                        }}
-                        className="overflow-auto relative"
-                      >
-                        <Viewer
-                          fileUrl={pdfFile}
-                          plugins={[defaultLayoutPluginInstance]}
-                          defaultScale={1.2}
-                          theme="light"
-                          pageLayout={pageLayout}
-                          renderLoader={(percentages: number) => (
-                            <div className="flex items-center justify-center p-4">
-                              <div className="w-full max-w-sm">
-                                <div className="bg-white p-4 rounded-lg shadow-sm">
-                                  <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-primary-600 transition-all duration-300"
-                                      style={{ width: `${Math.round(percentages)}%` }}
-                                    />
-                                  </div>
-                                  <div className="text-sm text-neutral-600 mt-2 text-center">
-                                    Loading {Math.round(percentages)}%
+        <PanelGroup direction="horizontal">
+          {/* PDF viewer */}
+          <Panel defaultSize={70} minSize={30}>
+            <div className="h-full w-full">
+              <TabView
+                tabs={[
+                  {
+                    id: 'pdf',
+                    label: 'PDF',
+                    icon: <span>📄</span>,
+                    content: (
+                      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                        <div 
+                          style={{
+                            border: 'none',
+                            height: '100%',
+                            width: '100%',
+                            backgroundColor: 'rgb(243 244 246)',
+                          }}
+                          className="overflow-auto relative"
+                        >
+                          <Viewer
+                            fileUrl={pdfFile}
+                            plugins={[defaultLayoutPluginInstance]}
+                            defaultScale={1.2}
+                            theme="light"
+                            pageLayout={pageLayout}
+                            renderLoader={(percentages: number) => (
+                              <div className="flex items-center justify-center p-4">
+                                <div className="w-full max-w-sm">
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-primary-600 transition-all duration-300"
+                                        style={{ width: `${Math.round(percentages)}%` }}
+                                      />
+                                    </div>
+                                    <div className="text-sm text-neutral-600 mt-2 text-center">
+                                      Loading {Math.round(percentages)}%
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                          renderPage={(props) => (
-                            <>
-                              {props.canvasLayer.children}
-                              {props.textLayer.children}
-                              {renderOverlay(props)}
-                            </>
-                          )}
-                        />
-                      </div>
-                    </Worker>
-                  )
-                },
-              ]}
-              activeTabId={activeTabId}
-              onTabChange={setActiveTabId}
-              className="h-full"
-            />
-          </div>
-        </div>
-        
-        {/* Chat panel */}
-        {showChat && (
-          <div className="w-1/3 border-l border-gray-200 flex flex-col h-full bg-white">
-            {/* Chat header with tabs */}
-            <div className="border-b border-gray-200 p-3 flex flex-col">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium text-gray-900">
-                  Document Chat
-                  {selectedBlock && ` - ${selectedBlock.block_type}`}
-                </h3>
-                
-                {/* Close button */}
-                <button 
-                  onClick={() => setShowChat(false)}
-                  className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
-                >
-                  <span>×</span>
-                </button>
-              </div>
-              
-              {/* Conversation tabs */}
-              <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
-                {/* Main chat tab */}
-                <button 
-                  className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
-                    activeConversationId === null 
-                    ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setActiveConversationId(null)}
-                >
-                  Main Chat
-                </button>
-                
-                {/* Agent chat tabs */}
-                {agentConversations.map(conv => (
-                  <button
-                    key={conv.id}
-                    className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
-                      activeConversationId === conv.id
-                      ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveConversationId(conv.id)}
-                  >
-                    <span>🔍</span>
-                    <span>{conv.title}</span>
-                    <span 
-                      className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAgentConversations(prev => prev.filter(c => c.id !== conv.id));
-                        if (activeConversationId === conv.id) {
-                          setActiveConversationId(null);
-                        }
-                      }}
+                            )}
+                            renderPage={(props) => (
+                              <>
+                                {props.canvasLayer.children}
+                                {props.textLayer.children}
+                                {renderOverlay(props)}
+                              </>
+                            )}
+                          />
+                        </div>
+                      </Worker>
+                    )
+                  },
+                ]}
+                activeTabId={activeTabId}
+                onTabChange={setActiveTabId}
+                className="h-full"
+              />
+            </div>
+          </Panel>
+          
+          {/* Resize handle */}
+          {showChat && <ResizeHandle />}
+          
+          {/* Chat panel */}
+          {showChat && (
+            <Panel defaultSize={30} minSize={20}>
+              <div className="border-l border-gray-200 flex flex-col h-full bg-white">
+                {/* Chat header with tabs */}
+                <div className="border-b border-gray-200 p-3 flex flex-col">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-medium text-gray-900">
+                      Document Chat
+                      {selectedBlock && ` - ${selectedBlock.block_type}`}
+                    </h3>
+                    
+                    {/* Close button */}
+                    <button 
+                      onClick={() => setShowChat(false)}
+                      className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
                     >
-                      ×
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Selected block interactive content */}
-            {selectedBlock && (
-              <div className="border-b border-gray-200 overflow-auto max-h-[30%] p-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Selected Content</div>
-                <div className="border border-gray-100 rounded-md p-2 bg-gray-50">
-                  <BlockContainer
-                    blockId={selectedBlock.id}
-                    blockType={selectedBlock.block_type}
-                    htmlContent={selectedBlock.html_content || ''}
-                    documentId={documentId}
-                    images={selectedBlock.images}
-                    customStyle={{ backgroundColor: 'white' }}
-                    onAddTextToChat={(text: string) => {
-                      // Find the active chat's message input and add the text
-                      const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
-                      if (messageInput) {
-                        messageInput.value += (messageInput.value ? ' ' : '') + text;
-                        messageInput.focus();
-                      }
-                    }}
-                    onRabbitholeCreate={(text: string, startOffset: number, endOffset: number) => {
-                      // Create a new agent chat for the selected text
-                      console.log("Creating rabbithole for text:", text);
-                      // If you have an API call to create a rabbithole, call it here
-                      // For now, we'll use the agentApi directly
-                      if (documentId && selectedBlock) {
-                        agentApi.createAgentRabbithole(
-                          documentId,
-                          selectedBlock.id,
-                          text,
-                          startOffset,
-                          endOffset
-                        ).then(({ conversation_id }) => {
-                          handleAgentChatCreated(conversation_id, text, selectedBlock.id);
-                        }).catch(error => {
-                          console.error("Error creating agent chat:", error);
-                        });
-                      }
-                    }}
-                    onAgentChatCreated={(conversationId: string) => {
-                      // For the BlockContainer callback, we only receive the conversationId
-                      // We'll use the current selected block's text as the title
-                      const selectedText = selectedBlock.html_content?.replace(/<[^>]*>/g, "") || "";
-                      const truncatedText = selectedText.length > 30 
-                        ? `${selectedText.substring(0, 30)}...` 
-                        : selectedText;
-                      
-                      handleAgentChatCreated(conversationId, truncatedText, selectedBlock.id);
-                    }}
-                  />
+                      <span>×</span>
+                    </button>
+                  </div>
+                  
+                  {/* Conversation tabs */}
+                  <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
+                    {/* Main chat tab */}
+                    <button 
+                      className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
+                        activeConversationId === null 
+                        ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                      onClick={() => setActiveConversationId(null)}
+                    >
+                      Main Chat
+                    </button>
+                    
+                    {/* Agent chat tabs */}
+                    {agentConversations.map(conv => (
+                      <button
+                        key={conv.id}
+                        className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
+                          activeConversationId === conv.id
+                          ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                        onClick={() => setActiveConversationId(conv.id)}
+                      >
+                        <span>🔍</span>
+                        <span>{conv.title}</span>
+                        <span 
+                          className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAgentConversations(prev => prev.filter(c => c.id !== conv.id));
+                            if (activeConversationId === conv.id) {
+                              setActiveConversationId(null);
+                            }
+                          }}
+                        >
+                          ×
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                
+                {/* Vertically resizable panels for block content and chat */}
+                <PanelGroup direction="vertical" className="flex-1">
+                  {/* Selected block interactive content */}
+                  {selectedBlock && (
+                    <>
+                      <Panel defaultSize={30} minSize={10} maxSize={50}>
+                        <div className="border-b border-gray-200 overflow-auto h-full p-3">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Selected Content</div>
+                          <div className="border border-gray-100 rounded-md p-2 bg-gray-50 h-[calc(100%-1.5rem)]">
+                            <BlockContainer
+                              blockId={selectedBlock.id}
+                              blockType={selectedBlock.block_type}
+                              htmlContent={selectedBlock.html_content || ''}
+                              documentId={documentId}
+                              images={selectedBlock.images}
+                              customStyle={{ backgroundColor: 'white' }}
+                              onAddTextToChat={(text: string) => {
+                                // Find the active chat's message input and add the text
+                                const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
+                                if (messageInput) {
+                                  messageInput.value += (messageInput.value ? ' ' : '') + text;
+                                  messageInput.focus();
+                                }
+                              }}
+                              onRabbitholeCreate={(text: string, startOffset: number, endOffset: number) => {
+                                // Create a new agent chat for the selected text
+                                console.log("Creating rabbithole for text:", text);
+                                // If you have an API call to create a rabbithole, call it here
+                                // For now, we'll use the agentApi directly
+                                if (documentId && selectedBlock) {
+                                  agentApi.createAgentRabbithole(
+                                    documentId,
+                                    selectedBlock.id,
+                                    text,
+                                    startOffset,
+                                    endOffset
+                                  ).then(({ conversation_id }) => {
+                                    handleAgentChatCreated(conversation_id, text, selectedBlock.id);
+                                  }).catch(error => {
+                                    console.error("Error creating agent chat:", error);
+                                  });
+                                }
+                              }}
+                              onAgentChatCreated={(conversationId: string) => {
+                                // For the BlockContainer callback, we only receive the conversationId
+                                // We'll use the current selected block's text as the title
+                                const selectedText = selectedBlock.html_content?.replace(/<[^>]*>/g, "") || "";
+                                const truncatedText = selectedText.length > 30 
+                                  ? `${selectedText.substring(0, 30)}...` 
+                                  : selectedText;
+                                
+                                handleAgentChatCreated(conversationId, truncatedText, selectedBlock.id);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </Panel>
+                      
+                      {/* Resize handle */}
+                      <HorizontalResizeHandle />
+                    </>
+                  )}
+                  
+                  {/* Chat container - show either main chat or selected agent chat */}
+                  <Panel defaultSize={selectedBlock ? 70 : 100} minSize={50}>
+                    <div className="h-full overflow-hidden">
+                      {activeConversationId === null ? (
+                        <ChatContainer 
+                          key={`main-chat-${mainConversationId || 'default'}`}
+                          documentId={documentId}
+                          selectedBlock={selectedBlock}
+                          isAgentChat={false}
+                          conversationId={mainConversationId || undefined}
+                          onClose={() => setShowChat(false)}
+                        />
+                      ) : (
+                        <ChatContainer 
+                          key={`agent-chat-${activeConversationId}`}
+                          documentId={documentId}
+                          selectedBlock={selectedBlock}
+                          isAgentChat={true}
+                          conversationId={activeConversationId}
+                          onClose={() => {
+                            if (activeConversationId) {
+                              setActiveConversationId(null);
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  </Panel>
+                </PanelGroup>
               </div>
-            )}
-            
-            {/* Chat container - show either main chat or selected agent chat */}
-            <div className="flex-1 overflow-hidden">
-              {activeConversationId === null ? (
-                <ChatContainer 
-                  key={`main-chat-${mainConversationId || 'default'}`}
-                  documentId={documentId}
-                  selectedBlock={selectedBlock}
-                  isAgentChat={false}
-                  conversationId={mainConversationId || undefined}
-                  onClose={() => setShowChat(false)}
-                />
-              ) : (
-                <ChatContainer 
-                  key={`agent-chat-${activeConversationId}`}
-                  documentId={documentId}
-                  selectedBlock={selectedBlock}
-                  isAgentChat={true}
-                  conversationId={activeConversationId}
-                  onClose={() => {
-                    if (activeConversationId) {
-                      setActiveConversationId(null);
-                    }
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        )}
+            </Panel>
+          )}
+        </PanelGroup>
       </div>
     </MathJaxProvider>
   );
