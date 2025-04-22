@@ -162,7 +162,16 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
   const loadSizes = useCallback(() => {
     try {
       const savedSizes = localStorage.getItem(storageKey);
-      return savedSizes ? JSON.parse(savedSizes) : defaultSizes;
+      if (!savedSizes) return defaultSizes;
+      
+      const parsed = JSON.parse(savedSizes);
+      // Validate that we have a proper array with numbers
+      if (!Array.isArray(parsed) || parsed.some(size => typeof size !== 'number')) {
+        console.warn(`Invalid panel sizes in localStorage: ${savedSizes}, using defaults`);
+        return defaultSizes;
+      }
+      
+      return parsed;
     } catch (error) {
       console.error('Failed to load panel sizes:', error);
       return defaultSizes;
@@ -173,6 +182,11 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
   
   // Save sizes with debouncing for better performance
   const saveSizes = useCallback((newSizes: number[]) => {
+    if (!Array.isArray(newSizes) || newSizes.some(size => typeof size !== 'number')) {
+      console.warn(`Attempting to save invalid panel sizes: ${JSON.stringify(newSizes)}`);
+      return;
+    }
+    
     setSizes(newSizes);
     
     try {
@@ -182,7 +196,7 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
     }
   }, [storageKey]);
 
-  return [sizes, saveSizes];
+  return [sizes, saveSizes] as const; // Use const assertion for better typing
 };
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
@@ -686,6 +700,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Use our custom hook for the chat panel layout
   const [chatPanelSizes, saveChatPanelSizes] = usePanelStorage('chat', [50, 50]);
 
+  // Ensure panel sizes are applied correctly
+  useEffect(() => {
+    // Allow layout to fully settle after mounting
+    const timer = setTimeout(() => {
+      // Force a resize event to ensure PDF viewer recalculates layouts
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [showChat]); // Re-trigger when chat visibility changes
+
   return (
     <MathJaxProvider>
       <div className="h-screen flex w-full overflow-hidden">
@@ -698,9 +723,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           <Panel 
             defaultSize={mainPanelSizes[0]} 
             minSize={30}
-            className="bg-white shadow-lg overflow-hidden"
+            className="bg-white shadow-lg overflow-hidden flex flex-col"
           >
-            <div className="h-full w-full overflow-hidden">
+            <div className="h-full w-full overflow-hidden flex flex-col">
               <TabView
                 tabs={[
                   {
@@ -715,8 +740,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                             height: '100%',
                             width: '100%',
                             backgroundColor: 'rgb(243 244 246)',
+                            position: 'relative', // Ensure proper positioning context
+                            display: 'flex',
+                            flexDirection: 'column'
                           }}
-                          className="overflow-auto relative"
+                          className="overflow-auto"
                         >
                           <Viewer
                             fileUrl={pdfFile}
@@ -756,7 +784,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 ]}
                 activeTabId={activeTabId}
                 onTabChange={setActiveTabId}
-                className="h-full"
+                className="h-full flex flex-col"
               />
             </div>
           </Panel>
