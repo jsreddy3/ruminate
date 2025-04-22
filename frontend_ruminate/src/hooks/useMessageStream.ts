@@ -41,7 +41,7 @@ export function useMessageStream(conversationId: string | null, messageId: strin
     setIsComplete(false);
     setError(null);
 
-    console.log(`Creating stream for message: ${messageId}. isComplete: ${isComplete}`);
+    console.log(`Creating stream for message: ${messageId}. isComplete: ${isComplete}. content is ${content}`);
     
     // Create EventSource for SSE connection
     const streamUrl = `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}/stream`;
@@ -56,14 +56,14 @@ export function useMessageStream(conversationId: string | null, messageId: strin
         
         // Check for completion signal
         if (data === "[DONE]") {
-          console.log(`Stream completed for message: ${messageId}`);
+          console.log(`Stream completed for message: ${messageId}. Final content length: ${content.length}`);
           setIsComplete(true);
           setIsLoading(false);
           eventSource.close();
         } else {
           // Log chunk size for debugging
           if (data.length > 0 && data.length % 50 === 0) {
-            console.log(`Received ${data.length} chars for message: ${messageId}`);
+            console.log(`Received ${data.length} chars for message: ${messageId}. Total: ${content.length + data.length}`);
           }
           
           // Append the new chunk to our content
@@ -97,7 +97,7 @@ export function useMessageStream(conversationId: string | null, messageId: strin
         eventSource.close();
       }
     };
-  }, [conversationId, messageId, isComplete]);
+  }, [conversationId, messageId]);
 
   return {
     content,

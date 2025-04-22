@@ -158,6 +158,12 @@ export function useMessageTree({
   useEffect(() => {
     if (!conversationId) return;
     
+    // Reset state when conversation ID changes
+    setMessageTree([]);
+    setFlatMessages([]);
+    setActiveThreadIds([]);
+    setError(null);
+    
     const fetchMessageTree = async () => {
       setIsLoading(true);
       setError(null);
@@ -246,10 +252,39 @@ export function useMessageTree({
       }
       
       try {
-        // Currently, only regular chats support message editing through the API
-        // For agent chats, we'd need to implement a custom solution or throw an error
         if (isAgentChat) {
-          throw new Error("Message editing is not supported for agent chats");
+          // Find the parent ID for this message
+          const messageToEdit = flatMessages.find(msg => msg.id === messageId);
+          if (!messageToEdit) {
+            throw new Error(`Message with ID ${messageId} not found`);
+          }
+          
+          const parentId = messageToEdit.parent_id || '';
+          console.log("Editing agent message with parent:", parentId);
+          
+          // For agent chats, use the agent API
+          const { edited_message_id, placeholder_id } = await agentApi.editAgentMessage(
+            conversationId,
+            messageId,
+            content,
+            parentId
+          );
+          
+          // Refresh the message tree after editing
+          await refreshTree();
+          
+          // Create a placeholder message object since the agent API doesn't return full messages
+          const placeholderMessage: Message = {
+            id: edited_message_id,
+            content: content,
+            role: MessageRole.USER,
+            parent_id: '',  // Will be populated via refresh
+            created_at: new Date().toISOString(),
+            active_child_id: placeholder_id,
+            children: []
+          };
+          
+          return [placeholderMessage, placeholder_id];
         } else {
           // For regular chats, use the existing API
           const [message, responseMessageId] = await conversationApi.editMessage(
@@ -269,7 +304,7 @@ export function useMessageTree({
         throw err;
       }
     },
-    [conversationId, activeThreadIds, isAgentChat, refreshTree]
+    [conversationId, activeThreadIds, isAgentChat, flatMessages, refreshTree]
   );
 
   // Function to edit an existing message with streaming response
@@ -280,9 +315,30 @@ export function useMessageTree({
       }
       
       try {
-        // For agent chats, we'd need to implement a custom solution or throw an error
         if (isAgentChat) {
-          throw new Error("Message editing is not supported for agent chats");
+          // Find the parent ID for this message
+          const messageToEdit = flatMessages.find(msg => msg.id === messageId);
+          if (!messageToEdit) {
+            throw new Error(`Message with ID ${messageId} not found`);
+          }
+          
+          const parentId = messageToEdit.parent_id || '';
+          console.log("Streaming edit agent message with parent:", parentId);
+          
+          // For agent chats, use the agent API without streaming
+          const { edited_message_id, placeholder_id } = await agentApi.editAgentMessage(
+            conversationId,
+            messageId,
+            content,
+            parentId
+          );
+          
+          // For agent chats we don't need streaming, so we can just refresh
+          refreshTree().catch(err => 
+            console.error("Error refreshing tree after agent edit:", err)
+          );
+          
+          return [edited_message_id, placeholder_id];
         } else {
           // For regular chats, use the streaming API
           const [userMessageId, assistantMessageId] = await conversationApi.editMessageStreaming(
@@ -416,7 +472,7 @@ export function useMessageTree({
       
       const optimisticAssistantMessage: Message = {
         id: tempAssistantMessageId,
-        content: "AI is thinking...",
+        content: "",
         role: MessageRole.ASSISTANT,
         parent_id: tempUserMessageId,
         created_at: new Date().toISOString(),
@@ -470,8 +526,8 @@ export function useMessageTree({
   // Function to optimistically edit a message with immediate UI feedback
   const optimisticEditMessage = useCallback(
     async (messageId: string, content: string): Promise<[string, string]> => {
-      if (!conversationId || isAgentChat) {
-        throw new Error(isAgentChat ? "Message editing is not supported for agent chats" : "No active conversation");
+      if (!conversationId) {
+        throw new Error("No active conversation");
       }
 
       // Find the message to edit
@@ -479,6 +535,10 @@ export function useMessageTree({
       if (!messageToEdit) {
         throw new Error(`Message with ID ${messageId} not found`);
       }
+      
+      // Get the parent ID for this message
+      const parentId = messageToEdit.parent_id || '';
+      console.log("Optimistic edit with parent:", parentId);
 
       // Generate temporary IDs
       const tempEditedMessageId = `temp-user-edit-${Date.now()}`;
@@ -492,9 +552,10 @@ export function useMessageTree({
         active_child_id: tempAssistantMessageId
       };
       
+      // Create assistant message with appropriate content based on chat type
       const optimisticAssistantMessage: Message = {
         id: tempAssistantMessageId,
-        content: "AI is thinking...",
+        content: isAgentChat ? "Agent is exploring..." : "",
         role: MessageRole.ASSISTANT,
         parent_id: tempEditedMessageId,
         created_at: new Date().toISOString(),
@@ -531,19 +592,38 @@ export function useMessageTree({
       setMessageTree(updatedTree);
       
       try {
-        // Make the actual API call
-        const [userMessageId, assistantMessageId] = await conversationApi.editMessageStreaming(
-          conversationId,
-          messageId,
-          content,
-          activeThreadIds.filter(id => !id.startsWith('temp-')), // Filter out temp IDs
-          selectedBlockId || undefined
-        );
-        
-        // Refresh tree to get real messages
-        await refreshTree();
-        
-        return [userMessageId, assistantMessageId];
+        if (isAgentChat) {
+          // For agent chats, use the agent API
+          const { edited_message_id, placeholder_id } = await agentApi.editAgentMessage(
+            conversationId,
+            messageId,
+            content,
+            parentId
+          );
+          
+          // For agent chats, we'll just wait a bit and then refresh the tree
+          setTimeout(() => {
+            refreshTree().catch(err => 
+              console.error("Error refreshing tree after agent edit:", err)
+            );
+          }, 500);
+          
+          return [edited_message_id, placeholder_id];
+        } else {
+          // For regular chats, use the existing streaming API
+          const [userMessageId, assistantMessageId] = await conversationApi.editMessageStreaming(
+            conversationId,
+            messageId,
+            content,
+            activeThreadIds.filter(id => !id.startsWith('temp-')), // Filter out temp IDs
+            selectedBlockId || undefined
+          );
+          
+          // Refresh tree to get real messages
+          await refreshTree();
+          
+          return [userMessageId, assistantMessageId];
+        }
       } catch (err) {
         // On error, revert the optimistic update by refreshing
         refreshTree();

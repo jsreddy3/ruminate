@@ -11,6 +11,7 @@ import TabView from "../common/TabView";
 import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
 import BlockContainer from "../interactive/blocks/BlockContainer";
+import { agentApi } from "../../services/api/agent";
 
 export interface Block {
   id: string;
@@ -469,10 +470,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     selectedText: string,
     blockId: string
   ) => {
+    // Validate inputs to ensure we never try to add undefined/null values
+    if (!conversationId) {
+      console.error("Cannot create agent chat without a conversation ID");
+      return;
+    }
+
     // Create a title from the selected text (truncated if needed)
-    const title = selectedText.length > 30 
+    const title = selectedText && selectedText.length > 30 
       ? `${selectedText.substring(0, 30)}...` 
-      : selectedText;
+      : selectedText || "New Agent Chat";
+    
+    // Check if we already have this conversation to prevent duplicates
+    const existingConversation = agentConversations.find(c => c.id === conversationId);
+    if (existingConversation) {
+      // If it already exists, just activate it
+      setActiveConversationId(conversationId);
+      setShowChat(true);
+      return;
+    }
     
     // Add this conversation to our list
     setAgentConversations(prev => [
@@ -480,7 +496,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       {
         id: conversationId,
         title,
-        selectionText: selectedText,
+        selectionText: selectedText || "",
         blockId
       }
     ]);
@@ -490,7 +506,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     
     // Ensure chat is visible
     setShowChat(true);
-  }, []);
+  }, [agentConversations]);
 
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
@@ -503,9 +519,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         // Compare directly with pageIndex instead of pageIndex + 1
         return b.block_type !== "Page" && blockPageNumber === pageIndex;
       });
-
-      // Debugging log
-      console.log(`Page ${pageIndex} (UI page ${pageIndex + 1}): Found ${filteredBlocks.length} blocks with matching page_number`);
 
       return (
         <div
@@ -651,7 +664,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         
         {/* Chat panel */}
         {showChat && (
-          <div className="w-1/3 border-l border-gray-200 flex flex-col h-full">
+          <div className="w-1/3 border-l border-gray-200 flex flex-col h-full bg-white">
             {/* Chat header with tabs */}
             <div className="border-b border-gray-200 p-3 flex flex-col">
               <div className="flex justify-between items-center mb-3">
@@ -696,8 +709,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   >
                     <span>🔍</span>
                     <span>{conv.title}</span>
-                    <button 
-                      className="ml-1 text-gray-400 hover:text-gray-600"
+                    <span 
+                      className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         setAgentConversations(prev => prev.filter(c => c.id !== conv.id));
@@ -707,7 +720,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       }}
                     >
                       ×
-                    </button>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -724,12 +737,32 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     htmlContent={selectedBlock.html_content || ''}
                     documentId={documentId}
                     images={selectedBlock.images}
+                    customStyle={{ backgroundColor: 'white' }}
                     onAddTextToChat={(text: string) => {
                       // Find the active chat's message input and add the text
                       const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
                       if (messageInput) {
                         messageInput.value += (messageInput.value ? ' ' : '') + text;
                         messageInput.focus();
+                      }
+                    }}
+                    onRabbitholeCreate={(text: string, startOffset: number, endOffset: number) => {
+                      // Create a new agent chat for the selected text
+                      console.log("Creating rabbithole for text:", text);
+                      // If you have an API call to create a rabbithole, call it here
+                      // For now, we'll use the agentApi directly
+                      if (documentId && selectedBlock) {
+                        agentApi.createAgentRabbithole(
+                          documentId,
+                          selectedBlock.id,
+                          text,
+                          startOffset,
+                          endOffset
+                        ).then(({ conversation_id }) => {
+                          handleAgentChatCreated(conversation_id, text, selectedBlock.id);
+                        }).catch(error => {
+                          console.error("Error creating agent chat:", error);
+                        });
                       }
                     }}
                     onAgentChatCreated={(conversationId: string) => {
@@ -751,6 +784,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             <div className="flex-1 overflow-hidden">
               {activeConversationId === null ? (
                 <ChatContainer 
+                  key={`main-chat-${mainConversationId || 'default'}`}
                   documentId={documentId}
                   selectedBlock={selectedBlock}
                   isAgentChat={false}
@@ -759,11 +793,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 />
               ) : (
                 <ChatContainer 
+                  key={`agent-chat-${activeConversationId}`}
                   documentId={documentId}
                   selectedBlock={selectedBlock}
                   isAgentChat={true}
                   conversationId={activeConversationId}
-                  onClose={() => setActiveConversationId(null)}
+                  onClose={() => {
+                    if (activeConversationId) {
+                      setActiveConversationId(null);
+                    }
+                  }}
                 />
               )}
             </div>

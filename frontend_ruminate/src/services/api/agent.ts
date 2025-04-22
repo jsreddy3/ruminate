@@ -81,5 +81,40 @@ export const agentApi = {
     );
     if (!response.ok) throw new Error("Failed to fetch conversation history");
     return response.json();
+  },
+  
+  editAgentMessage: async (
+    conversationId: string,
+    messageId: string,
+    content: string,
+    parentId: string
+  ): Promise<{ edited_message_id: string; placeholder_id: string }> => {
+    try {
+      console.log("Editing agent message:", { conversationId, messageId, content, parentId });
+      const response = await fetch(
+        `${API_BASE_URL}/agent-rabbitholes/${conversationId}/messages/${messageId}/edit`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            content,
+            parent_id: parentId  // Use the provided parentId instead of messageId
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Agent edit error:", response.status, errorText);
+        throw new Error(`Failed to edit agent message: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Agent edit result:", result);
+      return result;
+    } catch (err) {
+      console.error("Exception in editAgentMessage:", err);
+      throw err;
+    }
   }
 }; 

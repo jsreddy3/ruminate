@@ -33,15 +33,16 @@ export function useAgentEventStream(conversationId: string | null): {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!conversationId) {
-      return;
-    }
-
     // Reset state when conversation ID changes
     setEvents([]);
     setStatus('idle');
     setIsConnected(false);
     setError(null);
+    
+    // Early return if no conversationId, but after resetting state
+    if (!conversationId) {
+      return;
+    }
 
     // Create EventSource for SSE connection
     const eventSourceUrl = `${API_BASE_URL}/agent-rabbitholes/${conversationId}/events`;
@@ -65,12 +66,15 @@ export function useAgentEventStream(conversationId: string | null): {
         }
       });
 
-      // Agent process started
+      // Agent process started - handle both regular starts and edit-triggered starts
       eventSource.addEventListener('agent_started', (event) => {
         setStatus('exploring');
         try {
           const data = JSON.parse(event.data);
-          addEvent('agent_started', 'Agent started exploring', data);
+          // Check if this is an edit operation
+          const isEdit = data.is_edit || false;
+          const eventText = isEdit ? 'Agent exploring edited message' : 'Agent started exploring';
+          addEvent('agent_started', eventText, data);
         } catch (err) {
           console.error('Error parsing agent_started event data:', err);
         }
@@ -116,12 +120,15 @@ export function useAgentEventStream(conversationId: string | null): {
         }
       });
 
-      // Agent process completed
+      // Agent process completed - handle both regular completions and edit-triggered completions
       eventSource.addEventListener('agent_completed', (event) => {
         setStatus('completed');
         try {
           const data = JSON.parse(event.data);
-          addEvent('agent_completed', 'Agent exploration completed', data);
+          // Check if this is an edit operation
+          const isEdit = data.is_edit || false;
+          const eventText = isEdit ? 'Agent completed exploring edited message' : 'Agent exploration completed';
+          addEvent('agent_completed', eventText, data);
         } catch (err) {
           console.error('Error parsing agent_completed event data:', err);
         }

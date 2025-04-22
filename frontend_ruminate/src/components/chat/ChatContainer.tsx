@@ -35,19 +35,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // Track streaming state for displaying content during generation
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   
-  // Add logging whenever streamingMessageId changes
-  useEffect(() => {
-    console.log(`[ChatContainer] streamingMessageId changed to: ${streamingMessageId}`);
-  }, [streamingMessageId]);
-  
-  // Component mount/unmount logging
-  useEffect(() => {
-    console.log("[ChatContainer] Mounted");
-    return () => {
-      console.log("[ChatContainer] Unmounting");
-    };
-  }, []);
-  
   // Core message tree state for the conversation
   const {
     messageTree,
@@ -75,14 +62,13 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     error: streamingError
   } = useMessageStream(conversationId, streamingMessageId);
   
-  // Stream events for agent chats
-  const {
-    events: agentEvents,
-    status: agentStatus,
-    isConnected: agentConnected
-  } = isAgentChat 
-    ? useAgentEventStream(conversationId) 
-    : { events: [], status: 'idle' as AgentStatus, isConnected: false };
+  // Stream events for agent chats - always call the hook but use a dummy object for non-agent chats
+  const agentEventData = useAgentEventStream(isAgentChat ? conversationId : null);
+  
+  // Extract values for easier use
+  const agentEvents = isAgentChat ? agentEventData.events : [];
+  const agentStatus = isAgentChat ? agentEventData.status : 'idle' as AgentStatus;
+  const agentConnected = isAgentChat ? agentEventData.isConnected : false;
   
   // Fetch existing conversation or create a new one if needed
   useEffect(() => {
@@ -169,30 +155,31 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   // Handle editing a message
   const handleEditMessage = useCallback(async (messageId: string, content: string) => {
-    if (!conversationId || isAgentChat) return;
+    if (!conversationId) return;
     
     try {
       // Use optimistic edit for immediate feedback
       const [_, responseMessageId] = await optimisticEditMessage(messageId, content);
       
-      // Set up streaming for the new response
-      setStreamingMessageId(responseMessageId);
+      // For regular chats, set up streaming
+      if (!isAgentChat) {
+        setStreamingMessageId(responseMessageId);
+      }
+      // For agent chats, we don't need to set up streaming since we use refresh instead
     } catch (error) {
       console.error('Error editing message:', error);
     }
   }, [conversationId, optimisticEditMessage, isAgentChat]);
   
-  // When streaming completes, refresh the message tree
+  // When streaming completes, first refresh the tree to fetch the completed message before stopping streaming to avoid flicker
   useEffect(() => {
-    console.log(`[ChatContainer] Checking streaming completion - isComplete: ${isStreamingComplete}, messageId: ${streamingMessageId}, isActive: ${isStreamingActive}`);
-    
-    // Only process completion if streaming was actually active and then completed
-    if (isStreamingComplete && streamingMessageId && isStreamingActive === false) {
-      console.log(`[ChatContainer] Streaming complete, refreshing tree and clearing streamingMessageId`);
-      refreshTree();
-      setStreamingMessageId(null);
+    if (isStreamingComplete && streamingMessageId) {
+      console.log(`Stream completed for message: ${streamingMessageId}`);
+      refreshTree().then(() => {
+        setStreamingMessageId(null);
+      });
     }
-  }, [isStreamingComplete, streamingMessageId, refreshTree, isStreamingActive]);
+  }, [isStreamingComplete, streamingMessageId, refreshTree]);
   
   // When agent status changes to completed, refresh the message tree
   useEffect(() => {
@@ -219,7 +206,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         )}
       </div>
       
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-white" key={`chat-container-${conversationId || 'main'}`}>
         {/* Message list */}
         <MessageList 
           messages={messageTree}

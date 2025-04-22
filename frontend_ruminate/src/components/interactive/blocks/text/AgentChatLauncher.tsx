@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { agentApi } from '../../../../services/api/agent';
-import { useRouter } from 'next/router';
 
 interface AgentChatLauncherProps {
   documentId: string;
@@ -27,7 +26,6 @@ const AgentChatLauncher: React.FC<AgentChatLauncherProps> = ({
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
   
   // Function to create and navigate to an agent chat
   const launchAgentChat = async () => {

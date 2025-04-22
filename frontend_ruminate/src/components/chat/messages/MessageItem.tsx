@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageNode, MessageRole } from '../../../types/chat';
 
 interface MessageItemProps {
@@ -61,6 +61,15 @@ const MessageItem: React.FC<MessageItemProps> = ({
         return 'bg-white border-gray-200';
     }
   };
+
+  // Debug logging
+  useEffect(() => {
+    if (isStreaming && message.role === MessageRole.ASSISTANT) {
+      console.log(`Streaming content for ${message.id}:`, streamingContent);
+    } else if (!isStreaming && message.role === MessageRole.ASSISTANT) {
+      console.log(`Regular content for ${message.id}:`, message.content);
+    }
+  }, [message.id, message.role, message.content, isStreaming, streamingContent]);
 
   return (
     <div className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -131,11 +140,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         ) : isStreaming && message.role === MessageRole.ASSISTANT ? (
           <div className="prose prose-sm max-w-none mb-2">
-            {streamingContent || "AI is thinking..."}
+            {streamingContent || "Thinking..."}
           </div>
         ) : (
           <div className="prose prose-sm max-w-none mb-2">
-            {message.content}
+            {message.role === MessageRole.ASSISTANT && !message.content 
+              ? "Thinking..." 
+              : message.content}
           </div>
         )}
         
