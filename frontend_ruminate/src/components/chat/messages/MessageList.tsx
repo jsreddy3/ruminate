@@ -115,7 +115,9 @@ const MessageList: React.FC<MessageListProps> = ({
           <React.Fragment key={message.id}>
             {/* Show agent events pane right before the last assistant message */}
             {shouldShowLivePane && index === lastAssistantMessageIndex && (
-              <LiveAgentStepsPane events={agentEvents} />
+              <div className="mb-1 max-w-[95%] mx-auto">
+                <LiveAgentStepsPane events={agentEvents} />
+              </div>
             )}
             <MessageItem
               message={message}
