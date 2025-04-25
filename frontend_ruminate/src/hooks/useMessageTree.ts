@@ -472,7 +472,7 @@ export function useMessageTree({
       
       const optimisticAssistantMessage: Message = {
         id: tempAssistantMessageId,
-        content: "",
+        content: isAgentChat ? "Agent is exploring..." : "",
         role: MessageRole.ASSISTANT,
         parent_id: tempUserMessageId,
         created_at: new Date().toISOString(),

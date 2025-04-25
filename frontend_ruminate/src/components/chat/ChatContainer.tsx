@@ -34,6 +34,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // Track streaming state for displaying content during generation
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   
+  // Track current agent-chat streaming message ID (for live agent events)
+  const [agentStreamingMessageId, setAgentStreamingMessageId] = useState<string | null>(null);
+  
   // Core message tree state for the conversation
   const {
     messageTree,
@@ -68,6 +71,17 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const agentEvents = isAgentChat ? agentEventData.events : [];
   const agentStatus = isAgentChat ? agentEventData.status : 'idle' as AgentStatus;
   const agentConnected = isAgentChat ? agentEventData.isConnected : false;
+  
+  // Debug log agent status changes
+  useEffect(() => {
+    if (isAgentChat) {
+      console.log("ChatContainer: Agent status changed to", agentStatus, {
+        hasEvents: agentEvents.length > 0, 
+        eventsCount: agentEvents.length,
+        connected: agentConnected
+      });
+    }
+  }, [isAgentChat, agentStatus, agentEvents.length, agentConnected]);
   
   // Fetch existing conversation or create a new one if needed
   useEffect(() => {
@@ -121,7 +135,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     };
     
     initializeConversation();
-  }, [documentId, conversationId, isAgentChat, selectedBlock, onConversationCreated, agentApi]);
+  }, [documentId, conversationId, isAgentChat, selectedBlock, onConversationCreated]);
   
   // Handle sending a new message
   const handleSendMessage = useCallback(async (content: string) => {
@@ -141,8 +155,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       // Use optimistic send message for immediate UI feedback
       const [_, responseMessageId] = await optimisticSendMessage(content, parentId);
       
-      // For regular chats, set up streaming
-      if (!isAgentChat) {
+      if (isAgentChat) {
+        // Track live agent events for this message
+        setAgentStreamingMessageId(responseMessageId);
+      } else {
+        // For regular chats, set up token streaming
         setStreamingMessageId(responseMessageId);
       }
       
@@ -160,11 +177,14 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       // Use optimistic edit for immediate feedback
       const [_, responseMessageId] = await optimisticEditMessage(messageId, content);
       
-      // For regular chats, set up streaming
-      if (!isAgentChat) {
+      if (isAgentChat) {
+        // Show live agent events for this edited message
+        setAgentStreamingMessageId(responseMessageId);
+      } else {
+        // Token streaming for regular chat edits
         setStreamingMessageId(responseMessageId);
       }
-      // For agent chats, we don't need to set up streaming since we use refresh instead
+      // For agent chats, events will be streamed separately
     } catch (error) {
       console.error('Error editing message:', error);
     }
@@ -183,6 +203,16 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // When agent status changes to completed, refresh the message tree
   useEffect(() => {
     if (isAgentChat && agentStatus === 'completed') {
+      refreshTree();
+    }
+  }, [isAgentChat, agentStatus, refreshTree]);
+  
+  // When agent exploration completes, clear live pane and refresh the tree
+  useEffect(() => {
+    if (isAgentChat && agentStatus === 'completed') {
+      // Clear live pane
+      setAgentStreamingMessageId(null);
+      // Refresh to fetch persisted steps
       refreshTree();
     }
   }, [isAgentChat, agentStatus, refreshTree]);
@@ -214,10 +244,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           onEditMessage={handleEditMessage}
           streamingMessageId={streamingMessageId}
           streamingContent={streamingContent}
+          isAgentChat={isAgentChat}
+          conversationId={conversationId || undefined}
           agentEvents={agentEvents}
           agentStatus={agentStatus}
-          conversationId={conversationId}
-          isAgentChat={isAgentChat}
         />
       </div>
       

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MessageNode, MessageRole } from '../../../types/chat';
 import { AgentEvent } from '../../../hooks/useAgentEventStream';
-import { useMessageSteps } from '../../../hooks/useMessageSteps';
+import MessageAgentSteps from '../agent/MessageAgentSteps';
 
 interface MessageItemProps {
   message: MessageNode;
@@ -9,12 +9,11 @@ interface MessageItemProps {
   versions: MessageNode[];
   isStreaming?: boolean;
   streamingContent?: string | null;
-  agentEvents?: AgentEvent[]; // Will be removed/deprecated
-  agentStatus?: 'idle' | 'exploring' | 'completed' | 'error';
-  conversationId?: string | null; // Added for message steps
-  isAgentChat?: boolean; // Added to determine if we should fetch steps
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
+  isAgentChat?: boolean;
+  conversationId?: string;
+  agentEvents?: AgentEvent[];
 }
 
 /**
@@ -26,35 +25,22 @@ const MessageItem: React.FC<MessageItemProps> = ({
   versions,
   isStreaming = false,
   streamingContent = null,
-  agentEvents = [], // Will be deprecated
-  agentStatus = 'idle',
-  conversationId = null,
-  isAgentChat = false,
   onSwitchVersion,
-  onEditMessage
+  onEditMessage,
+  isAgentChat = false,
+  conversationId,
+  agentEvents = []
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [isShowingVersions, setIsShowingVersions] = useState(false);
-  const [showAgentEvents, setShowAgentEvents] = useState(true);
-  
-  // Use our new hook to fetch message-specific steps
-  const { steps: messageSteps, loading: stepsLoading } = 
-    useMessageSteps(
-      isAgentChat && message.role === MessageRole.ASSISTANT ? conversationId : null, 
-      isAgentChat && message.role === MessageRole.ASSISTANT ? message.id : null
-    );
+  const [isAgentStepsExpanded, setIsAgentStepsExpanded] = useState(isStreaming);
   
   // Determine if this message can be edited (only user messages)
   const canEdit = message.role === MessageRole.USER;
   
   // Determine if this message has multiple versions
   const hasVersions = versions.length > 0;
-
-  // Determine if this message has agent steps or events
-  const hasAgentEvents = isStreaming ? 
-    (agentEvents.length > 0) : // Use real-time events when streaming
-    (messageSteps.length > 0); // Use stored steps for completed messages
   
   // Handle edit submission
   const handleEditSubmit = async () => {
@@ -85,17 +71,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
     }
   };
 
-  // When assistant message completes, auto-collapse agent events after a delay
+  // Update edit content when message content changes
   useEffect(() => {
-    if (message.role === MessageRole.ASSISTANT && !isStreaming && message.content && hasAgentEvents) {
-      // After the assistant message completes, auto-collapse events after 1 second
-      const timer = setTimeout(() => {
-        setShowAgentEvents(false);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [message.role, isStreaming, message.content, hasAgentEvents]);
+    setEditContent(message.content);
+  }, [message.content]);
 
   // Debug logging
   useEffect(() => {
@@ -106,213 +85,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
     }
   }, [message.id, message.role, message.content, isStreaming, streamingContent]);
 
-  // Render agent events
-  const renderAgentEvents = () => {
-    // For streaming messages, show real-time events from the agent stream
-    if (isStreaming && message.role === MessageRole.ASSISTANT) {
-      if (agentEvents.length === 0) {
-        // Show exploring indicator if no events yet but agent is exploring
-        if (agentStatus === 'exploring') {
-          return (
-            <div className="mb-3 px-3 py-2 bg-blue-50 rounded-md border border-blue-100">
-              <div className="flex items-center text-sm text-blue-700">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
-                <span>Agent is exploring...</span>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      }
-
-      return (
-        <div className="mb-3 space-y-1.5 border-l-2 border-indigo-200 pl-2 py-1">
-          {/* Show events count header */}
-          <div className="text-xs font-semibold mb-1 text-indigo-700 ml-1 flex items-center">
-            <span className="mr-1">⚙️</span>
-            <span>{agentEvents.length} action{agentEvents.length !== 1 ? 's' : ''} taken</span>
-          </div>
-          
-          {agentEvents.map((event, index) => {
-            // Determine icon and style based on event type
-            let icon = '▶️';
-            let bgColor = 'bg-gray-50';
-            let textColor = 'text-gray-700';
-            
-            // Get action name and input for display
-            const actionName = event.metadata?.action?.name || '';
-            const actionInput = event.metadata?.action?.input || '';
-            
-            // Create simplified content that only shows the tool name and input
-            let displayContent = '';
-            if (actionName) {
-              displayContent = `Action: ${actionName}`;
-              if (actionInput && typeof actionInput === 'string') {
-                displayContent += ` Input: ${actionInput.substring(0, 30)}${actionInput.length > 30 ? '...' : ''}`;
-              }
-            } else {
-              displayContent = event.content?.substring(0, 50) || event.type;
-              if (event.content && event.content.length > 50) {
-                displayContent += '...';
-              }
-            }
-            
-            switch (event.type) {
-              case 'agent_started':
-                icon = '🚀';
-                bgColor = 'bg-blue-50';
-                textColor = 'text-blue-700';
-                break;
-              case 'agent_action':
-                icon = '🔍';
-                bgColor = 'bg-indigo-50';
-                textColor = 'text-indigo-700';
-                break;
-              case 'step.started':
-                icon = '⚙️';
-                bgColor = 'bg-purple-50';
-                textColor = 'text-purple-700';
-                break;
-              case 'step.completed':
-                icon = '✓';
-                bgColor = 'bg-green-50';
-                textColor = 'text-green-700';
-                break;
-              case 'agent_completed':
-                icon = '🏁';
-                bgColor = 'bg-green-50';
-                textColor = 'text-green-700';
-                break;
-              case 'agent_error':
-                icon = '❌';
-                bgColor = 'bg-red-50';
-                textColor = 'text-red-700';
-                break;
-            }
-
-            return (
-              <div 
-                key={`event-${event.type}-${index}`}
-                className={`px-3 py-1.5 ${bgColor} rounded border-l-2 border-l-${textColor.replace('text-', 'border-')} border-t border-r border-b border-${bgColor.replace('bg-', 'border-')}`}
-              >
-                <div className={`flex items-center text-sm ${textColor}`}>
-                  <span className="mr-2">{icon}</span>
-                  <span className="flex-1 font-medium text-xs">{displayContent}</span>
-                  <span className="text-xs text-gray-500">
-                    {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // For completed messages, show stored steps
-    if (stepsLoading) {
-      // Show loading indicator when steps are being fetched
-      return (
-        <div className="mb-3 px-3 py-2 bg-gray-50 rounded-md border border-gray-100">
-          <div className="flex items-center text-sm text-gray-500">
-            <div className="w-2 h-2 bg-gray-400 rounded-full mr-2 animate-pulse"></div>
-            <span>Loading agent steps...</span>
-          </div>
-        </div>
-      );
-    }
-    
-    if (messageSteps.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className="mb-3 space-y-1.5 border-l-2 border-indigo-200 pl-2 py-1">
-        {/* Show events count header */}
-        <div className="text-xs font-semibold mb-1 text-indigo-700 ml-1 flex items-center">
-          <span className="mr-1">⚙️</span>
-          <span>{messageSteps.length} action{messageSteps.length !== 1 ? 's' : ''} taken</span>
-        </div>
-        
-        {messageSteps.map((step, index) => {
-          // Determine icon and style based on step type
-          let icon = '▶️';
-          let bgColor = 'bg-gray-50';
-          let textColor = 'text-gray-700';
-          
-          // Get simplified content for display
-          const actionName = step.metadata?.action?.name || '';
-          const actionInput = step.metadata?.action?.input || '';
-          
-          // Create simplified content that only shows the tool name and input
-          let displayContent = '';
-          if (actionName) {
-            displayContent = `Action: ${actionName}`;
-            if (actionInput && typeof actionInput === 'string') {
-              displayContent += ` Input: ${actionInput.substring(0, 30)}${actionInput.length > 30 ? '...' : ''}`;
-            }
-          } else {
-            displayContent = step.content?.substring(0, 50) || step.step_type;
-            if (step.content && step.content.length > 50) {
-              displayContent += '...';
-            }
-          }
-          
-          switch (step.step_type) {
-            case 'agent_started':
-              icon = '🚀';
-              bgColor = 'bg-blue-50';
-              textColor = 'text-blue-700';
-              break;
-            case 'agent_action':
-              icon = '🔍';
-              bgColor = 'bg-indigo-50';
-              textColor = 'text-indigo-700';
-              break;
-            case 'step.started':
-              icon = '⚙️';
-              bgColor = 'bg-purple-50';
-              textColor = 'text-purple-700';
-              break;
-            case 'step.completed':
-              icon = '✓';
-              bgColor = 'bg-green-50';
-              textColor = 'text-green-700';
-              break;
-            case 'agent_completed':
-              icon = '🏁';
-              bgColor = 'bg-green-50';
-              textColor = 'text-green-700';
-              break;
-            case 'agent_error':
-              icon = '❌';
-              bgColor = 'bg-red-50';
-              textColor = 'text-red-700';
-              break;
-          }
-
-          return (
-            <div 
-              key={`step-${step.id}-${index}`}
-              className={`px-3 py-1.5 ${bgColor} rounded border-l-2 border-l-${textColor.replace('text-', 'border-')} border-t border-r border-b border-${bgColor.replace('bg-', 'border-')}`}
-            >
-              <div className={`flex items-center text-sm ${textColor}`}>
-                <span className="mr-2">{icon}</span>
-                <span className="flex-1 font-medium text-xs">{displayContent}</span>
-                <span className="text-xs text-gray-500">
-                  {new Date(step.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-  
-  // Helper to determine if this is the latest assistant message
-  // Only used for showing "exploring" indicator on the latest message
-  const isLatestAssistantMessage = isStreaming && message.role === MessageRole.ASSISTANT;
+  // Update agent steps expanded state based on streaming
+  useEffect(() => {
+    setIsAgentStepsExpanded(isStreaming);
+  }, [isStreaming]);
 
   return (
     <div className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -330,12 +106,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
           <div className="font-medium text-sm">
             {message.role === MessageRole.USER ? 'You' : 
               message.role === MessageRole.ASSISTANT ? 'AI Assistant' : 'System'}
-            {/* Show a small indicator if this is a completed assistant message with agent events */}
-            {message.role === MessageRole.ASSISTANT && hasAgentEvents && message.content && !isStreaming && (
-              <span className="ml-2 text-xs text-gray-500 cursor-pointer" onClick={() => setShowAgentEvents(!showAgentEvents)}>
-                ({showAgentEvents ? 'hide' : 'show'} {messageSteps.length} step{messageSteps.length !== 1 ? 's' : ''})
-              </span>
-            )}
           </div>
           
           <div className="flex items-center space-x-2">
@@ -367,53 +137,67 @@ const MessageItem: React.FC<MessageItemProps> = ({
               </button>
             )}
             
-            {/* Agent events toggle (if events exist and message is completed) */}
-            {hasAgentEvents && !isStreaming && message.content && message.role === MessageRole.ASSISTANT && (
+            {/* Agent steps toggle (if agent chat and not streaming) */}
+            {isAgentChat && message.role === MessageRole.ASSISTANT && !isStreaming && agentEvents.length > 0 && (
               <button
-                onClick={() => setShowAgentEvents(!showAgentEvents)}
-                className="text-xs text-gray-500 hover:text-blue-600 flex items-center"
+                onClick={() => setIsAgentStepsExpanded(!isAgentStepsExpanded)}
+                className="text-xs text-gray-500 hover:text-blue-600"
               >
-                {showAgentEvents ? 'Hide Steps' : 'Show Steps'} 
-                <span className="ml-0.5">{showAgentEvents ? '▲' : '▼'}</span>
+                {isAgentStepsExpanded ? 'Hide Steps' : `Show ${agentEvents.length} Steps`}
               </button>
             )}
           </div>
         </div>
         
-        {/* Agent Events - show above message content for assistant messages */}
-        {message.role === MessageRole.ASSISTANT && showAgentEvents && renderAgentEvents()}
-        
-        {/* Message content - editable, streaming, or regular read-only */}
-        {isEditing ? (
-          <div className="mb-2">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full border border-gray-300 rounded-md p-2 text-sm"
-              rows={3}
-            />
-            <div className="flex justify-end mt-2">
-              <button
-                onClick={handleEditSubmit}
-                className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        ) : isStreaming && message.role === MessageRole.ASSISTANT ? (
-          <div className="prose prose-sm max-w-none mb-2">
-            {streamingContent || "Thinking..."}
-          </div>
-        ) : (
-          <div className="prose prose-sm max-w-none mb-2">
-            {message.role === MessageRole.ASSISTANT && !message.content 
-              ? "Thinking..." 
-              : message.content}
-          </div>
+        {/* Persisted agent steps after generation */}
+        {isAgentChat && message.role === MessageRole.ASSISTANT && !isStreaming && conversationId && (
+          <MessageAgentSteps
+            conversationId={conversationId}
+            messageId={message.id}
+            isCompleted={true}
+          />
         )}
         
-        {/* Version selector */}
+        {/* Message content */}
+        <div className="text-sm whitespace-pre-wrap break-words">
+          {isEditing ? (
+            <div className="mt-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={3}
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Edit your message..."
+              />
+              <div className="flex justify-end mt-2 space-x-2">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditSubmit}
+                  className="px-3 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {message.role === MessageRole.ASSISTANT && isStreaming ? (
+                // Show streaming content for assistant messages
+                streamingContent || 'Agent is exploring...'
+              ) : (
+                // Show regular content
+                message.content
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Message versions */}
         {isShowingVersions && hasVersions && !isStreaming && (
           <div className="mt-3 pt-2 border-t border-gray-200">
             <div className="text-xs font-medium mb-1">Message Versions:</div>

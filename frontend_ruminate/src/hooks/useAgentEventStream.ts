@@ -68,7 +68,10 @@ export function useAgentEventStream(conversationId: string | null): {
 
       // Agent process started - handle both regular starts and edit-triggered starts
       eventSource.addEventListener('agent_started', (event) => {
+        // Clear any previous live events when a new exploration begins
+        setEvents([]);
         setStatus('exploring');
+        console.log('Agent started exploring - status set to exploring');
         try {
           const data = JSON.parse(event.data);
           // Check if this is an edit operation
@@ -122,7 +125,10 @@ export function useAgentEventStream(conversationId: string | null): {
 
       // Agent process completed - handle both regular completions and edit-triggered completions
       eventSource.addEventListener('agent_completed', (event) => {
+        // Clear live events buffer when generation completes
+        setEvents([]);
         setStatus('completed');
+        console.log('Agent completed exploration - status set to completed');
         try {
           const data = JSON.parse(event.data);
           // Check if this is an edit operation
