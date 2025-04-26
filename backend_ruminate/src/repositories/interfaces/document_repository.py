@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, TypeVar
+from typing import List, Optional, TypeVar, AsyncContextManager
 from src.models.base.document import Document
 from src.models.viewer.page import Page
 from src.models.viewer.block import Block
@@ -94,5 +94,14 @@ class DocumentRepository(ABC):
             
         Returns:
             List of Document objects
+        """
+        pass
+
+    @abstractmethod
+    def get_session(self) -> AsyncContextManager[DBSession]:
+        """Get a new database session as an async context manager.
+        
+        Returns:
+            An async context manager that yields a database session
         """
         pass

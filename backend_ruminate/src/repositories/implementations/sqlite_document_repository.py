@@ -461,3 +461,19 @@ class SQLiteDocumentRepository(DocumentRepository):
         
         # Save the document back to the database
         await self.store_document(document, session)
+
+    def get_session(self):
+        """Get a new database session as an async context manager.
+        
+        Note: For SQLite, this operation may not be fully compatible with the
+        SQLAlchemy AsyncSession pattern, but we implement it for compatibility.
+        
+        Returns:
+            An async context manager that yields a database session
+        """
+        # If we have a session factory, use it
+        if hasattr(self, 'session_factory') and self.session_factory:
+            return self.session_factory()
+        
+        # Otherwise, raise an error since SQLite may not support proper async sessions
+        raise NotImplementedError("SQLite repository does not support getting sessions directly. Use the method-specific session parameters instead.")

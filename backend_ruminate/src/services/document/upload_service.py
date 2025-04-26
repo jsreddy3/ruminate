@@ -31,65 +31,67 @@ class UploadService:
         self.marker = marker
         self.critical_content_service = critical_content_service
         self.document_repo = document_repo
+        # The session factory is owned by the repositories and will be accessed 
+        # through the document_repo during background processing
 
     async def _process_document_background(
             self,
             document_id: str,
             file_data: bytes,
-            original_filename: str,
-            session: AsyncSession
+            original_filename: str
         ):
         """Runs the document processing in the background."""
-        document = None 
-        try:
-            # Fetch the document to update its status
-            document = await self.document_repo.get_document(document_id, session)
-            if not document:
-                logger.error(f"Document {document_id} not found for background processing.")
-                raise ValueError(f"Document {document_id} not found")
+        document = None
+        # Create a new session for the background task
+        async with self.document_repo.get_session() as session:
+            try:
+                # Fetch the document to update its status
+                document = await self.document_repo.get_document(document_id, session)
+                if not document:
+                    logger.error(f"Document {document_id} not found for background processing.")
+                    raise ValueError(f"Document {document_id} not found")
 
-            # 1. Marker Processing
-            await publish_status(document_id, {"status": "PROCESSING_LAYOUT", "detail": "Starting layout analysis..."})
-            document.status = DocumentStatus.PROCESSING_MARKER 
-            await self.document_repo.store_document(document, session) 
-            await session.commit()
-            logger.info(f"Set document {document_id} status to {document.status}")
+                # 1. Marker Processing
+                await publish_status(document_id, {"status": "PROCESSING_LAYOUT", "detail": "Starting layout analysis..."})
+                document.status = DocumentStatus.PROCESSING_MARKER 
+                await self.document_repo.store_document(document, session) 
+                await session.commit()
+                logger.info(f"Set document {document_id} status to {document.status}")
 
-            pages, blocks = await self.marker.process_document(file_data, document_id)
-            await self.document_repo.store_pages(pages, session)
-            await self.document_repo.store_blocks(blocks, session)
-            await publish_status(document_id, {"status": "PROCESSING_LAYOUT_COMPLETE", "detail": f"Layout analysis complete. Found {len(pages)} pages, {len(blocks)} blocks."})
+                pages, blocks = await self.marker.process_document(file_data, document_id)
+                await self.document_repo.store_pages(pages, session)
+                await self.document_repo.store_blocks(blocks, session)
+                await publish_status(document_id, {"status": "PROCESSING_LAYOUT_COMPLETE", "detail": f"Layout analysis complete. Found {len(pages)} pages, {len(blocks)} blocks."})
 
-            # 2. Document Summary
-            await publish_status(document_id, {"status": "GENERATING_SUMMARY", "detail": "Generating document summary..."})
-            summary = await self.critical_content_service._get_document_summary(blocks)
-            document.summary = summary
-            await self.document_repo.store_document(document, session) 
-            await publish_status(document_id, {"status": "GENERATING_SUMMARY_COMPLETE", "detail": "Document summary generated."})
+                # 2. Document Summary
+                await publish_status(document_id, {"status": "GENERATING_SUMMARY", "detail": "Generating document summary..."})
+                summary = await self.critical_content_service._get_document_summary(blocks)
+                document.summary = summary
+                await self.document_repo.store_document(document, session) 
+                await publish_status(document_id, {"status": "GENERATING_SUMMARY_COMPLETE", "detail": "Document summary generated."})
 
-            # 3. Chunking
-            await publish_status(document_id, {"status": "CHUNKING", "detail": "Chunking document content..."})
-            await publish_status(document_id, {"status": "CHUNKING_COMPLETE", "detail": "Chunking complete."})
+                # 3. Chunking
+                await publish_status(document_id, {"status": "CHUNKING", "detail": "Chunking document content..."})
+                await publish_status(document_id, {"status": "CHUNKING_COMPLETE", "detail": "Chunking complete."})
 
-            # 4. Finalize - Set status to READY
-            document.status = DocumentStatus.READY
-            document.updated_at = datetime.now()
-            await self.document_repo.store_document(document, session)
-            await publish_status(document_id, {"status": "READY", "detail": "Document is ready."})
-            logger.info(f"Document {document_id} processing complete and set to READY.")
+                # 4. Finalize - Set status to READY
+                document.status = DocumentStatus.READY
+                document.updated_at = datetime.now()
+                await self.document_repo.store_document(document, session)
+                await publish_status(document_id, {"status": "READY", "detail": "Document is ready."})
+                logger.info(f"Document {document_id} processing complete and set to READY.")
 
-        except Exception as e:
-            logger.error(f"Error processing document {document_id} in background: {e}", exc_info=True)
-            if document: 
-                 document.status = DocumentStatus.ERROR
-                 document.processing_error = str(e)
-                 document.updated_at = datetime.now()
-                 await self.document_repo.store_document(document, session) 
-            await publish_status(document_id, {"status": "ERROR", "detail": f"Processing failed: {e}"}) 
-        finally:
-            await cleanup_queue(document_id)
-            await session.commit() 
-            await session.close() 
+            except Exception as e:
+                logger.error(f"Error processing document {document_id} in background: {e}", exc_info=True)
+                if document: 
+                     document.status = DocumentStatus.ERROR
+                     document.processing_error = str(e)
+                     document.updated_at = datetime.now()
+                     await self.document_repo.store_document(document, session) 
+                await publish_status(document_id, {"status": "ERROR", "detail": f"Processing failed: {e}"}) 
+            finally:
+                await cleanup_queue(document_id)
+                await session.commit() 
 
 
     async def upload(
@@ -119,16 +121,17 @@ class UploadService:
             document.s3_pdf_path = s3_path
             await self.document_repo.store_document(document, session) 
 
+            # Make sure we commit before starting the background task
+            await session.commit()
+            
             background_tasks.add_task(
                 self._process_document_background,
                 document_id=document.id,
                 file_data=file_data,
-                original_filename=file.filename,
-                session=session 
+                original_filename=file.filename
             )
             logger.info(f"Scheduled background processing for document {document.id}")
 
-            await session.commit() 
             return document
 
         except Exception as e:

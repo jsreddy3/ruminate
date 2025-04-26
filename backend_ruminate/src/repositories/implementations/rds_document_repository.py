@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, AsyncContextManager
 from sqlalchemy import select, insert, update, Boolean, Integer, ARRAY, Float
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, String, Text, JSON, ForeignKey
@@ -29,6 +29,14 @@ class RDSDocumentRepository(DocumentRepository):
             session_factory: SQLAlchemy session factory for database operations
         """
         self.session_factory = session_factory
+        
+    def get_session(self) -> AsyncContextManager[AsyncSession]:
+        """Get a new database session as an async context manager.
+        
+        Returns:
+            An async context manager that yields a database session
+        """
+        return self.session_factory()
         
     async def store_document(self, document: Document, session: Optional[AsyncSession] = None) -> None:
         """Store a document in the database"""
