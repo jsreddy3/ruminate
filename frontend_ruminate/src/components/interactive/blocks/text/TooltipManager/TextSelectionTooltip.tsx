@@ -102,17 +102,13 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   // Adjust position to ensure tooltip is visible
   const adjustedPosition = { ...position };
   
-  // Add slight negative offsets to correct the shift
-  const xOffset = -50; // Adjust this value as needed to fix right shift
-  const yOffset = -6; // Adjust this value as needed to fix down shift
-  
   // Ensure tooltip appears above the selection
-  adjustedPosition.y = Math.max(40, position.y + yOffset); 
+  adjustedPosition.y = Math.max(40, position.y); // At least 40px from top of viewport
   
   // Constrain x position to not exceed viewport
   const tooltipWidth = 160; // Increased width for longer button text
   adjustedPosition.x = Math.min(
-    Math.max(tooltipWidth / 2, position.x + xOffset), 
+    Math.max(tooltipWidth / 2, position.x), 
     window.innerWidth - tooltipWidth / 2
   );
 
@@ -130,31 +126,33 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   return (
     <div 
       ref={tooltipRef}
-      className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1 animate-fadeIn"
+      className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1"
       style={tooltipStyle}
     >
-      <div className="flex">
-        {defaultActions.map((action, index) => (
-          <button
-            key={index}
-            className="px-3 py-1.5 hover:bg-indigo-50 rounded flex items-center gap-1.5 text-indigo-700 whitespace-nowrap transition-colors duration-150"
-            onClick={action.onClick}
-            title={`${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
-          >
-            {action.icon && <span className="text-indigo-500">{action.icon}</span>}
-            <span>{action.label}</span>
-          </button>
-        ))}
+      <div className="animate-fadeIn w-full h-full">
+        <div className="flex">
+          {defaultActions.map((action, index) => (
+            <button
+              key={index}
+              className="px-3 py-1.5 hover:bg-indigo-50 rounded flex items-center gap-1.5 text-indigo-700 whitespace-nowrap transition-colors duration-150"
+              onClick={action.onClick}
+              title={`${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
+            >
+              {action.icon && <span className="text-indigo-500">{action.icon}</span>}
+              <span>{action.label}</span>
+            </button>
+          ))}
+        </div>
+        {/* Triangle pointer */}
+        <div 
+          className="absolute w-3 h-3 bg-white border-b border-r border-indigo-200 transform rotate-45"
+          style={{ 
+            left: '50%', 
+            bottom: '-6px', 
+            marginLeft: '-6px'
+          }}
+        ></div>
       </div>
-      {/* Triangle pointer */}
-      <div 
-        className="absolute w-3 h-3 bg-white border-b border-r border-indigo-200 transform rotate-45"
-        style={{ 
-          left: '50%', 
-          bottom: '-6px', 
-          marginLeft: '-6px'
-        }}
-      ></div>
     </div>
   );
 };

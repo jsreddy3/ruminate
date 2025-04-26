@@ -6,6 +6,7 @@ import AgentChatLauncher from './AgentChatLauncher';
 import { RabbitholeHighlight } from '../../../../services/rabbithole';
 import SelectionManager from './SelectionManager';
 import ReactRabbitholeHighlight from './HighlightOverlay/RabbitholeHighlight';
+import { createPortal } from 'react-dom';
 
 interface TextRendererProps {
   htmlContent: string;
@@ -234,7 +235,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       />
       
       {/* Text selection tooltip */}
-      {tooltipVisible && (
+      {tooltipVisible && createPortal(
         <TextSelectionTooltip
           isVisible={true}
           position={tooltipPosition}
@@ -247,7 +248,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           } }
           documentId={documentId} 
           blockId={blockId}
-        />
+        />,
+        document.body
       )}
       
       {/* Definition popup */}
