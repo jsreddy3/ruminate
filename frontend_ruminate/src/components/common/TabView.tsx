@@ -7,6 +7,7 @@ export interface Tab {
   label: string;
   icon?: ReactNode;
   content: ReactNode;
+  disabled?: boolean;
 }
 
 interface TabViewProps {
@@ -31,12 +32,14 @@ export default function TabView({
           return (
             <button
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
+              onClick={() => !tab.disabled && onTabChange(tab.id)}
+              disabled={tab.disabled}
               className={`
                 px-4 py-2 flex items-center gap-2 text-sm font-medium
                 ${isActive 
                   ? 'text-primary-800 border-b-2 border-primary-500 bg-primary-50/50' 
                   : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50'}
+                ${tab.disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 transition-colors duration-150
               `}
             >

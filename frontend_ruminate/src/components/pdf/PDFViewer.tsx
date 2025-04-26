@@ -13,6 +13,7 @@ import { conversationApi } from "../../services/api/conversation";
 import BlockContainer from "../interactive/blocks/BlockContainer";
 import { agentApi } from "../../services/api/agent";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import BlockNavigator from "../interactive/blocks/BlockNavigator";
 
 // Custom CSS styles for resize handles
 const resizeHandleStyles = {
@@ -369,87 +370,26 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         "table"
       ].map(type => type.toLowerCase());
 
-      // First, collect all non-page blocks that have content (HTML or images)
-      const contentBlocks = blocks.filter(
-        (b) => b.block_type &&
-          b.block_type.toLowerCase() !== "page" &&
-          (
-            b.html_content ||
-            (b.images && Object.keys(b.images || {}).length > 0) ||
-            ['picture', 'figure', 'image'].includes(b.block_type.toLowerCase())
-          ) &&
-          chatEnabledBlockTypes.includes(b.block_type.toLowerCase())
+      // Simply filter the blocks we want to show without reordering
+      const filteredBlocks = blocks.filter(block => 
+        // Block must have a valid type
+        block.block_type && 
+        // Not be a page block
+        block.block_type.toLowerCase() !== "page" &&
+        // Be in our list of chat-enabled types
+        chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) &&
+        // Must have content (HTML or images)
+        (
+          block.html_content ||
+          (block.images && Object.keys(block.images || {}).length > 0) ||
+          ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
+        )
       );
 
-      console.log(`[Blocks Debug] Found ${contentBlocks.length} content blocks`);
-      console.log(`[Blocks Debug] Content block types:`, contentBlocks.map(b => b.block_type));
-
-      // Flatten any blocks with children into a single array
-      const flattenAllBlocks = (blocksToProcess: Block[]): Block[] => {
-        const result: Block[] = [];
-
-        for (const block of blocksToProcess) {
-          // Only add blocks that are chat-enabled
-          if (block.block_type && chatEnabledBlockTypes.includes(block.block_type.toLowerCase())) {
-            // Add the current block if it has content (HTML or images)
-            if (
-              block.html_content ||
-              (block.images && Object.keys(block.images || {}).length > 0) ||
-              ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
-            ) {
-              result.push(block);
-            }
-          }
-
-          // Recursively add any children
-          if (block.children && block.children.length > 0) {
-            // Ensure children inherit the parent's page number if they don't have one
-            for (const child of block.children) {
-              if (typeof child.page_number !== 'number' && typeof block.page_number === 'number') {
-                child.page_number = block.page_number;
-              }
-            }
-
-            // Only add children that match our filters
-            const filteredChildren = block.children.filter(
-              child => child.block_type && chatEnabledBlockTypes.includes(child.block_type.toLowerCase())
-            );
-
-            result.push(...flattenAllBlocks(filteredChildren));
-          }
-        }
-
-        return result;
-      };
-
-      // Get all eligible blocks including children
-      const allBlocks = flattenAllBlocks(contentBlocks);
-
-      console.log(`[Blocks Debug] After flattening, found ${allBlocks.length} total blocks`);
-      console.log(`[Blocks Debug] Block types after flattening:`, allBlocks.map(b => b.block_type));
-
-      // Sort blocks properly by page_number and position
-      allBlocks.sort((a, b) => {
-        // First sort by page_number
-        if ((a.page_number ?? 0) !== (b.page_number ?? 0)) {
-          return (a.page_number ?? 0) - (b.page_number ?? 0);
-        }
-
-        // If on same page, sort by vertical position (top-to-bottom)
-        if (a.polygon?.[0]?.[1] && b.polygon?.[0]?.[1]) {
-          return a.polygon[0][1] - b.polygon[0][1];
-        }
-
-        // For blocks at same vertical position, sort by horizontal position (left-to-right)
-        if (a.polygon?.[0]?.[0] && b.polygon?.[0]?.[0]) {
-          return a.polygon[0][0] - b.polygon[0][0];
-        }
-
-        return 0;
-      });
-
-      // Update state with the sorted blocks
-      setFlattenedBlocks(allBlocks);
+      console.log(`[Blocks Debug] Found ${filteredBlocks.length} content blocks to display`);
+      
+      // Use the blocks as they come from the API (already ordered correctly)
+      setFlattenedBlocks(filteredBlocks);
     }
   }, [blocks]);
 
@@ -576,6 +516,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return nextPageIndex;
   };
 
+  // Update handleBlockClick to switch to the block tab
   const handleBlockClick = useCallback((block: Block) => {
     console.log('Selected Block:', {
       id: block.id,
@@ -589,6 +530,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     
     // Show the chat panel with this block
     setShowChat(true);
+    
+    // Switch to the block tab automatically
+    setActiveTabId('block');
   }, []);
   
   // Update the handleAgentChatCreated function to manage multiple agent conversations
@@ -737,9 +681,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Use our custom hook for the main panel layout
   const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
   
-  // Use our custom hook for the chat panel layout
-  const [chatPanelSizes, saveChatPanelSizes] = usePanelStorage('chat', [50, 50]);
-
   // Ensure panel sizes are applied correctly
   useEffect(() => {
     // Allow layout to fully settle after mounting
@@ -848,6 +789,106 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       </Worker>
                     )
                   },
+                  {
+                    id: 'block',
+                    label: 'Block',
+                    icon: <span>🔍</span>,
+                    content: (
+                      <BlockNavigator
+                        blocks={flattenedBlocks}
+                        currentBlockId={selectedBlock?.id}
+                        documentId={documentId}
+                        onBlockChange={(block) => {
+                          // Update the selected block when navigating
+                          setSelectedBlock(block);
+                        }}
+                        onRefreshRabbitholes={(refreshFn) => {
+                          console.log("[DEBUG] BlockContainer provided refresh function");
+                          // Store the refresh function for later use
+                          refreshRabbitholesFnRef.current = refreshFn;
+                        }}
+                        onAddTextToChat={(text: string) => {
+                          // Find the active chat's message input and add the text
+                          const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
+                          if (messageInput) {
+                            messageInput.value += (messageInput.value ? ' ' : '') + text;
+                            messageInput.focus();
+                          }
+                        }}
+                        onRabbitholeClick={(rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
+                          // Open the agent chat for this rabbithole conversation
+                          console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
+                          
+                          // Check if this conversation is already in our list
+                          const existingConversation = agentConversations.find(c => c.id === rabbitholeId);
+                          if (existingConversation) {
+                            // If it exists, just activate it
+                            setActiveConversationId(rabbitholeId);
+                            setShowChat(true);
+                            return;
+                          }
+                          
+                          // Otherwise, add it to our conversations list
+                          // Use the exact selected text that was passed from the rabbithole click
+                          const title = selectedText && selectedText.length > 30 
+                            ? `${selectedText.substring(0, 30)}...` 
+                            : selectedText || "Rabbithole Chat";
+                          
+                          setAgentConversations(prev => [
+                            ...prev, 
+                            {
+                              id: rabbitholeId,
+                              title,
+                              selectionText: selectedText || "",
+                              blockId: selectedBlock?.id || ""
+                            }
+                          ]);
+                          
+                          // Set this as the active conversation
+                          setActiveConversationId(rabbitholeId);
+                          setShowChat(true);
+                        }}
+                        onCreateAgentChat={(text: string, startOffset: number, endOffset: number) => {
+                          // Consolidated method that handles all agent chat creation
+                          console.log("[DEBUG] onCreateAgentChat called with text:", text, "offsets:", startOffset, endOffset);
+                          
+                          if (documentId && selectedBlock) {
+                            console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
+                            agentApi.createAgentRabbithole(
+                              documentId,
+                              selectedBlock.id,
+                              text,
+                              startOffset,
+                              endOffset
+                            ).then(({ conversation_id }) => {
+                              console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
+                              // Pass the exact selected text for the agent chat
+                              handleAgentChatCreated(conversation_id, text, selectedBlock.id);
+                              
+                              // First refresh the rabbithole data in the current block view
+                              if (refreshRabbitholesFnRef.current) {
+                                console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
+                                refreshRabbitholesFnRef.current();
+                                
+                                // Wait a bit before fetching all blocks to avoid overwhelming the UI
+                                // This ensures the rabbithole highlight appears in the current view first
+                                setTimeout(() => {
+                                  console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
+                                  fetchBlocks();
+                                }, 500);
+                              } else {
+                                // If no refresh function is available, just fetch blocks
+                                console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
+                                fetchBlocks();
+                              }
+                            }).catch(error => {
+                              console.error("Error creating agent chat:", error);
+                            });
+                          }
+                        }}
+                      />
+                    )
+                  }
                 ]}
                 activeTabId={activeTabId}
                 onTabChange={setActiveTabId}
@@ -859,7 +900,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           {/* Resize handle */}
           {showChat && <ResizeHandle />}
           
-          {/* Chat panel */}
+          {/* Chat panel - now showing the full height chat without vertical split */}
           {showChat && (
             <Panel 
               defaultSize={mainPanelSizes[1]} 
@@ -927,156 +968,32 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   </div>
                 </div>
                 
-                {/* Vertically resizable panels for block content and chat */}
-                <PanelGroup 
-                  direction="vertical" 
-                  className="flex-1"
-                  onLayout={(sizes) => saveChatPanelSizes(sizes)}
-                >
-                  {/* Selected block interactive content */}
-                  {selectedBlock && (
-                    <>
-                      <Panel 
-                        defaultSize={chatPanelSizes[0]} 
-                        minSize={30} 
-                        maxSize={50}
-                      >
-                        <div className="border-b border-gray-200 overflow-auto h-full p-3">
-                          <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Selected Content</div>
-                          <div className="border border-gray-100 rounded-md p-2 bg-gray-50 h-[calc(100%-1.5rem)]">
-                            <BlockContainer
-                              blockId={selectedBlock.id}
-                              blockType={selectedBlock.block_type}
-                              htmlContent={selectedBlock.html_content || ''}
-                              documentId={documentId}
-                              images={selectedBlock.images}
-                              customStyle={{ backgroundColor: 'white' }}
-                              onRefreshRabbitholes={(refreshFn) => {
-                                console.log("[DEBUG] BlockContainer provided refresh function");
-                                // Store the refresh function for later use
-                                refreshRabbitholesFnRef.current = refreshFn;
-                              }}
-                              onAddTextToChat={(text: string) => {
-                                // Find the active chat's message input and add the text
-                                const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
-                                if (messageInput) {
-                                  messageInput.value += (messageInput.value ? ' ' : '') + text;
-                                  messageInput.focus();
-                                }
-                              }}
-                              onRabbitholeClick={(rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
-                                // Open the agent chat for this rabbithole conversation
-                                console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
-                                
-                                // Check if this conversation is already in our list
-                                const existingConversation = agentConversations.find(c => c.id === rabbitholeId);
-                                if (existingConversation) {
-                                  // If it exists, just activate it
-                                  setActiveConversationId(rabbitholeId);
-                                  setShowChat(true);
-                                  return;
-                                }
-                                
-                                // Otherwise, add it to our conversations list
-                                // Use the exact selected text that was passed from the rabbithole click
-                                const title = selectedText && selectedText.length > 30 
-                                  ? `${selectedText.substring(0, 30)}...` 
-                                  : selectedText || "Rabbithole Chat";
-                                
-                                setAgentConversations(prev => [
-                                  ...prev, 
-                                  {
-                                    id: rabbitholeId,
-                                    title,
-                                    selectionText: selectedText || "",
-                                    blockId: selectedBlock.id
-                                  }
-                                ]);
-                                
-                                // Set this as the active conversation
-                                setActiveConversationId(rabbitholeId);
-                                setShowChat(true);
-                              }}
-                              onCreateAgentChat={(text: string, startOffset: number, endOffset: number) => {
-                                // Consolidated method that handles all agent chat creation
-                                console.log("[DEBUG] onCreateAgentChat called with text:", text, "offsets:", startOffset, endOffset);
-                                
-                                if (documentId && selectedBlock) {
-                                  console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
-                                  agentApi.createAgentRabbithole(
-                                    documentId,
-                                    selectedBlock.id,
-                                    text,
-                                    startOffset,
-                                    endOffset
-                                  ).then(({ conversation_id }) => {
-                                    console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
-                                    // Pass the exact selected text for the agent chat
-                                    handleAgentChatCreated(conversation_id, text, selectedBlock.id);
-                                    
-                                    // First refresh the rabbithole data in the current block view
-                                    if (refreshRabbitholesFnRef.current) {
-                                      console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
-                                      refreshRabbitholesFnRef.current();
-                                      
-                                      // Wait a bit before fetching all blocks to avoid overwhelming the UI
-                                      // This ensures the rabbithole highlight appears in the current view first
-                                      setTimeout(() => {
-                                        console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
-                                        fetchBlocks();
-                                      }, 500);
-                                    } else {
-                                      // If no refresh function is available, just fetch blocks
-                                      console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
-                                      fetchBlocks();
-                                    }
-                                  }).catch(error => {
-                                    console.error("Error creating agent chat:", error);
-                                  });
-                                }
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </Panel>
-                      
-                      {/* Resize handle */}
-                      <HorizontalResizeHandle />
-                    </>
+                {/* Chat container - simplified to always use full height */}
+                <div className="h-full overflow-hidden">
+                  {activeConversationId === null ? (
+                    <ChatContainer 
+                      key={`main-chat-${mainConversationId || 'default'}`}
+                      documentId={documentId}
+                      selectedBlock={selectedBlock}
+                      isAgentChat={false}
+                      conversationId={mainConversationId || undefined}
+                      onClose={() => setShowChat(false)}
+                    />
+                  ) : (
+                    <ChatContainer 
+                      key={`agent-chat-${activeConversationId}`}
+                      documentId={documentId}
+                      selectedBlock={selectedBlock}
+                      isAgentChat={true}
+                      conversationId={activeConversationId}
+                      onClose={() => {
+                        if (activeConversationId) {
+                          setActiveConversationId(null);
+                        }
+                      }}
+                    />
                   )}
-                  
-                  {/* Chat container - show either main chat or selected agent chat */}
-                  <Panel 
-                    defaultSize={chatPanelSizes[1]} 
-                    minSize={50}
-                  >
-                    <div className="h-full overflow-hidden">
-                      {activeConversationId === null ? (
-                        <ChatContainer 
-                          key={`main-chat-${mainConversationId || 'default'}`}
-                          documentId={documentId}
-                          selectedBlock={selectedBlock}
-                          isAgentChat={false}
-                          conversationId={mainConversationId || undefined}
-                          onClose={() => setShowChat(false)}
-                        />
-                      ) : (
-                        <ChatContainer 
-                          key={`agent-chat-${activeConversationId}`}
-                          documentId={documentId}
-                          selectedBlock={selectedBlock}
-                          isAgentChat={true}
-                          conversationId={activeConversationId}
-                          onClose={() => {
-                            if (activeConversationId) {
-                              setActiveConversationId(null);
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
-                  </Panel>
-                </PanelGroup>
+                </div>
               </div>
             </Panel>
           )}
