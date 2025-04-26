@@ -7,7 +7,7 @@ interface AgentChatLauncherProps {
   selectedText: string;
   startOffset: number;
   endOffset: number;
-  onLaunchComplete?: (conversationId: string, selectedText: string) => void;
+  onComplete?: (conversationId: string, selectedText?: string) => void;
   onCancel?: () => void;
 }
 
@@ -21,7 +21,7 @@ const AgentChatLauncher: React.FC<AgentChatLauncherProps> = ({
   selectedText,
   startOffset,
   endOffset,
-  onLaunchComplete,
+  onComplete,
   onCancel
 }) => {
   const [isCreating, setIsCreating] = useState(false);
@@ -46,8 +46,8 @@ const AgentChatLauncher: React.FC<AgentChatLauncherProps> = ({
       const conversationId = result.conversation_id;
       
       // Notify parent component if callback provided
-      if (onLaunchComplete) {
-        onLaunchComplete(conversationId, selectedText);
+      if (onComplete) {
+        onComplete(conversationId, selectedText);
       }
       
       // Note: removed the auto-navigation to allow parent component to decide what to do

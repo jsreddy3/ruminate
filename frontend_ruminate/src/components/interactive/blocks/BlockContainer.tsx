@@ -15,8 +15,7 @@ interface BlockContainerProps {
   }>;
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
-  onRabbitholeCreate?: (text: string, startOffset: number, endOffset: number) => void;
-  onAgentChatCreated?: (conversationId: string) => void;
+  onCreateAgentChat?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
   customStyle?: React.CSSProperties;
 }
@@ -34,8 +33,7 @@ export default function BlockContainer({
   highlights = [],
   onAddTextToChat,
   onRabbitholeClick,
-  onRabbitholeCreate,
-  onAgentChatCreated,
+  onCreateAgentChat,
   onRefreshRabbitholes,
   customStyle
 }: BlockContainerProps) {
@@ -86,8 +84,7 @@ export default function BlockContainer({
       rabbitholeHighlights={rabbitholeHighlights}
       onAddTextToChat={onAddTextToChat}
       onRabbitholeClick={onRabbitholeClick}
-      onRabbitholeCreate={onRabbitholeCreate}
-      onAgentChatCreated={onAgentChatCreated}
+      onCreateAgentChat={onCreateAgentChat}
       customStyle={customStyle}
     />
   );

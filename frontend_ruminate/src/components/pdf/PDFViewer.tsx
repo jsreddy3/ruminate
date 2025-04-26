@@ -224,6 +224,51 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add state for tracking the active conversation tab
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   
+  // Add ref to store the rabbithole refresh function
+  const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
+  
+  // Add a ref to track the last fetch time to prevent multiple refreshes
+  const lastFetchTimeRef = useRef<number>(0);
+  
+  // Fetch blocks function that can be reused
+  const fetchBlocks = useCallback(async () => {
+    if (!documentId) return;
+    
+    // Prevent multiple fetches within 2 seconds
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < 2000) {
+      console.log("[DEBUG] Skipping fetchBlocks - called too frequently");
+      return;
+    }
+    lastFetchTimeRef.current = now;
+    
+    console.log("[DEBUG] Beginning fetchBlocks for document:", documentId);
+    setLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const blocksResp = await fetch(`${apiUrl}/documents/${documentId}/blocks`);
+      const blocksData = await blocksResp.json();
+      console.log("[DEBUG] Fetched blocks data:", blocksData.length, "blocks");
+      if (Array.isArray(blocksData)) {
+        setBlocks(blocksData);
+        console.log("[DEBUG] Updated blocks state");
+        
+        // If we have a selected block, update it with the new data
+        if (selectedBlock) {
+          const updatedBlock = blocksData.find(b => b.id === selectedBlock.id);
+          if (updatedBlock) {
+            console.log("[DEBUG] Updating selected block with fresh data", updatedBlock);
+            setSelectedBlock(updatedBlock);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching document data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [documentId]); // Remove selectedBlock from the dependencies
+  
   // Initialize the main document conversation
   useEffect(() => {
     if (!documentId) return;
@@ -410,26 +455,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Fetch blocks when component mounts
   useEffect(() => {
-    const fetchBlocks = async () => {
-      setLoading(true);
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-        const blocksResp = await fetch(`${apiUrl}/documents/${documentId}/blocks`);
-        const blocksData = await blocksResp.json();
-        if (Array.isArray(blocksData)) {
-          setBlocks(blocksData);
-        }
-      } catch (error) {
-        console.error("Error fetching document data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (documentId) {
       fetchBlocks();
     }
-  }, [documentId]);
+  }, [documentId, fetchBlocks]);
 
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
     toolbarPlugin: {
@@ -568,6 +597,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     selectedText: string,
     blockId: string
   ) => {
+    console.log("[DEBUG] handleAgentChatCreated called with:", { conversationId, selectedText, blockId });
+    
     // Validate inputs to ensure we never try to add undefined/null values
     if (!conversationId) {
       console.error("Cannot create agent chat without a conversation ID");
@@ -579,9 +610,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       ? `${selectedText.substring(0, 30)}...` 
       : selectedText || "New Agent Chat";
     
+    console.log("[DEBUG] Created tab title:", title);
+    
     // Check if we already have this conversation to prevent duplicates
     const existingConversation = agentConversations.find(c => c.id === conversationId);
     if (existingConversation) {
+      console.log("[DEBUG] Found existing conversation, activating it:", existingConversation);
       // If it already exists, just activate it
       setActiveConversationId(conversationId);
       setShowChat(true);
@@ -589,17 +623,23 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
     
     // Add this conversation to our list
-    setAgentConversations(prev => [
-      ...prev, 
-      {
-        id: conversationId,
-        title,
-        selectionText: selectedText || "",
-        blockId
-      }
-    ]);
+    console.log("[DEBUG] Adding new conversation to state:", { id: conversationId, title, selectionText: selectedText });
+    setAgentConversations(prev => {
+      const newState = [
+        ...prev, 
+        {
+          id: conversationId,
+          title,
+          selectionText: selectedText || "",
+          blockId
+        }
+      ];
+      console.log("[DEBUG] New agentConversations state:", newState);
+      return newState;
+    });
     
     // Set this as the active conversation
+    console.log("[DEBUG] Setting active conversation ID:", conversationId);
     setActiveConversationId(conversationId);
     
     // Ensure chat is visible
@@ -710,6 +750,33 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     
     return () => clearTimeout(timer);
   }, [showChat]); // Re-trigger when chat visibility changes
+
+  useEffect(() => {
+    console.log("[DEBUG] agentConversations updated:", agentConversations);
+  }, [agentConversations]);
+
+  useEffect(() => {
+    console.log("[DEBUG] activeConversationId updated:", activeConversationId);
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    console.log("[DEBUG] blocks updated, count:", blocks.length);
+  }, [blocks]);
+
+  // Add effect to log when chat should be visible and with which conversation
+  useEffect(() => {
+    console.log('[DEBUG] Chat visibility updated:', { 
+      showChat, 
+      activeConversationId, 
+      agentConversationsCount: agentConversations.length 
+    });
+    
+    // Check if we should see a tab for activeConversationId
+    if (activeConversationId) {
+      const activeConversation = agentConversations.find(c => c.id === activeConversationId);
+      console.log('[DEBUG] Active conversation:', activeConversation);
+    }
+  }, [showChat, activeConversationId, agentConversations]);
 
   return (
     <MathJaxProvider>
@@ -884,6 +951,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                               documentId={documentId}
                               images={selectedBlock.images}
                               customStyle={{ backgroundColor: 'white' }}
+                              onRefreshRabbitholes={(refreshFn) => {
+                                console.log("[DEBUG] BlockContainer provided refresh function");
+                                // Store the refresh function for later use
+                                refreshRabbitholesFnRef.current = refreshFn;
+                              }}
                               onAddTextToChat={(text: string) => {
                                 // Find the active chat's message input and add the text
                                 const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
@@ -894,7 +966,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                               }}
                               onRabbitholeClick={(rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
                                 // Open the agent chat for this rabbithole conversation
-                                console.log("Opening rabbithole conversation:", rabbitholeId);
+                                console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
                                 
                                 // Check if this conversation is already in our list
                                 const existingConversation = agentConversations.find(c => c.id === rabbitholeId);
@@ -906,6 +978,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                                 }
                                 
                                 // Otherwise, add it to our conversations list
+                                // Use the exact selected text that was passed from the rabbithole click
                                 const title = selectedText && selectedText.length > 30 
                                   ? `${selectedText.substring(0, 30)}...` 
                                   : selectedText || "Rabbithole Chat";
@@ -924,12 +997,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                                 setActiveConversationId(rabbitholeId);
                                 setShowChat(true);
                               }}
-                              onRabbitholeCreate={(text: string, startOffset: number, endOffset: number) => {
-                                // Create a new agent chat for the selected text
-                                console.log("Creating rabbithole for text:", text);
-                                // If you have an API call to create a rabbithole, call it here
-                                // For now, we'll use the agentApi directly
+                              onCreateAgentChat={(text: string, startOffset: number, endOffset: number) => {
+                                // Consolidated method that handles all agent chat creation
+                                console.log("[DEBUG] onCreateAgentChat called with text:", text, "offsets:", startOffset, endOffset);
+                                
                                 if (documentId && selectedBlock) {
+                                  console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
                                   agentApi.createAgentRabbithole(
                                     documentId,
                                     selectedBlock.id,
@@ -937,21 +1010,30 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                                     startOffset,
                                     endOffset
                                   ).then(({ conversation_id }) => {
+                                    console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
+                                    // Pass the exact selected text for the agent chat
                                     handleAgentChatCreated(conversation_id, text, selectedBlock.id);
+                                    
+                                    // First refresh the rabbithole data in the current block view
+                                    if (refreshRabbitholesFnRef.current) {
+                                      console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
+                                      refreshRabbitholesFnRef.current();
+                                      
+                                      // Wait a bit before fetching all blocks to avoid overwhelming the UI
+                                      // This ensures the rabbithole highlight appears in the current view first
+                                      setTimeout(() => {
+                                        console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
+                                        fetchBlocks();
+                                      }, 500);
+                                    } else {
+                                      // If no refresh function is available, just fetch blocks
+                                      console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
+                                      fetchBlocks();
+                                    }
                                   }).catch(error => {
                                     console.error("Error creating agent chat:", error);
                                   });
                                 }
-                              }}
-                              onAgentChatCreated={(conversationId: string) => {
-                                // For the BlockContainer callback, we only receive the conversationId
-                                // We'll use the current selected block's text as the title
-                                const selectedText = selectedBlock.html_content?.replace(/<[^>]*>/g, "") || "";
-                                const truncatedText = selectedText.length > 30 
-                                  ? `${selectedText.substring(0, 30)}...` 
-                                  : selectedText;
-                                
-                                handleAgentChatCreated(conversationId, truncatedText, selectedBlock.id);
                               }}
                             />
                           </div>

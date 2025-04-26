@@ -21,8 +21,7 @@ interface BlockRendererProps {
   rabbitholeHighlights?: RabbitholeHighlight[];
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
-  onRabbitholeCreate?: (text: string, startOffset: number, endOffset: number) => void;
-  onAgentChatCreated?: (conversationId: string) => void;
+  onCreateAgentChat?: (text: string, startOffset: number, endOffset: number) => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -40,8 +39,7 @@ export default function BlockRenderer({
   rabbitholeHighlights = [],
   onAddTextToChat,
   onRabbitholeClick,
-  onRabbitholeCreate,
-  onAgentChatCreated,
+  onCreateAgentChat,
   customStyle
 }: BlockRendererProps) {
   // console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
@@ -118,8 +116,7 @@ export default function BlockRenderer({
             rabbitholeHighlights={rabbitholeHighlights}
             onAddTextToChat={onAddTextToChat}
             onRabbitholeClick={onRabbitholeClick}
-            onRabbitholeCreate={onRabbitholeCreate}
-            onAgentChatCreated={onAgentChatCreated}
+            onCreateAgentChat={onCreateAgentChat}
             customStyle={customStyle}
           />
         );

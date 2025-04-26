@@ -19,12 +19,11 @@ interface TextRendererProps {
     startOffset: number, 
     endOffset: number
   ) => void;
-  onRabbitholeCreate?: (
+  onCreateAgentChat?: (
     text: string,
     startOffset: number,
     endOffset: number
   ) => void;
-  onAgentChatCreated?: (conversationId: string) => void;
   rabbitholeHighlights?: RabbitholeHighlight[];
   getBlockClassName?: (blockType?: string) => string;
   highlights?: Array<{
@@ -41,8 +40,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   documentId,
   onAddTextToChat,
   onRabbitholeClick,
-  onRabbitholeCreate,
-  onAgentChatCreated,
+  onCreateAgentChat,
   rabbitholeHighlights = [],
   getBlockClassName,
   highlights = [],
@@ -145,21 +143,38 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   };
   
   // Handle launching agent chat from selected text
-  const handleRabbitholeCreate = (text: string) => {
+  const handleCreateAgentChat = (text: string) => {
     console.log('Launching agent chat for:', text);
     
     // Only proceed if we have valid selection range data
     if (selectedRange) {
       // Hide tooltip and show agent launcher
       setTooltipVisible(false);
-      setAgentLauncherVisible(true);
+      
+      // If onCreateAgentChat is provided, directly call it without showing launcher
+      if (onCreateAgentChat && selectedRange) {
+        onCreateAgentChat(
+          selectedRange.text,
+          selectedRange.startOffset,
+          selectedRange.endOffset
+        );
+        clearSelection();
+      } else {
+        // Otherwise, show the agent launcher UI
+        setAgentLauncherVisible(true);
+      }
     }
   };
   
-  // Handle agent chat creation completion
-  const handleAgentChatCreated = (conversationId: string) => {
-    if (onAgentChatCreated) {
-      onAgentChatCreated(conversationId);
+  // Handle agent chat launcher completion
+  const handleAgentChatComplete = (conversationId: string) => {
+    if (selectedRange && onCreateAgentChat) {
+      // Pass selected text and offsets to the consolidated handler
+      onCreateAgentChat(
+        selectedRange.text,
+        selectedRange.startOffset,
+        selectedRange.endOffset
+      );
     }
     setAgentLauncherVisible(false);
     clearSelection();
@@ -226,10 +241,12 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           selectedText={selectedText}
           onAddToChat={handleAddToChat}
           onDefine={handleDefineText}
-          onRabbithole={onRabbitholeCreate ? handleRabbitholeCreate : undefined}
+          onLaunchAgentChat={onCreateAgentChat ? handleCreateAgentChat : undefined}
           onClose={() => {
             setTooltipVisible(false);
-          }}
+          } }
+          documentId={documentId} 
+          blockId={blockId}
         />
       )}
       
@@ -243,7 +260,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         />
       )}
       
-      {/* Agent Chat Launcher */}
+      {/* Agent Chat Launcher - keep for backward compatibility but should be replaced */}
       {agentLauncherVisible && selectedRange && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <AgentChatLauncher
@@ -252,7 +269,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
             selectedText={selectedRange.text}
             startOffset={selectedRange.startOffset}
             endOffset={selectedRange.endOffset}
-            onLaunchComplete={handleAgentChatCreated}
+            onComplete={handleAgentChatComplete}
             onCancel={handleAgentChatCancel}
           />
         </div>

@@ -2,28 +2,26 @@ import React, { useEffect, useRef } from 'react';
 import { MessageSquarePlus, BookOpen, Bot } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
+  documentId: string;
+  blockId: string;
   isVisible: boolean;
-  position: { x: number, y: number };
+  position: { x: number; y: number };
   selectedText: string;
-  onAddToChat: (text: string) => void;
+  onAddToChat?: (text: string) => void;
   onDefine?: (text: string) => void;
-  onRabbithole?: (text: string) => void;
-  actions?: Array<{
-    label: string;
-    icon?: React.ReactNode;
-    onClick: (text: string) => void;
-  }>;
+  onLaunchAgentChat?: (selectedText: string, startOffset: number, endOffset: number) => void;
   onClose: () => void;
 }
 
 const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
+  documentId,
+  blockId,
   isVisible,
   position,
   selectedText,
   onAddToChat,
   onDefine,
-  onRabbithole,
-  actions = [],
+  onLaunchAgentChat,
   onClose,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -66,35 +64,55 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
 
   if (!isVisible) return null;
 
+  // Create a safe wrapper for action click handlers
+  const safeExecute = (callback?: (text: string) => void) => {
+    return () => {
+      if (callback) {
+        callback(selectedText);
+      }
+    };
+  };
+
+  // Safe wrapper for agent chat launcher
+  const handleAgentChat = () => {
+    if (onLaunchAgentChat) {
+      onLaunchAgentChat(selectedText, 0, 0);
+    }
+  };
+
   // Default actions if none provided
-  const defaultActions = actions.length > 0 ? actions : [
+  const defaultActions = [
     {
       label: 'Add to chat',
       icon: <MessageSquarePlus size={16} />,
-      onClick: onAddToChat,
+      onClick: safeExecute(onAddToChat),
     },
     ...( onDefine ? [{
       label: 'Define',
       icon: <BookOpen size={16} />,
-      onClick: onDefine,
+      onClick: safeExecute(onDefine),
     }] : []),
-    ...( onRabbithole ? [{
-      label: 'Explore with Agent',
+    ...( onLaunchAgentChat ? [{
+      label: 'Chat',
       icon: <Bot size={16} />,
-      onClick: onRabbithole,
+      onClick: handleAgentChat,
     }] : [])
   ];
 
   // Adjust position to ensure tooltip is visible
   const adjustedPosition = { ...position };
   
+  // Add slight negative offsets to correct the shift
+  const xOffset = -50; // Adjust this value as needed to fix right shift
+  const yOffset = -6; // Adjust this value as needed to fix down shift
+  
   // Ensure tooltip appears above the selection
-  adjustedPosition.y = Math.max(40, position.y); // At least 40px from top of viewport
+  adjustedPosition.y = Math.max(40, position.y + yOffset); 
   
   // Constrain x position to not exceed viewport
   const tooltipWidth = 160; // Increased width for longer button text
   adjustedPosition.x = Math.min(
-    Math.max(tooltipWidth / 2, position.x), 
+    Math.max(tooltipWidth / 2, position.x + xOffset), 
     window.innerWidth - tooltipWidth / 2
   );
 
@@ -120,7 +138,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           <button
             key={index}
             className="px-3 py-1.5 hover:bg-indigo-50 rounded flex items-center gap-1.5 text-indigo-700 whitespace-nowrap transition-colors duration-150"
-            onClick={() => action.onClick(selectedText)}
+            onClick={action.onClick}
             title={`${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
           >
             {action.icon && <span className="text-indigo-500">{action.icon}</span>}
