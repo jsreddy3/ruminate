@@ -14,8 +14,9 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from new_backend_ruminate.config import settings
-from new_backend_ruminate.infrastructure.db.bootstrap import init_engine, engine  # noqa
+from new_backend_ruminate.infrastructure.db import bootstrap  # <─ the module
 from new_backend_ruminate.infrastructure.db.meta import Base
+import new_backend_ruminate.domain # noqa: E402, F401
 
 # --------------------------------------------------------------------- #
 # Logging                                                               #
@@ -56,9 +57,9 @@ def do_run_migrations(connection):
 async def run_migrations_online() -> None:
     """Run migrations against the live AsyncEngine."""
     # Ensure the global engine is bootstrapped exactly once
-    await init_engine(settings())
+    await bootstrap.init_engine(settings())
 
-    connectable: AsyncEngine = engine  # already created by init_engine
+    connectable: AsyncEngine = bootstrap.engine  # already created by init_engine
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
 

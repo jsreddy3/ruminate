@@ -1,5 +1,5 @@
 """
-new_backend.infrastructure.db.bootstrap
+new_backend_ruminate.infrastructure.db.bootstrap
 =======================================
 
 Single-source-of-truth for the SQLAlchemy async engine, session factory
@@ -11,7 +11,7 @@ This file is imported by:
   • Alembic env.py                                – for `engine`
   • Repository implementations                    – for SessionFactory
   • Service / router dependency providers         – for session_scope()
-"""
+  """
 
 from __future__ import annotations
 

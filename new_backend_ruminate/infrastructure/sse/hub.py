@@ -1,4 +1,5 @@
-# new_backend/infrastructure/sse/hub.py
+# new_backend_ruminate/infrastructure/sse/hub.py
+
 import asyncio
 from collections import defaultdict
 from contextlib import asynccontextmanager

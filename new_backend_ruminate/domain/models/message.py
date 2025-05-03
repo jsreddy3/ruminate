@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     Column, DateTime, Enum as SAEnum, ForeignKey,
-    Integer, String, Text, JSON, UniqueConstraint
+    Integer, String, Text, JSON, UniqueConstraint, Index, desc
 )
 from new_backend_ruminate.infrastructure.db.meta import Base
 
@@ -21,6 +21,8 @@ class Message(Base):                               # pure ORM, no Pydantic
     __tablename__ = "messages"
     __table_args__ = (
         UniqueConstraint("parent_id", "version", name="uq_parent_version"),
+        Index("ix_conv_parent", "conversation_id", "parent_id"),
+        Index("ix_parent_version_desc", "parent_id", desc("version")),
     )
 
     id              = Column(String, primary_key=True, default=lambda: str(uuid4()))
@@ -31,3 +33,9 @@ class Message(Base):                               # pure ORM, no Pydantic
     content         = Column(Text, default="")
     meta_data       = Column(JSON, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
+    active_child_id = Column(
+        String,
+        ForeignKey("messages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )

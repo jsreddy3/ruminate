@@ -1,4 +1,5 @@
-# new_backend/dependencies.py
+# new_backend_ruminate/dependencies.py
+
 """
 Centralised FastAPI dependency providers.
 
@@ -20,6 +21,7 @@ from new_backend_ruminate.domain.repositories.rds_conversation_repository import
 )
 from new_backend_ruminate.services.llm.openai_llm import OpenAILLM
 from new_backend_ruminate.services.chat_service import ChatService
+from new_backend_ruminate.services.conversation_service import ConversationService
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session
 
 
@@ -32,7 +34,7 @@ _llm  = OpenAILLM(
     model=settings().openai_model,
 )
 _chat_service = ChatService(_repo, _llm, _hub)
-
+_conversation_service = ConversationService(_repo, _llm, _hub)
 
 # ─────────────────────── DI provider helpers ───────────────────── #
 
@@ -44,6 +46,11 @@ def get_event_hub() -> EventStreamHub:
 def get_chat_service() -> ChatService:
     """Return the singleton ChatService; stateless, safe to share."""
     return _chat_service
+
+
+def get_conversation_service() -> ConversationService:
+    """Return the singleton ConversationService; stateless, safe to share."""
+    return _conversation_service
 
 
 # If you ever need the repository or LLM directly in a router:
