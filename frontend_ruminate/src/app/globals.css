@@ -6,6 +6,7 @@
   :root {
     --font-sans: var(--font-lato);
     --font-serif: var(--font-playfair);
+    --font-noto-serif: var(--font-noto-serif-jp);
   }
   
   body {
@@ -28,5 +29,12 @@
   
   .decorated-line:hover::after {
     @apply origin-bottom-left scale-x-100;
+  }
+  
+  .textured-heading {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
   }
 }

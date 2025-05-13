@@ -63,6 +63,7 @@ export default {
       fontFamily: {
         sans: ['var(--font-lato)', 'Lato', 'sans-serif'],
         serif: ['var(--font-playfair)', 'Playfair Display', 'serif'],
+        'noto-serif': ['var(--font-noto-serif-jp)', 'Noto Serif JP', 'serif'],
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '0.75rem' }],
@@ -88,6 +89,7 @@ export default {
       },
       backgroundImage: {
         'paper-texture': "url('/paper-texture.svg')",
+        'brown-noise': "url('/brown_noise.jpg')",
       },
       spacing: {
         'chat': '384px',

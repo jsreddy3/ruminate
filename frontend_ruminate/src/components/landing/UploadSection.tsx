@@ -43,7 +43,7 @@ export default function UploadSection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
-      className="space-y-8 w-full mx-auto"
+      className="space-y-12 w-full mx-auto"
     >
       {/* Objective Selector with elegant styling - only show if requested */}
       {showObjectiveSelector && (
@@ -58,13 +58,13 @@ export default function UploadSection({
       )}
 
       {/* Previously Uploaded Documents with refined styling */}
-      <div className="mb-8">
-        <h2 className="text-xl font-serif font-medium mb-4 text-ink-800">Previously Uploaded Documents</h2>
+      <div className="mb-10">
+        <h2 className="text-2xl font-serif font-medium mb-6 text-ink-800">Previously Uploaded Documents</h2>
         <DocumentSelector onSelectDocument={handleSelectDocument} />
       </div>
 
       {/* Upload Button and Progress Area with elegant styling */}
-      <div className="relative flex flex-col items-center gap-6 mt-6">
+      <div className="relative flex flex-col items-center gap-8 mt-8">
         <input
           type="file"
           accept=".pdf"
@@ -78,20 +78,20 @@ export default function UploadSection({
         <motion.button
           onClick={() => fileInputRef.current?.click()}
           className={`
-            px-8 py-4 rounded-md
+            px-10 py-5 rounded-md
             bg-paper-100 text-ink-800 border border-paper-400
             shadow-paper
             transition-all duration-300
-            flex items-center gap-3 group
+            flex items-center gap-4 group
             ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
           `}
-          whileHover={{ scale: isProcessing ? 1 : 1.02 }}
+          whileHover={{ scale: isProcessing ? 1 : 1.03 }}
           whileTap={{ scale: isProcessing ? 1 : 0.98 }}
           disabled={isProcessing}
         >
           {/* Upload icon */}
           <svg
-            className="w-6 h-6 text-ink-700"
+            className="w-7 h-7 text-ink-700"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -103,7 +103,7 @@ export default function UploadSection({
             <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
           </svg>
           
-          <span className="font-serif text-lg">
+          <span className="font-serif text-xl">
             {isProcessing ? "Processing..." : "Upload PDF"}
           </span>
         </motion.button>
@@ -122,7 +122,7 @@ export default function UploadSection({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="text-terracotta-700 text-sm mt-2 font-serif italic"
+              className="text-terracotta-700 text-base mt-4 font-serif italic"
             >
               {error}
             </motion.div>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lato, Playfair_Display } from "next/font/google";
+import { Lato, Playfair_Display, Noto_Serif_JP } from "next/font/google";
 import "./globals.css";
 
 const lato = Lato({ 
@@ -14,6 +14,13 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
   display: 'swap',
   variable: '--font-playfair'
+});
+
+const notoSerifJP = Noto_Serif_JP({
+  weight: ['400', '500', '600', '700'],
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-noto-serif-jp'
 });
 
 export const metadata: Metadata = {
@@ -59,7 +66,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${lato.variable} ${playfair.variable} font-sans`}>{children}</body>
+      <body className={`${lato.variable} ${playfair.variable} ${notoSerifJP.variable} font-sans`}>{children}</body>
     </html>
   );
 }
