@@ -46,7 +46,6 @@ class ConversationService:
     async def send_message(
         self,
         *,
-        session: AsyncSession,
         background: BackgroundTasks,
         conv_id: str,
         user_content: str,
@@ -57,33 +56,39 @@ class ConversationService:
         commit, then stream.
         Returns (user_msg_id, ai_msg_id).
         """
-        # -------- 1  write user turn --------
-        user = Message(
-            id=str(uuid4()),
-            conversation_id=conv_id,
-            parent_id=parent_id,
-            version=1,
-            role=Role.USER,
-            content=user_content,
-        )
-        await self._repo.add_message(user, session)
 
-        # -------- 2  write assistant placeholder --------
-        ai_id = str(uuid4())
-        placeholder = Message(
-            id=ai_id,
-            conversation_id=conv_id,
-            parent_id=user.id,
-            version=1,
-            role=Role.ASSISTANT,
-            content="",
-        )
-        await self._repo.add_message(placeholder, session)
+        async with session_scope() as session:
+            # -------- 1  write user turn --------
+            user = Message(
+                id=str(uuid4()),
+                conversation_id=conv_id,
+                parent_id=parent_id,
+                version=1,
+                role=Role.USER,
+                content=user_content,
+            )
+            await self._repo.add_message(user, session)
+            if parent_id:
+                await self._repo.set_active_child(parent_id, user.id, session)
 
-        # -------- 3  update active thread --------
-        thread = await self._repo.latest_thread(conv_id, session)
-        thread_ids = [m.id for m in thread] + [user.id, ai_id]
-        await self._repo.update_active_thread(conv_id, thread_ids, session)
+            # -------- 2  write assistant placeholder --------
+            ai_id = str(uuid4())
+            placeholder = Message(
+                id=ai_id,
+                conversation_id=conv_id,
+                parent_id=user.id,
+                version=1,
+                role=Role.ASSISTANT,
+                content="",
+            )
+            await self._repo.add_message(placeholder, session)
+            if parent_id:
+                await self._repo.set_active_child(user.id, ai_id, session)
+
+            # -------- 3  update active thread --------
+            thread = await self._repo.latest_thread(conv_id, session)
+            thread_ids = [m.id for m in thread] + [user.id, ai_id]
+            await self._repo.update_active_thread(conv_id, thread_ids, session)
 
         # -------- 4  background stream --------
         background.add_task(self._publish_stream, ai_id, thread + [user])
@@ -93,7 +98,6 @@ class ConversationService:
     async def edit_message_streaming(
         self,
         *,
-        session: AsyncSession,
         background: BackgroundTasks,
         conv_id: str,
         msg_id: str,
@@ -104,29 +108,30 @@ class ConversationService:
         flips parent pointer, updates thread, then streams.
         Returns (edited_user_id, ai_placeholder_id).
         """
-        # 1 ─ sibling user turn
-        sibling, sibling_id = await self._repo.edit_message(msg_id, new_content, session)
+        async with session_scope() as session:
+            # 1 ─ sibling user turn
+            sibling, sibling_id = await self._repo.edit_message(msg_id, new_content, session)
 
-        # 2 ─ assistant placeholder
-        ai_id = str(uuid4())
-        placeholder = Message(
-            id=ai_id,
-            conversation_id=conv_id,
-            parent_id=sibling_id,
-            version=1,
-            role=Role.ASSISTANT,
-            content="",
-        )
-        await self._repo.add_message(placeholder, session)
+            # 2 ─ assistant placeholder
+            ai_id = str(uuid4())
+            placeholder = Message(
+                id=ai_id,
+                conversation_id=conv_id,
+                parent_id=sibling_id,
+                version=1,
+                role=Role.ASSISTANT,
+                content="",
+            )
+            await self._repo.add_message(placeholder, session)
 
-        # 3 ─ rebuild thread up to parent + new branch
-        prior = await self._repo.latest_thread(conv_id, session)
-        try:
-            cut = [m.id for m in prior].index(sibling.parent_id) + 1
-        except ValueError:  # parent not on active path (edge-case)
-            cut = len(prior)
-        new_thread = [m.id for m in prior[:cut]] + [sibling_id, ai_id]
-        await self._repo.update_active_thread(conv_id, new_thread, session)
+            # 3 ─ rebuild thread up to parent + new branch
+            prior = await self._repo.latest_thread(conv_id, session)
+            try:
+                cut = [m.id for m in prior].index(sibling.parent_id) + 1
+            except ValueError:  # parent not on active path (edge-case)
+                cut = len(prior)
+            new_thread = [m.id for m in prior[:cut]] + [sibling_id, ai_id]
+            await self._repo.update_active_thread(conv_id, new_thread, session)
 
         # 4 ─ background stream
         background.add_task(self._publish_stream, ai_id, prior[:cut] + [sibling])
@@ -142,3 +147,6 @@ class ConversationService:
 
     async def get_versions(self, mid: str, session: AsyncSession) -> List[Message]:
         return await self._repo.message_versions(mid, session)
+
+    async def get_conversation(self, cid: str, session: AsyncSession):
+        return await self._repo.get(cid, session)

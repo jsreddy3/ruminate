@@ -97,23 +97,28 @@ async def init_engine(settings: "Settings") -> None:
         )
         pool_cls = QueuePool
     elif dialect == "sqlite":
-        url = URL.create(
-            drivername="sqlite+aiosqlite",
-            database=settings.db_path,  # ':memory:' allowed
-        )
+        url = settings.db_url
         # SQLite in async mode is already serialised; no pool needed.
         pool_cls = NullPool
     else:
         raise ValueError(f"Unsupported dialect {dialect!r}")
 
     # -- Phase 2–3: Engine construction ---------------------------------------
+    kw = dict(
+        echo = settings.sql_echo,
+        future = True,
+        poolclass=pool_cls,
+    )
+
+    if pool_cls is QueuePool:
+        kw.update(
+            pool_size=settings.pool_size,
+            max_overflow=settings.max_overflow,
+        )
+    
     engine = create_async_engine(
         url,
-        echo=settings.sql_echo,
-        future=True,
-        poolclass=pool_cls,
-        pool_size=settings.pool_size,
-        max_overflow=settings.max_overflow,
+        **kw,
     )
 
     # -- Phase 4: Session factory ---------------------------------------------

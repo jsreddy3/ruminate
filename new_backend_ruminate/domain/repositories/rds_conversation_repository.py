@@ -29,39 +29,56 @@ class RDSConversationRepository(ConversationRepository):
         return await session.get(Conversation, cid)
 
     async def latest_thread(self, cid: str, session: AsyncSession) -> List[Message]:
-        """
-        Depth-first walk that always picks the **highest-version** sibling
-        at each parent; O(depth) thanks to a deterministic DISTINCT ON.
-        """
-        sql = text(
-            """
-            WITH RECURSIVE thread AS (
-              SELECT *
-              FROM   messages
-              WHERE  conversation_id = :cid
-              AND    parent_id IS NULL
+        dialect: Dialect = session.bind.dialect        # ← runtime dialect
 
-              UNION ALL
-
-              SELECT m.*
-              FROM   messages m
-              JOIN   thread t ON t.active_child_id = m.id 
-              WHERE  m.conversation_id = :cid
-
-              UNION ALL
-
-              SELECT DISTINCT ON (m.parent_id) m.*
-              FROM   messages m
-              JOIN   thread t ON t.id = m.parent_id
-              WHERE  m.conversation_id = :cid
-              AND    t.active_child_id IS NULL
-              ORDER  BY m.parent_id, m.version DESC
+        if getattr(dialect, "supports_distinct_on", False):      # PostgreSQL path
+            sql = text(
+                """
+                WITH RECURSIVE thread AS (
+                  SELECT * FROM messages
+                  WHERE  conversation_id = :cid AND parent_id IS NULL
+                  UNION ALL
+                  SELECT m.* FROM messages m
+                  JOIN   thread t ON t.active_child_id = m.id
+                  WHERE  m.conversation_id = :cid
+                  UNION ALL
+                  SELECT m.* FROM messages m
+                  JOIN   thread t ON t.id = m.parent_id
+                  WHERE  m.conversation_id = :cid
+                  AND    t.active_child_id IS NULL
+                  AND    m.version = (
+                         SELECT max(version) FROM messages
+                         WHERE parent_id = m.parent_id
+                         )
+                )
+                SELECT * FROM thread ORDER BY created_at;
+                """
             )
-            SELECT *
-            FROM   thread
-            ORDER  BY created_at;
-            """
-        )
+        else:                                           # SQLite (no DISTINCT ON)
+            sql = text(
+                """
+                WITH RECURSIVE thread AS (
+                  SELECT * FROM messages
+                  WHERE  conversation_id = :cid AND parent_id IS NULL
+                  UNION ALL
+                  SELECT m.* FROM messages m
+                  JOIN   thread t ON t.active_child_id = m.id
+                  WHERE  m.conversation_id = :cid
+                  UNION ALL
+                  SELECT m.* FROM messages m
+                  JOIN   thread t ON t.id = m.parent_id
+                  WHERE  m.conversation_id = :cid
+                  AND    t.active_child_id IS NULL
+                  AND    NOT EXISTS (
+                      SELECT 1 FROM messages m2
+                      WHERE  m2.parent_id = m.parent_id
+                      AND    m2.version   > m.version
+                  )
+                )
+                SELECT * FROM thread ORDER BY created_at;
+                """
+            )
+
         rows = (await session.execute(sql, {"cid": cid})).mappings()
         return [Message(**r) for r in rows]
 

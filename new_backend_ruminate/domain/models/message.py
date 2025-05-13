@@ -1,4 +1,5 @@
 # new_backend/domain/models/message.py
+
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum

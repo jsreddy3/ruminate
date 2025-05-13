@@ -1,9 +1,12 @@
 # new_backend_ruminate/infrastructure/sse/hub.py
 
 import asyncio
+import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 class EventStreamHub:
@@ -17,6 +20,7 @@ class EventStreamHub:
         self._lock = asyncio.Lock()
 
     async def register_consumer(self, stream_id: str) -> AsyncIterator[str]:
+        logger.info("consumer registered for %s", stream_id)
         q: asyncio.Queue[str] = asyncio.Queue(maxsize=256)
         async with self._lock:
             self._queues[stream_id].append(q)
@@ -27,18 +31,24 @@ class EventStreamHub:
                 if chunk is None:                           # termination sentinel
                     return
                 yield chunk
-        finally:                                           # auto-cleanup
+        finally:
             async with self._lock:
-                self._queues[stream_id].remove(q)
-                if not self._queues[stream_id]:
-                    self._queues.pop(stream_id, None)
+                lst = self._queues.get(stream_id)
+                if lst and q in lst:
+                    lst.remove(q)
+                    if not lst:
+                        self._queues.pop(stream_id, None)
 
     async def publish(self, stream_id: str, chunk: str) -> None:
         async with self._lock:
-            for q in self._queues.get(stream_id, []):
+            queues = self._queues.get(stream_id, [])
+            logger.info("publish %s→%d consumers", stream_id, len(queues))
+            for q in queues:
                 await q.put(chunk)
 
     async def terminate(self, stream_id: str) -> None:
+        logger.info("terminate %s", stream_id)
         async with self._lock:
-            for q in self._queues.pop(stream_id, []):
+            queues = self._queues.pop(stream_id, [])
+            for q in queues:
                 await q.put(None)
