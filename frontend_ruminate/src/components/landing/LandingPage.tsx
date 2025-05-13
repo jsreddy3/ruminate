@@ -118,7 +118,7 @@ export default function LandingPage() {
       <div className="fixed top-0 right-0 w-1/2 h-auto pointer-events-none z-20">
         <Image 
           src="/apple_blossom_top_right_corner.png" 
-          alt="" 
+          alt=""
           width={800} 
           height={800}
           className="object-contain w-full"

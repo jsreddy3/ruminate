@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import ObjectiveSelector from '../viewer/ObjectiveSelector';
 import DocumentSelector from '../viewer/DocumentSelector';
 import UploadProgressIndicator from './UploadProgressIndicator';
@@ -58,9 +59,24 @@ export default function UploadSection({
       )}
 
       {/* Previously Uploaded Documents with refined styling */}
-      <div className="mb-10">
+      <div className="mb-10 relative">
         <h2 className="text-2xl font-serif font-medium mb-6 text-ink-800">Previously Uploaded Documents</h2>
-        <DocumentSelector onSelectDocument={handleSelectDocument} />
+        
+        {/* Outer document section container with background image */}
+        <div className="relative">
+          <div className="relative z-0">
+            <Image 
+              src="/outer_uploads_component.png" 
+              alt="" 
+              width={600} 
+              height={200}
+              className="w-full h-auto object-contain"
+            />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center p-6 z-10">
+            <DocumentSelector onSelectDocument={handleSelectDocument} />
+          </div>
+        </div>
       </div>
 
       {/* Upload Button and Progress Area with elegant styling */}
@@ -74,39 +90,48 @@ export default function UploadSection({
           disabled={isProcessing}
         />
         
-        {/* Elegant paper-like button to match illustration */}
-        <motion.button
-          onClick={() => fileInputRef.current?.click()}
-          className={`
-            px-10 py-5 rounded-md
-            bg-paper-100/90 text-ink-800 border border-paper-400
-            shadow-paper
-            transition-all duration-300
-            flex items-center gap-4 group
-            ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
-          `}
-          whileHover={{ scale: isProcessing ? 1 : 1.03 }}
-          whileTap={{ scale: isProcessing ? 1 : 0.98 }}
-          disabled={isProcessing}
-        >
-          {/* Upload icon */}
-          <svg
-            className="w-7 h-7 text-ink-700"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* Elegant paper-like button with custom background image */}
+        <div className="relative">
+          <motion.button
+            onClick={() => fileInputRef.current?.click()}
+            className={`
+              px-10 py-5 
+              flex items-center gap-4 relative z-10
+              ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+            whileHover={{ scale: isProcessing ? 1 : 1.03 }}
+            whileTap={{ scale: isProcessing ? 1 : 0.98 }}
+            disabled={isProcessing}
           >
-            <path d="M12 15V3m0 0L6 9m6-6l6 6" />
-            <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
-          </svg>
-          
-          <span className="font-serif text-xl font-medium">
-            {isProcessing ? "Processing..." : "Upload PDF"}
-          </span>
-        </motion.button>
+            <div className="absolute inset-0 z-0">
+              <Image 
+                src="/upload_button_cropped.png" 
+                alt="" 
+                width={400} 
+                height={120}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center gap-3 z-10 relative">
+              <svg
+                className="w-6 h-6 text-ink-800"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 15V3m0 0L6 9m6-6l6 6" />
+                <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
+              </svg>
+              
+              <span className="font-serif text-xl font-medium text-ink-800">
+                {isProcessing ? "Processing..." : "Upload PDF"}
+              </span>
+            </div>
+          </motion.button>
+        </div>
 
         {/* Progress Indicator Area */}
         <AnimatePresence>
