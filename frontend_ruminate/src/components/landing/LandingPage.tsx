@@ -8,7 +8,6 @@ import Image from 'next/image';
 // Import decomposed components
 import Header from './Header';
 import UploadSection from './UploadSection';
-import ParticlesBackground from './ParticlesBackground';
 
 // Dynamically import PDFViewer
 const PDFViewer = dynamic(() => import('../pdf/PDFViewer'), {
@@ -87,74 +86,65 @@ export default function LandingPage() {
 
   // Render the Landing Page content if no file is ready for viewing
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-paper-50 overflow-hidden">
-      {/* Background with paper texture */}
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-paper-50 p-4 md:p-8 overflow-hidden">
+      {/* Warm paper background */}
       <div className="absolute inset-0 bg-paper-texture opacity-30"></div>
       
-      <div className="relative z-10 flex flex-col items-center justify-center text-center w-full mx-auto">
-        {/* Title and header section */}
-        <div className="w-full flex flex-col items-center mt-12 mb-8">
-          <Header />
+      {/* Main container with illustrated border */}
+      <div className="relative z-10 w-full max-w-4xl mx-auto my-8 p-6 md:p-12">
+        {/* Top right corner illustration */}
+        <div className="absolute top-0 right-0 w-48 h-48 md:w-64 md:h-64 pointer-events-none">
+          <Image 
+            src="/apple_blossom_top_right_corner.png" 
+            alt="" 
+            width={300} 
+            height={300}
+            className="object-contain"
+          />
         </div>
-
-        {/* Main content with illustrations */}
-        <div className="w-full max-w-6xl mx-auto px-6 relative flex flex-col items-center">
-          {/* Reading glasses illustration above upload section */}
-          <div className="relative mx-auto mb-8">
-            <Image 
-              src="/reading_glasses.png" 
-              alt="Reading glasses" 
-              width={100} 
-              height={50}
-              priority
-              className="object-contain"
+        
+        {/* Top border illustrations - placeholders for now */}
+        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none flex justify-center">
+          <div className="w-full max-w-lg h-full bg-contain bg-no-repeat bg-center opacity-90"></div>
+        </div>
+        
+        {/* Content area */}
+        <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8">
+          <div className="flex flex-col items-center text-center md:text-left md:items-start space-y-8 w-full md:w-7/12">
+            {/* Logo and Tagline */}
+            <Header />
+            
+            {/* Upload Section */}
+            <UploadSection
+              currentObjective={currentObjective}
+              setCurrentObjective={setCurrentObjective}
+              isProcessing={isProcessing}
+              progress={progress}
+              error={error}
+              uploadFile={uploadFile}
+              handleSelectDocument={handleSelectDocument}
+              showObjectiveSelector={false}
             />
           </div>
-
-          {/* Main content container with illustrations */}
-          <div className="w-full flex justify-center items-stretch relative">
-            {/* Robot illustration (left side) */}
-            <div className="hidden lg:block absolute left-0 bottom-0 z-10" style={{ transform: 'translateX(-45%) translateY(15%)' }}>
-              <Image 
-                src="/reading_robot_transparent.png" 
-                alt="Robot reading a book" 
-                width={280} 
-                height={280}
-                priority
-                className="object-contain"
-              />
-            </div>
-
-            {/* Upload section inside a differently shaded container */}
-            <div className="w-full max-w-xl bg-paper-50 border border-paper-200 rounded-md py-6 px-8 shadow-sm relative">
-              <UploadSection
-                currentObjective={currentObjective}
-                setCurrentObjective={setCurrentObjective}
-                isProcessing={isProcessing}
-                progress={progress}
-                error={error}
-                uploadFile={uploadFile}
-                handleSelectDocument={handleSelectDocument}
-              />
-            </div>
-
-            {/* Coffee on book illustration (right side) */}
-            <div className="hidden lg:block absolute right-0 bottom-0 z-10" style={{ transform: 'translateX(45%) translateY(20%)' }}>
-              <Image 
-                src="/coffee_on_book_transparent.png" 
-                alt="Coffee cup on a book" 
-                width={280} 
-                height={280}
-                priority
-                className="object-contain"
-              />
-            </div>
+          
+          {/* Dog illustration */}
+          <div className="hidden md:block w-5/12 mt-12">
+            <Image 
+              src="/reading_dog.png" 
+              alt="Illustrated dog reading with a magnifying glass"
+              width={400} 
+              height={400}
+              className="object-contain scale-x-[-1]"
+              priority
+            />
           </div>
         </div>
+        
+        {/* Bottom border illustrations - placeholder for now */}
+        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none flex justify-center">
+          <div className="w-full max-w-lg h-full bg-contain bg-no-repeat bg-center opacity-90"></div>
+        </div>
       </div>
-
-      {/* Floating particles effect */}
-      <ParticlesBackground dimensions={dimensions} />
     </div>
   );
 }
