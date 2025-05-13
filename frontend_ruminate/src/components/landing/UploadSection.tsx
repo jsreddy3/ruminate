@@ -94,34 +94,50 @@ export default function UploadSection({
             </div>
             
             {/* Upload button */}
-            <motion.button
-              onClick={() => fileInputRef.current?.click()}
-              className={`
-                flex items-center gap-2 px-8 py-3 mt-4 
-                bg-transparent border border-ink-700/30 rounded-md
-                ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-paper-200/50'}
-              `}
-              whileHover={{ scale: isProcessing ? 1 : 1.03 }}
-              whileTap={{ scale: isProcessing ? 1 : 0.98 }}
-              disabled={isProcessing}
-            >
-              <svg
-                className="w-5 h-5 text-ink-800"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 15V3m0 0L6 9m6-6l6 6" />
-                <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
-              </svg>
-              
-              <span className="font-serif text-lg font-medium text-ink-800">
-                {isProcessing ? "Processing..." : "Upload PDF"}
-              </span>
-            </motion.button>
+            <div className="w-full max-w-[90%] flex justify-center">
+              <div className="w-[90%] relative">
+                <motion.button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`
+                    w-full relative
+                    ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
+                  `}
+                  whileHover={{ scale: isProcessing ? 1 : 1.03 }}
+                  whileTap={{ scale: isProcessing ? 1 : 0.98 }}
+                  disabled={isProcessing}
+                >
+                  <div className="relative z-0">
+                    <Image 
+                      src="/upload_button_cropped.png" 
+                      alt="" 
+                      width={400} 
+                      height={100}
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className="w-5 h-5 text-ink-800"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 15V3m0 0L6 9m6-6l6 6" />
+                        <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
+                      </svg>
+                      
+                      <span className="font-serif text-lg font-medium text-ink-800">
+                        {isProcessing ? "Processing..." : "Upload PDF"}
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
