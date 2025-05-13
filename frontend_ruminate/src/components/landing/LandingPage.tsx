@@ -86,21 +86,34 @@ export default function LandingPage() {
 
   // Render the Landing Page content if no file is ready for viewing
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-neutral-50 to-indigo-100 p-8 overflow-hidden">
-      <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-12 w-full">
-        {/* Logo and Tagline */}
-        <Header />
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-paper-50 p-6 md:p-12 overflow-hidden">
+      {/* Background with paper texture */}
+      <div className="absolute inset-0 bg-paper-texture opacity-30"></div>
+      
+      <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-16 w-full max-w-4xl mx-auto my-8">
+        {/* Title and decorative element */}
+        <div className="w-full flex flex-col items-center">
+          <Header />
+        </div>
 
-        {/* Upload Section */}
-        <UploadSection
-          currentObjective={currentObjective}
-          setCurrentObjective={setCurrentObjective}
-          isProcessing={isProcessing}
-          progress={progress}
-          error={error}
-          uploadFile={uploadFile}
-          handleSelectDocument={handleSelectDocument}
-        />
+        {/* Upload Section with decorative frame */}
+        <div className="w-full relative">
+          {/* Decorative elements - these will be replaced with your SVGs */}
+          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 w-16 h-2 border-t border-paper-300"></div>
+          
+          <UploadSection
+            currentObjective={currentObjective}
+            setCurrentObjective={setCurrentObjective}
+            isProcessing={isProcessing}
+            progress={progress}
+            error={error}
+            uploadFile={uploadFile}
+            handleSelectDocument={handleSelectDocument}
+          />
+          
+          {/* Bottom decorative element */}
+          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-16 h-2 border-b border-paper-300"></div>
+        </div>
       </div>
 
       {/* Floating particles effect */}

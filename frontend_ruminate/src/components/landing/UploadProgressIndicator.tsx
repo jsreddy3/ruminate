@@ -10,19 +10,42 @@ export default function UploadProgressIndicator({ progress }: UploadProgressIndi
     return null;
   }
 
+  // Determine how to display progress based on status
+  const getProgressWidth = () => {
+    if (progress.status.toLowerCase().includes('complete')) return '100%';
+    
+    // Extract percentage if it exists in the status message
+    const percentMatch = progress.status.match(/(\d+)%/);
+    if (percentMatch && percentMatch[1]) {
+      return `${percentMatch[1]}%`;
+    }
+    
+    // Default to indeterminate progress for stages without clear percentage
+    return '60%';
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="mt-4 p-4 w-full max-w-md bg-neutral-100 rounded-lg shadow text-center"
+      className="mt-6 p-5 w-full max-w-md bg-paper-50 border border-paper-200 rounded-md shadow-paper text-center"
     >
-      <p className="text-sm font-semibold text-primary-700">{progress.status}</p>
-      <p className="text-xs text-neutral-600 mt-1">{progress.detail}</p>
-      {/* Optional: Add a visual progress bar based on status */}
-      {/* Example: <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-2">
-                  <div className="bg-blue-600 h-2.5 rounded-full" style={{width: '45%'}}></div>
-                 </div> */}
+      <p className="font-serif text-sm font-medium text-ink-800">{progress.status}</p>
+      <p className="text-xs text-ink-600 mt-1.5 italic">{progress.detail}</p>
+      
+      {/* Elegant progress bar */}
+      <div className="w-full h-0.5 bg-paper-200 mt-4 overflow-hidden">
+        <motion.div 
+          className="h-full bg-terracotta-400"
+          initial={{ width: 0 }}
+          animate={{ width: getProgressWidth() }}
+          transition={{ 
+            duration: progress.status.toLowerCase().includes('complete') ? 0.5 : 2,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
     </motion.div>
   );
 }

@@ -61,35 +61,42 @@ export default function ObjectiveSelector({ onObjectiveChange }: ObjectiveSelect
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors duration-200"
+        className="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 bg-paper-50 
+                  border border-paper-300 rounded-md hover:bg-paper-100 
+                  transition-colors duration-300 shadow-paper
+                  font-medium tracking-wide"
       >
         <span>{getDisplayText()}</span>
-        <ChevronDown className="w-4 h-4" />
+        <ChevronDown className="w-4 h-4 text-ink-500" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-64 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg">
+        <div className="absolute z-50 w-64 mt-2 bg-paper-50 border border-paper-200 
+                      rounded-md shadow-paper overflow-hidden">
           {PRESET_OBJECTIVES.map((objective) => (
             <div
               key={objective.id}
-              className="p-2 hover:bg-neutral-50 cursor-pointer"
+              className="p-3 hover:bg-paper-100 cursor-pointer border-b border-paper-200 last:border-b-0 
+                        transition-colors duration-200"
               onClick={() => handleObjectiveSelect(objective)}
             >
-              <div className="font-medium text-sm text-neutral-800">{objective.label}</div>
+              <div className="font-medium text-sm text-ink-800">{objective.label}</div>
               {objective.id !== 'custom' && (
-                <div className="text-xs text-neutral-600 mt-1">{objective.objective}</div>
+                <div className="text-xs text-ink-600 mt-1.5 font-light italic">{objective.objective}</div>
               )}
             </div>
           ))}
           
           {selectedObjective.id === 'custom' && (
-            <div className="p-2 border-t border-neutral-200">
+            <div className="p-3 border-t border-paper-200 bg-paper-100">
               <input
                 type="text"
                 value={customObjective}
                 onChange={handleCustomObjectiveChange}
                 placeholder="Enter your objective..."
-                className="w-full px-3 py-2 text-sm text-neutral-800 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm text-ink-800 border border-paper-300 
+                          rounded-md focus:outline-none focus:ring-1 focus:ring-terracotta-400 
+                          focus:border-terracotta-300 bg-paper-50 font-light"
                 autoFocus
               />
             </div>

@@ -1,0 +1,12 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="48" height="48" fill="none"/>
+  <path d="M24 8V32M24 8L16 16M24 8L32 16M12 32V36C12 37.0609 12.4214 38.0783 13.1716 38.8284C13.9217 39.5786 14.9391 40 16 40H32C33.0609 40 34.0783 39.5786 34.8284 38.8284C35.5786 38.0783 36 37.0609 36 36V32" 
+    stroke="currentColor" 
+    stroke-width="2" 
+    stroke-linecap="round" 
+    stroke-linejoin="round"
+    stroke-dasharray="1000"
+    stroke-dashoffset="1000"
+    class="upload-icon-path"
+  />
+</svg> 
