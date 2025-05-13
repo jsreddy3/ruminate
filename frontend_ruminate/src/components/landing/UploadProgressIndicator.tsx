@@ -29,13 +29,13 @@ export default function UploadProgressIndicator({ progress }: UploadProgressIndi
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="mt-6 p-5 w-full max-w-md bg-paper-50 border border-paper-200 rounded-md shadow-paper text-center"
+      className="mt-4 p-4 w-full max-w-md bg-paper-50 border border-paper-200 rounded-md shadow-sm text-center"
     >
       <p className="font-serif text-sm font-medium text-ink-800">{progress.status}</p>
-      <p className="text-xs text-ink-600 mt-1.5 italic">{progress.detail}</p>
+      <p className="text-xs text-ink-600 mt-1 font-light">{progress.detail}</p>
       
-      {/* Elegant progress bar */}
-      <div className="w-full h-0.5 bg-paper-200 mt-4 overflow-hidden">
+      {/* Simple progress bar */}
+      <div className="w-full h-px bg-paper-200 mt-3 overflow-hidden">
         <motion.div 
           className="h-full bg-terracotta-400"
           initial={{ width: 0 }}

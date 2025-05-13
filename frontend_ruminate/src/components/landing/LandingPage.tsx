@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'; 
 import dynamic from 'next/dynamic';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'; 
+import Image from 'next/image';
 
 // Import decomposed components
 import Header from './Header';
@@ -86,33 +87,69 @@ export default function LandingPage() {
 
   // Render the Landing Page content if no file is ready for viewing
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-paper-50 p-6 md:p-12 overflow-hidden">
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-paper-50 overflow-hidden">
       {/* Background with paper texture */}
       <div className="absolute inset-0 bg-paper-texture opacity-30"></div>
       
-      <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-16 w-full max-w-4xl mx-auto my-8">
-        {/* Title and decorative element */}
-        <div className="w-full flex flex-col items-center">
+      <div className="relative z-10 flex flex-col items-center justify-center text-center w-full mx-auto">
+        {/* Title and header section */}
+        <div className="w-full flex flex-col items-center mt-12 mb-8">
           <Header />
         </div>
 
-        {/* Upload Section with decorative frame */}
-        <div className="w-full relative">
-          {/* Decorative elements - these will be replaced with your SVGs */}
-          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 w-16 h-2 border-t border-paper-300"></div>
-          
-          <UploadSection
-            currentObjective={currentObjective}
-            setCurrentObjective={setCurrentObjective}
-            isProcessing={isProcessing}
-            progress={progress}
-            error={error}
-            uploadFile={uploadFile}
-            handleSelectDocument={handleSelectDocument}
-          />
-          
-          {/* Bottom decorative element */}
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-16 h-2 border-b border-paper-300"></div>
+        {/* Main content with illustrations */}
+        <div className="w-full max-w-6xl mx-auto px-6 relative flex flex-col items-center">
+          {/* Reading glasses illustration above upload section */}
+          <div className="relative mx-auto mb-8">
+            <Image 
+              src="/reading_glasses.png" 
+              alt="Reading glasses" 
+              width={100} 
+              height={50}
+              priority
+              className="object-contain"
+            />
+          </div>
+
+          {/* Main content container with illustrations */}
+          <div className="w-full flex justify-center items-stretch relative">
+            {/* Robot illustration (left side) */}
+            <div className="hidden lg:block absolute left-0 bottom-0 z-10" style={{ transform: 'translateX(-45%) translateY(15%)' }}>
+              <Image 
+                src="/reading_robot_transparent.png" 
+                alt="Robot reading a book" 
+                width={280} 
+                height={280}
+                priority
+                className="object-contain"
+              />
+            </div>
+
+            {/* Upload section inside a differently shaded container */}
+            <div className="w-full max-w-xl bg-paper-50 border border-paper-200 rounded-md py-6 px-8 shadow-sm relative">
+              <UploadSection
+                currentObjective={currentObjective}
+                setCurrentObjective={setCurrentObjective}
+                isProcessing={isProcessing}
+                progress={progress}
+                error={error}
+                uploadFile={uploadFile}
+                handleSelectDocument={handleSelectDocument}
+              />
+            </div>
+
+            {/* Coffee on book illustration (right side) */}
+            <div className="hidden lg:block absolute right-0 bottom-0 z-10" style={{ transform: 'translateX(45%) translateY(20%)' }}>
+              <Image 
+                src="/coffee_on_book_transparent.png" 
+                alt="Coffee cup on a book" 
+                width={280} 
+                height={280}
+                priority
+                className="object-contain"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
