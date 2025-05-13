@@ -84,7 +84,7 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
   return (
     <div className="relative inline-block w-full">
       <select 
-        className="block appearance-none w-full bg-paper-100 border border-paper-400 
+        className="block appearance-none w-full bg-paper-100/90 border border-paper-400 
                   px-5 py-4 pr-10 rounded-md shadow-paper leading-relaxed 
                   focus:outline-none focus:ring-1 focus:ring-terracotta-400 
                   text-ink-800 font-serif text-lg transition-all duration-300"

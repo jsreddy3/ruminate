@@ -43,7 +43,7 @@ export default function UploadSection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
-      className="space-y-12 w-full mx-auto"
+      className="space-y-12 w-full mx-auto text-center"
     >
       {/* Objective Selector with elegant styling - only show if requested */}
       {showObjectiveSelector && (
@@ -79,7 +79,7 @@ export default function UploadSection({
           onClick={() => fileInputRef.current?.click()}
           className={`
             px-10 py-5 rounded-md
-            bg-paper-100 text-ink-800 border border-paper-400
+            bg-paper-100/90 text-ink-800 border border-paper-400
             shadow-paper
             transition-all duration-300
             flex items-center gap-4 group
@@ -103,7 +103,7 @@ export default function UploadSection({
             <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
           </svg>
           
-          <span className="font-serif text-xl">
+          <span className="font-serif text-xl font-medium">
             {isProcessing ? "Processing..." : "Upload PDF"}
           </span>
         </motion.button>
