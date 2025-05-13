@@ -52,12 +52,20 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
   // If no documents or still loading initially, show appropriate message
   if (loading && documents.length === 0) {
     return (
-      <div className="flex items-center justify-center p-6 border border-paper-400 rounded-md bg-paper-100 text-ink-700">
-        <svg className="animate-spin h-6 w-6 mr-3 text-terracotta-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div 
+        className="flex items-center justify-center text-ink-700 h-12"
+        style={{
+          backgroundImage: 'url("/document_selector.png")',
+          backgroundSize: '100% 100%',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center'
+        }}
+      >
+        <svg className="animate-spin h-4 w-4 mr-2 text-terracotta-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <span className="font-serif italic text-lg">Loading your documents...</span>
+        <span className="font-serif italic text-sm">Loading...</span>
       </div>
     );
   }
@@ -65,8 +73,16 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
   // If no documents after loading completes
   if (!loading && documents.length === 0) {
     return (
-      <div className="p-6 border border-paper-400 rounded-md bg-paper-100 text-ink-700 text-center font-serif italic text-lg">
-        No previous documents available. Begin your journey by uploading a document.
+      <div 
+        className="text-ink-700 text-center font-serif italic text-sm h-12 flex items-center justify-center"
+        style={{
+          backgroundImage: 'url("/document_selector.png")',
+          backgroundSize: '100% 100%',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center'
+        }}
+      >
+        No documents available
       </div>
     );
   }
@@ -74,7 +90,15 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
   // If there's an error
   if (error && !loading) {
     return (
-      <div className="p-6 border border-paper-400 rounded-md bg-terracotta-50 text-terracotta-700 text-center font-serif italic text-lg">
+      <div 
+        className="text-terracotta-700 text-center font-serif italic text-sm h-12 flex items-center justify-center"
+        style={{
+          backgroundImage: 'url("/document_selector.png")',
+          backgroundSize: '100% 100%',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center'
+        }}
+      >
         {error}
       </div>
     );
@@ -83,37 +107,45 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
   // Render document selector
   return (
     <div className="relative inline-block w-full">
-      <select 
-        className="block appearance-none w-full 
-                  bg-transparent px-5 py-4 pr-10
-                  border-none focus:outline-none
-                  text-ink-800 font-serif text-lg transition-all duration-300"
-        onChange={(e) => handleSelectDocument(e.target.value)}
-        disabled={loading}
-        defaultValue=""
-        style={{ 
+      <div 
+        className="relative"
+        style={{
           backgroundImage: 'url("/document_selector.png")',
-          backgroundSize: 'contain',
+          backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          paddingTop: '8px',
+          paddingBottom: '8px',
+          height: '40px'
         }}
       >
-        <option value="" disabled className="text-ink-500 bg-paper-100">Select a previous document</option>
-        {documents.map((doc) => (
-          <option key={doc.id} value={doc.id} className="py-2 font-serif bg-paper-100">
-            {doc.title || `Document ${doc.id.substring(0, 8)}`}
-          </option>
-        ))}
-      </select>
-      <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-        <svg className="fill-current h-4 w-4 text-ink-800" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-        </svg>
+        <select 
+          className="block bg-transparent border-none focus:outline-none text-ink-800 font-serif text-base transition-all duration-300"
+          style={{
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            MozAppearance: 'none',
+            width: '75%',
+            margin: '0 auto',
+            display: 'block',
+            height: '24px'
+          }}
+          onChange={(e) => handleSelectDocument(e.target.value)}
+          disabled={loading}
+          defaultValue=""
+        >
+          <option value="" disabled className="text-ink-500 bg-paper-100">Select a document</option>
+          {documents.map((doc) => (
+            <option key={doc.id} value={doc.id} className="py-1 font-serif bg-paper-100 text-base">
+              {doc.title || `Document ${doc.id.substring(0, 8)}`}
+            </option>
+          ))}
+        </select>
       </div>
       {loading && (
-        <div className="absolute right-10 top-4">
-          <svg className="animate-spin h-6 w-6 text-terracotta-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+        <div className="absolute right-[25%] top-1/2 transform -translate-y-1/2">
+          <svg className="animate-spin h-3 w-3 text-terracotta-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         </div>

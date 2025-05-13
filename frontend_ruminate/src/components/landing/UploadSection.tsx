@@ -58,29 +58,8 @@ export default function UploadSection({
         </div>
       )}
 
-      {/* Previously Uploaded Documents with refined styling */}
-      <div className="mb-10 relative">
-        <h2 className="text-2xl font-serif font-medium mb-6 text-ink-800">Previously Uploaded Documents</h2>
-        
-        {/* Outer document section container with background image */}
-        <div className="relative">
-          <div className="relative z-0">
-            <Image 
-              src="/outer_uploads_component.png" 
-              alt="" 
-              width={600} 
-              height={200}
-              className="w-full h-auto object-contain"
-            />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center p-6 z-10">
-            <DocumentSelector onSelectDocument={handleSelectDocument} />
-          </div>
-        </div>
-      </div>
-
-      {/* Upload Button and Progress Area with elegant styling */}
-      <div className="relative flex flex-col items-center gap-8 mt-8">
+      {/* Combined Document Selector and Upload Button in one component */}
+      <div className="relative">
         <input
           type="file"
           accept=".pdf"
@@ -89,32 +68,45 @@ export default function UploadSection({
           ref={fileInputRef}
           disabled={isProcessing}
         />
-        
-        {/* Elegant paper-like button with custom background image */}
-        <div className="relative">
-          <motion.button
-            onClick={() => fileInputRef.current?.click()}
-            className={`
-              px-10 py-5 
-              flex items-center gap-4 relative z-10
-              ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
-            whileHover={{ scale: isProcessing ? 1 : 1.03 }}
-            whileTap={{ scale: isProcessing ? 1 : 0.98 }}
-            disabled={isProcessing}
-          >
-            <div className="absolute inset-0 z-0">
-              <Image 
-                src="/upload_button_cropped.png" 
-                alt="" 
-                width={400} 
-                height={120}
-                className="w-full h-full object-contain"
-              />
+      
+        {/* Outer container with background image */}
+        <div className="relative max-w-md mx-auto">
+          {/* Background image */}
+          <div className="relative z-0">
+            <Image 
+              src="/outer_uploads_component.png" 
+              alt="" 
+              width={600} 
+              height={500}
+              className="w-full h-auto object-contain"
+            />
+          </div>
+          
+          {/* Content overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 z-10">
+            <h2 className="text-2xl font-serif font-medium mb-4 text-ink-800">Previously Uploaded Documents</h2>
+            
+            {/* Document selector */}
+            <div className="w-full max-w-[90%] mb-10 flex justify-center">
+              <div className="w-[90%]">
+                <DocumentSelector onSelectDocument={handleSelectDocument} />
+              </div>
             </div>
-            <div className="flex items-center gap-3 z-10 relative">
+            
+            {/* Upload button */}
+            <motion.button
+              onClick={() => fileInputRef.current?.click()}
+              className={`
+                flex items-center gap-2 px-8 py-3 mt-4 
+                bg-transparent border border-ink-700/30 rounded-md
+                ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-paper-200/50'}
+              `}
+              whileHover={{ scale: isProcessing ? 1 : 1.03 }}
+              whileTap={{ scale: isProcessing ? 1 : 0.98 }}
+              disabled={isProcessing}
+            >
               <svg
-                className="w-6 h-6 text-ink-800"
+                className="w-5 h-5 text-ink-800"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -126,34 +118,34 @@ export default function UploadSection({
                 <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
               </svg>
               
-              <span className="font-serif text-xl font-medium text-ink-800">
+              <span className="font-serif text-lg font-medium text-ink-800">
                 {isProcessing ? "Processing..." : "Upload PDF"}
               </span>
-            </div>
-          </motion.button>
+            </motion.button>
+          </div>
         </div>
-
-        {/* Progress Indicator Area */}
-        <AnimatePresence>
-          {isProcessing && (
-            <UploadProgressIndicator progress={progress} />
-          )}
-        </AnimatePresence>
-
-        {/* Error Display */}
-        <AnimatePresence>
-          {error && !isProcessing && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-terracotta-700 text-base mt-4 font-serif italic"
-            >
-              {error}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Progress Indicator Area */}
+      <AnimatePresence>
+        {isProcessing && (
+          <UploadProgressIndicator progress={progress} />
+        )}
+      </AnimatePresence>
+
+      {/* Error Display */}
+      <AnimatePresence>
+        {error && !isProcessing && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="text-terracotta-700 text-base mt-4 font-serif italic"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

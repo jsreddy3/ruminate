@@ -13,7 +13,7 @@ export default function Header() {
         Ruminate
       </TexturedHeading>
       
-      <p className="font-serif text-3xl md:text-4xl text-ink-800 italic font-bold">
+      <p className="font-serif text-3xl md:text-4xl text-ink-800">
         The AI agent that reads between the lines
       </p>
     </motion.div>

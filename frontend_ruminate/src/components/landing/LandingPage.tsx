@@ -132,18 +132,6 @@ export default function LandingPage() {
         <div className="text-center mb-16">
           <Header />
         </div>
-
-        {/* Dog illustration - repositioned to be next to header */}
-        <div className="absolute right-0 top-0 md:top-[-20px] w-40 md:w-96 opacity-100 hidden md:block">
-          <Image 
-            src="/reading_dog.png" 
-            alt="Illustrated dog reading with a magnifying glass"
-            width={500} 
-            height={500}
-            className="object-contain scale-x-[-1]"
-            priority
-          />
-        </div>
         
         {/* Upload Section - centered */}
         <div className="w-full max-w-md">
@@ -158,6 +146,18 @@ export default function LandingPage() {
             showObjectiveSelector={false}
           />
         </div>
+      </div>
+
+      {/* Dog illustration - repositioned to bottom right */}
+      <div className="fixed bottom-0 right-0 h-[75vh] pointer-events-none z-20">
+        <Image 
+          src="/reading_dog.png" 
+          alt="Illustrated dog reading with a magnifying glass"
+          width={700} 
+          height={700}
+          className="object-contain h-full scale-x-[-1]"
+          priority
+        />
       </div>
     </div>
   );
