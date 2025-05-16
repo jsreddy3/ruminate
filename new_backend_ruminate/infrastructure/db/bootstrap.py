@@ -1,7 +1,5 @@
+# new_backend_ruminate/infrastructure/db/bootstrap.py
 """
-new_backend_ruminate.infrastructure.db.bootstrap
-=======================================
-
 Single-source-of-truth for the SQLAlchemy async engine, session factory
 and request-scoped unit-of-work helper.  No other module is permitted to
 instantiate an engine or a sessionmaker; import these artefacts instead.

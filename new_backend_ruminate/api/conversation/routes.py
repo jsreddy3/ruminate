@@ -1,13 +1,13 @@
-# new_backend/api/routes/conversation.py
+# new_backend/api/conversation/routes.py
 from fastapi import APIRouter, Depends, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from new_backend_ruminate.api.schemas.message import MessageIdsResponse, SendMessageRequest, Message as MessageOut
-from new_backend_ruminate.api.schemas.conversation import Conversation as ConversationOut
+from new_backend_ruminate.api.conversation.schema import MessageIdsResponse, SendMessageRequest, MessageOut
+from new_backend_ruminate.api.conversation.schema import ConversationOut
 from new_backend_ruminate.dependencies import (
-    get_conversation_service,
+    get_conversation_service, 
     get_event_hub,
     get_session,
 )

@@ -1,6 +1,6 @@
 # new_backend_ruminate/domain/repositories/conversation_repository.py
 from abc import ABC, abstractmethod
-from typing import List, AsyncIterator, Tuple, Optional
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.message import Message
 from ..models.conversation import Conversation
