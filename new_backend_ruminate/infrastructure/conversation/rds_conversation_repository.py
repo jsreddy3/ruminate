@@ -10,9 +10,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from new_backend_ruminate.domain.models.conversation import Conversation
-from new_backend_ruminate.domain.models.message import Message
-from new_backend_ruminate.domain.repositories.conversation_repository import (
+from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
+from new_backend_ruminate.domain.conversation.entities.message import Message
+from new_backend_ruminate.domain.conversation.repo import (
     ConversationRepository,
 )
 

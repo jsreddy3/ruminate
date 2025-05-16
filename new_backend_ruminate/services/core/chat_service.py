@@ -6,9 +6,9 @@ from typing import List
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from new_backend_ruminate.domain.models.message import Message, Role
-from new_backend_ruminate.domain.repositories.conversation_repository import ConversationRepository
-from new_backend_ruminate.services.llm.base import LLMService
+from new_backend_ruminate.domain.conversation.entities.message import Message, Role
+from new_backend_ruminate.domain.conversation.repo import ConversationRepository
+from new_backend_ruminate.services.core.llm.base import LLMService
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 

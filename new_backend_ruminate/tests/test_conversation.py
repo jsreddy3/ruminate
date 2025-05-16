@@ -4,11 +4,11 @@ import pytest_asyncio
 from fastapi import BackgroundTasks
 
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
-from new_backend_ruminate.domain.repositories.rds_conversation_repository import RDSConversationRepository
-from new_backend_ruminate.services.conversation_service import ConversationService
-from new_backend_ruminate.domain.models.conversation import Conversation
-from new_backend_ruminate.domain.models.message import Message
-from new_backend_ruminate.domain.models.message import Role
+from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+from new_backend_ruminate.services.conversation.service import ConversationService
+from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
+from new_backend_ruminate.domain.conversation.entities.message import Message 
+from new_backend_ruminate.domain.conversation.entities.message import Role
 import logging
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.tests.stubs import StubLLM

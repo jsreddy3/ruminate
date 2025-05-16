@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, List
 
-from new_backend_ruminate.domain.models.message import Message
+from new_backend_ruminate.domain.conversation.entities.message import Message
 
 
 class LLMService(ABC):

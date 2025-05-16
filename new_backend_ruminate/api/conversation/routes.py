@@ -4,14 +4,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from new_backend_ruminate.api.conversation.schema import MessageIdsResponse, SendMessageRequest, MessageOut
-from new_backend_ruminate.api.conversation.schema import ConversationOut
+from new_backend_ruminate.api.conversation.schemas import MessageIdsResponse, SendMessageRequest, MessageOut
+from new_backend_ruminate.api.conversation.schemas import ConversationOut
 from new_backend_ruminate.dependencies import (
     get_conversation_service, 
     get_event_hub,
     get_session,
 )
-from new_backend_ruminate.services.conversation_service import ConversationService
+from new_backend_ruminate.services.conversation.service import ConversationService
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 router = APIRouter(prefix="/conversations")

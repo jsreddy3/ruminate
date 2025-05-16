@@ -1,9 +1,9 @@
-# new_backend_ruminate/domain/repositories/conversation_repository.py
+# new_backend_ruminate/domain/conversation/repo.py
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models.message import Message
-from ..models.conversation import Conversation
+from new_backend_ruminate.domain.conversation.entities.message import Message
+from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 
 
 class ConversationRepository(ABC):

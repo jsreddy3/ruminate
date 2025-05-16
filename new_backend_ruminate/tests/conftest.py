@@ -7,7 +7,6 @@ from sqlalchemy import text
 from new_backend_ruminate.infrastructure.db import bootstrap
 from new_backend_ruminate.infrastructure.db.meta import Base
 from new_backend_ruminate.config import settings as _settings
-from new_backend_ruminate.domain import models  # noqa: F401  # ensure tables registered
 import logging
 
 for name in (

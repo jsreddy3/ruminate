@@ -4,8 +4,8 @@ from typing import AsyncGenerator, List
 
 from openai import AsyncOpenAI
 
-from new_backend_ruminate.domain.models.message import Message
-from new_backend_ruminate.services.llm.base import LLMService
+from new_backend_ruminate.domain.conversation.entities.message import Message
+from new_backend_ruminate.services.core.llm.base import LLMService
 
 
 class OpenAILLM(LLMService):
