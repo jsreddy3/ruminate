@@ -1,4 +1,5 @@
 import pytest, asyncio
+from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
@@ -9,9 +10,9 @@ async def test_latest_thread_linear(db_session: AsyncSession):
     repo = RDSConversationRepository()
     conv = Conversation(id="t1")
     db_session.add(conv)
-    a = Message(conversation_id=conv.id, role=Role.SYSTEM, content="root")  # root
-    b = Message(conversation_id=conv.id, role=Role.USER, parent_id=a.id, version=1)
-    c = Message(conversation_id=conv.id, role=Role.ASSISTANT, parent_id=b.id)
+    a = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.SYSTEM, content="root")  # root
+    b = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.USER, parent_id=a.id, version=1)
+    c = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.ASSISTANT, parent_id=b.id)
     db_session.add_all([a, b, c])
     await db_session.commit()
 
@@ -23,11 +24,11 @@ async def test_latest_thread_branching_and_active_child(db_session: AsyncSession
     repo = RDSConversationRepository()
     conv = Conversation(id="t2")
     db_session.add(conv)
-    root = Message(conversation_id=conv.id, role=Role.SYSTEM, content="root")
-    u1   = Message(conversation_id=conv.id, role=Role.USER, parent_id=root.id, version=1)
-    a1   = Message(conversation_id=conv.id, role=Role.ASSISTANT, parent_id=u1.id)
+    root = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.SYSTEM, content="root", version=0)
+    u1   = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.USER, parent_id=root.id, version=1)
+    a1   = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.ASSISTANT, parent_id=u1.id, version=1)
     # branch on u1
-    u2   = Message(conversation_id=conv.id, role=Role.USER,
+    u2   = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.USER,
                    parent_id=root.id, version=2, content="alt")
     db_session.add_all([root, u1, a1, u2])
     await db_session.flush()
@@ -44,9 +45,9 @@ async def test_message_versions_root_and_children(db_session):
     repo = RDSConversationRepository()
     conv = Conversation(id="t3")
     db_session.add(conv)
-    root = Message(conversation_id=conv.id, role=Role.SYSTEM, content="root", version=0)
-    v1   = Message(conversation_id=conv.id, role=Role.USER, parent_id=root.id, version=1)
-    v2   = Message(conversation_id=conv.id, role=Role.USER, parent_id=root.id, version=2)
+    root = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.SYSTEM, content="root", version=0)
+    v1   = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.USER, parent_id=root.id, version=1)
+    v2   = Message(id=str(uuid4()), conversation_id=conv.id, role=Role.USER, parent_id=root.id, version=2)
     db_session.add_all([root, v1, v2]); await db_session.commit()
 
     versions = await repo.message_versions(v2.id, db_session)

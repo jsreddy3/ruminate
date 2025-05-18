@@ -27,6 +27,8 @@ async def test_hub_fanout_and_termination(db_session):
     gen2 = hub.register_consumer(ai_id)
     task1 = asyncio.create_task(_collect(gen1))
     task2 = asyncio.create_task(_collect(gen2))
+    await asyncio.sleep(0)
+
     # drive background publishing
     for t in bg.tasks: await t.func(*t.args, **t.kwargs)
     chunks1, chunks2 = await asyncio.gather(task1, task2)
