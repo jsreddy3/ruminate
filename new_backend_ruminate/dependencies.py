@@ -11,17 +11,14 @@ Lifetimes
 
 from __future__ import annotations
 
-from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
-from new_backend_ruminate.domain.repositories.rds_conversation_repository import (
-    RDSConversationRepository,
-)
-from new_backend_ruminate.services.llm.openai_llm import OpenAILLM
-from new_backend_ruminate.services.chat_service import ChatService
-from new_backend_ruminate.services.conversation_service import ConversationService
+from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+from new_backend_ruminate.services.core.llm.openai_llm import OpenAILLM
+from new_backend_ruminate.services.conversation.service import ConversationService
+from new_backend_ruminate.services.context.service import ContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session
 
 
@@ -33,8 +30,8 @@ _llm  = OpenAILLM(
     api_key=settings().openai_api_key,
     model=settings().openai_model,
 )
-_chat_service = ChatService(_repo, _llm, _hub)
-_conversation_service = ConversationService(_repo, _llm, _hub)
+_ctx_builder = ContextBuilder()
+_conversation_service = ConversationService(_repo, _llm, _hub, _ctx_builder)
 
 # ─────────────────────── DI provider helpers ───────────────────── #
 
@@ -42,11 +39,9 @@ def get_event_hub() -> EventStreamHub:
     """Return the process-wide in-memory hub (singleton)."""
     return _hub
 
-
-def get_chat_service() -> ChatService:
-    """Return the singleton ChatService; stateless, safe to share."""
-    return _chat_service
-
+def get_context_builder() -> ContextBuilder:
+    """Return the singleton ContextBuilder; stateless, safe to share."""
+    return _ctx_builder
 
 def get_conversation_service() -> ConversationService:
     """Return the singleton ConversationService; stateless, safe to share."""

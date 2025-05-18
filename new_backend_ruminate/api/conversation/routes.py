@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from new_backend_ruminate.api.conversation.schemas import MessageIdsResponse, SendMessageRequest, MessageOut
-from new_backend_ruminate.api.conversation.schemas import ConversationOut
+from new_backend_ruminate.api.conversation.schemas import ConversationOut, ConversationInitResponse
 from new_backend_ruminate.dependencies import (
     get_conversation_service, 
     get_event_hub,
@@ -15,6 +15,19 @@ from new_backend_ruminate.services.conversation.service import ConversationServi
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 router = APIRouter(prefix="/conversations")
+
+@router.post(
+    "",
+    status_code=201,
+    response_model=ConversationInitResponse,
+)
+async def create_conversation(
+    # optional future body with {"type": "...", "meta": {...}}
+    body: dict | None = None,
+    svc: ConversationService = Depends(get_conversation_service),
+):
+    conv_id, root_id = await svc.create_conversation(**(body or {}))
+    return {"conversation_id": conv_id, "system_msg_id": root_id}
 
 @router.post("/{cid}/messages", response_model=MessageIdsResponse)
 async def post_message(

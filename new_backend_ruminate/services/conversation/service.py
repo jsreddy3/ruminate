@@ -1,6 +1,6 @@
 # new_backend_ruminate/services/conversation_service.py
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Tuple, Any
 from uuid import uuid4
 
 from fastapi import BackgroundTasks
@@ -13,7 +13,9 @@ from new_backend_ruminate.domain.conversation.repo import (
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.services.core.llm.base import LLMService
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
-
+from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
+from new_backend_ruminate.services.context.service import ContextBuilder
+from new_backend_ruminate.services.context.templates import default_system_prompts
 
 class ConversationService:
     """Pure business logic: no Pydantic, no FastAPI, no DB-bootstrap."""
@@ -23,17 +25,18 @@ class ConversationService:
         repo: ConversationRepository,
         llm: LLMService,
         hub: EventStreamHub,
+        ctx_builder: ContextBuilder,
     ) -> None:
         self._repo = repo
         self._llm = llm
         self._hub = hub
+        self._ctx_builder = ctx_builder
 
     # ─────────────────────────────── helpers ──────────────────────────────── #
 
-    async def _publish_stream(
-        self, ai_id: str, context: List[Message]) -> None:
+    async def _publish_stream(self, ai_id: str, prompt: List[dict[str, str]]) -> None:
         full = ""
-        async for chunk in self._llm.generate_response_stream(context):
+        async for chunk in self._llm.generate_response_stream(prompt):
             full += chunk
             await self._hub.publish(ai_id, chunk)
         await self._hub.terminate(ai_id)
@@ -41,7 +44,37 @@ class ConversationService:
         async with session_scope() as session:
             await self._repo.update_message_content(ai_id, full, session)
 
+
     # ───────────────────────────── public API ─────────────────────────────── #
+
+    async def create_conversation(
+        self,
+        *,
+        conv_type: str = "chat",
+        meta: dict[str, Any] | None = None,
+    ) -> tuple[str, str]:
+        """
+        Persist a new Conversation row plus its root system prompt and return
+        their ids.  The prompt string comes from a template registry keyed by
+        conversation type.
+        """
+        async with session_scope() as session:
+            conv = Conversation(type=conv_type.upper(), meta_data=meta or {})
+            await self._repo.create(conv, session)
+
+            root = Message(
+                conversation_id=conv.id,
+                role=Role.SYSTEM,
+                content=default_system_prompts[conv_type],
+                version=1,
+            )
+            await self._repo.add_message(root, session)
+
+            await self._repo.update_active_thread(conv.id, [root.id], session)
+            conv.root_message_id = root.id
+
+        return conv.id, root.id
+
 
     async def send_message(
         self,
@@ -89,9 +122,11 @@ class ConversationService:
             thread = await self._repo.latest_thread(conv_id, session)
             thread_ids = [m.id for m in thread] + [user.id, ai_id]
             await self._repo.update_active_thread(conv_id, thread_ids, session)
+            convo = await self._repo.get(conv_id, session)
+            prompt = await self._ctx_builder.build(convo, thread + [user], session=session)
 
         # -------- 4  background stream --------
-        background.add_task(self._publish_stream, ai_id, thread + [user])
+        background.add_task(self._publish_stream, ai_id, prompt)
 
         return user.id, ai_id
 
@@ -132,9 +167,11 @@ class ConversationService:
                 cut = len(prior)
             new_thread = [m.id for m in prior[:cut]] + [sibling_id, ai_id]
             await self._repo.update_active_thread(conv_id, new_thread, session)
+            convo = await self._repo.get(conv_id, session)
+            prompt = await self._ctx_builder.build(convo, prior[:cut] + [sibling], session=session)
 
         # 4 ─ background stream
-        background.add_task(self._publish_stream, ai_id, prior[:cut] + [sibling])
+        background.add_task(self._publish_stream, ai_id, prompt)
 
         return sibling_id, ai_id
 

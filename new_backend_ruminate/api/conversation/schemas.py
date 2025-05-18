@@ -61,3 +61,7 @@ class ConversationOut(BaseModel):
     active_thread_ids: List[UUID] = Field(default_factory=list)
     is_demo: bool = False
     meta_data: Optional[dict] = None
+
+class ConversationInitResponse(BaseModel):
+    conversation_id: str = Field(..., alias="conversation_id")
+    system_msg_id:   str = Field(..., alias="system_msg_id")

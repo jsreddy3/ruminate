@@ -11,7 +11,7 @@ from new_backend_ruminate.domain.conversation.entities.message import Message
 from new_backend_ruminate.domain.conversation.entities.message import Role
 import logging
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
-from new_backend_ruminate.tests.stubs import StubLLM
+from new_backend_ruminate.tests.stubs import StubLLM, StubContextBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,8 @@ async def svc():
     repo = RDSConversationRepository()
     llm  = StubLLM()
     hub  = EventStreamHub()
-    return ConversationService(repo, llm, hub)
+    ctx_builder = StubContextBuilder()
+    return ConversationService(repo, llm, hub, ctx_builder)
 
 @pytest.mark.asyncio
 async def test_send_message_streams_and_commits(db_session, svc):
@@ -140,3 +141,16 @@ async def test_message_versions_sorted(db_session, svc):
 
     versions = await svc.get_versions(v2.id, db_session)
     assert [m.version for m in versions] == [1, 2]
+
+@pytest.mark.asyncio
+async def test_create_conversation(db_session, svc):
+    conv_id, root_id = await svc.create_conversation()
+
+    # rows exist
+    conv = await db_session.get(Conversation, conv_id)
+    root = await db_session.get(Message, root_id)
+
+    assert conv.root_message_id == root_id
+    assert conv.active_thread_ids == [root_id]
+    assert root.role is Role.SYSTEM
+    assert root.content == "You are a helpful assistant."
