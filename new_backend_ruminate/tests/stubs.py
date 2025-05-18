@@ -1,8 +1,9 @@
+# tests/stubs.py
 from typing import AsyncGenerator, List
-from new_backend_ruminate.services.core.llm.base import LLMService
+from new_backend_ruminate.domain.ports.llm import LLMService
 from new_backend_ruminate.domain.conversation.entities.message import Message
 import logging
-from new_backend_ruminate.services.context.service import ContextBuilder
+from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict

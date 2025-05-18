@@ -1,3 +1,4 @@
+# tests/test_conversation.py
 import asyncio
 import pytest
 import pytest_asyncio
@@ -68,14 +69,6 @@ async def test_send_message_streams_and_commits(db_session, svc):
     ai_row = await db_session.get(Message, ai_id)
     assert ai_row.content == "foo bar"
     assert chunks == ["foo ", "bar"]
-
-# helper stays
-async def collect_chunks(gen):
-    buf = []
-    async for c in gen:
-        buf.append(c)
-    return buf
-
 
 @pytest.mark.asyncio
 async def test_edit_message_creates_branch_and_streams(db_session, svc):

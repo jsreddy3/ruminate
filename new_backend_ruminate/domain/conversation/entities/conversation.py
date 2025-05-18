@@ -1,4 +1,4 @@
-# new_backend_ruminate/domain/models/conversation.py
+# new_backend_ruminate/domain/conversation/entities/conversation.py
 from __future__ import annotations
 
 from datetime import datetime

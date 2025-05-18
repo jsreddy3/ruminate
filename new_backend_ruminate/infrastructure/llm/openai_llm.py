@@ -1,3 +1,5 @@
+# new_backend_ruminate/infrastructure/llm/openai_llm.py
+
 from __future__ import annotations
 import os
 from typing import AsyncGenerator, List
@@ -5,8 +7,7 @@ from typing import AsyncGenerator, List
 from openai import AsyncOpenAI
 
 from new_backend_ruminate.domain.conversation.entities.message import Message
-from new_backend_ruminate.services.core.llm.base import LLMService
-
+from new_backend_ruminate.domain.ports.llm import LLMService
 
 class OpenAILLM(LLMService):
     """

@@ -16,10 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
-from new_backend_ruminate.services.core.llm.openai_llm import OpenAILLM
+from new_backend_ruminate.infrastructure.llm.openai_llm import OpenAILLM
 from new_backend_ruminate.services.conversation.service import ConversationService
-from new_backend_ruminate.services.context.service import ContextBuilder
-from new_backend_ruminate.infrastructure.db.bootstrap import get_session
+from new_backend_ruminate.context.builder import ContextBuilder
+from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
 
 
 # ────────────────────────── singletons ─────────────────────────── #
@@ -59,4 +59,4 @@ def get_llm_service() -> OpenAILLM:
 
 # Re-export get_session so routers can do Depends(deps.get_session)
 def get_session() -> AsyncSession:  # type: ignore[return-type]
-    return get_session()  # from bootstrap
+    return get_db_session()  # from bootstrap

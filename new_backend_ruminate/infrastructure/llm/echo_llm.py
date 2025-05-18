@@ -1,8 +1,10 @@
+# new_backend_ruminate/infrastructure/llm/echo_llm.py
+
 from __future__ import annotations
 from typing import AsyncGenerator, List
 
 from new_backend_ruminate.domain.conversation.entities.message import Message
-from new_backend_ruminate.services.core.llm.base import LLMService
+from new_backend_ruminate.domain.ports.llm import LLMService
 
 
 class EchoLLM(LLMService):

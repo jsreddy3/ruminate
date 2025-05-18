@@ -1,4 +1,4 @@
-# new_backend_ruminate/services/conversation_service.py
+# new_backend_ruminate/services/conversation/service.py
 from __future__ import annotations
 from typing import List, Tuple, Any
 from uuid import uuid4
@@ -11,11 +11,11 @@ from new_backend_ruminate.domain.conversation.repo import (
     ConversationRepository,
 )
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
-from new_backend_ruminate.services.core.llm.base import LLMService
+from new_backend_ruminate.domain.ports.llm import LLMService
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
-from new_backend_ruminate.services.context.service import ContextBuilder
-from new_backend_ruminate.services.context.templates import default_system_prompts
+from new_backend_ruminate.context.builder import ContextBuilder
+from new_backend_ruminate.context.prompts import default_system_prompts
 
 class ConversationService:
     """Pure business logic: no Pydantic, no FastAPI, no DB-bootstrap."""
