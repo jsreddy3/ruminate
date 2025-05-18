@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.db.bootstrap import init_engine
 from new_backend_ruminate.dependencies import get_event_hub  # optional: expose on app.state
-from new_backend_ruminate.api.routes.conversation import router as conversation_router
+from new_backend_ruminate.api.conversation.routes import router as conversation_router
 
 app = FastAPI()
 

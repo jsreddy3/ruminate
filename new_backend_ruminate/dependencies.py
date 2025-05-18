@@ -18,9 +18,13 @@ from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
 from new_backend_ruminate.infrastructure.llm.openai_llm import OpenAILLM
 from new_backend_ruminate.services.conversation.service import ConversationService
+from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
+from new_backend_ruminate.context.renderers.agent import register_agent_renderers
+from new_backend_ruminate.infrastructure.tools.echo_tool import register_tool
 
+register_agent_renderers()
 
 # ────────────────────────── singletons ─────────────────────────── #
 
@@ -32,7 +36,7 @@ _llm  = OpenAILLM(
 )
 _ctx_builder = ContextBuilder()
 _conversation_service = ConversationService(_repo, _llm, _hub, _ctx_builder)
-
+_agent_service = AgentService(_repo, _llm, _hub, _ctx_builder)
 # ─────────────────────── DI provider helpers ───────────────────── #
 
 def get_event_hub() -> EventStreamHub:
@@ -47,6 +51,9 @@ def get_conversation_service() -> ConversationService:
     """Return the singleton ConversationService; stateless, safe to share."""
     return _conversation_service
 
+def get_agent_service() -> AgentService:
+    """Return the singleton AgentService; stateless, safe to share."""
+    return _agent_service
 
 # If you ever need the repository or LLM directly in a router:
 def get_conversation_repository() -> RDSConversationRepository:

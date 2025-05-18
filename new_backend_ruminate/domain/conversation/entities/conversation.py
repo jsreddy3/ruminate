@@ -21,7 +21,7 @@ from new_backend_ruminate.infrastructure.db.meta import Base
 
 class ConversationType(str, Enum):
     CHAT = "chat"                 # extend with more categories whenever you need
-
+    AGENT = "agent"
 
 class Conversation(Base):
     """

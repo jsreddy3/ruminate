@@ -123,10 +123,12 @@ class RDSConversationRepository(ConversationRepository):
         if original is None:
             raise ValueError(f"message {msg_id!r} not found")
 
+        next_version = 1 if original.version is None else original.version + 1
+
         sibling = Message(
             conversation_id=original.conversation_id,
             parent_id=original.parent_id,
-            version=original.version + 1,
+            version=next_version,
             role=original.role,
             content=new_content,
         )

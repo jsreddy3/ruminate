@@ -14,3 +14,7 @@ class EchoLLM(LLMService):
         user_text = messages[-1].content if messages else "(empty)"
         for token in user_text.split():
             yield token + " "
+    
+    async def generate_structured_response(self, messages, *, response_format, json_schema=None):
+        return {"thought": "echoing", "response_type": "answer",
+                "answer": "stub answer"}

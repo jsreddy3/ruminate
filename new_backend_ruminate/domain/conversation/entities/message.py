@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from uuid import uuid4
+from sqlalchemy.orm import validates
 
 from sqlalchemy import (
     Column, DateTime, Enum as SAEnum, ForeignKey,
@@ -16,6 +17,7 @@ class Role(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+    TOOL = "tool"
 
 
 class Message(Base):                               # pure ORM, no Pydantic
@@ -29,7 +31,7 @@ class Message(Base):                               # pure ORM, no Pydantic
     id              = Column(String, primary_key=True, default=lambda: str(uuid4()))
     conversation_id = Column(String, ForeignKey("conversations.id"), index=True)
     parent_id       = Column(String, ForeignKey("messages.id"), nullable=True, index=True)
-    version         = Column(Integer, default=1)
+    version         = Column(Integer, nullable=True)
     role            = Column(SAEnum(Role), nullable=False)
     content         = Column(Text, default="")
     meta_data       = Column(JSON, nullable=True)
@@ -40,3 +42,7 @@ class Message(Base):                               # pure ORM, no Pydantic
         nullable=True,
         index=True,
     )
+
+    @validates("meta_data")
+    def _as_dict(self, _, val):
+        return {} if val in ("", None) else val

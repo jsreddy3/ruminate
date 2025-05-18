@@ -23,7 +23,7 @@ router = APIRouter(prefix="/conversations")
 )
 async def create_conversation(
     # optional future body with {"type": "...", "meta": {...}}
-    body: dict | None = None,
+    body: dict = None,
     svc: ConversationService = Depends(get_conversation_service),
 ):
     conv_id, root_id = await svc.create_conversation(**(body or {}))

@@ -15,7 +15,8 @@ from new_backend_ruminate.domain.ports.llm import LLMService
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.context.builder import ContextBuilder
-from new_backend_ruminate.context.prompts import default_system_prompts
+from new_backend_ruminate.context.prompts import agent_system_prompt, default_system_prompts
+from new_backend_ruminate.domain.ports.tool import tool_registry
 
 class ConversationService:
     """Pure business logic: no Pydantic, no FastAPI, no DB-bootstrap."""
@@ -53,20 +54,19 @@ class ConversationService:
         conv_type: str = "chat",
         meta: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
-        """
-        Persist a new Conversation row plus its root system prompt and return
-        their ids.  The prompt string comes from a template registry keyed by
-        conversation type.
-        """
         async with session_scope() as session:
             conv = Conversation(type=conv_type.upper(), meta_data=meta or {})
             await self._repo.create(conv, session)
 
+            if conv_type == "agent":                                    # ✱ new
+                sys_text = agent_system_prompt(list(tool_registry.values()))
+            else:
+                sys_text = default_system_prompts[conv_type]
+
             root = Message(
                 conversation_id=conv.id,
                 role=Role.SYSTEM,
-                content=default_system_prompts[conv_type],
-                version=1,
+                content=sys_text,
             )
             await self._repo.add_message(root, session)
 
@@ -96,7 +96,6 @@ class ConversationService:
                 id=str(uuid4()),
                 conversation_id=conv_id,
                 parent_id=parent_id,
-                version=1,
                 role=Role.USER,
                 content=user_content,
             )
@@ -110,7 +109,6 @@ class ConversationService:
                 id=ai_id,
                 conversation_id=conv_id,
                 parent_id=user.id,
-                version=1,
                 role=Role.ASSISTANT,
                 content="",
             )
@@ -153,7 +151,6 @@ class ConversationService:
                 id=ai_id,
                 conversation_id=conv_id,
                 parent_id=sibling_id,
-                version=1,
                 role=Role.ASSISTANT,
                 content="",
             )
