@@ -7,6 +7,7 @@ from sqlalchemy import (
     select,
     update,
     text,
+    func,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,7 +124,15 @@ class RDSConversationRepository(ConversationRepository):
         if original is None:
             raise ValueError(f"message {msg_id!r} not found")
 
-        next_version = 1 if original.version is None else original.version + 1
+        if original.parent_id is None:
+            next_version = 0
+        else:
+            next_version = (
+                await session.scalar(
+                    select(func.coalesce(func.max(Message.version), 0))
+                    .where(Message.parent_id == original.parent_id)
+                )
+            ) + 1
 
         sibling = Message(
             conversation_id=original.conversation_id,
@@ -144,11 +153,27 @@ class RDSConversationRepository(ConversationRepository):
     async def set_active_child(
         self, parent_id: str, child_id: str, session: AsyncSession
     ) -> None:
+        # flip on the direct parent first
         await session.execute(
             update(Message)
             .where(Message.id == parent_id)
             .values(active_child_id=child_id)
         )
+
+        # climb to the root, repairing pointers
+        current_id = parent_id
+        while True:
+            current = await session.get(Message, current_id)
+            if current is None or current.parent_id is None:
+                break                                   # reached top of tree
+            ancestor = await session.get(Message, current.parent_id)
+            if ancestor.active_child_id != current.id:  # stale – patch it
+                await session.execute(
+                    update(Message)
+                    .where(Message.id == ancestor.id)
+                    .values(active_child_id=current.id)
+                )
+            current_id = ancestor.id
 
     async def update_message_content(
         self, mid: str, new: str, session: AsyncSession

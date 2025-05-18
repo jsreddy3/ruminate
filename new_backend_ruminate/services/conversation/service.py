@@ -67,6 +67,7 @@ class ConversationService:
                 conversation_id=conv.id,
                 role=Role.SYSTEM,
                 content=sys_text,
+                version=0,
             )
             await self._repo.add_message(root, session)
 
@@ -96,6 +97,7 @@ class ConversationService:
                 id=str(uuid4()),
                 conversation_id=conv_id,
                 parent_id=parent_id,
+                version=0,
                 role=Role.USER,
                 content=user_content,
             )
@@ -109,6 +111,7 @@ class ConversationService:
                 id=ai_id,
                 conversation_id=conv_id,
                 parent_id=user.id,
+                version=0,
                 role=Role.ASSISTANT,
                 content="",
             )
@@ -151,10 +154,12 @@ class ConversationService:
                 id=ai_id,
                 conversation_id=conv_id,
                 parent_id=sibling_id,
+                version=0,
                 role=Role.ASSISTANT,
                 content="",
             )
             await self._repo.add_message(placeholder, session)
+            await self._repo.set_active_child(sibling_id, ai_id, session)
 
             # 3 ─ rebuild thread up to parent + new branch
             prior = await self._repo.latest_thread(conv_id, session)

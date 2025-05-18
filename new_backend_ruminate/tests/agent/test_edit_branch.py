@@ -57,7 +57,7 @@ async def test_edit_branch_creates_new_path(db_session: AsyncSession):
 
     # confirm sibling version number = 2
     versions = await repo.message_versions(sib_id, db_session)
-    assert [m.version for m in versions] == [None, 1]
+    assert [m.version for m in versions] == [0, 1]
 
 @pytest.mark.asyncio
 async def test_continue_old_branch(db_session: AsyncSession):

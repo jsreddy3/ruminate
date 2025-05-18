@@ -52,9 +52,9 @@ class AgentService:
     async def _write_user_and_placeholder(self, cid, content, parent):
         async with session_scope() as s:
             u = Message(id=str(uuid4()), conversation_id=cid, parent_id=parent,
-                        role=Role.USER, content=content)
+                        role=Role.USER, content=content, version=0)
             p = Message(id=str(uuid4()), conversation_id=cid, parent_id=u.id,
-                        role=Role.ASSISTANT, content="")
+                        role=Role.ASSISTANT, content="", version=0)
             await self._repo.add_message(u, s)
             await self._repo.add_message(p, s)
             if parent:
@@ -70,7 +70,11 @@ class AgentService:
         async with session_scope() as s:
             conv  = await self._repo.get(cid, s)
             base  = await self._repo.latest_thread(cid, s)
-            user  = next(m for m in base if m.id == user_id)
+
+            user = next((m for m in base if m.id == user_id), None)
+            if user is None:                                   # off‐path branch
+                user = await s.get(Message, user_id)           # guaranteed to exist
+
             return await self._builder.build(conv, base + [user], session=s)
 
     # ───────────────────────── agent loop ───────────────────────── #
