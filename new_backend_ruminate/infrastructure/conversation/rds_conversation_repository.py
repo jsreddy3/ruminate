@@ -151,29 +151,43 @@ class RDSConversationRepository(ConversationRepository):
         return sibling, sibling.id
 
     async def set_active_child(
-        self, parent_id: str, child_id: str, session: AsyncSession
+        self,
+        parent_id: str,
+        child_id: str,
+        session: AsyncSession,
     ) -> None:
-        # flip on the direct parent first
-        await session.execute(
-            update(Message)
-            .where(Message.id == parent_id)
-            .values(active_child_id=child_id)
-        )
+        """
+        Set `parent_id` → `child_id` and, in the same statement, repair every
+        ancestor’s `active_child_id` so the entire root-to-leaf path is again
+        consistent.  A recursive CTE climbs the parent links in-database, which
+        means one round-trip and row-level locks held for the shortest time
+        possible.
+        """
+        sql = text(
+            """
+            WITH RECURSIVE path AS (
+                -- anchor: the parent we were given
+                SELECT id          AS anc_id,
+                      :child_id   AS child_id
+                FROM   messages
+                WHERE  id = :parent_id
 
-        # climb to the root, repairing pointers
-        current_id = parent_id
-        while True:
-            current = await session.get(Message, current_id)
-            if current is None or current.parent_id is None:
-                break                                   # reached top of tree
-            ancestor = await session.get(Message, current.parent_id)
-            if ancestor.active_child_id != current.id:  # stale – patch it
-                await session.execute(
-                    update(Message)
-                    .where(Message.id == ancestor.id)
-                    .values(active_child_id=current.id)
-                )
-            current_id = ancestor.id
+                UNION ALL
+
+                -- climb: for each current ancestor, fetch its own parent
+                SELECT m.parent_id AS anc_id,
+                      m.id        AS child_id
+                FROM   messages m
+                JOIN   path     p ON m.id = p.anc_id
+                WHERE  m.parent_id IS NOT NULL
+            )
+            UPDATE messages AS tgt
+            SET    active_child_id = path.child_id
+            FROM   path
+            WHERE  tgt.id = path.anc_id;
+            """
+        )
+        await session.execute(sql, {"parent_id": parent_id, "child_id": child_id})
 
     async def update_message_content(
         self, mid: str, new: str, session: AsyncSession

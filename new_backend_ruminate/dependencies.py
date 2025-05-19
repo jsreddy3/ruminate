@@ -22,7 +22,6 @@ from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
 from new_backend_ruminate.context.renderers.agent import register_agent_renderers
-from new_backend_ruminate.infrastructure.tools.echo_tool import register_tool
 
 register_agent_renderers()
 
