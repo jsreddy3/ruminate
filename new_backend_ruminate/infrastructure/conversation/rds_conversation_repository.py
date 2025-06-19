@@ -17,7 +17,6 @@ from new_backend_ruminate.domain.conversation.repo import (
     ConversationRepository,
 )
 
-
 class RDSConversationRepository(ConversationRepository):
     # ─────────────────────────────── creation / reads ───────────────────────────── #
 

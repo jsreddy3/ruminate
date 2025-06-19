@@ -17,6 +17,7 @@ _TRUNC = 1024
 class _DefaultToolResultRetriever:
     async def fetch(self, ref: str, *, session: AsyncSession) -> str:
         return textwrap.shorten(ref, _TRUNC, placeholder=" …")
+        
 
 
 register_retriever("tool_result_default", _DefaultToolResultRetriever())
