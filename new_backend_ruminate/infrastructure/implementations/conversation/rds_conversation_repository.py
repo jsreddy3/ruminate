@@ -10,6 +10,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.domain.conversation.entities.message import Message
@@ -25,10 +26,10 @@ class RDSConversationRepository(ConversationRepository):
         await session.flush()               # let PKs materialise
         return conv
 
-    async def get(self, cid: str, session: AsyncSession) -> Optional[Conversation]:
+    async def get(self, cid: UUID, session: AsyncSession) -> Optional[Conversation]:
         return await session.get(Conversation, cid)
 
-    async def latest_thread(self, cid: str, session: AsyncSession) -> List[Message]:
+    async def latest_thread(self, cid: UUID, session: AsyncSession) -> List[Message]:
         dialect: Dialect = session.bind.dialect        # ← runtime dialect
 
         if getattr(dialect, "supports_distinct_on", False):      # PostgreSQL path
@@ -82,12 +83,12 @@ class RDSConversationRepository(ConversationRepository):
         rows = (await session.execute(sql, {"cid": cid})).mappings()
         return [Message(**r) for r in rows]
 
-    async def full_tree(self, cid: str, session: AsyncSession) -> List[Message]:
+    async def full_tree(self, cid: UUID, session: AsyncSession) -> List[Message]:
         stmt = select(Message).where(Message.conversation_id == cid)
         return list((await session.scalars(stmt)).all())
 
     async def message_versions(
-        self, mid: str, session: AsyncSession
+        self, mid: UUID, session: AsyncSession
     ) -> List[Message]:
         """
         Returns **all** siblings that share the same parent, ordered by version.
@@ -114,7 +115,7 @@ class RDSConversationRepository(ConversationRepository):
         await session.flush()
 
     async def edit_message(
-        self, msg_id: str, new_content: str, session: AsyncSession
+        self, msg_id: UUID, new_content: str, session: AsyncSession
     ) -> Tuple[Message, str]:
         """
         Creates a **sibling version** of `msg_id` (version + 1) and returns it.
@@ -151,8 +152,8 @@ class RDSConversationRepository(ConversationRepository):
 
     async def set_active_child(
         self,
-        parent_id: str,
-        child_id: str,
+        parent_id: UUID,
+        child_id: UUID,
         session: AsyncSession,
     ) -> None:
         """
@@ -189,7 +190,7 @@ class RDSConversationRepository(ConversationRepository):
         await session.execute(sql, {"parent_id": parent_id, "child_id": child_id})
 
     async def update_message_content(
-        self, mid: str, new: str, session: AsyncSession
+        self, mid: UUID, new: str, session: AsyncSession
     ) -> None:
         await session.execute(
             update(Message)
@@ -198,7 +199,7 @@ class RDSConversationRepository(ConversationRepository):
         )
 
     async def update_active_thread(
-        self, cid: str, thread: list[str], session: AsyncSession
+        self, cid: UUID, thread: list[UUID], session: AsyncSession
     ) -> None:
         """
         Stores the entire active thread array on the conversation row.

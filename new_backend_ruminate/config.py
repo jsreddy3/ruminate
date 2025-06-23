@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,14 +20,22 @@ class _Settings(BaseSettings):
     # Database (PostgreSQL only for production; SQLite allowed in tests) #
     # ------------------------------------------------------------------ #
     db_host: str = "localhost"
-    db_port: int = 5433
-    db_user: str = "postgres"
-    db_password: str = "postgres"
-    db_name: str = "ruminate"
+    db_port: int = 5432
+    db_user: str = "campfire"
+    db_password: str = "campfire"
+    db_name: str = "campfire"
     db_url: Optional[str] = None                 # full DSN wins if provided
     pool_size: int = 5
     max_overflow: int = 10
     sql_echo: bool = False
+
+    # ------------------------------------------------------------------ #
+    # Object Storage                                                     #
+    # ------------------------------------------------------------------ #
+    s3_bucket: str = Field(..., alias="S3_BUCKET")
+    aws_access_key: str = Field(..., alias="AWS_ACCESS_KEY_ID")
+    aws_secret_key: str = Field(..., alias="AWS_SECRET_ACCESS_KEY")
+    aws_region: str = "aws-west-2"
 
     # ------------------------------------------------------------------ #
     # LLM provider                                                       #
@@ -40,9 +48,11 @@ class _Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     env: str = "dev"                            # dev | staging | prod
     log_level: str = "INFO"
+    deepgram_api_key: str = Field(..., alias="DEEPGRAM_API_KEY")
+    video_service_url: str = Field(..., alias="VIDEO_SERVICE_URL")
 
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=(".env", "new_backend_ruminate/.env", "../.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
     )

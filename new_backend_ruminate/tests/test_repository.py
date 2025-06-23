@@ -3,7 +3,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
-from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+from new_backend_ruminate.infrastructure.implementations.conversation.rds_conversation_repository import RDSConversationRepository
 
 @pytest.mark.asyncio
 async def test_latest_thread_linear(db_session: AsyncSession):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio, json
 from typing import Dict, List
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
 from new_backend_ruminate.domain.conversation.repo import ConversationRepository
@@ -38,8 +38,8 @@ class AgentService:
     # ───────────────────────── API entry ───────────────────────── #
 
     async def send_agent_message(
-        self, *, conv_id: str, user_content: str, parent_id: str | None
-    ) -> tuple[str, str]:
+        self, *, conv_id: UUID, user_content: str, parent_id: UUID | None
+    ) -> tuple[UUID, UUID]:
         user_id, placeholder_id = await self._write_user_and_placeholder(
             conv_id, user_content, parent_id
         )
@@ -49,11 +49,11 @@ class AgentService:
 
     # ────────────────────── helpers (unchanged) ─────────────────── #
 
-    async def _write_user_and_placeholder(self, cid, content, parent):
+    async def _write_user_and_placeholder(self, cid: UUID, content: str, parent: UUID | None):
         async with session_scope() as s:
-            u = Message(id=str(uuid4()), conversation_id=cid, parent_id=parent,
+            u = Message(id=uuid4(), conversation_id=cid, parent_id=parent,
                         role=Role.USER, content=content, version=0)
-            p = Message(id=str(uuid4()), conversation_id=cid, parent_id=u.id,
+            p = Message(id=uuid4(), conversation_id=cid, parent_id=u.id,
                         role=Role.ASSISTANT, content="", version=0)
             await self._repo.add_message(u, s)
             await self._repo.add_message(p, s)
@@ -66,7 +66,7 @@ class AgentService:
             )
         return u.id, p.id
 
-    async def _initial_prompt(self, cid, user_id):
+    async def _initial_prompt(self, cid: UUID, user_id: UUID):
         async with session_scope() as s:
             conv  = await self._repo.get(cid, s)
             base  = await self._repo.latest_thread(cid, s)
@@ -81,8 +81,8 @@ class AgentService:
 
     async def _loop(
         self,
-        cid: str,
-        ph_id: str,
+        cid: UUID,
+        ph_id: UUID,
         messages: List[Dict[str, str]],
     ) -> None:
         for _ in range(_MAX_STEPS):
@@ -142,10 +142,10 @@ class AgentService:
     async def edit_agent_message(
         self,
         *,
-        conv_id: str,
-        msg_id: str,
+        conv_id: UUID,
+        msg_id: UUID,
         new_content: str,
-    ) -> tuple[str, str]:
+    ) -> tuple[UUID, UUID]:
         """
         Creates a sibling version of `msg_id`, inserts a fresh assistant
         placeholder, rewires the active thread to the new branch, then
@@ -193,11 +193,11 @@ class AgentService:
 
     # ───────────────────── utility helpers ─────────────────────── #
 
-    async def _stream_answer(self, ph_id: str, text: str):
+    async def _stream_answer(self, ph_id: UUID, text: str):
         for tok in text.split():
             await self._hub.publish(ph_id, tok + " ")
         await self._hub.terminate(ph_id)
 
-    async def _finalise(self, mid: str, text: str):
+    async def _finalise(self, mid: UUID, text: str):
         async with session_scope() as s:
             await self._repo.update_message_content(mid, text, s)

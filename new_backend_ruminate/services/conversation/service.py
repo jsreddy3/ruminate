@@ -1,7 +1,7 @@
 # new_backend_ruminate/services/conversation/service.py
 from __future__ import annotations
 from typing import List, Tuple, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +35,7 @@ class ConversationService:
 
     # ─────────────────────────────── helpers ──────────────────────────────── #
 
-    async def _publish_stream(self, ai_id: str, prompt: List[dict[str, str]]) -> None:
+    async def _publish_stream(self, ai_id: UUID, prompt: List[dict[str, str]]) -> None:
         full = ""
         async for chunk in self._llm.generate_response_stream(prompt):
             full += chunk
@@ -53,7 +53,7 @@ class ConversationService:
         *,
         conv_type: str = "chat",
         meta: dict[str, Any] | None = None,
-    ) -> tuple[str, str]:
+    ) -> tuple[UUID, UUID]:
         async with session_scope() as session:
             conv = Conversation(type=conv_type.upper(), meta_data=meta or {})
             await self._repo.create(conv, session)
@@ -81,10 +81,10 @@ class ConversationService:
         self,
         *,
         background: BackgroundTasks,
-        conv_id: str,
+        conv_id: UUID,
         user_content: str,
-        parent_id: str | None,
-    ) -> Tuple[str, str]:
+        parent_id: UUID | None,
+    ) -> Tuple[UUID, UUID]:
         """
         Standard user turn: write user + placeholder, extend active thread,
         commit, then stream.
@@ -135,10 +135,10 @@ class ConversationService:
         self,
         *,
         background: BackgroundTasks,
-        conv_id: str,
-        msg_id: str,
+        conv_id: UUID,
+        msg_id: UUID,
         new_content: str,
-    ) -> Tuple[str, str]:
+    ) -> Tuple[UUID, UUID]:
         """
         Creates a sibling version of `msg_id`, attaches new assistant placeholder,
         flips parent pointer, updates thread, then streams.
@@ -178,14 +178,14 @@ class ConversationService:
         return sibling_id, ai_id
 
     # simple pass-through reads
-    async def get_latest_thread(self, cid: str, session: AsyncSession) -> List[Message]:
+    async def get_latest_thread(self, cid: UUID, session: AsyncSession) -> List[Message]:
         return await self._repo.latest_thread(cid, session)
 
-    async def get_full_tree(self, cid: str, session: AsyncSession) -> List[Message]:
+    async def get_full_tree(self, cid: UUID, session: AsyncSession) -> List[Message]:
         return await self._repo.full_tree(cid, session)
 
-    async def get_versions(self, mid: str, session: AsyncSession) -> List[Message]:
+    async def get_versions(self, mid: UUID, session: AsyncSession) -> List[Message]:
         return await self._repo.message_versions(mid, session)
 
-    async def get_conversation(self, cid: str, session: AsyncSession):
+    async def get_conversation(self, cid: UUID, session: AsyncSession):
         return await self._repo.get(cid, session)

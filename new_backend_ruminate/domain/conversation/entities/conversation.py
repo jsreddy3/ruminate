@@ -4,7 +4,8 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, Optional
-from uuid import uuid4
+from uuid import uuid4, UUID as PYUUID
+from sqlalchemy.dialects.postgresql import UUID
 
 from sqlalchemy import (
     Boolean,
@@ -32,8 +33,8 @@ class Conversation(Base):
     __tablename__ = "conversations"
     __table_args__ = (UniqueConstraint("id", name="uq_conversation_id"),)
 
-    id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid4())
+    id: Mapped[PYUUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
@@ -42,8 +43,8 @@ class Conversation(Base):
     meta_data: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    root_message_id: Mapped[Optional[str]] = mapped_column(String)
-    active_thread_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    root_message_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
+    active_thread_ids: Mapped[list[UUID]] = mapped_column(JSON, default=list)
 
     type: Mapped[ConversationType] = mapped_column(
         SAEnum(ConversationType), default=ConversationType.CHAT, nullable=False

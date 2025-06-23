@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
-from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+from new_backend_ruminate.infrastructure.implementations.conversation.rds_conversation_repository import RDSConversationRepository
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.services.conversation.service import ConversationService

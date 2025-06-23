@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from typing import AsyncIterator, Dict, List
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,10 @@ class EventStreamHub:
     """
 
     def __init__(self) -> None:
-        self._queues: Dict[str, List[asyncio.Queue[str]]] = defaultdict(list)
+        self._queues: Dict[UUID, List[asyncio.Queue[str]]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
-    async def register_consumer(self, stream_id: str) -> AsyncIterator[str]:
+    async def register_consumer(self, stream_id: UUID) -> AsyncIterator[str]:
         q: asyncio.Queue[str] = asyncio.Queue(maxsize=256)
         async with self._lock:
             self._queues[stream_id].append(q)
@@ -37,13 +38,13 @@ class EventStreamHub:
                     if not lst:
                         self._queues.pop(stream_id, None)
 
-    async def publish(self, stream_id: str, chunk: str) -> None:
+    async def publish(self, stream_id: UUID, chunk: str) -> None:
         async with self._lock:
             queues = self._queues.get(stream_id, [])
             for q in queues:
                 await q.put(chunk)
 
-    async def terminate(self, stream_id: str) -> None:
+    async def terminate(self, stream_id: UUID) -> None:
         async with self._lock:
             queues = self._queues.pop(stream_id, [])
             for q in queues:

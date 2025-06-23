@@ -3,12 +3,13 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum
-from uuid import uuid4
+from uuid import uuid4, UUID as PYUUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import validates
 
 from sqlalchemy import (
     Column, DateTime, Enum as SAEnum, ForeignKey,
-    Integer, String, Text, JSON, UniqueConstraint, Index, desc
+    Integer, Text, JSON, UniqueConstraint, Index, desc
 )
 from new_backend_ruminate.infrastructure.db.meta import Base
 
@@ -28,16 +29,16 @@ class Message(Base):                               # pure ORM, no Pydantic
         Index("ix_parent_version_desc", "parent_id", desc("version")),
     )
 
-    id              = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    conversation_id = Column(String, ForeignKey("conversations.id"), index=True)
-    parent_id       = Column(String, ForeignKey("messages.id"), nullable=True, index=True)
+    id              = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), index=True)
+    parent_id       = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=True, index=True)
     version         = Column(Integer, nullable=True)
     role            = Column(SAEnum(Role), nullable=False)
     content         = Column(Text, default="")
     meta_data       = Column(JSON, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
     active_child_id = Column(
-        String,
+        UUID(as_uuid=True),
         ForeignKey("messages.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

@@ -2,7 +2,7 @@ import pytest, asyncio
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import (
+from new_backend_ruminate.infrastructure.implementations.conversation.rds_conversation_repository import (
     RDSConversationRepository,
 )
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub

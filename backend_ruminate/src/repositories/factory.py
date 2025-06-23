@@ -48,6 +48,7 @@ class RepositoryFactory:
             # Import both RDS and SQLite implementations
             from .implementations.rds_document_repository import RDSDocumentRepository
             from .implementations.rds_conversation_repository import RDSConversationRepository
+            from .implementations.rds_dream_repository import RDSDreamRepository
             
             # Create session factory for PostgreSQL if not exists
             if 'session_factory' not in kwargs:
@@ -64,6 +65,7 @@ class RepositoryFactory:
             # Use RDS for document, conversation, agent process, notes, and chunk index repositories
             self._document_repo = RDSDocumentRepository(kwargs['session_factory'])
             self._conversation_repo = RDSConversationRepository(kwargs['session_factory'])
+            self._dream_repo = RDSDreamRepository(kwargs['session_factory'])
             self._agent_process_repo = RDSAgentProcessRepository(kwargs['session_factory'])
             self._notes_repo = RDSNotesRepository(kwargs['session_factory'])
 

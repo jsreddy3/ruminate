@@ -5,7 +5,7 @@ import pytest_asyncio
 from fastapi import BackgroundTasks
 
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
-from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+from new_backend_ruminate.infrastructure.implementations.conversation.rds_conversation_repository import RDSConversationRepository
 from new_backend_ruminate.services.conversation.service import ConversationService
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.domain.conversation.entities.message import Message 
