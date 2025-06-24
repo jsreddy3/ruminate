@@ -10,6 +10,7 @@ import uuid
 import asyncio
 from typing import Optional, List
 from uuid import UUID
+import json
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,7 @@ from new_backend_ruminate.domain.dream.entities.audio_segments import AudioSegme
 from new_backend_ruminate.domain.dream.repo import DreamRepository
 from new_backend_ruminate.domain.object_storage.repo import ObjectStorageRepository
 from new_backend_ruminate.domain.ports.transcription import TranscriptionService  # optional
+from new_backend_ruminate.dependencies import EventStreamHub
 
 
 class DreamService:
@@ -26,10 +28,12 @@ class DreamService:
         dream_repo: DreamRepository,
         storage_repo: ObjectStorageRepository,
         transcription_svc: Optional[TranscriptionService] = None,
+        event_hub: Optional[EventStreamHub] = None,
     ) -> None:
         self._repo = dream_repo
         self._storage = storage_repo
         self._transcribe = transcription_svc
+        self._hub = event_hub
 
     # ─────────────────────────────── dreams ──────────────────────────────── #
 
@@ -59,7 +63,7 @@ class DreamService:
         session: AsyncSession,
     ) -> AudioSegment:
         seg = AudioSegment(
-            id=seg_payload.id,
+            id=seg_payload.segment_id,
             dream_id=did,
             filename=seg_payload.filename,
             duration=seg_payload.duration,
@@ -116,10 +120,19 @@ class DreamService:
 
         from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
         print("Generating url")
-        url = await self._storage.generate_presigned_get(did, filename)
+        key, url = await self._storage.generate_presigned_get(did, filename)
         print("Transcribing")
         transcript = await self._transcribe.transcribe(url)
         print("Transcript: ", transcript)
         if transcript:
             async with session_scope() as session:
                 await self._repo.update_segment_transcript(did, sid, transcript, session)
+            if self._hub:
+                await self._hub.publish(
+                    stream_id=did,
+                    chunk=json.dumps({
+                        "segment_id": str(sid),
+                        "transcript": transcript,
+                    })
+                )
+                

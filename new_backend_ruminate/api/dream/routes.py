@@ -4,13 +4,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from fastapi.responses import StreamingResponse
 
-from new_backend_ruminate.domain.dream.entities.dream import DreamStatus
-from new_backend_ruminate.domain.dream.repo import DreamRepository
+from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.services.dream.service import DreamService
 from new_backend_ruminate.domain.object_storage.repo import ObjectStorageRepository
 from new_backend_ruminate.dependencies import (
     get_session,
+    get_event_hub,
     get_dream_service,
     get_storage_service,
 )
@@ -109,6 +110,15 @@ async def list_segments(
     if not dream:
         raise HTTPException(404, "Dream not found")
     return dream.segments
+
+# --------------------------- dream stream ------------------------------ #
+
+@router.get("/{did}/stream")
+async def stream(did: UUID, hub: EventStreamHub = Depends(get_event_hub)):
+    async def event_source():
+        async for chunk in hub.register_consumer(did):
+            yield f"data: {chunk}\n\n"
+    return StreamingResponse(event_source(), media_type="text/event-stream")
 
 # ─────────────────────────── presigned URL ─────────────────────────── #
 
