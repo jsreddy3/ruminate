@@ -26,12 +26,14 @@ router = APIRouter(prefix="/dreams", tags=["dreams"])
 
 # ─────────────────────────────── dreams ─────────────────────────────── #
 
-@router.get("/", response_model=list[DreamRead], name="list_dreams")
+@router.get("/", name="list_dreams")
 async def list_dreams(
     svc: DreamService = Depends(get_dream_service),
     db: AsyncSession = Depends(get_session),
 ):
-    return await svc.list_dreams(db)
+    dreams = await svc.list_dreams(db)
+    # Manually serialize to include video_s3_key
+    return [DreamRead.model_validate(dream).model_dump() for dream in dreams]
 
 @router.post("/", response_model=DreamRead, status_code=status.HTTP_201_CREATED)
 async def create_dream(
@@ -41,7 +43,7 @@ async def create_dream(
 ):
     return await svc.create_dream(payload, db)
 
-@router.get("/{did}", response_model=DreamRead)
+@router.get("/{did}")
 async def read_dream(
     did: UUID,
     svc: DreamService = Depends(get_dream_service),
@@ -50,9 +52,9 @@ async def read_dream(
     dream = await svc.get_dream(did, db)
     if not dream:
         raise HTTPException(404, "Dream not found")
-    return dream
+    return DreamRead.model_validate(dream).model_dump()
 
-@router.patch("/{did}", response_model=DreamRead)
+@router.patch("/{did}")
 async def update_title(
     did: UUID,
     patch: DreamUpdate,
@@ -62,7 +64,7 @@ async def update_title(
     dream = await svc.update_title(did, patch.title, db)
     if not dream:
         raise HTTPException(404, "Dream not found")
-    return dream
+    return DreamRead.model_validate(dream).model_dump()
 
 @router.get("/{did}/transcript", response_model=TranscriptRead)
 async def get_transcript(

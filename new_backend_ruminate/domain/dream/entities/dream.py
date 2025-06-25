@@ -9,9 +9,9 @@ from sqlalchemy.orm import relationship
 from new_backend_ruminate.infrastructure.db.meta import Base
 
 class DreamStatus(str, Enum):
-    PENDING = "pending"
-    TRANSCRIBED = "transcribed"
-    VIDEO_READY = "video_ready"
+    PENDING = "draft"  # Match iOS app expectation
+    TRANSCRIBED = "completed"  # Match iOS app expectation  
+    VIDEO_READY = "video_generated"  # Match iOS app expectation
 
 class VideoStatus(str, Enum):
     QUEUED = "queued"

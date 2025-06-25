@@ -1,7 +1,8 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict, computed_field
+import json
 
 class AudioSegmentBase(BaseModel):
     filename: str
@@ -13,11 +14,12 @@ class AudioSegmentCreate(AudioSegmentBase):
     segment_id: UUID
 
 class AudioSegmentRead(AudioSegmentBase):
-    segment_id: UUID = Field(alias="id")
+    id: UUID = Field(alias="segment_id")  # Swap field name and alias
     transcript: Optional[str] = None
 
     model_config = ConfigDict(
         from_attributes=True,
+        populate_by_name=True,
         json_encoders = {
             datetime: lambda dt: dt.isoformat(timespec="seconds") + "Z"
         }
@@ -41,14 +43,27 @@ class DreamRead(DreamBase):
     segments: List[AudioSegmentRead] = []
     video_url: Optional[str] = None
     
-    @computed_field
-    @property
-    def videoS3Key(self) -> Optional[str]:
+    @property  
+    def video_s3_key(self) -> Optional[str]:
         """Extract S3 key from video_url for iOS compatibility"""
         if self.video_url:
             # Extract key from URL: https://bucket.s3.region.amazonaws.com/dreams/uuid/video.mp4
             return self.video_url.split('.com/')[-1] if '.com/' in self.video_url else None
         return None
+    
+    def model_dump(self, **kwargs) -> Dict[str, Any]:
+        """Override to include video_s3_key in serialization"""
+        data = super().model_dump(**kwargs)
+        data['video_s3_key'] = self.video_s3_key
+        # Fix datetime format for iOS compatibility
+        if 'created' in data and isinstance(data['created'], datetime):
+            data['created'] = data['created'].isoformat(timespec="seconds") + "Z"
+        # Fix segment field names for iOS compatibility
+        if 'segments' in data:
+            for segment in data['segments']:
+                if 'segment_id' in segment:
+                    segment['id'] = segment.pop('segment_id')
+        return data
 
     model_config = ConfigDict(
         from_attributes=True,
