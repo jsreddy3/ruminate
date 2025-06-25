@@ -160,9 +160,28 @@ POST /dreams/{did}/video-complete
 }
 ```
 
+## System Requirements
+
+### FFmpeg Installation
+The video pipeline requires FFmpeg to be installed on your system:
+
+**macOS:**
+```bash
+brew install ffmpeg
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install ffmpeg
+```
+
+**Windows:**
+Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+
 ## TODO / Future Improvements
 
-1. **S3 Upload**: Currently returns mock S3 URLs. Need to implement actual S3 upload in `tasks.py`
+1. ~~**S3 Upload**: Currently returns mock S3 URLs. Need to implement actual S3 upload in `tasks.py`~~ ✅ COMPLETED
 2. **Progress Updates**: Add real-time progress updates via SSE
 3. **Priority Queues**: Implement different priority levels for premium users
 4. **Video Preview**: Generate low-res previews quickly

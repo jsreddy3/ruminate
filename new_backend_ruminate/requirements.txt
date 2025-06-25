@@ -33,3 +33,6 @@ greenlet
 celery[redis]
 redis
 kombu
+Pillow
+ffmpeg-python
+numpy

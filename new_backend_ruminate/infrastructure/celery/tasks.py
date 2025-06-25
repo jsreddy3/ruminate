@@ -3,6 +3,10 @@ from typing import Dict, List, Any
 from celery import Task
 import httpx
 import asyncio
+import boto3
+from botocore.config import Config
+from pathlib import Path
+import shutil
 
 from new_backend_ruminate.config import settings
 from . import celery_app
@@ -68,9 +72,11 @@ def generate_video_task(
             self.pipeline.generate_video(transcript, dream_id)
         )
         
+        # Ensure video_path is a Path object
+        if not isinstance(video_path, Path):
+            video_path = Path(video_path)
+        
         # Upload to S3 and get URL
-        # For now, we'll use the local path as a placeholder
-        # In production, this would upload to S3 and return the S3 URL
         video_url = await _upload_video_to_s3(video_path, dream_id)
         
         # Combine metadata
@@ -105,19 +111,58 @@ def generate_video_task(
         raise
 
 
-async def _upload_video_to_s3(video_path, dream_id: str) -> str:
+async def _upload_video_to_s3(video_path: Path, dream_id: str) -> str:
     """
     Upload video to S3 and return the URL.
     
-    TODO: Implement actual S3 upload using boto3
+    Args:
+        video_path: Path to the local video file
+        dream_id: UUID of the dream
+        
+    Returns:
+        S3 URL of the uploaded video
     """
-    # Placeholder - in production this would:
-    # 1. Upload the video file to S3
-    # 2. Clean up the local file
-    # 3. Return the S3 URL
-    
-    # For now, return a mock S3 URL
-    return f"https://{settings().s3_bucket}.s3.{settings().aws_region}.amazonaws.com/videos/{dream_id}.mp4"
+    try:
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings().aws_access_key,
+            aws_secret_access_key=settings().aws_secret_key,
+            region_name=settings().aws_region,
+            config=Config(signature_version='s3v4')
+        )
+        
+        # Define S3 key
+        s3_key = f"dreams/{dream_id}/video.mp4"
+        bucket_name = settings().s3_bucket
+        
+        logger.info(f"Uploading video to S3: s3://{bucket_name}/{s3_key}")
+        
+        # Upload file to S3
+        with open(video_path, 'rb') as f:
+            s3_client.upload_file(
+                str(video_path),
+                bucket_name,
+                s3_key,
+                ExtraArgs={'ContentType': 'video/mp4'}
+            )
+        
+        # Construct S3 URL
+        s3_url = f"https://{bucket_name}.s3.{settings().aws_region}.amazonaws.com/{s3_key}"
+        
+        logger.info(f"Successfully uploaded video to S3: {s3_url}")
+        
+        # Clean up local files
+        output_dir = video_path.parent
+        if output_dir.exists() and output_dir.name == dream_id:
+            logger.info(f"Cleaning up local files in {output_dir}")
+            shutil.rmtree(output_dir)
+        
+        return s3_url
+        
+    except Exception as e:
+        logger.error(f"Failed to upload video to S3 for dream {dream_id}: {str(e)}")
+        raise
 
 
 async def _send_completion_callback(dream_id: str, video_url: str, metadata: Dict[str, Any]):
