@@ -54,3 +54,15 @@ class S3StorageRepository(ObjectStorageRepository):
             None,
             lambda: self._client.delete_object(Bucket=self._bucket, Key=key),
         )
+    
+    async def generate_presigned_get_by_key(self, key: str) -> str:
+        """Generate presigned URL for a specific S3 key"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self._client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self._bucket, "Key": key},
+                ExpiresIn=3600,  # 1 hour expiry
+            ),
+        )

@@ -19,7 +19,7 @@ from . import schemas
 from .schemas import (
     DreamCreate, DreamUpdate, DreamRead,
     AudioSegmentCreate, AudioSegmentRead, TranscriptRead,
-    UploadUrlResponse,
+    UploadUrlResponse, VideoURLResponse,
 )
 
 router = APIRouter(prefix="/dreams", tags=["dreams"])
@@ -164,3 +164,28 @@ async def get_video_status(
     """Get the current status of video generation for a dream."""
     status_info = await svc.get_video_status(did)
     return status_info
+
+@router.get("/{did}/video-url/", response_model=VideoURLResponse)
+async def get_video_url(
+    did: UUID,
+    svc: DreamService = Depends(get_dream_service),
+    storage: ObjectStorageRepository = Depends(get_storage_service),
+    db: AsyncSession = Depends(get_session),
+):
+    """Get a presigned URL for video playback."""
+    # Get the dream to check if it has a video
+    dream = await svc.get_dream(did, db)
+    if not dream:
+        raise HTTPException(404, "Dream not found")
+    
+    if not dream.video_url or dream.state != "video_generated":
+        raise HTTPException(404, "Video not available for this dream")
+    
+    # Extract S3 key from the video URL
+    # Expected format: https://bucket.s3.region.amazonaws.com/dreams/uuid/video.mp4
+    video_s3_key = dream.video_url.split('.com/')[-1]
+    
+    # Generate a presigned URL for viewing
+    presigned_url = await storage.generate_presigned_get_by_key(video_s3_key)
+    
+    return VideoURLResponse(video_url=presigned_url, expires_in=3600)

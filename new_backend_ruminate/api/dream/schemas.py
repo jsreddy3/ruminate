@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, computed_field
 
 class AudioSegmentBase(BaseModel):
     filename: str
@@ -39,6 +39,16 @@ class DreamRead(DreamBase):
     transcript: Optional[str]
     state: str
     segments: List[AudioSegmentRead] = []
+    video_url: Optional[str] = None
+    
+    @computed_field
+    @property
+    def videoS3Key(self) -> Optional[str]:
+        """Extract S3 key from video_url for iOS compatibility"""
+        if self.video_url:
+            # Extract key from URL: https://bucket.s3.region.amazonaws.com/dreams/uuid/video.mp4
+            return self.video_url.split('.com/')[-1] if '.com/' in self.video_url else None
+        return None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -64,3 +74,7 @@ class VideoStatusResponse(BaseModel):
     job_id: Optional[str]
     status: Optional[str]
     video_url: Optional[str]
+
+class VideoURLResponse(BaseModel):
+    video_url: str
+    expires_in: int = 3600  # URL expires in 1 hour by default
