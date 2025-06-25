@@ -2,11 +2,11 @@
 """
 Celery worker entry point for video generation.
 
-To run the worker:
-    celery -A worker worker --loglevel=info
+To run the worker from ruminate root:
+    celery -A new_backend_ruminate.worker worker --loglevel=info
 
 To run with autoreload during development:
-    celery -A worker worker --loglevel=info --autoreload
+    celery -A new_backend_ruminate.worker worker --loglevel=info --autoreload
 """
 
 from new_backend_ruminate.infrastructure.celery import celery_app

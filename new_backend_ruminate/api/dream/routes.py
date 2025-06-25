@@ -15,6 +15,7 @@ from new_backend_ruminate.dependencies import (
     get_dream_service,
     get_storage_service,
 )
+from . import schemas
 from .schemas import (
     DreamCreate, DreamUpdate, DreamRead,
     AudioSegmentCreate, AudioSegmentRead, TranscriptRead,

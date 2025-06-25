@@ -20,7 +20,7 @@ Jinja2
 openai
 python-dotenv
 python-multipart
-pyyaml
+pyyaml>=6.0
 setuptools
 typing_extensions
 websockets
