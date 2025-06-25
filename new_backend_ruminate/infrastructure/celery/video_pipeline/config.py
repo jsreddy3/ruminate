@@ -19,6 +19,29 @@ def load_config() -> Dict[str, Any]:
                 "model": "gpt-4o-mini",
                 "temperature": 0.7,
             },
+            "image_generation": {
+                "model": "dall-e-2",  # Options: dall-e-2, dall-e-3, gpt-4
+                "style": "vivid",
+                "quality": "standard",
+                "size": "256x256",  # For DALL-E 2
+            },
+            "audio_generation": {
+                "model": "gpt-4o-mini-tts",
+                "voice": "onyx",
+                "speed": 1.0,
+                "instructions": "Dramatic storytelling, fantasy, deep voice, British cool guy, but also not annoying guy. wizard, old, documentary style but also a little funny and creepy",
+            },
+            "video_compilation": {
+                "resolution": "1920x1080",
+                "fps": 30,
+                "subtitle_style": "modern",
+                "subtitle_display_mode": "static",
+                "subtitle_timing_offset": -0.1,
+                "subtitle_font_size": 72,
+                "transitions": True,
+                "fade_duration_seconds": 0.5,
+                "output_format": "mp4",
+            },
         },
         "storage": {
             "local_path": "./output",  # Local storage for video files
