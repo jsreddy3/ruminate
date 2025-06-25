@@ -53,3 +53,14 @@ class TranscriptRead(BaseModel):
 class UploadUrlResponse(BaseModel):
     upload_url: str
     upload_key: str
+
+class VideoCompleteRequest(BaseModel):
+    video_url: Optional[str] = None
+    metadata: Optional[dict] = None
+    status: str  # "completed" or "failed"
+    error: Optional[str] = None
+
+class VideoStatusResponse(BaseModel):
+    job_id: Optional[str]
+    status: Optional[str]
+    video_url: Optional[str]

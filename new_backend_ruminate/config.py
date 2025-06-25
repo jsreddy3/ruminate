@@ -50,6 +50,18 @@ class _Settings(BaseSettings):
     log_level: str = "INFO"
     deepgram_api_key: str = Field(..., alias="DEEPGRAM_API_KEY")
     video_service_url: str = Field(..., alias="VIDEO_SERVICE_URL")
+    
+    # ------------------------------------------------------------------ #
+    # Celery/Redis Configuration                                         #
+    # ------------------------------------------------------------------ #
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis URL for Celery broker and result backend"
+    )
+    api_base_url: str = Field(
+        default="http://localhost:8000",
+        description="Base URL for worker callbacks to the API"
+    )
 
     model_config = SettingsConfigDict(
         env_file=(".env", "new_backend_ruminate/.env", "../.env"),

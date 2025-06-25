@@ -108,6 +108,71 @@ class DreamService:
         from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
         async with session_scope() as session:
             await self._repo.set_state(None, did, DreamStatus.VIDEO_READY.value, session)
+    
+    async def handle_video_completion(
+        self, 
+        dream_id: UUID,
+        status: str,
+        video_url: str | None = None,
+        metadata: dict | None = None,
+        error: str | None = None
+    ) -> None:
+        """Handle video generation completion callback from worker."""
+        from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
+        from new_backend_ruminate.domain.dream.entities.dream import VideoStatus
+        from datetime import datetime
+        
+        async with session_scope() as session:
+            dream = await self._repo.get_by_id(dream_id, session)
+            if not dream:
+                return
+            
+            # Update video fields based on status
+            if status == "completed":
+                dream.video_status = VideoStatus.COMPLETED
+                dream.video_url = video_url
+                dream.video_metadata = metadata
+                dream.video_completed_at = datetime.utcnow()
+                dream.state = DreamStatus.VIDEO_READY.value
+            else:  # failed
+                dream.video_status = VideoStatus.FAILED
+                dream.video_metadata = {"error": error} if error else None
+                dream.video_completed_at = datetime.utcnow()
+            
+            await session.commit()
+    
+    async def get_video_status(self, dream_id: UUID) -> dict:
+        """Get the current status of video generation for a dream."""
+        from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
+        from new_backend_ruminate.infrastructure.celery.adapter import CeleryVideoQueueAdapter
+        
+        async with session_scope() as session:
+            dream = await self._repo.get_by_id(dream_id, session)
+            if not dream:
+                return {"job_id": None, "status": None, "video_url": None}
+            
+            # If we have a job ID and status is not final, check with Celery
+            if dream.video_job_id and dream.video_status in [VideoStatus.QUEUED, VideoStatus.PROCESSING]:
+                video_queue = CeleryVideoQueueAdapter()
+                job_status = await video_queue.get_job_status(dream.video_job_id)
+                
+                # Update status if it changed
+                if job_status["status"] == "PROCESSING" and dream.video_status == VideoStatus.QUEUED:
+                    dream.video_status = VideoStatus.PROCESSING
+                    await session.commit()
+                
+                return {
+                    "job_id": dream.video_job_id,
+                    "status": dream.video_status,
+                    "video_url": dream.video_url
+                }
+            
+            # Return stored status
+            return {
+                "job_id": dream.video_job_id,
+                "status": dream.video_status,
+                "video_url": dream.video_url
+            }
 
     # ---------------------------------------------------------------------- #
     # Background helpers                                                     #

@@ -140,6 +140,26 @@ async def finish_dream(did: UUID, svc: DreamService = Depends(get_dream_service)
     return {"status": "video_queued"}
 
 @router.post("/{did}/video-complete")
-async def video_complete(did: UUID, svc: DreamService = Depends(get_dream_service)):
-    await svc.mark_video_complete(did)
+async def video_complete(
+    did: UUID, 
+    request: schemas.VideoCompleteRequest,
+    svc: DreamService = Depends(get_dream_service)
+):
+    """Handle video generation completion callback from worker."""
+    await svc.handle_video_completion(
+        dream_id=did,
+        status=request.status,
+        video_url=request.video_url,
+        metadata=request.metadata,
+        error=request.error
+    )
     return {"status": "ok"}
+
+@router.get("/{did}/video-status", response_model=schemas.VideoStatusResponse)
+async def get_video_status(
+    did: UUID,
+    svc: DreamService = Depends(get_dream_service)
+):
+    """Get the current status of video generation for a dream."""
+    status_info = await svc.get_video_status(did)
+    return status_info

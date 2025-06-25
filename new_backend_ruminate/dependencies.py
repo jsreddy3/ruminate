@@ -26,6 +26,8 @@ from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
 from new_backend_ruminate.context.renderers.agent import register_agent_renderers
+from new_backend_ruminate.infrastructure.celery.adapter import CeleryVideoQueueAdapter
+from new_backend_ruminate.domain.ports.video_queue import VideoQueuePort
 
 register_agent_renderers()
 
@@ -44,6 +46,7 @@ _agent_service = AgentService(_conversation_repo, _llm, _hub, _ctx_builder)
 _storage_service = S3StorageRepository()
 _transcribe = DeepgramTranscriptionService()
 _dream_service = DreamService(_dream_repo, _storage_service, _transcribe, _hub)   # _dream_repo = RDSDreamRepository()
+_video_queue = CeleryVideoQueueAdapter()
 
 # ─────────────────────── DI provider helpers ───────────────────── #
 
@@ -77,6 +80,10 @@ def get_storage_service() -> S3StorageRepository:
 
 def get_llm_service() -> OpenAILLM:
     return _llm
+
+def get_video_queue() -> VideoQueuePort:
+    """Return the singleton video queue adapter."""
+    return _video_queue
 
 from typing import AsyncGenerator
 
