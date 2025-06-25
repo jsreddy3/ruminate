@@ -56,9 +56,19 @@ async def test_video_generation():
             response.raise_for_status()
             print(f"✓ Added segment: {segment['filename']}")
         
-        # 3. Update dream transcript (normally done by transcription)
-        # For testing, we'll directly update via the API if there's an endpoint
-        # Otherwise, this would be done by the transcription service
+        # 3. Wait a moment and check if we need to mock transcripts
+        # In production, Deepgram would transcribe automatically
+        await asyncio.sleep(2)
+        
+        # Get the dream to check current state
+        response = await client.get(f"{API_BASE}/dreams/{dream_id}")
+        dream_data = response.json()
+        
+        # If no transcript exists, we'll need to update the database directly
+        # or ensure the segments have transcripts for video generation
+        if not dream_data.get('transcript'):
+            print("Note: No transcript found. Video generation might create a placeholder video.")
+            print("In production, Deepgram would provide real transcripts.")
         
         # 4. Finish the dream (triggers video generation)
         print("\nFinishing dream (this triggers video generation)...")

@@ -3,10 +3,10 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from new_backend_ruminate.dependencies import get_session
 from new_backend_ruminate.domain.dream.entities.dream import VideoStatus
-from new_backend_ruminate.infrastructure.implementations.rds_dream_repository import RDSDreamRepository
+from new_backend_ruminate.infrastructure.implementations.dream.rds_dream_repository import RDSDreamRepository
 from new_backend_ruminate.infrastructure.celery.adapter import CeleryVideoQueueAdapter
+from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,12 @@ async def create_video(dream_id: UUID):
     3. Updates the dream with the job ID and status
     """
     try:
-        async with get_session() as session:
+        async with session_scope() as session:
             # Get dream repository
-            dream_repo = RDSDreamRepository(session)
+            dream_repo = RDSDreamRepository()
             
             # Fetch the dream
-            dream = await dream_repo.get_by_id(dream_id)
+            dream = await dream_repo.get_dream(dream_id, session)
             if not dream:
                 logger.error(f"Dream {dream_id} not found")
                 return
@@ -38,6 +38,18 @@ async def create_video(dream_id: UUID):
             
             # Get transcript and segments
             transcript = dream.transcript or ""
+            
+            # If no transcript, try to build from segments
+            if not transcript and dream.segments:
+                segment_transcripts = [s.transcript for s in dream.segments if s.transcript]
+                if segment_transcripts:
+                    transcript = " ".join(segment_transcripts)
+            
+            # If still no transcript, use a test placeholder
+            if not transcript:
+                logger.warning(f"No transcript found for dream {dream_id}, using test placeholder")
+                transcript = "I had a dream where I was walking through a mysterious forest. The trees were tall and ancient, their branches reaching toward a starlit sky. I felt a sense of peace and wonder as I explored this magical place."
+            
             segments = [
                 {
                     "order": s.order,

@@ -1,0 +1,20 @@
+{
+  "dream_summary": "In this dream, I wandered through an enchanting forest filled with towering ancient trees and a serene starlit sky, evoking feelings of peace and wonder.",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "summary": "Entering the Enchanted Forest",
+      "visual_prompt": "A lush forest filled with towering, ancient trees. The bark is a deep brown, intertwined with glowing moss. The canopy is opened just enough to reveal a starlit sky shining through, casting a cool, mystical blue glow. Fireflies dance around, giving the scene an ethereal vibe. The ground is covered with soft, vibrant green ferns and flowers, creating a sense of tranquility. A gentle mist floats around the tree trunks.",
+      "voiceover_script": "As I entered the forest, I was enveloped in tranquility, surrounded by towering trees whispering ancient secrets under a starlit sky.",
+      "duration_sec": 5
+    },
+    {
+      "scene_id": 2,
+      "summary": "Discovering the Magic Within",
+      "visual_prompt": "A wider view of the forest as I walk deeper, revealing pathways lined with glimmers of light. The trees seem to stretch infinitely into the night sky. A small clearing ahead glows with a soft, golden light, as if inviting me further in. The atmosphere is filled with a magical essence, with a slight breeze causing the leaves to shimmer. The sky is a deep indigo with bright, twinkling stars.",
+      "voiceover_script": "Deeper into the forest, I felt the magic around me intensify; every step I took resonated with peace, awakening wonder from within.",
+      "duration_sec": 5
+    }
+  ],
+  "total_duration_sec": 10
+}

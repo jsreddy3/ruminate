@@ -12,6 +12,13 @@ def load_config() -> Dict[str, Any]:
         "pipeline": {
             "num_scenes": 2,  # Default number of scenes
             "scene_duration": 5,  # Default scene duration in seconds
+            "scene_parsing": {
+                "min_scenes": 1,
+                "max_scenes": 2,
+                "scene_duration_seconds": 5,
+                "model": "gpt-4o-mini",
+                "temperature": 0.7,
+            },
         },
         "storage": {
             "local_path": "./output",  # Local storage for video files

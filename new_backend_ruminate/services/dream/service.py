@@ -123,7 +123,7 @@ class DreamService:
         from datetime import datetime
         
         async with session_scope() as session:
-            dream = await self._repo.get_by_id(dream_id, session)
+            dream = await self._repo.get_dream(dream_id, session)
             if not dream:
                 return
             
@@ -145,9 +145,10 @@ class DreamService:
         """Get the current status of video generation for a dream."""
         from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
         from new_backend_ruminate.infrastructure.celery.adapter import CeleryVideoQueueAdapter
+        from new_backend_ruminate.domain.dream.entities.dream import VideoStatus
         
         async with session_scope() as session:
-            dream = await self._repo.get_by_id(dream_id, session)
+            dream = await self._repo.get_dream(dream_id, session)
             if not dream:
                 return {"job_id": None, "status": None, "video_url": None}
             
