@@ -67,8 +67,7 @@ def generate_video_task(
         
         # Generate video using the pipeline
         # The pipeline returns: (video_path, cost, metadata)
-        video_path, cost, pipeline_metadata = await asyncio.to_thread(
-            asyncio.run,
+        video_path, cost, pipeline_metadata = asyncio.run(
             self.pipeline.generate_video(transcript, dream_id)
         )
         
@@ -77,7 +76,7 @@ def generate_video_task(
             video_path = Path(video_path)
         
         # Upload to S3 and get URL
-        video_url = await _upload_video_to_s3(video_path, dream_id)
+        video_url = _upload_video_to_s3(video_path, dream_id)
         
         # Combine metadata
         metadata = {
@@ -111,7 +110,7 @@ def generate_video_task(
         raise
 
 
-async def _upload_video_to_s3(video_path: Path, dream_id: str) -> str:
+def _upload_video_to_s3(video_path: Path, dream_id: str) -> str:
     """
     Upload video to S3 and return the URL.
     

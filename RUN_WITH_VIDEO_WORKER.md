@@ -30,7 +30,7 @@ All commands should be run from the **ruminate root directory** (`/Users/vivekva
 
 ### 1. Start PostgreSQL and Redis with Docker
 ```bash
-docker compose up -d
+docker-compose up -d
 ```
 
 This starts both PostgreSQL and Redis in the background.
@@ -65,7 +65,7 @@ cd ..
 ### Check Services Status
 ```bash
 # Check if Redis is running
-docker compose ps
+docker-compose ps
 
 # Test Redis connection
 docker exec -it campfire-redis redis-cli ping
@@ -90,7 +90,7 @@ Then open http://localhost:5555 in your browser.
 
 ```bash
 # Stop Docker services
-docker compose down
+docker-compose down
 
 # Stop API: Ctrl+C in Terminal 1
 # Stop Worker: Ctrl+C in Terminal 2
@@ -102,7 +102,7 @@ docker compose down
 # From ruminate root directory:
 
 # 1. Start services
-docker compose up -d
+docker-compose up -d
 
 # 2. Run migrations  
 alembic -c new_backend_ruminate/alembic.ini upgrade head
