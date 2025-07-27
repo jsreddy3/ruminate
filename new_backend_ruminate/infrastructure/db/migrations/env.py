@@ -17,7 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.db import bootstrap  # <─ the module
 from new_backend_ruminate.infrastructure.db.meta import Base
-import new_backend_ruminate.domain # noqa: E402, F401
+
+# Import all models so Alembic can see them
+from new_backend_ruminate.domain.conversation.entities.conversation import Conversation  # noqa: F401
+from new_backend_ruminate.domain.conversation.entities.message import Message  # noqa: F401
 
 # --------------------------------------------------------------------- #
 # Logging                                                               #

@@ -30,29 +30,22 @@ class RDSConversationRepository(ConversationRepository):
         return await session.get(Conversation, cid)
 
     async def latest_thread(self, cid: str, session: AsyncSession) -> List[Message]:
-        dialect: Dialect = session.bind.dialect        # ← runtime dialect
+        dialect = session.bind.dialect        # ← runtime dialect
 
-        if getattr(dialect, "supports_distinct_on", False):      # PostgreSQL path
+        if dialect.name == "postgresql":      # PostgreSQL path
             sql = text(
                 """
                 WITH RECURSIVE thread AS (
-                  SELECT * FROM messages
+                  SELECT *, 0 as depth FROM messages
                   WHERE  conversation_id = :cid AND parent_id IS NULL
                   UNION ALL
-                  SELECT m.* FROM messages m
+                  SELECT m.*, t.depth + 1 FROM messages m
                   JOIN   thread t ON t.active_child_id = m.id
                   WHERE  m.conversation_id = :cid
-                  UNION ALL
-                  SELECT m.* FROM messages m
-                  JOIN   thread t ON t.id = m.parent_id
-                  WHERE  m.conversation_id = :cid
-                  AND    t.active_child_id IS NULL
-                  AND    m.version = (
-                         SELECT max(version) FROM messages
-                         WHERE parent_id = m.parent_id
-                         )
                 )
-                SELECT * FROM thread ORDER BY created_at;
+                SELECT id, conversation_id, parent_id, version, role, 
+                       content, meta_data, created_at, active_child_id 
+                FROM thread ORDER BY depth;
                 """
             )
         else:                                           # SQLite (no DISTINCT ON)
@@ -168,7 +161,7 @@ class RDSConversationRepository(ConversationRepository):
             WITH RECURSIVE path AS (
                 -- anchor: the parent we were given
                 SELECT id          AS anc_id,
-                      :child_id   AS child_id
+                      CAST(:child_id AS VARCHAR) AS child_id
                 FROM   messages
                 WHERE  id = :parent_id
 

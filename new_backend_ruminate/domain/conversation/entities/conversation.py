@@ -14,14 +14,15 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from new_backend_ruminate.infrastructure.db.meta import Base
 
 
 class ConversationType(str, Enum):
-    CHAT = "chat"                 # extend with more categories whenever you need
-    AGENT = "agent"
+    CHAT = "CHAT"
+    AGENT = "AGENT"
 
 class Conversation(Base):
     """

@@ -20,8 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Extend Postgres ENUMs; harmless no-ops under SQLite.
-    op.execute("ALTER TYPE role ADD VALUE IF NOT EXISTS 'tool'")
-    op.execute("ALTER TYPE conversationtype ADD VALUE IF NOT EXISTS 'agent'")
+    op.execute("ALTER TYPE role ADD VALUE IF NOT EXISTS 'TOOL'")
+    # AGENT already exists in our enum from the initial migration
+    pass
 
 
 def downgrade() -> None:

@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 from sqlalchemy.engine.url import URL
-from sqlalchemy.pool import NullPool, QueuePool
+from sqlalchemy.pool import NullPool, AsyncAdaptedQueuePool
 from sqlalchemy import text
 from new_backend_ruminate.config import _Settings as Settings
 
@@ -93,7 +93,7 @@ async def init_engine(settings: "Settings") -> None:
             port=settings.db_port,
             database=settings.db_name,
         )
-        pool_cls = QueuePool
+        pool_cls = NullPool  # Use NullPool for async PostgreSQL
     elif dialect == "sqlite":
         url = settings.db_url
         # SQLite in async mode is already serialised; no pool needed.
@@ -108,11 +108,12 @@ async def init_engine(settings: "Settings") -> None:
         poolclass=pool_cls,
     )
 
-    if pool_cls is QueuePool:
-        kw.update(
-            pool_size=settings.pool_size,
-            max_overflow=settings.max_overflow,
-        )
+    # NullPool doesn't use pool_size or max_overflow
+    # if pool_cls is AsyncAdaptedQueuePool:
+    #     kw.update(
+    #         pool_size=settings.pool_size,
+    #         max_overflow=settings.max_overflow,
+    #     )
     
     engine = create_async_engine(
         url,

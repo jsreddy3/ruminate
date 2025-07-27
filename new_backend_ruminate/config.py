@@ -20,7 +20,7 @@ class _Settings(BaseSettings):
     # Database (PostgreSQL only for production; SQLite allowed in tests) #
     # ------------------------------------------------------------------ #
     db_host: str = "localhost"
-    db_port: int = 5433
+    db_port: int = 5432
     db_user: str = "postgres"
     db_password: str = "postgres"
     db_name: str = "ruminate"
@@ -45,6 +45,7 @@ class _Settings(BaseSettings):
         env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # Ignore extra fields from .env
     )
 
     # ------------------------------------------------------------------ #
