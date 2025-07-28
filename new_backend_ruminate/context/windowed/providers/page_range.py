@@ -64,7 +64,9 @@ class PageRangeProvider:
         else:
             # Normal conversations have DYNAMIC page context from latest message
             for msg in reversed(thread):
-                if msg.role.value == "user" and msg.block_id:
+                # Handle both string and enum role types
+                role_value = msg.role.value if hasattr(msg.role, 'value') else msg.role
+                if role_value == "user" and msg.block_id:
                     block = await self.doc_repo.get_block(msg.block_id, session)
                     if block and block.page_number:
                         return block.page_number

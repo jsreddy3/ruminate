@@ -25,20 +25,25 @@ class ConversationHistoryProvider:
         messages = []
         
         for i, msg in enumerate(thread):
+            # Handle both string and enum role types for comparisons
+            role_value = msg.role.value if hasattr(msg.role, 'value') else msg.role
+            
             # Skip system messages - they're handled in ContextWindow
-            if msg.role == Role.SYSTEM:
+            if role_value == "SYSTEM" or role_value == "system":
                 continue
                 
             # Special handling for first user message in rabbithole conversations
             if (conv.type == ConversationType.RABBITHOLE and 
-                msg.role == Role.USER and 
+                (role_value == "USER" or role_value == "user") and 
                 i == 1):  # First user message after system
                 content = await self._enhance_rabbithole_first_message(conv, msg, session=session)
             else:
                 content = msg.content
                 
+            # Handle both string and enum role types
+            role_value = msg.role.value if hasattr(msg.role, 'value') else msg.role
             messages.append({
-                "role": msg.role.value.lower(),
+                "role": role_value.lower(),
                 "content": content
             })
             
