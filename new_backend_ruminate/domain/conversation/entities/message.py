@@ -10,6 +10,7 @@ from sqlalchemy import (
     Column, DateTime, Enum as SAEnum, ForeignKey,
     Integer, String, Text, JSON, UniqueConstraint, Index, desc
 )
+from sqlalchemy.orm import relationship
 from new_backend_ruminate.infrastructure.db.meta import Base
 
 
@@ -42,6 +43,18 @@ class Message(Base):                               # pure ORM, no Pydantic
         nullable=True,
         index=True,
     )
+    
+    # User relationship
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    # Document-related fields
+    document_id = Column(String, ForeignKey("documents.id"), nullable=True)
+    block_id = Column(String, ForeignKey("blocks.id"), nullable=True)
+    
+    # Relationships
+    user = relationship("UserModel", back_populates="messages")
+    document = relationship("DocumentModel", back_populates="messages")
+    block = relationship("BlockModel", back_populates="messages")
 
     @validates("meta_data")
     def _as_dict(self, _, val):

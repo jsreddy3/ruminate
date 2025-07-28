@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     # API Keys
     OPENAI_API_KEY: str
-    DATALAB_API_KEY: str
+    MARKER_API_KEY: str
     GEMINI_API_KEY: str
     GOOGLE_API_KEY: str
     
@@ -75,8 +75,8 @@ class Settings(BaseSettings):
         return self.OPENAI_API_KEY
         
     @property
-    def datalab_api_key(self):
-        return self.DATALAB_API_KEY
+    def marker_api_key(self):
+        return self.MARKER_API_KEY
         
     @property
     def gemini_api_key(self):

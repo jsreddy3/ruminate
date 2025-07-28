@@ -28,6 +28,9 @@ class RDSConversationRepository(ConversationRepository):
 
     async def get(self, cid: str, session: AsyncSession) -> Optional[Conversation]:
         return await session.get(Conversation, cid)
+    
+    async def get_message(self, mid: str, session: AsyncSession) -> Optional[Message]:
+        return await session.get(Message, mid)
 
     async def latest_thread(self, cid: str, session: AsyncSession) -> List[Message]:
         dialect = session.bind.dialect        # ← runtime dialect
@@ -203,3 +206,25 @@ class RDSConversationRepository(ConversationRepository):
             .where(Conversation.id == cid)
             .values(active_thread_ids=thread)
         )
+    
+    async def get_conversations_by_criteria(
+        self, criteria: dict, session: AsyncSession
+    ) -> List[Conversation]:
+        """
+        Query conversations by arbitrary criteria.
+        Used for finding rabbitholes by block_id, document_id, type, etc.
+        """
+        query = select(Conversation)
+        
+        # Build query dynamically based on criteria
+        if "source_block_id" in criteria:
+            query = query.where(Conversation.source_block_id == criteria["source_block_id"])
+        if "document_id" in criteria:
+            query = query.where(Conversation.document_id == criteria["document_id"])
+        if "type" in criteria:
+            query = query.where(Conversation.type == criteria["type"])
+        if "user_id" in criteria:
+            query = query.where(Conversation.user_id == criteria["user_id"])
+        
+        result = await session.execute(query)
+        return list(result.scalars().all())

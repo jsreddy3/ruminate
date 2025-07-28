@@ -7,13 +7,13 @@ from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
+from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.domain.conversation.repo import (
     ConversationRepository,
 )
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.domain.ports.llm import LLMService
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
-from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.context.prompts import agent_system_prompt, default_system_prompts
 from new_backend_ruminate.domain.ports.tool import tool_registry
@@ -51,17 +51,34 @@ class ConversationService:
     async def create_conversation(
         self,
         *,
+        user_id: str,
         conv_type: str = "chat",
         meta: dict[str, Any] | None = None,
+        document_id: str | None = None,
+        source_block_id: str | None = None,
+        selected_text: str | None = None,
+        text_start_offset: int | None = None,
+        text_end_offset: int | None = None,
     ) -> tuple[str, str]:
         async with session_scope() as session:
-            conv = Conversation(type=conv_type.upper(), meta_data=meta or {})
+            # Create conversation with appropriate fields
+            conv = Conversation(
+                user_id=user_id,
+                type=conv_type.upper(), 
+                meta_data=meta or {},
+                document_id=document_id,
+                source_block_id=source_block_id,
+                selected_text=selected_text,
+                text_start_offset=text_start_offset,
+                text_end_offset=text_end_offset
+            )
             await self._repo.create(conv, session)
 
-            if conv_type == "agent":                                    # ✱ new
+            # Select appropriate system prompt
+            if conv_type == "agent":
                 sys_text = agent_system_prompt(list(tool_registry.values()))
             else:
-                sys_text = default_system_prompts[conv_type]
+                sys_text = default_system_prompts.get(conv_type, default_system_prompts["chat"])
 
             root = Message(
                 conversation_id=conv.id,
@@ -84,6 +101,7 @@ class ConversationService:
         conv_id: str,
         user_content: str,
         parent_id: str | None,
+        user_id: str,
     ) -> Tuple[str, str]:
         """
         Standard user turn: write user + placeholder, extend active thread,
@@ -100,6 +118,7 @@ class ConversationService:
                 version=0,
                 role=Role.USER,
                 content=user_content,
+                user_id=user_id,
             )
             await self._repo.add_message(user, session)
             if parent_id:
@@ -114,6 +133,7 @@ class ConversationService:
                 version=0,
                 role=Role.ASSISTANT,
                 content="",
+                user_id=user_id,
             )
             await self._repo.add_message(placeholder, session)
             if parent_id:
@@ -138,6 +158,7 @@ class ConversationService:
         conv_id: str,
         msg_id: str,
         new_content: str,
+        user_id: str,
     ) -> Tuple[str, str]:
         """
         Creates a sibling version of `msg_id`, attaches new assistant placeholder,
@@ -157,6 +178,7 @@ class ConversationService:
                 version=0,
                 role=Role.ASSISTANT,
                 content="",
+                user_id=user_id,
             )
             await self._repo.add_message(placeholder, session)
             await self._repo.set_active_child(sibling_id, ai_id, session)
@@ -178,14 +200,27 @@ class ConversationService:
         return sibling_id, ai_id
 
     # simple pass-through reads
-    async def get_latest_thread(self, cid: str, session: AsyncSession) -> List[Message]:
+    async def get_latest_thread(self, cid: str, user_id: str, session: AsyncSession) -> List[Message]:
         return await self._repo.latest_thread(cid, session)
 
-    async def get_full_tree(self, cid: str, session: AsyncSession) -> List[Message]:
+    async def get_full_tree(self, cid: str, user_id: str, session: AsyncSession) -> List[Message]:
         return await self._repo.full_tree(cid, session)
 
-    async def get_versions(self, mid: str, session: AsyncSession) -> List[Message]:
+    async def get_versions(self, mid: str, user_id: str, session: AsyncSession) -> List[Message]:
+        # Verify message exists
+        message = await self._repo.get_message(mid, session)
+        if not message:
+            raise ValueError("Message not found")
+        
         return await self._repo.message_versions(mid, session)
 
-    async def get_conversation(self, cid: str, session: AsyncSession):
-        return await self._repo.get(cid, session)
+    async def get_conversation(self, cid: str, user_id: str, session: AsyncSession):
+        conv = await self._repo.get(cid, session)
+        if not conv or conv.user_id != user_id:
+            raise PermissionError("Access denied: You don't own this conversation")
+        return conv
+    
+    async def get_conversations_by_criteria(self, criteria: dict, user_id: str, session: AsyncSession) -> List[Conversation]:
+        # Add user_id to criteria to only return user's conversations
+        criteria["user_id"] = user_id
+        return await self._repo.get_conversations_by_criteria(criteria, session)

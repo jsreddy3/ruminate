@@ -22,7 +22,7 @@ class OpenAILLM(LLMService):
         out: List[Dict[str, str]] = []
         for m in msgs:
             if isinstance(m, Message):
-                out.append({"role": m.role, "content": m.content})
+                out.append({"role": m.role.value, "content": m.content})
             else:
                 out.append(m)                          # already dict-shaped
         return out

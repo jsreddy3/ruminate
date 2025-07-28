@@ -19,8 +19,7 @@ from new_backend_ruminate.infrastructure.db import bootstrap  # <─ the module
 from new_backend_ruminate.infrastructure.db.meta import Base
 
 # Import all models so Alembic can see them
-from new_backend_ruminate.domain.conversation.entities.conversation import Conversation  # noqa: F401
-from new_backend_ruminate.domain.conversation.entities.message import Message  # noqa: F401
+from new_backend_ruminate.infrastructure.db.models import *  # noqa: F401
 
 # --------------------------------------------------------------------- #
 # Logging                                                               #

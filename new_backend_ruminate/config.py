@@ -36,13 +36,41 @@ class _Settings(BaseSettings):
     openai_model: str = "gpt-4o"
 
     # ------------------------------------------------------------------ #
+    # Object Storage                                                     #
+    # ------------------------------------------------------------------ #
+    storage_type: str = "local"                  # local | s3
+    local_storage_path: str = "./storage"
+    s3_bucket_name: Optional[str] = None
+    s3_region: str = "us-west-1"
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+
+    # ------------------------------------------------------------------ #
+    # Document Processing                                                #
+    # ------------------------------------------------------------------ #
+    marker_api_url: str = "https://www.datalab.to/api/v1/marker"
+    marker_api_key: Optional[str] = None
+    marker_max_poll_attempts: int = 300          # 10 minutes with 2s intervals
+    marker_poll_interval: int = 2                # seconds
+
+    # ------------------------------------------------------------------ #
+    # Authentication                                                     #
+    # ------------------------------------------------------------------ #
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    google_redirect_uri: str = "http://localhost:8000/auth/callback"
+    jwt_secret_key: Optional[str] = None
+    jwt_algorithm: str = "HS256"
+    jwt_expire_hours: int = 24
+
+    # ------------------------------------------------------------------ #
     # Misc                                                                #
     # ------------------------------------------------------------------ #
     env: str = "dev"                            # dev | staging | prod
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=(".env", "../.env", "new_backend_ruminate/.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # Ignore extra fields from .env

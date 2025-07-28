@@ -38,23 +38,29 @@ class AgentService:
     # ───────────────────────── API entry ───────────────────────── #
 
     async def send_agent_message(
-        self, *, conv_id: str, user_content: str, parent_id: str | None
+        self, *, conv_id: str, user_content: str, parent_id: str | None, user_id: str
     ) -> tuple[str, str]:
-        user_id, placeholder_id = await self._write_user_and_placeholder(
-            conv_id, user_content, parent_id
+        # Validate user owns the conversation at the API boundary
+        async with session_scope() as s:
+            conv = await self._repo.get(conv_id, s)
+            if not conv or conv.user_id != user_id:
+                raise PermissionError("Access denied: You don't own this conversation")
+        
+        msg_user_id, placeholder_id = await self._write_user_and_placeholder(
+            conv_id, user_content, parent_id, user_id
         )
-        prompt = await self._initial_prompt(conv_id, user_id)
+        prompt = await self._initial_prompt(conv_id, msg_user_id)
         asyncio.create_task(self._loop(conv_id, placeholder_id, prompt))
-        return user_id, placeholder_id
+        return msg_user_id, placeholder_id
 
     # ────────────────────── helpers (unchanged) ─────────────────── #
 
-    async def _write_user_and_placeholder(self, cid, content, parent):
+    async def _write_user_and_placeholder(self, cid, content, parent, user_id):
         async with session_scope() as s:
             u = Message(id=str(uuid4()), conversation_id=cid, parent_id=parent,
-                        role=Role.USER, content=content, version=0)
+                        role=Role.USER, content=content, version=0, user_id=user_id)
             p = Message(id=str(uuid4()), conversation_id=cid, parent_id=u.id,
-                        role=Role.ASSISTANT, content="", version=0)
+                        role=Role.ASSISTANT, content="", version=0, user_id=user_id)
             await self._repo.add_message(u, s)
             await self._repo.add_message(p, s)
             if parent:
@@ -66,7 +72,7 @@ class AgentService:
             )
         return u.id, p.id
 
-    async def _initial_prompt(self, cid, user_id):
+    async def _initial_prompt(self, cid, msg_user_id):
         async with session_scope() as s:
             conv  = await self._repo.get(cid, s)
             base  = await self._repo.latest_thread(cid, s)

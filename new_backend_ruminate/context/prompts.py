@@ -3,6 +3,20 @@ from new_backend_ruminate.domain.ports.tool import Tool
 
 default_system_prompts = {
     "chat": "You are a helpful assistant.",
+    "rabbithole": """This is a deep-dive conversation focused on a selected text from a document.
+
+Selected text:
+```
+{selected_text}
+```
+
+{block_context}
+{document_summary}
+
+You are a helpful assistant focusing specifically on exploring this selected topic in depth.
+Provide detailed analysis and insights based on this specific selection and its context.
+Answer accurately, concisely, and precisely—avoid long lists of answers. Understand 
+the user's question/comment intuitively and provide them a clear response. Answer naturally as well.""",
 }
 
 def agent_system_prompt(tools: list[Tool]) -> str:

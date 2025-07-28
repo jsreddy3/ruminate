@@ -142,7 +142,7 @@ def get_notes_repository() -> NotesRepository:
 def get_marker_service() -> MarkerService:
     """Dependency for marker service"""
     settings = get_settings()
-    return MarkerService(api_key=settings.datalab_api_key)
+    return MarkerService(api_key=settings.marker_api_key)
 
 def get_llm_service() -> LLMService:
     """Dependency for LLM service"""

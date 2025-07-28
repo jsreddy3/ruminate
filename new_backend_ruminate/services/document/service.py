@@ -1,0 +1,353 @@
+# new_backend_ruminate/services/document/service.py
+from __future__ import annotations
+from typing import Optional, List, BinaryIO
+from uuid import uuid4
+from datetime import datetime
+import asyncio
+import json
+import io
+
+from fastapi import BackgroundTasks
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from new_backend_ruminate.domain.document.entities import Document, DocumentStatus, Page, Block
+from new_backend_ruminate.domain.document.repositories.document_repository_interface import DocumentRepositoryInterface
+from new_backend_ruminate.domain.object_storage.storage_interface import ObjectStorageInterface
+from new_backend_ruminate.domain.ports.document_analyzer import DocumentAnalyzer
+from new_backend_ruminate.infrastructure.document_processing.marker_client import MarkerClient, MarkerResponse
+from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
+from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
+
+
+class DocumentService:
+    """Service for handling document operations following the established patterns"""
+    
+    def __init__(
+        self,
+        repo: DocumentRepositoryInterface,
+        hub: EventStreamHub,
+        storage: ObjectStorageInterface,
+        marker_client: Optional[MarkerClient] = None,
+        analyzer: Optional[DocumentAnalyzer] = None
+    ) -> None:
+        self._repo = repo
+        self._hub = hub
+        self._storage = storage
+        self._marker_client = marker_client or MarkerClient()
+        self._analyzer = analyzer
+    
+    # ─────────────────────────────── helpers ──────────────────────────────── #
+    
+    async def _process_document_background(self, document_id: str, storage_key: str) -> None:
+        """Background task to process document with Marker API"""
+        try:
+            # Emit processing started event
+            event_data = json.dumps({
+                "status": DocumentStatus.PROCESSING_MARKER.value,
+                "document_id": document_id
+            })
+            await self._hub.publish(
+                f"document_{document_id}",
+                f"event: processing_started\ndata: {event_data}\n\n"
+            )
+            
+            async with session_scope() as session:
+                # Get document and update status
+                document = await self._repo.get_document(document_id, session)
+                if not document:
+                    return
+                
+                document.start_marker_processing()
+                await self._repo.update_document(document, session)
+            
+            # Download file from storage
+            file_content = await self._storage.download_file(storage_key)
+            
+            # Process with Marker API
+            marker_response = await self._marker_client.process_document(
+                file_content=file_content,
+                filename=storage_key.split('/')[-1]
+            )
+            
+            if marker_response.status == "error":
+                raise Exception(marker_response.error or "Unknown Marker error")
+            
+            # Parse and save results
+            async with session_scope() as session:
+                await self._save_marker_results(document_id, marker_response, session)
+                
+                # Generate document summary if analyzer is available
+                print(f"[DocumentService] Analyzer available: {self._analyzer is not None}")
+                if self._analyzer:
+                    await self._generate_document_summary(document_id, session)
+                else:
+                    print("[DocumentService] No analyzer configured, skipping summary generation")
+                
+                # Update document status
+                document = await self._repo.get_document(document_id, session)
+                document.set_ready()
+                await self._repo.update_document(document, session)
+            
+            # Emit completion event
+            event_data = json.dumps({
+                "status": DocumentStatus.READY.value,
+                "document_id": document_id
+            })
+            await self._hub.publish(
+                f"document_{document_id}",
+                f"event: processing_completed\ndata: {event_data}\n\n"
+            )
+            
+        except Exception as e:
+            # Update document with error
+            async with session_scope() as session:
+                document = await self._repo.get_document(document_id, session)
+                if document:
+                    document.set_error(str(e))
+                    await self._repo.update_document(document, session)
+            
+            # Emit error event
+            event_data = json.dumps({
+                "status": DocumentStatus.ERROR.value,
+                "error": str(e),
+                "document_id": document_id
+            })
+            await self._hub.publish(
+                f"document_{document_id}",
+                f"event: processing_error\ndata: {event_data}\n\n"
+            )
+    
+    async def _save_marker_results(
+        self, 
+        document_id: str, 
+        marker_response: MarkerResponse,
+        session: AsyncSession
+    ) -> None:
+        """Parse and save Marker API results to database"""
+        if not marker_response.pages:
+            raise ValueError("No pages returned from Marker API")
+        
+        pages_to_create = []
+        blocks_to_create = []
+        
+        for idx, page_data in enumerate(marker_response.pages):
+            # Create page - use 0-based indexing internally
+            page = Page(
+                id=str(uuid4()),
+                document_id=document_id,
+                page_number=idx,
+                polygon=page_data.get("polygon"),
+                html_content=page_data.get("html", ""),
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            pages_to_create.append(page)
+            
+            # Create blocks for this page
+            for block_data in page_data.get("blocks", []):
+                block = Block.from_marker_block(
+                    marker_block=block_data,
+                    document_id=document_id,
+                    page_id=page.id,
+                    page_number=page.page_number
+                )
+                blocks_to_create.append(block)
+                page.add_block(block.id)
+        
+        # Save all pages and blocks
+        await self._repo.create_pages(pages_to_create, session)
+        if blocks_to_create:
+            await self._repo.create_blocks(blocks_to_create, session)
+    
+    async def _generate_document_summary(
+        self, 
+        document_id: str, 
+        session: AsyncSession
+    ) -> None:
+        """Generate and save document summary using the analyzer"""
+        print(f"[DocumentService] Starting summary generation for document {document_id}")
+        try:
+            # Get document and blocks
+            document = await self._repo.get_document(document_id, session)
+            blocks = await self._repo.get_blocks_by_document(document_id, session)
+            print(f"[DocumentService] Found {len(blocks)} blocks for document {document_id}")
+            
+            if not blocks:
+                return
+            
+            # Emit status update
+            event_data = json.dumps({
+                "status": "ANALYZING_CONTENT",
+                "document_id": document_id,
+                "message": "Generating document summary..."
+            })
+            await self._hub.publish(
+                f"document_{document_id}",
+                f"event: analysis_started\ndata: {event_data}\n\n"
+            )
+            
+            # Generate summary
+            print(f"[DocumentService] Calling analyzer to generate summary...")
+            summary = await self._analyzer.generate_document_summary(
+                blocks, 
+                document.title
+            )
+            print(f"[DocumentService] Generated summary: {summary[:100]}...")
+            
+            # Update document with summary
+            document.summary = summary
+            await self._repo.update_document(document, session)
+            print(f"[DocumentService] Summary saved to document {document_id}")
+            
+            # Emit completion
+            event_data = json.dumps({
+                "status": "ANALYSIS_COMPLETE",
+                "document_id": document_id,
+                "message": "Document summary generated"
+            })
+            await self._hub.publish(
+                f"document_{document_id}",
+                f"event: analysis_completed\ndata: {event_data}\n\n"
+            )
+            
+        except Exception as e:
+            # Log error but don't fail the entire process
+            print(f"[DocumentService] ERROR in summary generation: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(f"[DocumentService] Traceback: {traceback.format_exc()}")
+            
+            event_data = json.dumps({
+                "status": "ANALYSIS_WARNING",
+                "document_id": document_id,
+                "message": f"Summary generation failed: {str(e)}"
+            })
+            await self._hub.publish(
+                f"document_{document_id}",
+                f"event: analysis_warning\ndata: {event_data}\n\n"
+            )
+    
+    # ───────────────────────────── public API ─────────────────────────────── #
+    
+    async def upload_document(
+        self,
+        *,
+        background: BackgroundTasks,
+        file: BinaryIO,
+        filename: str,
+        user_id: str,
+    ) -> Document:
+        """
+        Upload a document and start processing
+        Returns document immediately while processing continues in background
+        """
+        # Create document record
+        document = Document(
+            id=str(uuid4()),
+            user_id=user_id,
+            title=filename,
+            status=DocumentStatus.PENDING,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        
+        async with session_scope() as session:
+            # Save document to database
+            document = await self._repo.create_document(document, session)
+        
+        # Upload file to storage
+        try:
+            storage_key = f"documents/{document.id}/{filename}"
+            storage_path = await self._storage.upload_file(
+                file=file,
+                key=storage_key,
+                content_type="application/pdf"
+            )
+            
+            # Update document with storage path
+            async with session_scope() as session:
+                document.s3_pdf_path = storage_path
+                document = await self._repo.update_document(document, session)
+                
+        except Exception as e:
+            async with session_scope() as session:
+                document.set_error(f"Failed to upload file: {str(e)}")
+                await self._repo.update_document(document, session)
+            raise
+        
+        # Start background processing
+        background.add_task(
+            self._process_document_background,
+            document.id,
+            storage_key
+        )
+        
+        return document
+    
+    async def get_document(self, document_id: str, user_id: str, session: AsyncSession) -> Optional[Document]:
+        """Get document by ID, with user ownership validation"""
+        document = await self._repo.get_document(document_id, session)
+        if document and document.user_id != user_id:
+            raise PermissionError("Access denied: You don't own this document")
+        return document
+    
+    async def list_documents(self, user_id: str, session: AsyncSession) -> List[Document]:
+        """List documents for the authenticated user"""
+        return await self._repo.get_documents_by_user(user_id, session)
+    
+    async def get_document_pages(self, document_id: str, user_id: str, session: AsyncSession) -> List[Page]:
+        """Get all pages for a document, with user ownership validation"""
+        # Validate user owns the document
+        await self.get_document(document_id, user_id, session)
+        return await self._repo.get_pages_by_document(document_id, session)
+    
+    async def get_document_blocks(
+        self, 
+        document_id: str, 
+        page_number: Optional[int],
+        user_id: str,
+        session: AsyncSession
+    ) -> List[Block]:
+        """Get blocks for a document, optionally filtered by page, with user ownership validation"""
+        # Validate user owns the document
+        await self.get_document(document_id, user_id, session)
+        blocks = await self._repo.get_blocks_by_document(document_id, session)
+        if page_number is not None:
+            blocks = [b for b in blocks if b.page_number == page_number]
+        return blocks
+    
+    async def get_document_pdf(self, document_id: str, user_id: str, session: AsyncSession) -> tuple[bytes, str]:
+        """
+        Download the original PDF for a document, with user ownership validation
+        Returns (file_content, filename)
+        """
+        document = await self.get_document(document_id, user_id, session)
+        if not document:
+            raise ValueError("Document not found")
+        
+        if not document.s3_pdf_path:
+            raise ValueError("PDF not found for this document")
+        
+        file_content = await self._storage.download_file(document.s3_pdf_path)
+        return file_content, document.title
+    
+    async def get_processing_stream(self, document_id: str):
+        """Get SSE stream for document processing updates"""
+        async def event_generator():
+            stream_id = f"document_{document_id}"
+            
+            # Send initial status
+            async with session_scope() as session:
+                document = await self._repo.get_document(document_id, session)
+                if document:
+                    event_data = json.dumps({
+                        "status": document.status.value,
+                        "document_id": document_id
+                    })
+                    yield f"event: status_update\ndata: {event_data}\n\n"
+            
+            # Subscribe to events from hub
+            async for chunk in self._hub.register_consumer(stream_id):
+                yield chunk
+        
+        from sse_starlette.sse import EventSourceResponse
+        return EventSourceResponse(event_generator())

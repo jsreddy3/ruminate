@@ -10,12 +10,15 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Enum as SAEnum,
+    ForeignKey,
+    Integer,
     JSON,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from new_backend_ruminate.infrastructure.db.meta import Base
 
@@ -23,6 +26,7 @@ from new_backend_ruminate.infrastructure.db.meta import Base
 class ConversationType(str, Enum):
     CHAT = "CHAT"
     AGENT = "AGENT"
+    RABBITHOLE = "RABBITHOLE"
 
 class Conversation(Base):
     """
@@ -49,3 +53,21 @@ class Conversation(Base):
     type: Mapped[ConversationType] = mapped_column(
         SAEnum(ConversationType), default=ConversationType.CHAT, nullable=False
     )
+    
+    # User relationship
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("users.id"), nullable=True
+    )
+    
+    # Document-related fields
+    document_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("documents.id"), nullable=True
+    )
+    source_block_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    selected_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    text_start_offset: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    text_end_offset: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Relationships
+    user = relationship("UserModel", back_populates="conversations")
+    document = relationship("DocumentModel", back_populates="conversations")

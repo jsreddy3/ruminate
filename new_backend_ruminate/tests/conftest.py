@@ -9,6 +9,9 @@ from new_backend_ruminate.infrastructure.db.meta import Base
 from new_backend_ruminate.config import settings as _settings
 import logging
 
+# Import all models to ensure they're registered with metadata
+import new_backend_ruminate.infrastructure.db.models
+
 for name in (
     "aiosqlite",
     "asyncio",              # selector_events etc.

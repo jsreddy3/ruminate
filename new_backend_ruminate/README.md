@@ -41,7 +41,7 @@ Create a `.env` file in the project root with the following variables:
 ```bash
 # API Keys
 OPENAI_API_KEY=your_openai_api_key
-DATALAB_API_KEY=your_datalab_key
+MARKER_API_KEY=your_marker_api_key
 GEMINI_API_KEY=your_gemini_key
 GOOGLE_API_KEY=your_google_key
 
@@ -87,13 +87,23 @@ No setup required - SQLite database will be created automatically.
 ### 4. Run Database Migrations
 
 ```bash
-# Initialize Alembic (first time only)
-alembic init alembic
+# Navigate to the new_backend_ruminate directory
+cd new_backend_ruminate
 
-# Create and apply migrations
-alembic revision --autogenerate -m "Initial schema"
-alembic upgrade head
+# Apply existing migrations
+PYTHONPATH=. alembic upgrade head
+
+# To create a new migration (if you've made schema changes)
+PYTHONPATH=. alembic revision --autogenerate -m "Your migration message"
+
+# To see migration history
+PYTHONPATH=. alembic history
+
+# To downgrade (rollback) one revision
+PYTHONPATH=. alembic downgrade -1
 ```
+
+**Note**: The PYTHONPATH=. is required so Alembic can find your domain models and infrastructure modules.
 
 ## Running Tests
 
@@ -194,7 +204,7 @@ If you encounter "recursive reference to query must not appear within its non-re
 - Verify network connectivity to database host
 
 ### Test Failures
-- Run `alembic upgrade head` to ensure database schema is up to date
+- Run `PYTHONPATH=. alembic upgrade head` to ensure database schema is up to date
 - Check that all required environment variables are set
 - Ensure PostgreSQL is running if testing PostgreSQL-specific features
 

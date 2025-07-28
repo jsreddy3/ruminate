@@ -1,16 +1,24 @@
 # new_backend/api/conversation/routes.py
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 
-from new_backend_ruminate.api.conversation.schemas import MessageIdsResponse, SendMessageRequest, MessageOut
-from new_backend_ruminate.api.conversation.schemas import ConversationOut, ConversationInitResponse
+from new_backend_ruminate.api.conversation.schemas import (
+    MessageIdsResponse, 
+    SendMessageRequest, 
+    MessageOut,
+    ConversationOut, 
+    ConversationInitResponse,
+    CreateConversationRequest
+)
 from new_backend_ruminate.dependencies import (
     get_conversation_service, 
     get_event_hub,
     get_session,
+    get_current_user,
 )
+from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.services.conversation.service import ConversationService
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
@@ -22,11 +30,31 @@ router = APIRouter(prefix="/conversations")
     response_model=ConversationInitResponse,
 )
 async def create_conversation(
-    # optional future body with {"type": "...", "meta": {...}}
-    body: dict = None,
+    body: Optional[CreateConversationRequest] = None,
+    current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
 ):
-    conv_id, root_id = await svc.create_conversation(**(body or {}))
+    """
+    Create a new conversation.
+    
+    For regular conversations: just specify type (CHAT/AGENT)
+    For rabbithole conversations: also provide document_id, source_block_id, selected_text, and offsets
+    """
+    if body is None:
+        # Default to CHAT conversation for backward compatibility
+        conv_id, root_id = await svc.create_conversation(user_id=current_user.id, conv_type="chat")
+    else:
+        # Pass all fields to service, it will handle based on type
+        conv_id, root_id = await svc.create_conversation(
+            user_id=current_user.id,
+            conv_type=body.type.value.lower(),
+            meta=body.meta,
+            document_id=body.document_id,
+            source_block_id=body.source_block_id,
+            selected_text=body.selected_text,
+            text_start_offset=body.text_start_offset,
+            text_end_offset=body.text_end_offset
+        )
     return {"conversation_id": conv_id, "system_msg_id": root_id}
 
 @router.post("/{cid}/messages", response_model=MessageIdsResponse)
@@ -34,6 +62,7 @@ async def post_message(
     cid: str,
     req: SendMessageRequest,
     bg: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
 ):
     user_id, ai_id = await svc.send_message(
@@ -41,6 +70,7 @@ async def post_message(
         conv_id=cid,
         user_content=req.content,
         parent_id=req.parent_id,
+        user_id=current_user.id,
     )
     return {"user_msg_id": user_id, "ai_msg_id": ai_id}
 
@@ -51,6 +81,7 @@ async def edit_message(
     mid: str,
     req: SendMessageRequest,
     bg: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
 ):
     edited_id, ai_id = await svc.edit_message_streaming(
@@ -58,12 +89,17 @@ async def edit_message(
         conv_id=cid,
         msg_id=mid,
         new_content=req.content,
+        user_id=current_user.id,
     )
     return {"user_msg_id": edited_id, "ai_msg_id": ai_id}
 
 
 @router.get("/streams/{msg_id}")
-async def stream(msg_id: str, hub: EventStreamHub = Depends(get_event_hub)):
+async def stream(
+    msg_id: str, 
+    current_user: User = Depends(get_current_user),
+    hub: EventStreamHub = Depends(get_event_hub)
+):
     async def event_source():
         async for chunk in hub.register_consumer(msg_id):
             yield f"data: {chunk}\n\n"
@@ -73,35 +109,63 @@ async def stream(msg_id: str, hub: EventStreamHub = Depends(get_event_hub)):
 @router.get("/{cid}/thread", response_model=List[MessageOut])
 async def get_thread(
     cid: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
 ):
-    return await svc.get_latest_thread(cid, session)
+    return await svc.get_latest_thread(cid, current_user.id, session)
 
 
 @router.get("/{cid}/tree", response_model=List[MessageOut])
 async def get_tree(
     cid: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
 ):
-    return await svc.get_full_tree(cid, session)
+    return await svc.get_full_tree(cid, current_user.id, session)
 
 
 @router.get("/{cid}/messages/{mid}/versions", response_model=List[MessageOut])
 async def versions(
     cid: str,
     mid: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
 ):
-    return await svc.get_versions(mid, session)
+    return await svc.get_versions(mid, current_user.id, session)
 
 
 @router.get("/{cid}", response_model=ConversationOut)
 async def get_conversation(
     cid: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
 ):
-    return await svc.get_conversation(cid, session)
+    return await svc.get_conversation(cid, current_user.id, session)
+
+
+@router.get("", response_model=List[ConversationOut])
+async def list_conversations(
+    document_id: Optional[str] = Query(None, description="Filter by document ID"),
+    source_block_id: Optional[str] = Query(None, description="Filter by source block ID"),
+    type: Optional[str] = Query(None, description="Filter by conversation type"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: ConversationService = Depends(get_conversation_service),
+):
+    """
+    List conversations with optional filters.
+    Useful for finding all rabbitholes for a document or block.
+    """
+    criteria = {}
+    if document_id:
+        criteria["document_id"] = document_id
+    if source_block_id:
+        criteria["source_block_id"] = source_block_id
+    if type:
+        criteria["type"] = type.upper()
+    
+    return await svc.get_conversations_by_criteria(criteria, current_user.id, session)
