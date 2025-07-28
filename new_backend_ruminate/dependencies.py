@@ -112,7 +112,7 @@ async def get_session():
 # ─────────────────────── Authentication dependencies ──────────────────── #
 
 from typing import Optional
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from new_backend_ruminate.domain.user.entities.user import User
 
@@ -140,3 +140,24 @@ async def get_current_user(
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return current_user
+
+async def get_current_user_from_query_token(
+    token: Optional[str] = Query(None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    session: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> User:
+    """Get current user from JWT token in query param (for SSE) or header, raise HTTPException if not authenticated"""
+    # Try token from query parameter first (for SSE), then from header
+    jwt_token = token or (credentials.credentials if credentials else None)
+    
+    if not jwt_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        user = await auth_service.validate_token(jwt_token, session)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return user
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")

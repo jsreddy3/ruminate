@@ -1,4 +1,6 @@
 from typing import Optional
+import urllib.parse
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 @router.get("/login")
 async def login(
-    redirect_url: Optional[str] = Query(None, description="URL to redirect to after login"),
+    redirect_url: Optional[str] = Query("http://localhost:3000", description="URL to redirect to after login"),
     auth_service: AuthService = Depends(get_auth_service),
 ):
     """
@@ -23,7 +25,7 @@ async def login(
     return RedirectResponse(url=google_login_url)
 
 
-@router.get("/callback", response_model=LoginResponse)
+@router.get("/callback")
 async def callback(
     code: str = Query(..., description="Authorization code from Google"),
     state: Optional[str] = Query(None, description="State parameter (redirect URL)"),
@@ -37,21 +39,30 @@ async def callback(
         user, token = await auth_service.handle_google_callback(code, session)
         await session.commit()
         
-        user_response = UserResponse(
-            id=user.id,
-            google_id=user.google_id,
-            email=user.email,
-            name=user.name,
-            avatar_url=user.avatar_url,
-            created_at=user.created_at,
-            updated_at=user.updated_at
-        )
+        # Redirect back to frontend with token and user data
+        frontend_url = state or "http://localhost:3000"
         
-        return LoginResponse(user=user_response, token=token)
+        # URL encode the user data
+        user_data = {
+            "id": user.id,
+            "google_id": user.google_id,
+            "email": user.email,
+            "name": user.name,
+            "avatar_url": user.avatar_url,
+            "created_at": user.created_at.isoformat(),
+            "updated_at": user.updated_at.isoformat()
+        }
+        user_param = urllib.parse.quote(json.dumps(user_data))
+        
+        redirect_url = f"{frontend_url}?token={token}&user={user_param}"
+        return RedirectResponse(url=redirect_url)
         
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
+        # Redirect to frontend with error
+        frontend_url = state or "http://localhost:3000"
+        error_url = f"{frontend_url}?error={urllib.parse.quote(str(e))}"
+        return RedirectResponse(url=error_url)
 
 
 @router.get("/me", response_model=UserResponse)

@@ -40,6 +40,9 @@ class ConversationService:
         async for chunk in self._llm.generate_response_stream(prompt):
             full += chunk
             await self._hub.publish(ai_id, chunk)
+        
+        # Send completion signal that frontend expects
+        await self._hub.publish(ai_id, "[DONE]")
         await self._hub.terminate(ai_id)
 
         async with session_scope() as session:

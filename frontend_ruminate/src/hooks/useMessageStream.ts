@@ -43,12 +43,14 @@ export function useMessageStream(conversationId: string | null, messageId: strin
 
     console.log(`Creating stream for message: ${messageId}. isComplete: ${isComplete}. content is ${content}`);
     
-    // Create EventSource for SSE connection
-    const streamUrl = `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}/stream`;
+    // Create EventSource for SSE connection with authentication
+    const token = localStorage.getItem('auth_token');
+    const streamUrl = `${API_BASE_URL}/conversations/streams/${messageId}`;
+    const authenticatedStreamUrl = token ? `${streamUrl}?token=${token}` : streamUrl;
     let eventSource: EventSource;
 
     try {
-      eventSource = new EventSource(streamUrl);
+      eventSource = new EventSource(authenticatedStreamUrl);
 
       // Handle incoming message chunks
       eventSource.onmessage = (event) => {

@@ -257,15 +257,15 @@ class DocumentService:
         # Upload file to storage
         try:
             storage_key = f"documents/{document.id}/{filename}"
-            storage_path = await self._storage.upload_file(
+            await self._storage.upload_file(
                 file=file,
                 key=storage_key,
                 content_type="application/pdf"
             )
             
-            # Update document with storage path
+            # Update document with storage key for consistent access
             async with session_scope() as session:
-                document.s3_pdf_path = storage_path
+                document.s3_pdf_path = storage_key
                 document = await self._repo.update_document(document, session)
                 
         except Exception as e:
@@ -315,20 +315,79 @@ class DocumentService:
             blocks = [b for b in blocks if b.page_number == page_number]
         return blocks
     
+    async def get_document_pdf_url(self, document_id: str, user_id: str, session: AsyncSession, expiration: int = 3600) -> str:
+        """
+        Get presigned URL for PDF access, with user ownership validation
+        Returns presigned URL
+        """
+        print(f"[DocumentService] Getting PDF URL for document {document_id}")
+        
+        document = await self.get_document(document_id, user_id, session)
+        if not document:
+            print(f"[DocumentService] Document {document_id} not found")
+            raise ValueError("Document not found")
+        
+        print(f"[DocumentService] Document found: {document.title}, s3_pdf_path: {document.s3_pdf_path}")
+        
+        if not document.s3_pdf_path:
+            print(f"[DocumentService] No s3_pdf_path for document {document_id}")
+            raise ValueError("PDF not found for this document")
+        
+        try:
+            # Handle both old format (full S3 URI) and new format (just the key)
+            storage_path = document.s3_pdf_path
+            if storage_path.startswith('s3://'):
+                # Extract key from full S3 URI: s3://bucket-name/key -> key
+                storage_key = '/'.join(storage_path.split('/')[3:])
+                print(f"[DocumentService] Converting S3 URI to key: {storage_path} -> {storage_key}")
+            else:
+                # Already just the key
+                storage_key = storage_path
+            
+            print(f"[DocumentService] Generating presigned URL for key: {storage_key}")
+            presigned_url = await self._storage.get_presigned_url(storage_key, expiration)
+            print(f"[DocumentService] Successfully generated presigned URL")
+            return presigned_url
+        except Exception as e:
+            print(f"[DocumentService] Error generating presigned URL: {type(e).__name__}: {str(e)}")
+            raise ValueError(f"Failed to generate PDF URL: {str(e)}")
+
     async def get_document_pdf(self, document_id: str, user_id: str, session: AsyncSession) -> tuple[bytes, str]:
         """
         Download the original PDF for a document, with user ownership validation
         Returns (file_content, filename)
         """
+        print(f"[DocumentService] Getting PDF for document {document_id}")
+        
         document = await self.get_document(document_id, user_id, session)
         if not document:
+            print(f"[DocumentService] Document {document_id} not found")
             raise ValueError("Document not found")
         
+        print(f"[DocumentService] Document found: {document.title}, s3_pdf_path: {document.s3_pdf_path}")
+        
         if not document.s3_pdf_path:
+            print(f"[DocumentService] No s3_pdf_path for document {document_id}")
             raise ValueError("PDF not found for this document")
         
-        file_content = await self._storage.download_file(document.s3_pdf_path)
-        return file_content, document.title
+        try:
+            # Handle both old format (full S3 URI) and new format (just the key)
+            storage_path = document.s3_pdf_path
+            if storage_path.startswith('s3://'):
+                # Extract key from full S3 URI: s3://bucket-name/key -> key
+                storage_key = '/'.join(storage_path.split('/')[3:])
+                print(f"[DocumentService] Converting S3 URI to key: {storage_path} -> {storage_key}")
+            else:
+                # Already just the key
+                storage_key = storage_path
+            
+            print(f"[DocumentService] Attempting to download file from storage with key: {storage_key}")
+            file_content = await self._storage.download_file(storage_key)
+            print(f"[DocumentService] Successfully downloaded {len(file_content)} bytes")
+            return file_content, document.title
+        except Exception as e:
+            print(f"[DocumentService] Error downloading file from storage: {type(e).__name__}: {str(e)}")
+            raise ValueError(f"Failed to download PDF: {str(e)}")
     
     async def get_processing_stream(self, document_id: str):
         """Get SSE stream for document processing updates"""

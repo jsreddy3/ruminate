@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Message, MessageNode, MessageRole } from '../types/chat';
 import { conversationApi } from '../services/api/conversation';
-import { agentApi } from '../services/api/agent';
 
 interface UseMessageTreeProps {
   conversationId: string | null;
-  isAgentChat?: boolean;
   selectedBlockId?: string | null;
 }
 
@@ -14,11 +12,8 @@ interface UseMessageTreeReturn {
   activeThreadIds: string[];
   isLoading: boolean;
   error: Error | null;
-  sendMessage: (content: string, parentId: string) => Promise<[Message, string]>;
-  optimisticSendMessage: (content: string, parentId: string) => Promise<[string, string]>;
-  editMessage: (messageId: string, content: string) => Promise<[Message, string]>;
-  optimisticEditMessage: (messageId: string, content: string) => Promise<[string, string]>;
-  editMessageStreaming: (messageId: string, content: string) => Promise<[string, string]>;
+  sendMessage: (content: string, parentId: string) => Promise<[string, string]>;
+  editMessage: (messageId: string, content: string) => Promise<[string, string]>;
   switchToVersion: (messageId: string) => void;
   refreshTree: () => Promise<void>;
 }
@@ -28,7 +23,6 @@ interface UseMessageTreeReturn {
  */
 export function useMessageTree({
   conversationId,
-  isAgentChat = false,
   selectedBlockId = null
 }: UseMessageTreeProps): UseMessageTreeReturn {
   const [messageTree, setMessageTree] = useState<MessageNode[]>([]);
@@ -192,180 +186,64 @@ export function useMessageTree({
 
   // Function to send a new message
   const sendMessage = useCallback(
-    async (content: string, parentId: string): Promise<[Message, string]> => {
+    async (content: string, parentId: string): Promise<[string, string]> => {
       if (!conversationId) {
         throw new Error("No active conversation");
       }
       
       try {
-        // Use agent API if it's an agent chat, otherwise use regular conversation API
-        if (isAgentChat) {
-          const result = await agentApi.sendAgentMessage(
-            conversationId,
-            content,
-            parentId
-          );
-          
-          // Refresh the message tree after sending
-          await refreshTree();
-          
-          // Convert the agent API response format to match the expected return type
-          const message: Message = {
-            id: result.message_id,
-            content: result.content,
-            role: result.role as "user" | "assistant" | "system",
-            parent_id: parentId,
-            children: [],
-            active_child_id: null,
-            created_at: new Date().toISOString()
-          };
-          
-          return [message, result.message_id];
-        } else {
-          // For regular chats, use the existing API
-          const [message, responseMessageId] = await conversationApi.sendMessage(
-            conversationId, 
-            content, 
-            parentId, 
-            activeThreadIds,
-            selectedBlockId || undefined
-          );
-          
-          // Refresh the message tree after sending
-          await refreshTree();
-          
-          return [message, responseMessageId];
-        }
+        const { user_id, ai_id } = await conversationApi.sendMessage(
+          conversationId, 
+          content, 
+          parentId, 
+          activeThreadIds,
+          selectedBlockId || undefined
+        );
+        
+        // Return the real IDs immediately for streaming setup
+        // Don't wait for refreshTree - streaming should start ASAP
+        console.log(`sendMessage returning: user_id=${user_id}, ai_id=${ai_id}`);
+        
+        // Refresh in background to show the user message and empty AI message
+        refreshTree().catch(err => console.error('Background refresh failed:', err));
+        
+        return [user_id, ai_id];
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to send message'));
         throw err;
       }
     },
-    [conversationId, activeThreadIds, isAgentChat, selectedBlockId, refreshTree]
+    [conversationId, activeThreadIds, selectedBlockId, refreshTree]
   );
 
-  // Function to edit an existing message
+  // Function to edit an existing message with streaming
   const editMessage = useCallback(
-    async (messageId: string, content: string): Promise<[Message, string]> => {
-      if (!conversationId) {
-        throw new Error("No active conversation");
-      }
-      
-      try {
-        if (isAgentChat) {
-          // Find the parent ID for this message
-          const messageToEdit = flatMessages.find(msg => msg.id === messageId);
-          if (!messageToEdit) {
-            throw new Error(`Message with ID ${messageId} not found`);
-          }
-          
-          const parentId = messageToEdit.parent_id || '';
-          console.log("Editing agent message with parent:", parentId);
-          
-          // For agent chats, use the agent API
-          const { edited_message_id, placeholder_id } = await agentApi.editAgentMessage(
-            conversationId,
-            messageId,
-            content,
-            parentId
-          );
-          
-          // Refresh the message tree after editing
-          await refreshTree();
-          
-          // Create a placeholder message object since the agent API doesn't return full messages
-          const placeholderMessage: Message = {
-            id: edited_message_id,
-            content: content,
-            role: MessageRole.USER,
-            parent_id: '',  // Will be populated via refresh
-            created_at: new Date().toISOString(),
-            active_child_id: placeholder_id,
-            children: []
-          };
-          
-          return [placeholderMessage, placeholder_id];
-        } else {
-          // For regular chats, use the existing API
-          const [message, responseMessageId] = await conversationApi.editMessage(
-            conversationId,
-            messageId,
-            content,
-            activeThreadIds
-          );
-          
-          // Refresh the message tree after editing
-          await refreshTree();
-          
-          return [message, responseMessageId];
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to edit message'));
-        throw err;
-      }
-    },
-    [conversationId, activeThreadIds, isAgentChat, flatMessages, refreshTree]
-  );
-
-  // Function to edit an existing message with streaming response
-  const editMessageStreaming = useCallback(
     async (messageId: string, content: string): Promise<[string, string]> => {
       if (!conversationId) {
         throw new Error("No active conversation");
       }
       
       try {
-        if (isAgentChat) {
-          // Find the parent ID for this message
-          const messageToEdit = flatMessages.find(msg => msg.id === messageId);
-          if (!messageToEdit) {
-            throw new Error(`Message with ID ${messageId} not found`);
-          }
-          
-          const parentId = messageToEdit.parent_id || '';
-          console.log("Streaming edit agent message with parent:", parentId);
-          
-          // For agent chats, use the agent API without streaming
-          const { edited_message_id, placeholder_id } = await agentApi.editAgentMessage(
-            conversationId,
-            messageId,
-            content,
-            parentId
-          );
-          
-          // For agent chats we don't need streaming, so we can just refresh
-          refreshTree().catch(err => 
-            console.error("Error refreshing tree after agent edit:", err)
-          );
-          
-          return [edited_message_id, placeholder_id];
-        } else {
-          // For regular chats, use the streaming API
-          const [userMessageId, assistantMessageId] = await conversationApi.editMessageStreaming(
-            conversationId,
-            messageId,
-            content,
-            activeThreadIds,
-            selectedBlockId || undefined
-          );
-          
-          // Refresh the message tree after editing
-          // Note: we don't await this because we want to return the IDs immediately
-          // so streaming can begin, but we still want the tree to refresh
-          refreshTree().catch(err => 
-            console.error("Error refreshing tree after streaming edit:", err)
-          );
-          
-          // Return the message IDs
-          return [userMessageId, assistantMessageId];
-        }
+        const { user_id: userMessageId, ai_id: assistantMessageId } = await conversationApi.editMessageStreaming(
+          conversationId,
+          messageId,
+          content,
+          activeThreadIds,
+          selectedBlockId || undefined
+        );
+        
+        // Immediately refresh to show the edited message and empty AI message
+        await refreshTree();
+        
+        return [userMessageId, assistantMessageId];
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to edit message with streaming'));
+        setError(err instanceof Error ? err : new Error('Failed to edit message'));
         throw err;
       }
     },
-    [conversationId, activeThreadIds, isAgentChat, selectedBlockId, refreshTree]
+    [conversationId, activeThreadIds, selectedBlockId, refreshTree]
   );
+
 
   // Function to switch to a different message version
   const switchToVersion = useCallback((messageId: string) => {
@@ -448,191 +326,6 @@ export function useMessageTree({
     }
   }, [flatMessages, activeThreadIds, refreshTree]);
 
-  // Function to optimistically send a message with immediate UI feedback
-  const optimisticSendMessage = useCallback(
-    async (content: string, parentId: string): Promise<[string, string]> => {
-      if (!conversationId) {
-        throw new Error("No active conversation");
-      }
-
-      // Generate temporary IDs
-      const tempUserMessageId = `temp-user-${Date.now()}`;
-      const tempAssistantMessageId = `temp-assistant-${Date.now()}`;
-      
-      // Create optimistic messages
-      const optimisticUserMessage: Message = {
-        id: tempUserMessageId,
-        content,
-        role: MessageRole.USER,
-        parent_id: parentId,
-        created_at: new Date().toISOString(),
-        active_child_id: tempAssistantMessageId,
-        children: []
-      };
-      
-      const optimisticAssistantMessage: Message = {
-        id: tempAssistantMessageId,
-        content: isAgentChat ? "Agent is exploring..." : "",
-        role: MessageRole.ASSISTANT,
-        parent_id: tempUserMessageId,
-        created_at: new Date().toISOString(),
-        active_child_id: null,
-        children: []
-      };
-      
-      // Update local state optimistically
-      setFlatMessages(prev => [...prev, optimisticUserMessage, optimisticAssistantMessage]);
-      
-      // Update active thread
-      const newActiveThread = [...activeThreadIds, tempUserMessageId, tempAssistantMessageId];
-      setActiveThreadIds(newActiveThread);
-      
-      // Rebuild tree with optimistic messages
-      const updatedTree = buildMessageTree([...flatMessages, optimisticUserMessage, optimisticAssistantMessage]);
-      setMessageTree(updatedTree);
-      
-      try {
-        // Use existing API call
-        if (isAgentChat) {
-          const result = await agentApi.sendAgentMessage(
-            conversationId,
-            content,
-            parentId
-          );
-          
-          return [result.message_id, result.message_id];
-        } else {
-          // For regular chats, use the existing API
-          const [message, responseMessageId] = await conversationApi.sendMessage(
-            conversationId, 
-            content, 
-            parentId, 
-            activeThreadIds.filter(id => !id.startsWith('temp-')), // Filter out temp IDs
-            selectedBlockId || undefined
-          );
-          
-          return [message.id, responseMessageId];
-        }
-      } catch (err) {
-        // On error, revert the optimistic update by refreshing
-        refreshTree();
-        setError(err instanceof Error ? err : new Error('Failed to send message'));
-        throw err;
-      }
-    },
-    [conversationId, activeThreadIds, flatMessages, buildMessageTree, refreshTree, isAgentChat, selectedBlockId]
-  );
-
-  // Function to optimistically edit a message with immediate UI feedback
-  const optimisticEditMessage = useCallback(
-    async (messageId: string, content: string): Promise<[string, string]> => {
-      if (!conversationId) {
-        throw new Error("No active conversation");
-      }
-
-      // Find the message to edit
-      const messageToEdit = flatMessages.find(msg => msg.id === messageId);
-      if (!messageToEdit) {
-        throw new Error(`Message with ID ${messageId} not found`);
-      }
-      
-      // Get the parent ID for this message
-      const parentId = messageToEdit.parent_id || '';
-      console.log("Optimistic edit with parent:", parentId);
-
-      // Generate temporary IDs
-      const tempEditedMessageId = `temp-user-edit-${Date.now()}`;
-      const tempAssistantMessageId = `temp-assistant-${Date.now()}`;
-      
-      // Create optimistic messages
-      const optimisticEditedMessage: Message = {
-        ...messageToEdit,
-        id: tempEditedMessageId,
-        content: content,
-        active_child_id: tempAssistantMessageId
-      };
-      
-      // Create assistant message with appropriate content based on chat type
-      const optimisticAssistantMessage: Message = {
-        id: tempAssistantMessageId,
-        content: isAgentChat ? "Agent is exploring..." : "",
-        role: MessageRole.ASSISTANT,
-        parent_id: tempEditedMessageId,
-        created_at: new Date().toISOString(),
-        active_child_id: null,
-        children: []
-      };
-      
-      // Create a new messages array with the edited message replacing the original
-      const updatedMessages = flatMessages.map(msg => 
-        msg.id === messageId ? optimisticEditedMessage : msg
-      );
-      
-      // Add the new assistant message
-      updatedMessages.push(optimisticAssistantMessage);
-      
-      // Update local state with our optimistic changes
-      setFlatMessages(updatedMessages);
-      
-      // Update message tree and active thread
-      const newActiveThread = [...activeThreadIds];
-      const messageIndex = newActiveThread.indexOf(messageId);
-      
-      if (messageIndex !== -1) {
-        // Replace the edited message ID and remove any subsequent messages
-        newActiveThread[messageIndex] = tempEditedMessageId;
-        newActiveThread.length = messageIndex + 1;
-        // Add the new assistant message
-        newActiveThread.push(tempAssistantMessageId);
-        setActiveThreadIds(newActiveThread);
-      }
-      
-      // Rebuild tree with optimistic messages
-      const updatedTree = buildMessageTree(updatedMessages);
-      setMessageTree(updatedTree);
-      
-      try {
-        if (isAgentChat) {
-          // For agent chats, use the agent API
-          const { edited_message_id, placeholder_id } = await agentApi.editAgentMessage(
-            conversationId,
-            messageId,
-            content,
-            parentId
-          );
-          
-          // For agent chats, we'll just wait a bit and then refresh the tree
-          setTimeout(() => {
-            refreshTree().catch(err => 
-              console.error("Error refreshing tree after agent edit:", err)
-            );
-          }, 500);
-          
-          return [edited_message_id, placeholder_id];
-        } else {
-          // For regular chats, use the existing streaming API
-          const [userMessageId, assistantMessageId] = await conversationApi.editMessageStreaming(
-            conversationId,
-            messageId,
-            content,
-            activeThreadIds.filter(id => !id.startsWith('temp-')), // Filter out temp IDs
-            selectedBlockId || undefined
-          );
-          
-          // Refresh tree to get real messages
-          await refreshTree();
-          
-          return [userMessageId, assistantMessageId];
-        }
-      } catch (err) {
-        // On error, revert the optimistic update by refreshing
-        refreshTree();
-        setError(err instanceof Error ? err : new Error('Failed to edit message'));
-        throw err;
-      }
-    },
-    [conversationId, activeThreadIds, flatMessages, buildMessageTree, refreshTree, isAgentChat, selectedBlockId]
-  );
 
   return {
     messageTree,
@@ -640,10 +333,7 @@ export function useMessageTree({
     isLoading,
     error,
     sendMessage,
-    optimisticSendMessage,
     editMessage,
-    optimisticEditMessage,
-    editMessageStreaming,
     switchToVersion,
     refreshTree
   };

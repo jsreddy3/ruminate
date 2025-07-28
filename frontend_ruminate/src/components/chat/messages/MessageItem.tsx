@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { MessageNode, MessageRole } from '../../../types/chat';
-import { AgentEvent } from '../../../hooks/useAgentEventStream';
-import MessageAgentSteps from '../agent/MessageAgentSteps';
 
 interface MessageItemProps {
   message: MessageNode;
@@ -11,9 +9,7 @@ interface MessageItemProps {
   streamingContent?: string | null;
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
-  isAgentChat?: boolean;
   conversationId?: string;
-  agentEvents?: AgentEvent[];
 }
 
 /**
@@ -27,14 +23,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
   streamingContent = null,
   onSwitchVersion,
   onEditMessage,
-  isAgentChat = false,
-  conversationId,
-  agentEvents = []
+  conversationId
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [isShowingVersions, setIsShowingVersions] = useState(false);
-  const [isAgentStepsExpanded, setIsAgentStepsExpanded] = useState(isStreaming);
   
   // Determine if this message can be edited (only user messages)
   const canEdit = message.role === MessageRole.USER;
@@ -75,20 +68,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
   useEffect(() => {
     setEditContent(message.content);
   }, [message.content]);
-
-  // Debug logging
-  useEffect(() => {
-    if (isStreaming && message.role === MessageRole.ASSISTANT) {
-      console.log(`Streaming content for ${message.id}:`, streamingContent);
-    } else if (!isStreaming && message.role === MessageRole.ASSISTANT) {
-      console.log(`Regular content for ${message.id}:`, message.content);
-    }
-  }, [message.id, message.role, message.content, isStreaming, streamingContent]);
-
-  // Update agent steps expanded state based on streaming
-  useEffect(() => {
-    setIsAgentStepsExpanded(isStreaming);
-  }, [isStreaming]);
 
   return (
     <div className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -136,27 +115,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 {isShowingVersions ? 'Hide Versions' : 'Show Versions'}
               </button>
             )}
-            
-            {/* Agent steps toggle (if agent chat and not streaming) */}
-            {isAgentChat && message.role === MessageRole.ASSISTANT && !isStreaming && agentEvents.length > 0 && (
-              <button
-                onClick={() => setIsAgentStepsExpanded(!isAgentStepsExpanded)}
-                className="text-xs text-gray-500 hover:text-blue-600"
-              >
-                {isAgentStepsExpanded ? 'Hide Steps' : `Show ${agentEvents.length} Steps`}
-              </button>
-            )}
           </div>
         </div>
-        
-        {/* Persisted agent steps after generation */}
-        {isAgentChat && message.role === MessageRole.ASSISTANT && !isStreaming && conversationId && (
-          <MessageAgentSteps
-            conversationId={conversationId}
-            messageId={message.id}
-            isCompleted={true}
-          />
-        )}
         
         {/* Message content */}
         <div className="text-sm whitespace-pre-wrap break-words">
@@ -188,7 +148,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <div>
               {message.role === MessageRole.ASSISTANT && isStreaming ? (
                 // Show streaming content for assistant messages
-                streamingContent || 'Agent is exploring...'
+                <>
+                  {console.log(`MessageItem ${message.id}: streaming=${isStreaming}, content length=${streamingContent?.length || 0}, content="${streamingContent}"`)}
+                  {streamingContent || 'AI is responding...'}
+                </>
               ) : (
                 // Show regular content
                 message.content

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageSquarePlus, BookOpen, Bot } from 'lucide-react';
+import { MessageSquarePlus, BookOpen } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
   documentId: string;
@@ -9,7 +9,6 @@ interface TextSelectionTooltipProps {
   selectedText: string;
   onAddToChat?: (text: string) => void;
   onDefine?: (text: string) => void;
-  onLaunchAgentChat?: (selectedText: string, startOffset: number, endOffset: number) => void;
   onClose: () => void;
 }
 
@@ -21,7 +20,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   selectedText,
   onAddToChat,
   onDefine,
-  onLaunchAgentChat,
   onClose,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -73,13 +71,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     };
   };
 
-  // Safe wrapper for agent chat launcher
-  const handleAgentChat = () => {
-    if (onLaunchAgentChat) {
-      onLaunchAgentChat(selectedText, 0, 0);
-    }
-  };
-
   // Default actions if none provided
   const defaultActions = [
     {
@@ -91,11 +82,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       label: 'Define',
       icon: <BookOpen size={16} />,
       onClick: safeExecute(onDefine),
-    }] : []),
-    ...( onLaunchAgentChat ? [{
-      label: 'Chat',
-      icon: <Bot size={16} />,
-      onClick: handleAgentChat,
     }] : [])
   ];
 

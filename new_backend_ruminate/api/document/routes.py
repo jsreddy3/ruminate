@@ -13,7 +13,7 @@ from new_backend_ruminate.api.document.schemas import (
     BlockResponse
 )
 from new_backend_ruminate.services.document.service import DocumentService
-from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user
+from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token
 from new_backend_ruminate.domain.user.entities.user import User
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -93,7 +93,7 @@ async def get_document(
 @router.get("/{document_id}/processing-stream")
 async def get_processing_stream(
     document_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_from_query_token),
     session: AsyncSession = Depends(get_session),
     svc: DocumentService = Depends(get_document_service)
 ):
@@ -198,6 +198,24 @@ async def get_document_blocks(
     ]
 
 
+@router.get("/{document_id}/pdf-url")
+async def get_document_pdf_url(
+    document_id: str,
+    expiration: int = 3600,  # 1 hour default
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """Get presigned URL for PDF access"""
+    try:
+        url = await svc.get_document_pdf_url(document_id, current_user.id, session, expiration)
+        return {"pdf_url": url, "expires_in": expiration}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating PDF URL: {str(e)}")
+
+
 @router.get("/{document_id}/pdf")
 async def download_document_pdf(
     document_id: str,
@@ -205,9 +223,13 @@ async def download_document_pdf(
     session: AsyncSession = Depends(get_session),
     svc: DocumentService = Depends(get_document_service)
 ):
-    """Download the original PDF for a document"""
+    """Download the original PDF for a document (legacy endpoint - consider using /pdf-url instead)"""
+    print(f"[PDF Route] Starting PDF download for document {document_id}, user {current_user.id}")
+    
     try:
         file_content, filename = await svc.get_document_pdf(document_id, current_user.id, session)
+        
+        print(f"[PDF Route] Successfully retrieved PDF: {filename}, {len(file_content)} bytes")
         
         # Create streaming response
         return StreamingResponse(
@@ -218,6 +240,10 @@ async def download_document_pdf(
             }
         )
     except ValueError as e:
+        print(f"[PDF Route] ValueError: {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        print(f"[PDF Route] Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[PDF Route] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error downloading PDF: {str(e)}")

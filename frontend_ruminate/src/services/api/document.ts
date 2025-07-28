@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+import { authenticatedFetch, API_BASE_URL } from '@/utils/api';
 
 // Define type for document based on backend model
 export interface Document {
@@ -29,11 +29,13 @@ export const documentApi = {
       ? `${API_BASE_URL}/documents/?user_id=${encodeURIComponent(userId)}`
       : `${API_BASE_URL}/documents/`;
       
-    const response = await fetch(url);
+    const response = await authenticatedFetch(url);
     if (!response.ok) {
       throw new Error("Failed to fetch documents");
     }
-    return response.json();
+    const data = await response.json();
+    // Backend returns { documents: Document[], total: number }
+    return data.documents || [];
   },
 
   /**
@@ -42,7 +44,7 @@ export const documentApi = {
    * @returns Document object
    */
   getDocument: async (documentId: string): Promise<Document> => {
-    const response = await fetch(`${API_BASE_URL}/documents/${documentId}`);
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}`);
     if (!response.ok) {
       throw new Error("Failed to fetch document");
     }
@@ -50,12 +52,27 @@ export const documentApi = {
   },
 
   /**
-   * Get PDF data URL for a document
+   * Get presigned URL for a document PDF
+   * @param documentId Document ID
+   * @returns Presigned URL for the PDF
+   */
+  getPdfUrl: async (documentId: string): Promise<string> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/pdf-url`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch PDF URL");
+    }
+    
+    const data = await response.json();
+    return data.pdf_url;
+  },
+
+  /**
+   * Get PDF data URL for a document (legacy method - downloads through backend)
    * @param documentId Document ID
    * @returns Data URL for the PDF
    */
   getPdfDataUrl: async (documentId: string): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/documents/${documentId}/pdf`);
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/pdf`);
     if (!response.ok) {
       throw new Error("Failed to fetch PDF");
     }

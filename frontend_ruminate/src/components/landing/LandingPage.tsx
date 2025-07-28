@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'; 
 import dynamic from 'next/dynamic';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'; 
+import { useAuth } from '@/contexts/AuthContext';
 
 // Import decomposed components
 import Header from './Header';
@@ -15,6 +16,8 @@ const PDFViewer = dynamic(() => import('../pdf/PDFViewer'), {
 });
 
 export default function LandingPage() {
+  const { user, isLoading } = useAuth();
+  
   // State managed by the component
   const [currentObjective, setCurrentObjective] = useState("Focus on key vocabulary and jargon that a novice reader would not be familiar with.");
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -75,7 +78,7 @@ export default function LandingPage() {
   }, [resetUploadState, setDocumentIdDirectly, setPdfFileDirectly, setHasUploadedFileDirectly]); 
 
   // Conditional rendering based on whether a file has been successfully uploaded/processed
-  if (hasUploadedFile && pdfFile && documentId) {
+  if (hasUploadedFile && pdfFile && documentId && user) {
     return (
       <PDFViewer
         initialPdfFile={pdfFile} 
@@ -91,16 +94,26 @@ export default function LandingPage() {
         {/* Logo and Tagline */}
         <Header />
 
-        {/* Upload Section */}
-        <UploadSection
-          currentObjective={currentObjective}
-          setCurrentObjective={setCurrentObjective}
-          isProcessing={isProcessing}
-          progress={progress}
-          error={error}
-          uploadFile={uploadFile}
-          handleSelectDocument={handleSelectDocument}
-        />
+        {/* Upload Section - only show if user is authenticated */}
+        {user && !isLoading && (
+          <UploadSection
+            currentObjective={currentObjective}
+            setCurrentObjective={setCurrentObjective}
+            isProcessing={isProcessing}
+            progress={progress}
+            error={error}
+            uploadFile={uploadFile}
+            handleSelectDocument={handleSelectDocument}
+          />
+        )}
+
+        {/* Show message if not authenticated */}
+        {!user && !isLoading && (
+          <div className="max-w-md mx-auto p-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg border border-white border-opacity-20">
+            <p className="text-lg text-neutral-700 mb-2">Welcome to Ruminate!</p>
+            <p className="text-neutral-600">Sign in with Google to start analyzing your documents with AI.</p>
+          </div>
+        )}
       </div>
 
       {/* Floating particles effect */}

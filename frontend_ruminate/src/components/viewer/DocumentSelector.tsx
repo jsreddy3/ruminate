@@ -1,17 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Document, documentApi } from '@/services/api/document';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DocumentSelectorProps {
   onSelectDocument: (documentId: string, pdfUrl: string) => void;
 }
 
 export default function DocumentSelector({ onSelectDocument }: DocumentSelectorProps) {
+  const { user, isLoading: authLoading } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch documents on component mount
+  // Fetch documents when user is authenticated
   useEffect(() => {
+    // Don't fetch if auth is still loading or user is not authenticated
+    if (authLoading || !user) {
+      setLoading(false);
+      return;
+    }
     const fetchDocuments = async () => {
       try {
         setLoading(true);
@@ -29,18 +36,18 @@ export default function DocumentSelector({ onSelectDocument }: DocumentSelectorP
     };
 
     fetchDocuments();
-  }, []);
+  }, [authLoading, user]);
 
   const handleSelectDocument = async (documentId: string) => {
     if (!documentId) return;
     
     setLoading(true);
     try {
-      // Get the document data URL
-      const pdfDataUrl = await documentApi.getPdfDataUrl(documentId);
+      // Get the document PDF URL (presigned URL for better performance)
+      const pdfUrl = await documentApi.getPdfUrl(documentId);
       
       // Call the callback with the document ID and PDF URL
-      onSelectDocument(documentId, pdfDataUrl);
+      onSelectDocument(documentId, pdfUrl);
     } catch (error) {
       console.error("Error loading document:", error);
       setError('Failed to load the selected document');

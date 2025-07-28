@@ -1,28 +1,32 @@
 import { Message } from "../../types/chat";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
 
 export const conversationApi = {
-  create: async (documentId: string): Promise<{ id: string }> => {
-    const response = await fetch(
-      `${API_BASE_URL}/conversations?document_id=${documentId}`,
-      { method: "POST" }
+  create: async (documentId?: string, type: string = "chat"): Promise<{ conversation_id: string; system_msg_id: string }> => {
+    const body = documentId ? { type: type.toUpperCase(), document_id: documentId } : { type: type.toUpperCase() };
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/conversations`,
+      { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      }
     );
     if (!response.ok) throw new Error("Failed to create conversation");
     return response.json();
   },
 
   getDocumentConversations: async (documentId: string): Promise<any[]> => {
-    const response = await fetch(
-      `${API_BASE_URL}/conversations/document/${documentId}`
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/conversations?document_id=${documentId}`
     );
     if (!response.ok) throw new Error("Failed to fetch document conversations");
     return response.json();
   },
 
   getMessageTree: async (conversationId: string): Promise<Message[]> => {
-    const response = await fetch(
-      `${API_BASE_URL}/conversations/${conversationId}/messages/tree`
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/conversations/${conversationId}/tree`
     );
     if (!response.ok) throw new Error("Failed to fetch conversation history");
     return response.json();
@@ -34,8 +38,8 @@ export const conversationApi = {
     parentId: string,
     activeThreadIds: string[],
     selectedBlockId?: string
-  ): Promise<[any, string]> => {
-    const response = await fetch(
+  ): Promise<{ user_id: string; ai_id: string }> => {
+    const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages`,
       {
         method: "POST",
@@ -49,7 +53,10 @@ export const conversationApi = {
       }
     );
     if (!response.ok) throw new Error("Failed to send message");
-    return response.json();
+    
+    const responseData = await response.json();
+    console.log("conversationApi.sendMessage response:", responseData);
+    return responseData;
   },
 
   editMessage: async (
@@ -58,7 +65,7 @@ export const conversationApi = {
     content: string,
     activeThreadIds: string[]
   ): Promise<[any, string]> => {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}`,
       {
         method: "PUT",
@@ -79,8 +86,8 @@ export const conversationApi = {
     content: string,
     activeThreadIds: string[],
     selectedBlockId?: string
-  ): Promise<[string, string]> => {
-    const response = await fetch(
+  ): Promise<{ user_id: string; ai_id: string }> => {
+    const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}/edit_streaming`,
       {
         method: "PUT",

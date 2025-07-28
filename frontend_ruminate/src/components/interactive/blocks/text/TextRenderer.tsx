@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import TextContent from './TextContentFile';
 import TextSelectionTooltip from './TooltipManager/TextSelectionTooltip';
 import DefinitionPopup from './TooltipManager/DefinitionPopup';
-import AgentChatLauncher from './AgentChatLauncher';
 import { RabbitholeHighlight } from '../../../../services/rabbithole';
 import SelectionManager from './SelectionManager';
 import ReactRabbitholeHighlight from './HighlightOverlay/RabbitholeHighlight';
@@ -18,11 +17,6 @@ interface TextRendererProps {
     id: string, 
     text: string, 
     startOffset: number, 
-    endOffset: number
-  ) => void;
-  onCreateAgentChat?: (
-    text: string,
-    startOffset: number,
     endOffset: number
   ) => void;
   rabbitholeHighlights?: RabbitholeHighlight[];
@@ -41,7 +35,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   documentId,
   onAddTextToChat,
   onRabbitholeClick,
-  onCreateAgentChat,
   rabbitholeHighlights = [],
   getBlockClassName,
   highlights = [],
@@ -66,18 +59,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [definitionVisible, setDefinitionVisible] = useState(false);
   const [definitionWord, setDefinitionWord] = useState('');
   const [definitionPosition, setDefinitionPosition] = useState({ x: 0, y: 0 });
-  
-  // State for agent chat launcher
-  const [agentLauncherVisible, setAgentLauncherVisible] = useState(false);
-  
-  // console.log(`TextRenderer(${blockId}) rendering`);
-  
-  // useEffect(() => {
-  //   console.log(`TextRenderer(${blockId}) mounted`);
-  //   return () => {
-  //     console.log(`TextRenderer(${blockId}) unmounting`);
-  //   };
-  // }, [blockId]);
   
   // Handle text selection
   const handleTextSelected = (
@@ -143,49 +124,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setTooltipVisible(false);
   };
   
-  // Handle launching agent chat from selected text
-  const handleCreateAgentChat = (text: string) => {
-    console.log('Launching agent chat for:', text);
-    
-    // Only proceed if we have valid selection range data
-    if (selectedRange) {
-      // Hide tooltip and show agent launcher
-      setTooltipVisible(false);
-      
-      // If onCreateAgentChat is provided, directly call it without showing launcher
-      if (onCreateAgentChat && selectedRange) {
-        onCreateAgentChat(
-          selectedRange.text,
-          selectedRange.startOffset,
-          selectedRange.endOffset
-        );
-        clearSelection();
-      } else {
-        // Otherwise, show the agent launcher UI
-        setAgentLauncherVisible(true);
-      }
-    }
-  };
-  
-  // Handle agent chat launcher completion
-  const handleAgentChatComplete = (conversationId: string) => {
-    if (selectedRange && onCreateAgentChat) {
-      // Pass selected text and offsets to the consolidated handler
-      onCreateAgentChat(
-        selectedRange.text,
-        selectedRange.startOffset,
-        selectedRange.endOffset
-      );
-    }
-    setAgentLauncherVisible(false);
-    clearSelection();
-  };
-  
-  // Handle canceling agent chat creation
-  const handleAgentChatCancel = () => {
-    setAgentLauncherVisible(false);
-  };
-  
   // Handle rabbithole highlight click
   const handleRabbitholeClick = (
     id: string, 
@@ -242,7 +180,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           selectedText={selectedText}
           onAddToChat={handleAddToChat}
           onDefine={handleDefineText}
-          onLaunchAgentChat={onCreateAgentChat ? handleCreateAgentChat : undefined}
           onClose={() => {
             setTooltipVisible(false);
           } }
@@ -260,21 +197,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           position={definitionPosition}
           onClose={() => setDefinitionVisible(false)}
         />
-      )}
-      
-      {/* Agent Chat Launcher - keep for backward compatibility but should be replaced */}
-      {agentLauncherVisible && selectedRange && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <AgentChatLauncher
-            documentId={documentId}
-            blockId={blockId}
-            selectedText={selectedRange.text}
-            startOffset={selectedRange.startOffset}
-            endOffset={selectedRange.endOffset}
-            onComplete={handleAgentChatComplete}
-            onCancel={handleAgentChatCancel}
-          />
-        </div>
       )}
     </div>
   );

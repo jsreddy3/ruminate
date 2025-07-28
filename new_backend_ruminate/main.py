@@ -18,6 +18,7 @@ for env_file in env_files:
         load_dotenv(env_file, override=True)
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.db.bootstrap import init_engine
 from new_backend_ruminate.dependencies import get_event_hub  # optional: expose on app.state
@@ -26,6 +27,15 @@ from new_backend_ruminate.api.document.routes import router as document_router
 from new_backend_ruminate.api.auth.routes import router as auth_router
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(conversation_router)          # ← this line wires /conversations/…
 app.include_router(document_router)              # ← this line wires /documents/…

@@ -1,6 +1,5 @@
 import { Notes } from '../types/notes';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+import { authenticatedFetch, API_BASE_URL } from '../utils/api';
 
 
 interface GenerateNoteParams {
@@ -15,7 +14,7 @@ interface GenerateNoteParams {
  * Calls the API to auto-generate a note from a message
  */
 export const generateNoteFromMessage = async (params: GenerateNoteParams): Promise<Notes> => {
-  const response = await fetch(`${API_BASE_URL}/notes/auto-generate`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/notes/auto-generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,7 +34,7 @@ export const generateNoteFromMessage = async (params: GenerateNoteParams): Promi
  * Fetches all notes for a document
  */
 export const getDocumentNotes = async (documentId: string): Promise<Notes[]> => {
-  const response = await fetch(`${API_BASE_URL}/notes/document/${documentId}`);
+  const response = await authenticatedFetch(`${API_BASE_URL}/notes/document/${documentId}`);
   
   if (!response.ok) {
     throw new Error(`Failed to fetch document notes: ${response.status}`);
@@ -48,7 +47,7 @@ export const getDocumentNotes = async (documentId: string): Promise<Notes[]> => 
  * Fetches all notes for a specific block
  */
 export const getBlockNotes = async (blockId: string): Promise<Notes[]> => {
-  const response = await fetch(`${API_BASE_URL}/notes/block/${blockId}`);
+  const response = await authenticatedFetch(`${API_BASE_URL}/notes/block/${blockId}`);
   
   if (!response.ok) {
     throw new Error(`Failed to fetch block notes: ${response.status}`);

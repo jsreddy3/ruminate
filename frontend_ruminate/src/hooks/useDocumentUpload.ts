@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { CachedDocument, ProcessingProgress } from '@/types';
+import { authenticatedFetch, API_BASE_URL } from '@/utils/api';
+import { documentApi } from '@/services/api/document';
 
 // Utility function (can be moved to a separate utils file if preferred)
 async function calculateHash(file: File): Promise<string> {
@@ -31,7 +33,6 @@ export function useDocumentUpload(): UseDocumentUploadResult {
   const [pdfFile, setPdfFile] = useState<string | null>(null);
   const [hasUploadedFile, setHasUploadedFile] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
   // Cleanup EventSource on unmount or when dependencies change
   useEffect(() => {
@@ -57,25 +58,13 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     }
   }, []);
 
-  // Function to fetch PDF data (internal helper)
-  const fetchPdfData = async (docId: string): Promise<string | null> => {
+  // Function to fetch PDF URL (uses presigned URLs for better performance)
+  const fetchPdfUrl = async (docId: string): Promise<string | null> => {
     try {
-      const response = await fetch(`${apiUrl}/documents/${docId}/pdf`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-      }
-      const blob = await response.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          resolve(reader.result as string);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      return await documentApi.getPdfUrl(docId);
     } catch (err) {
-      console.error("Error fetching PDF data:", err);
-      setError(`Failed to load PDF data: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("Error fetching PDF URL:", err);
+      setError(`Failed to load PDF URL: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
   };
@@ -93,15 +82,15 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       if (cachedData) {
          setProgress({ status: "CACHE_CHECK", detail: "Checking cache..." });
         try {
-          const docResponse = await fetch(`${apiUrl}/documents/${cachedData.documentId}`);
+          const docResponse = await authenticatedFetch(`${API_BASE_URL}/documents/${cachedData.documentId}`);
           if (docResponse.ok) {
             const docData = await docResponse.json();
             if (docData.status === "READY") {
               setProgress({ status: "CACHE_HIT", detail: "Found previously processed document." });
-              const dataUrl = await fetchPdfData(cachedData.documentId);
-              if (dataUrl) {
+              const pdfUrl = await fetchPdfUrl(cachedData.documentId);
+              if (pdfUrl) {
                 setDocumentId(cachedData.documentId);
-                setPdfFile(dataUrl);
+                setPdfFile(pdfUrl);
                 setHasUploadedFile(true);
                 setIsProcessing(false);
                 setProgress(null);
@@ -126,7 +115,7 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${apiUrl}/documents/`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/documents/`, {
         method: 'POST', body: formData,
       });
 
@@ -135,15 +124,19 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       }
 
       const initialDocData = await response.json();
-      const newDocumentId = initialDocData.id;
+      // Backend returns { document: { id: "..." }, message: "..." }
+      const newDocumentId = initialDocData.document?.id;
       if (!newDocumentId) throw new Error("Server did not return a document ID after upload.");
 
       setDocumentId(newDocumentId); // Store ID early
 
       // ---- Start SSE Listening ----
       setProgress({ status: "PROCESSING_START", detail: "Waiting for processing updates..." });
-      const eventSourceUrl = `${apiUrl}/documents/${newDocumentId}/processing-stream`;
-      const es = new EventSource(eventSourceUrl);
+      const token = localStorage.getItem('auth_token');
+      const eventSourceUrl = `${API_BASE_URL}/documents/${newDocumentId}/processing-stream`;
+      // Note: EventSource doesn't support custom headers, so we add token as query param
+      const authenticatedEventSourceUrl = token ? `${eventSourceUrl}?token=${token}` : eventSourceUrl;
+      const es = new EventSource(authenticatedEventSourceUrl);
       eventSourceRef.current = es;
 
       es.onmessage = async (event) => {
@@ -153,13 +146,13 @@ export function useDocumentUpload(): UseDocumentUploadResult {
 
           if (progressData.status === "READY") {
             es.close(); eventSourceRef.current = null;
-            const dataUrl = await fetchPdfData(newDocumentId);
-            if (dataUrl) {
-              setPdfFile(dataUrl);
+            const pdfUrl = await fetchPdfUrl(newDocumentId);
+            if (pdfUrl) {
+              setPdfFile(pdfUrl);
               setHasUploadedFile(true);
               cachedDocuments[fileHash] = { documentId: newDocumentId, title: file.name, blockConversations: {} };
               localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
-            } // fetchPdfData handles error state
+            } // fetchPdfUrl handles error state
             setIsProcessing(false);
             setProgress(null);
           } else if (progressData.status === "ERROR") {
@@ -195,7 +188,7 @@ export function useDocumentUpload(): UseDocumentUploadResult {
           eventSourceRef.current = null;
       }
     }
-  }, [apiUrl, resetUploadState]);
+  }, [resetUploadState]);
 
   // Functions to allow LandingPage to set state when selecting an existing document
   const setPdfFileDirectly = useCallback((dataUrl: string | null) => setPdfFile(dataUrl), []);

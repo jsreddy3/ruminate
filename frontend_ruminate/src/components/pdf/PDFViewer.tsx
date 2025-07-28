@@ -10,8 +10,9 @@ import MathJaxProvider from "../common/MathJaxProvider";
 import TabView from "../common/TabView";
 import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
+import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
+import { createRabbithole } from "../../services/rabbithole";
 import BlockContainer from "../interactive/blocks/BlockContainer";
-import { agentApi } from "../../services/api/agent";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import BlockNavigator from "../interactive/blocks/BlockNavigator";
 
@@ -214,8 +215,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [showChat, setShowChat] = useState<boolean>(false);
   
   // Update the state management to handle multiple conversations
-  // Add state for tracking agent conversations
-  const [agentConversations, setAgentConversations] = useState<{
+  // Add state for tracking rabbithole conversations
+  const [rabbitholeConversations, setRabbitholeConversations] = useState<{
     id: string;
     title: string;
     selectionText: string;
@@ -246,8 +247,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     console.log("[DEBUG] Beginning fetchBlocks for document:", documentId);
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      const blocksResp = await fetch(`${apiUrl}/documents/${documentId}/blocks`);
+      const blocksResp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks`);
       const blocksData = await blocksResp.json();
       console.log("[DEBUG] Fetched blocks data:", blocksData.length, "blocks");
       if (Array.isArray(blocksData)) {
@@ -299,7 +299,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             console.log("No existing document conversation found, creating new one...");
             // Create a document-level conversation
             const newConv = await conversationApi.create(documentId);
-            const id = newConv.id;
+            const id = newConv.conversation_id;
             setMainConversationId(id);
             storeConversationId(documentId, id);
             console.log("Created new document conversation:", id);
@@ -535,29 +535,29 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setActiveTabId('block');
   }, []);
   
-  // Update the handleAgentChatCreated function to manage multiple agent conversations
-  const handleAgentChatCreated = useCallback((
+  // Handle creation of rabbithole conversations
+  const handleRabbitholeCreated = useCallback((
     conversationId: string, 
     selectedText: string,
     blockId: string
   ) => {
-    console.log("[DEBUG] handleAgentChatCreated called with:", { conversationId, selectedText, blockId });
+    console.log("[DEBUG] handleRabbitholeCreated called with:", { conversationId, selectedText, blockId });
     
     // Validate inputs to ensure we never try to add undefined/null values
     if (!conversationId) {
-      console.error("Cannot create agent chat without a conversation ID");
+      console.error("Cannot create rabbithole conversation without a conversation ID");
       return;
     }
 
     // Create a title from the selected text (truncated if needed)
     const title = selectedText && selectedText.length > 30 
       ? `${selectedText.substring(0, 30)}...` 
-      : selectedText || "New Agent Chat";
+      : selectedText || "New Rabbithole Chat";
     
     console.log("[DEBUG] Created tab title:", title);
     
     // Check if we already have this conversation to prevent duplicates
-    const existingConversation = agentConversations.find(c => c.id === conversationId);
+    const existingConversation = rabbitholeConversations.find(c => c.id === conversationId);
     if (existingConversation) {
       console.log("[DEBUG] Found existing conversation, activating it:", existingConversation);
       // If it already exists, just activate it
@@ -568,7 +568,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     
     // Add this conversation to our list
     console.log("[DEBUG] Adding new conversation to state:", { id: conversationId, title, selectionText: selectedText });
-    setAgentConversations(prev => {
+    setRabbitholeConversations(prev => {
       const newState = [
         ...prev, 
         {
@@ -578,7 +578,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           blockId
         }
       ];
-      console.log("[DEBUG] New agentConversations state:", newState);
+      console.log("[DEBUG] New rabbitholeConversations state:", newState);
       return newState;
     });
     
@@ -588,7 +588,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     
     // Ensure chat is visible
     setShowChat(true);
-  }, [agentConversations]);
+  }, [rabbitholeConversations]);
 
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
@@ -693,8 +693,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [showChat]); // Re-trigger when chat visibility changes
 
   useEffect(() => {
-    console.log("[DEBUG] agentConversations updated:", agentConversations);
-  }, [agentConversations]);
+    console.log("[DEBUG] rabbitholeConversations updated:", rabbitholeConversations);
+  }, [rabbitholeConversations]);
 
   useEffect(() => {
     console.log("[DEBUG] activeConversationId updated:", activeConversationId);
@@ -709,15 +709,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     console.log('[DEBUG] Chat visibility updated:', { 
       showChat, 
       activeConversationId, 
-      agentConversationsCount: agentConversations.length 
+      rabbitholeConversationsCount: rabbitholeConversations.length 
     });
     
     // Check if we should see a tab for activeConversationId
     if (activeConversationId) {
-      const activeConversation = agentConversations.find(c => c.id === activeConversationId);
+      const activeConversation = rabbitholeConversations.find(c => c.id === activeConversationId);
       console.log('[DEBUG] Active conversation:', activeConversation);
     }
-  }, [showChat, activeConversationId, agentConversations]);
+  }, [showChat, activeConversationId, rabbitholeConversations]);
 
   return (
     <MathJaxProvider>
@@ -820,7 +820,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                           console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
                           
                           // Check if this conversation is already in our list
-                          const existingConversation = agentConversations.find(c => c.id === rabbitholeId);
+                          const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
                           if (existingConversation) {
                             // If it exists, just activate it
                             setActiveConversationId(rabbitholeId);
@@ -854,16 +854,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                           
                           if (documentId && selectedBlock) {
                             console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
-                            agentApi.createAgentRabbithole(
-                              documentId,
-                              selectedBlock.id,
-                              text,
-                              startOffset,
-                              endOffset
-                            ).then(({ conversation_id }) => {
+                            createRabbithole({
+                              document_id: documentId,
+                              block_id: selectedBlock.id,
+                              selected_text: text,
+                              start_offset: startOffset,
+                              end_offset: endOffset,
+                              type: 'rabbithole'
+                            }).then((conversation_id) => {
                               console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
                               // Pass the exact selected text for the agent chat
-                              handleAgentChatCreated(conversation_id, text, selectedBlock.id);
+                              handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
                               
                               // First refresh the rabbithole data in the current block view
                               if (refreshRabbitholesFnRef.current) {
@@ -939,7 +940,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     </button>
                     
                     {/* Agent chat tabs */}
-                    {agentConversations.map(conv => (
+                    {rabbitholeConversations.map(conv => (
                       <button
                         key={conv.id}
                         className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
@@ -975,7 +976,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       key={`main-chat-${mainConversationId || 'default'}`}
                       documentId={documentId}
                       selectedBlock={selectedBlock}
-                      isAgentChat={false}
                       conversationId={mainConversationId || undefined}
                       onClose={() => setShowChat(false)}
                     />
@@ -984,7 +984,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       key={`agent-chat-${activeConversationId}`}
                       documentId={documentId}
                       selectedBlock={selectedBlock}
-                      isAgentChat={true}
                       conversationId={activeConversationId}
                       onClose={() => {
                         if (activeConversationId) {

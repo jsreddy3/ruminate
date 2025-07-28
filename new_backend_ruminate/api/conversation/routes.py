@@ -17,6 +17,7 @@ from new_backend_ruminate.dependencies import (
     get_event_hub,
     get_session,
     get_current_user,
+    get_current_user_from_query_token,
 )
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.services.conversation.service import ConversationService
@@ -69,10 +70,10 @@ async def post_message(
         background=bg,
         conv_id=cid,
         user_content=req.content,
-        parent_id=req.parent_id,
+        parent_id=str(req.parent_id) if req.parent_id is not None else None,
         user_id=current_user.id,
     )
-    return {"user_msg_id": user_id, "ai_msg_id": ai_id}
+    return {"user_id": user_id, "ai_id": ai_id}
 
 
 @router.put("/{cid}/messages/{mid}/edit_streaming", response_model=MessageIdsResponse)
@@ -91,13 +92,13 @@ async def edit_message(
         new_content=req.content,
         user_id=current_user.id,
     )
-    return {"user_msg_id": edited_id, "ai_msg_id": ai_id}
+    return {"user_id": edited_id, "ai_id": ai_id}
 
 
 @router.get("/streams/{msg_id}")
 async def stream(
     msg_id: str, 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_from_query_token),
     hub: EventStreamHub = Depends(get_event_hub)
 ):
     async def event_source():
