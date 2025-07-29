@@ -49,6 +49,21 @@ class WindowedContextBuilder:
             conv, thread, session=session
         )
         
+        # Debug output to file
+        with open("/tmp/context_debug.txt", "a") as f:
+            f.write(f"=== Context Build Debug ===\n")
+            f.write(f"Conv ID: {conv.id}\n")
+            f.write(f"Conv Type: {conv.type}\n") 
+            f.write(f"Document ID: {conv.document_id}\n")
+            f.write(f"Source Block ID: {conv.source_block_id}\n")
+            f.write(f"Thread length: {len(thread)}\n")
+            f.write(f"System prompt length: {len(system_prompt) if system_prompt else 0}\n")
+            f.write(f"Document summary length: {len(document_summary) if document_summary else 0}\n")
+            f.write(f"Page content length: {len(page_content) if page_content else 0}\n")
+            f.write(f"Conversation history length: {len(conversation_history) if conversation_history else 0}\n")
+            f.write(f"Page content preview: {page_content[:200] if page_content else 'EMPTY'}...\n")
+            f.write("===========================\n\n")
+        
         # Create context window and convert to LLM format
         window = ContextWindow(
             system_prompt=system_prompt,

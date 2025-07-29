@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Worker, Viewer, SpecialZoomLevel } from "@react-pdf-viewer/core";
+import { Worker, Viewer, SpecialZoomLevel, ScrollMode } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import { zoomPlugin } from "@react-pdf-viewer/zoom";
 import { pageNavigationPlugin } from "@react-pdf-viewer/page-navigation";
@@ -440,7 +440,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [documentId, fetchBlocks]);
 
-  // Create individual plugin instances
+  // Create plugin instances
   const zoomPluginInstance = zoomPlugin();
   const { ZoomIn, ZoomOut } = zoomPluginInstance;
 
@@ -715,7 +715,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     display: 'flex',
                     flexDirection: 'column'
                   }}
-                  className="overflow-auto relative"
+                  className="overflow-auto"
                 >
                   <Viewer
                     fileUrl={pdfFile}
@@ -725,6 +725,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       pageNavigationPluginInstance
                     ]}
                     defaultScale={SpecialZoomLevel.PageFit}
+                    scrollMode={ScrollMode.Vertical}
                     theme="light"
                     pageLayout={pageLayout}
                     onDocumentLoad={(e) => {

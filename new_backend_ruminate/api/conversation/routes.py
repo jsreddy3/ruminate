@@ -1,4 +1,5 @@
 # new_backend/api/conversation/routes.py
+import logging
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession

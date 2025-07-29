@@ -36,6 +36,16 @@ class ConversationService:
     # ─────────────────────────────── helpers ──────────────────────────────── #
 
     async def _publish_stream(self, ai_id: str, prompt: List[dict[str, str]]) -> None:
+        # Debug: Write exactly what we're sending to the LLM
+        import json
+        with open("/tmp/llm_prompt_debug.json", "w") as f:
+            json.dump({
+                "ai_msg_id": ai_id,
+                "messages": prompt,
+                "message_count": len(prompt),
+                "total_chars": sum(len(msg.get("content", "")) for msg in prompt)
+            }, f, indent=2)
+        
         full = ""
         async for chunk in self._llm.generate_response_stream(prompt):
             full += chunk
@@ -173,7 +183,7 @@ class ConversationService:
         """
         async with session_scope() as session:
             # 1 ─ sibling user turn
-            sibling, sibling_id = await self._repo.edit_message(msg_id, new_content, session)
+            sibling, sibling_id = await self._repo.edit_message(msg_id, new_content, session, selected_block_id)
 
             # 2 ─ assistant placeholder
             ai_id = str(uuid4())

@@ -111,7 +111,7 @@ class RDSConversationRepository(ConversationRepository):
         await session.flush()
 
     async def edit_message(
-        self, msg_id: str, new_content: str, session: AsyncSession
+        self, msg_id: str, new_content: str, session: AsyncSession, block_id: str | None = None
     ) -> Tuple[Message, str]:
         """
         Creates a **sibling version** of `msg_id` (version + 1) and returns it.
@@ -136,6 +136,7 @@ class RDSConversationRepository(ConversationRepository):
             version=next_version,
             role=original.role,
             content=new_content,
+            block_id=block_id if block_id is not None else original.block_id,
         )
         session.add(sibling)
 
