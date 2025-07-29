@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MessageNode, MessageRole } from '../../../types/chat';
 import MessageItem from './MessageItem';
 
@@ -24,6 +24,7 @@ const MessageList: React.FC<MessageListProps> = ({
   onEditMessage,
   conversationId
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Helper function to find a message in the tree by ID
   const findMessageById = (id: string, nodes: MessageNode[]): MessageNode | null => {

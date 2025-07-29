@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Block } from '../pdf/PDFViewer';
 import { useMessageTree } from '../../hooks/useMessageTree';
 import { useMessageStream } from '../../hooks/useMessageStream';
@@ -8,6 +8,7 @@ import { MessageRole } from '../../types/chat';
 // Import components from absolute paths
 import MessageList from '../../components/chat/messages/MessageList';
 import MessageInput from '../../components/chat/messages/MessageInput';
+import NoteGenerationPopup from './NoteGenerationPopup';
 
 interface ChatContainerProps {
   documentId: string;
@@ -17,6 +18,10 @@ interface ChatContainerProps {
   onConversationCreated?: (id: string) => void;
   pendingText?: string;
   onTextAdded?: () => void;
+  onRequestBlockSelection?: (config: {
+    prompt: string;
+    onComplete: (blockId: string) => void;
+  }) => void;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -26,13 +31,20 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   onClose,
   onConversationCreated,
   pendingText,
-  onTextAdded
+  onTextAdded,
+  onRequestBlockSelection
 }) => {
   // Track conversation ID (may need to be created)
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   
   // Track streaming state for displaying content during generation
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  
+  // Note generation state
+  const [showNotePopup, setShowNotePopup] = useState(false);
+  
+  // Ref for scrollable container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Core message tree state for the conversation
   const {
@@ -137,10 +149,69 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     }
   }, [isStreamingComplete, streamingMessageId, refreshTree]);
   
+  // Auto-scroll to bottom when messages change or streaming content updates
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [messageTree.length, streamingContent]);
+
+  // Handle note generation
+  const handleGenerateNote = useCallback(async (messageCount: number, topic: string) => {
+    if (!conversationId || !onRequestBlockSelection) {
+      console.error('Cannot generate note: missing conversation ID or block selection handler');
+      return;
+    }
+
+    // Request block selection from PDF viewer
+    onRequestBlockSelection({
+      prompt: "Select a block to save your conversation note",
+      onComplete: async (blockId: string) => {
+        try {
+          // Call the backend API to generate note using existing API setup
+          const { authenticatedFetch, API_BASE_URL } = await import('../../utils/api');
+          const response = await authenticatedFetch(
+            `${API_BASE_URL}/conversations/${conversationId}/generate-note`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                block_id: blockId,
+                message_count: messageCount,
+                topic: topic || undefined
+              })
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to generate note');
+          }
+
+          const result = await response.json();
+          console.log('Note generated successfully:', result);
+          
+          // Close the popup
+          setShowNotePopup(false);
+          
+          // TODO: Show success message or refresh block data
+        } catch (error) {
+          console.error('Error generating note:', error);
+          // TODO: Show error message
+        }
+      }
+    });
+  }, [conversationId, onRequestBlockSelection]);
+
+  // Count user messages for pill visibility (exclude system messages)
+  const userMessageCount = messageTree.filter(msg => msg.role === MessageRole.USER).length;
+  const shouldShowNotePill = userMessageCount >= 5;
+  
   
   return (
     <div className="flex flex-col h-full bg-white text-gray-900">
-      <div className="flex-1 overflow-auto bg-white" key={`chat-container-${conversationId || 'main'}`}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white" key={`chat-container-${conversationId || 'main'}`}>
         {/* Message list */}
         <MessageList 
           messages={messageTree}
@@ -153,6 +224,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         />
       </div>
       
+      {/* Note generation pill - appears between messages and input when 5+ messages */}
+      {shouldShowNotePill && (
+        <div className="px-3 py-2 border-t border-gray-100">
+          <button
+            onClick={() => setShowNotePopup(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-full border border-blue-200 transition-colors"
+            disabled={isLoadingTree || !!streamingMessageId}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Generate note from conversation
+          </button>
+        </div>
+      )}
       
       {/* Message input */}
       <div className="border-t p-3 bg-white">
@@ -163,6 +249,14 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           onTextConsumed={onTextAdded}
         />
       </div>
+
+      {/* Note Generation Popup */}
+      <NoteGenerationPopup
+        isVisible={showNotePopup}
+        totalMessages={userMessageCount}
+        onClose={() => setShowNotePopup(false)}
+        onGenerate={handleGenerateNote}
+      />
     </div>
   );
 };

@@ -9,6 +9,8 @@ interface PDFBlockOverlayProps {
   pageIndex: number;
   scale: number;
   onBlockClick: (block: Block) => void;
+  isSelectionMode?: boolean;
+  onBlockSelect?: (blockId: string) => void;
 }
 
 export default function PDFBlockOverlay({
@@ -16,7 +18,9 @@ export default function PDFBlockOverlay({
   selectedBlock,
   pageIndex,
   scale,
-  onBlockClick
+  onBlockClick,
+  isSelectionMode = false,
+  onBlockSelect
 }: PDFBlockOverlayProps) {
   // Filter blocks for current page
   const filteredBlocks = blocks.filter((b) => {
@@ -59,6 +63,17 @@ export default function PDFBlockOverlay({
             borderRadius: '2px',
           };
 
+          // Selection mode styling
+          if (isSelectionMode) {
+            return {
+              ...baseStyle,
+              border: '2px dashed rgba(59, 130, 246, 0.8)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              cursor: 'pointer',
+            };
+          }
+
+          // Normal mode styling
           if (isSelected) {
             return {
               ...baseStyle,
@@ -86,16 +101,40 @@ export default function PDFBlockOverlay({
         const hasAnnotations = block.metadata?.annotations && Object.keys(block.metadata.annotations).length > 0;
         const annotationCount = hasAnnotations ? Object.keys(block.metadata.annotations).length : 0;
 
+        // Handle click based on mode
+        const handleClick = () => {
+          if (isSelectionMode && onBlockSelect) {
+            onBlockSelect(block.id);
+          } else {
+            onBlockClick(block);
+          }
+        };
+
+        // Dynamic hover classes based on mode
+        const hoverClasses = isSelectionMode 
+          ? "hover:bg-blue-200/20 hover:border-blue-500 hover:shadow-lg"
+          : "hover:bg-primary-100/10 hover:border-primary-400 hover:shadow-block-hover";
+
         return (
           <motion.div
             key={block.id}
             style={getBlockStyle()}
-            className="hover:bg-primary-100/10 hover:border-primary-400 hover:shadow-block-hover group"
-            onClick={() => onBlockClick(block)}
-            title={block.html_content?.replace(/<[^>]*>/g, "") || ""}
+            className={`${hoverClasses} group`}
+            onClick={handleClick}
+            title={
+              isSelectionMode 
+                ? `Click to select this block for your note: ${block.html_content?.replace(/<[^>]*>/g, "").substring(0, 100)}...`
+                : block.html_content?.replace(/<[^>]*>/g, "") || ""
+            }
           >
-            {/* Optional: Show a dot indicator for selected blocks */}
-            {isSelected && (
+            {/* Selection mode indicator or normal selected indicator */}
+            {isSelectionMode ? (
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                  Select
+                </div>
+              </div>
+            ) : isSelected && (
               <div className="absolute top-1/2 -translate-y-1/2 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="w-4 h-4 rounded-full bg-primary-100 flex items-center justify-center">
                   <div className="w-2 h-2 rounded-full bg-primary-500" />

@@ -259,6 +259,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add state for conversation management
   const [mainConversationId, setMainConversationId] = useState<string | null>(null);
   
+  // Block selection mode state
+  const [isBlockSelectionMode, setIsBlockSelectionMode] = useState(false);
+  const [blockSelectionPrompt, setBlockSelectionPrompt] = useState<string>("Select a block");
+  const [onBlockSelectionComplete, setOnBlockSelectionComplete] = useState<((blockId: string) => void) | null>(null);
+  
   // Update the state management to handle multiple conversations
   // Add state for tracking rabbithole conversations
   const [rabbitholeConversations, setRabbitholeConversations] = useState<{
@@ -575,10 +580,18 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           pageIndex={props.pageIndex}
           scale={props.scale}
           onBlockClick={handleBlockClick}
+          isSelectionMode={isBlockSelectionMode}
+          onBlockSelect={(blockId: string) => {
+            if (onBlockSelectionComplete) {
+              onBlockSelectionComplete(blockId);
+              setIsBlockSelectionMode(false);
+              setOnBlockSelectionComplete(null);
+            }
+          }}
         />
       );
     },
-    [blocks, selectedBlock, handleBlockClick]
+    [blocks, selectedBlock, handleBlockClick, isBlockSelectionMode, onBlockSelectionComplete]
   );
 
   // Use our custom hook for the main panel layout (PDF vs chat)
@@ -619,6 +632,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setPendingChatText('');
   }, []);
 
+  // Handle block selection requests from chat
+  const handleBlockSelectionRequest = useCallback((config: {
+    prompt: string;
+    onComplete: (blockId: string) => void;
+  }) => {
+    setIsBlockSelectionMode(true);
+    setBlockSelectionPrompt(config.prompt);
+    setOnBlockSelectionComplete(() => config.onComplete);
+  }, []);
+
   // Add effect to log active conversation changes
   useEffect(() => {
     console.log('[DEBUG] Active conversation updated:', { 
@@ -643,6 +666,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         }
       `}</style>
       <div className="h-screen flex w-full overflow-hidden relative">
+        {/* Block Selection Mode Banner */}
+        {isBlockSelectionMode && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-bounce">
+              <div className="animate-pulse w-3 h-3 bg-white rounded-full"></div>
+              <span className="font-medium">{blockSelectionPrompt}</span>
+              <button 
+                onClick={() => {
+                  setIsBlockSelectionMode(false);
+                  setOnBlockSelectionComplete(null);
+                }}
+                className="ml-2 text-white hover:text-gray-200 bg-blue-600 hover:bg-blue-700 rounded-full p-1 transition-colors"
+                title="Cancel selection"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
         <div 
           className="absolute bottom-6 z-50"
@@ -936,6 +980,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     onConversationCreated={(id) => {
                       setMainConversationId(id);
                     }}
+                    onRequestBlockSelection={handleBlockSelectionRequest}
                   />
                 ) : (
                   <ChatContainer 
@@ -945,6 +990,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     conversationId={activeConversationId}
                     pendingText={pendingChatText}
                     onTextAdded={handleTextAdded}
+                    onRequestBlockSelection={handleBlockSelectionRequest}
                   />
                 )}
               </div>
