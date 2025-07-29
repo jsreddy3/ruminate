@@ -753,7 +753,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           {/* PDF viewer - left panel */}
           <Panel 
             defaultSize={mainPanelSizes[0]} 
-            minSize={50}
+            minSize={20}
+            maxSize={85}
             className="bg-white shadow-lg overflow-hidden relative"
           >
             <div className="h-full w-full overflow-hidden">
@@ -913,7 +914,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           {/* Chat panel - right side */}
           <Panel 
             defaultSize={mainPanelSizes[1]} 
-            minSize={25}
+            minSize={15}
+            maxSize={80}
             className="border-l border-gray-200 bg-white"
           >
             <div className="flex flex-col h-full">
