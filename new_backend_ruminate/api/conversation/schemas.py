@@ -70,6 +70,7 @@ class SendMessageRequest(BaseModel):
     """
     content: str
     parent_id: Optional[UUID] = None
+    selected_block_id: Optional[str] = None
 
 
 # --- responses -------------------------------------------------------- #

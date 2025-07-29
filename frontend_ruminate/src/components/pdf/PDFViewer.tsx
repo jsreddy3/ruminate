@@ -3,6 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Worker, Viewer, SpecialZoomLevel } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+import { zoomPlugin } from "@react-pdf-viewer/zoom";
+import { pageNavigationPlugin } from "@react-pdf-viewer/page-navigation";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
@@ -269,6 +271,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add state for tracking the active conversation tab
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   
+  // Add state for page tracking
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  
+  
   // Add state for pending text to be added to chat
   const [pendingChatText, setPendingChatText] = useState<string>('');
   
@@ -433,6 +440,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [documentId, fetchBlocks]);
 
+  // Create individual plugin instances
+  const zoomPluginInstance = zoomPlugin();
+  const { ZoomIn, ZoomOut } = zoomPluginInstance;
+
+  const pageNavigationPluginInstance = pageNavigationPlugin();
+  const { GoToNextPage, GoToPreviousPage } = pageNavigationPluginInstance;
+
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
     toolbarPlugin: {
       fullScreenPlugin: {
@@ -443,68 +457,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         keyword: [''],
       },
     },
-
-    renderToolbar: (Toolbar) => (
-      <Toolbar>
-        {(slots) => {
-          const {
-            CurrentPageInput,
-            GoToNextPage,
-            GoToPreviousPage,
-            NumberOfPages,
-            ShowSearchPopover,
-            SwitchTheme,
-            Zoom,
-            ZoomIn,
-            ZoomOut,
-          } = slots;
-          return (
-            <div className="flex items-center w-full px-4">
-              {/* Back Button */}
-              <div className="flex items-center mr-4">
-                <button
-                  onClick={() => router.push('/home')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all duration-200"
-                  title="Back to Home"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span className="font-medium">Back</span>
-                </button>
-              </div>
-              
-              {/* Page Navigation Group */}
-              <div className="flex items-center gap-2 min-w-[200px]">
-                <div className="flex items-center gap-1">
-                  <CurrentPageInput />
-                  <span className="text-neutral-600">/</span>
-                  <span className="text-neutral-600">
-                    <NumberOfPages />
-                  </span>
-                </div>
-                <GoToPreviousPage />
-                <GoToNextPage />
-              </div>
-
-              {/* Center area - empty or could add custom controls here */}
-              <div className="flex-1"></div>
-
-              {/* Right Controls Group */}
-              <div className="flex items-center gap-2 min-w-[200px] justify-end">
-                <div className="flex items-center gap-2">
-                  <ZoomOut />
-                  <ZoomIn />
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <SwitchTheme />
-                </div>
-              </div>
-            </div>
-          );
-        }}
-      </Toolbar>
-    ),
+    renderToolbar: () => <></>, // Hide the default toolbar
     sidebarTabs: () => [],
   });
 
@@ -682,7 +635,59 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   return (
     <MathJaxProvider>
-      <div className="h-screen flex w-full overflow-hidden">
+      <style jsx global>{`
+        /* Hide PDF.js tooltips */
+        .rpv-core__tooltip,
+        [role="tooltip"] {
+          display: none !important;
+        }
+      `}</style>
+      <div className="h-screen flex w-full overflow-hidden relative">
+        {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
+        <div 
+          className="absolute bottom-6 z-50"
+          style={{
+            left: `${currentPanelSizes[0] / 2}%`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="bg-white/95 backdrop-blur-sm shadow-lg rounded-full px-4 py-2 flex items-center gap-3 border border-gray-200">
+            {/* Back Button */}
+            <button
+              onClick={() => router.push('/home')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200"
+              title="Back to Home"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="font-medium">Back</span>
+            </button>
+
+            <div className="w-px h-6 bg-gray-300"></div>
+
+            {/* Toolbar controls */}
+            <div className="flex items-center gap-2">
+              {/* Page Navigation */}
+              <div className="flex items-center gap-1">
+                <GoToPreviousPage />
+                <div className="px-2 py-1 bg-gray-100 rounded text-xs font-mono text-gray-600 min-w-[3rem] text-center">
+                  {currentPage}/{totalPages}
+                </div>
+                <GoToNextPage />
+              </div>
+
+              <div className="w-px h-6 bg-gray-300"></div>
+
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1">
+                <ZoomOut />
+                <ZoomIn />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <PanelGroup 
           direction="horizontal" 
           onLayout={(sizes) => {
@@ -710,14 +715,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     display: 'flex',
                     flexDirection: 'column'
                   }}
-                  className="overflow-auto"
+                  className="overflow-auto relative"
                 >
                   <Viewer
                     fileUrl={pdfFile}
-                    plugins={[defaultLayoutPluginInstance]}
+                    plugins={[
+                      defaultLayoutPluginInstance,
+                      zoomPluginInstance,
+                      pageNavigationPluginInstance
+                    ]}
                     defaultScale={SpecialZoomLevel.PageFit}
                     theme="light"
                     pageLayout={pageLayout}
+                    onDocumentLoad={(e) => {
+                      setTotalPages(e.doc.numPages);
+                      setCurrentPage(1);
+                    }}
+                    onPageChange={(e) => {
+                      setCurrentPage(e.currentPage + 1);
+                    }}
                     renderLoader={(percentages: number) => (
                       <div className="flex items-center justify-center p-4">
                         <div className="w-full max-w-sm">

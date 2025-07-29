@@ -105,6 +105,7 @@ class ConversationService:
         user_content: str,
         parent_id: str | None,
         user_id: str,
+        selected_block_id: str | None = None,
     ) -> Tuple[str, str]:
         """
         Standard user turn: write user + placeholder, extend active thread,
@@ -122,6 +123,7 @@ class ConversationService:
                 role=Role.USER,
                 content=user_content,
                 user_id=user_id,
+                block_id=selected_block_id,
             )
             await self._repo.add_message(user, session)
             if parent_id:
@@ -162,6 +164,7 @@ class ConversationService:
         msg_id: str,
         new_content: str,
         user_id: str,
+        selected_block_id: str | None = None,
     ) -> Tuple[str, str]:
         """
         Creates a sibling version of `msg_id`, attaches new assistant placeholder,
