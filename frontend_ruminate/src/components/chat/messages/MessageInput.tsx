@@ -1,9 +1,11 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, KeyboardEvent, useEffect } from 'react';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => Promise<void>;
   isDisabled?: boolean;
   placeholder?: string;
+  pendingText?: string;
+  onTextConsumed?: () => void;
 }
 
 /**
@@ -12,10 +14,20 @@ interface MessageInputProps {
 const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
   isDisabled = false,
-  placeholder = 'Type your message...'
+  placeholder = 'Type your message...',
+  pendingText,
+  onTextConsumed
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Handle pending text when it changes
+  useEffect(() => {
+    if (pendingText) {
+      setMessage(prev => prev + (prev ? ' ' : '') + pendingText);
+      onTextConsumed?.(); // Notify that text was consumed
+    }
+  }, [pendingText, onTextConsumed]);
 
   // Handle message submission
   const handleSend = async () => {

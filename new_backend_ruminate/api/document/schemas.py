@@ -69,3 +69,18 @@ class BlockResponse(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
+
+
+class DefinitionRequest(BaseModel):
+    """Request schema for getting a definition"""
+    term: str = Field(..., description="The term to define")
+    block_id: str = Field(..., description="The block ID containing the term")
+    surrounding_text: Optional[str] = Field(None, description="Optional surrounding text for better context")
+
+
+class DefinitionResponse(BaseModel):
+    """Response schema for definition"""
+    term: str
+    definition: str
+    context: Optional[str] = Field(None, description="The context used to generate the definition")
+    block_id: str

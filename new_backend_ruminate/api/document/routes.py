@@ -10,7 +10,9 @@ from new_backend_ruminate.api.document.schemas import (
     DocumentUploadResponse, 
     DocumentListResponse,
     PageResponse,
-    BlockResponse
+    BlockResponse,
+    DefinitionRequest,
+    DefinitionResponse
 )
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token
@@ -252,3 +254,41 @@ async def download_document_pdf(
         import traceback
         print(f"[PDF Route] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error downloading PDF: {str(e)}")
+
+
+@router.post("/{document_id}/define", response_model=DefinitionResponse)
+async def get_definition(
+    document_id: str,
+    request: DefinitionRequest,
+    current_user: User = Depends(get_current_user),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """
+    Get a contextual definition for a term within a document.
+    
+    This endpoint:
+    1. Retrieves the specified block and surrounding context
+    2. Uses the document's content to generate a contextual definition
+    3. Returns the definition specific to this document's domain
+    """
+    try:
+        # Call the service method to get the definition
+        definition_result = await svc.get_term_definition(
+            document_id=document_id,
+            block_id=request.block_id,
+            term=request.term,
+            surrounding_text=request.surrounding_text,
+            user_id=current_user.id
+        )
+        
+        return DefinitionResponse(
+            term=definition_result["term"],
+            definition=definition_result["definition"],
+            context=definition_result.get("context"),
+            block_id=request.block_id
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating definition: {str(e)}")

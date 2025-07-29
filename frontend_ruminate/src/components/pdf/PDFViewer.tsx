@@ -243,6 +243,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add state for tracking the active conversation tab
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   
+  // Add state for pending text to be added to chat
+  const [pendingChatText, setPendingChatText] = useState<string>('');
+  
   // Add ref to store the rabbithole refresh function
   const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
   
@@ -700,6 +703,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     console.log("[DEBUG] blocks updated, count:", blocks.length);
   }, [blocks]);
 
+  // Add handlers for pending text management
+  const handleAddTextToChat = useCallback((text: string) => {
+    setPendingChatText(text);
+  }, []);
+
+  const handleTextAdded = useCallback(() => {
+    setPendingChatText('');
+  }, []);
+
   // Add effect to log active conversation changes
   useEffect(() => {
     console.log('[DEBUG] Active conversation updated:', { 
@@ -841,13 +853,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                         console.log("[DEBUG] BlockContainer provided refresh function");
                         refreshRabbitholesFnRef.current = refreshFn;
                       }}
-                      onAddTextToChat={(text: string) => {
-                        const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
-                        if (messageInput) {
-                          messageInput.value += (messageInput.value ? ' ' : '') + text;
-                          messageInput.focus();
-                        }
-                      }}
+                      onAddTextToChat={handleAddTextToChat}
                       onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
                         console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
                         
@@ -873,11 +879,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                         
                         setActiveConversationId(rabbitholeId);
                       }}
-                      onCreateAgentChat={(text: string, startOffset: number, endOffset: number) => {
-                        console.log("[DEBUG] onCreateAgentChat called with text:", text, "offsets:", startOffset, endOffset);
+                      onCreateRabbithole={(text: string, startOffset: number, endOffset: number) => {
+                        console.log("[DEBUG] onCreateRabbithole called with text:", text, "offsets:", startOffset, endOffset);
                         
                         if (documentId && selectedBlock) {
-                          console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
+                          console.log("[DEBUG] Creating rabbithole for document:", documentId, "block:", selectedBlock.id);
                           createRabbithole({
                             document_id: documentId,
                             block_id: selectedBlock.id,
@@ -886,7 +892,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                             end_offset: endOffset,
                             type: 'rabbithole'
                           }).then((conversation_id) => {
-                            console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
+                            console.log("[DEBUG] Rabbithole created successfully with conversation ID:", conversation_id);
                             handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
                             
                             if (refreshRabbitholesFnRef.current) {
@@ -902,7 +908,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                               fetchBlocks();
                             }
                           }).catch(error => {
-                            console.error("Error creating agent chat:", error);
+                            console.error("Error creating rabbithole:", error);
                           });
                         }
                       }}
@@ -991,6 +997,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                         documentId={documentId}
                         selectedBlock={selectedBlock}
                         conversationId={mainConversationId || undefined}
+                        pendingText={pendingChatText}
+                        onTextAdded={handleTextAdded}
+                        onConversationCreated={(id) => {
+                          setMainConversationId(id);
+                        }}
                       />
                     ) : (
                       <ChatContainer 
@@ -998,6 +1009,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                         documentId={documentId}
                         selectedBlock={selectedBlock}
                         conversationId={activeConversationId}
+                        pendingText={pendingChatText}
+                        onTextAdded={handleTextAdded}
                       />
                     )}
                   </div>

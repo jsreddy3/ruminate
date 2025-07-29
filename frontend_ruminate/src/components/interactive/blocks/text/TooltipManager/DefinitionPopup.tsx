@@ -1,10 +1,13 @@
-import React, { useRef, useEffect } from 'react';
-import { X, Book } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { X, Book, Loader } from 'lucide-react';
+import { documentApi } from '@/services/api/document';
 
 interface DefinitionPopupProps {
   isVisible: boolean;
   position: { x: number, y: number };
   term: string;
+  documentId: string;
+  blockId: string;
   onClose: () => void;
 }
 
@@ -12,9 +15,14 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
   isVisible,
   position,
   term,
+  documentId,
+  blockId,
   onClose
 }) => {
   const popupRef = useRef<HTMLDivElement>(null);
+  const [definition, setDefinition] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Close when clicking outside
   useEffect(() => {
@@ -31,6 +39,28 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isVisible, onClose]);
+
+  // Fetch definition when popup becomes visible
+  useEffect(() => {
+    if (!isVisible || !term || !documentId || !blockId) return;
+    
+    const fetchDefinition = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const result = await documentApi.getTermDefinition(documentId, blockId, term);
+        setDefinition(result.definition);
+      } catch (err) {
+        console.error('Failed to fetch definition:', err);
+        setError('Failed to load definition. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDefinition();
+  }, [isVisible, term, documentId, blockId]);
 
   // Close on Escape key
   useEffect(() => {
@@ -106,12 +136,18 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       <div className="p-4">
         <div className="font-medium text-slate-900 mb-1">{term}</div>
         <div className="text-slate-700 text-sm mt-2">
-          <p className="italic">Definition for "{term}" in this context.</p>
-          
-          {/* Placeholder definition content */}
-          <div className="mt-3 text-slate-600">
-            Definition will appear here. This is a placeholder.
-          </div>
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-slate-500">
+              <Loader size={16} className="animate-spin" />
+              <span>Loading definition...</span>
+            </div>
+          ) : error ? (
+            <div className="text-red-600">{error}</div>
+          ) : definition ? (
+            <div className="text-slate-700 leading-relaxed">{definition}</div>
+          ) : (
+            <p className="italic text-slate-500">No definition available.</p>
+          )}
         </div>
       </div>
       

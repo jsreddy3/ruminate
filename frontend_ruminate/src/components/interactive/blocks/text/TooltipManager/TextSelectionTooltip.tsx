@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageSquarePlus, BookOpen } from 'lucide-react';
+import { MessageSquarePlus, BookOpen, Search } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
   documentId: string;
@@ -9,6 +9,7 @@ interface TextSelectionTooltipProps {
   selectedText: string;
   onAddToChat?: (text: string) => void;
   onDefine?: (text: string) => void;
+  onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onClose: () => void;
 }
 
@@ -20,6 +21,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   selectedText,
   onAddToChat,
   onDefine,
+  onCreateRabbithole,
   onClose,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -78,6 +80,16 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       icon: <MessageSquarePlus size={16} />,
       onClick: safeExecute(onAddToChat),
     },
+    ...( onCreateRabbithole ? [{
+      label: 'Dive deeper',
+      icon: <Search size={16} />,
+      onClick: () => {
+        if (onCreateRabbithole) {
+          // For now, use dummy offsets - we'll need to get real ones from the selection
+          onCreateRabbithole(selectedText, 0, selectedText.length);
+        }
+      },
+    }] : []),
     ...( onDefine ? [{
       label: 'Define',
       icon: <BookOpen size={16} />,

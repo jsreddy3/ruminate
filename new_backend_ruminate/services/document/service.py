@@ -410,3 +410,106 @@ class DocumentService:
         
         from sse_starlette.sse import EventSourceResponse
         return EventSourceResponse(event_generator())
+    
+    async def get_term_definition(
+        self,
+        *,
+        document_id: str,
+        block_id: str,
+        term: str,
+        surrounding_text: Optional[str],
+        user_id: str
+    ) -> dict:
+        """
+        Generate a contextual definition for a term within a document.
+        
+        Returns a dictionary with:
+        - term: The term being defined
+        - definition: The generated definition
+        - context: The context used to generate the definition
+        """
+        from new_backend_ruminate.domain.conversation.entities.message import Message, Role
+        from new_backend_ruminate.dependencies import get_llm_service
+        import re
+        
+        # First, gather all data from DB within session scope
+        document_title = None
+        document_summary = None
+        context_blocks = []
+        
+        async with session_scope() as session:
+            # Verify user has access to document
+            document = await self._repo.get_document(document_id, session)
+            if not document or (document.user_id and document.user_id != user_id):
+                raise ValueError("Document not found or access denied")
+            
+            document_title = document.title
+            document_summary = document.summary
+            
+            # Get the specific block
+            block = await self._repo.get_block(block_id, session)
+            if not block or block.document_id != document_id:
+                raise ValueError("Block not found or does not belong to document")
+            
+            # Get surrounding blocks for context (2 blocks before and after)
+            all_blocks = await self._repo.get_blocks_by_document(document_id, session)
+            
+            # Sort blocks by page number and find the target block index
+            sorted_blocks = sorted(all_blocks, key=lambda b: (b.page_number or 0, b.id))
+            block_index = next((i for i, b in enumerate(sorted_blocks) if b.id == block_id), None)
+            
+            if block_index is None:
+                raise ValueError("Block not found in document")
+            
+            # Get context blocks (2 before, target, 2 after)
+            start_idx = max(0, block_index - 2)
+            end_idx = min(len(sorted_blocks), block_index + 3)
+            context_blocks = sorted_blocks[start_idx:end_idx]
+        
+        # Now process the data outside of session scope
+        # Build context from blocks
+        context_parts = []
+        for b in context_blocks:
+            if b.html_content:
+                # Strip HTML tags for cleaner context
+                clean_text = re.sub('<.*?>', '', b.html_content)
+                if b.id == block_id:
+                    context_parts.append(f"[TARGET BLOCK]: {clean_text}")
+                else:
+                    context_parts.append(clean_text)
+        
+        full_context = "\n\n".join(context_parts)
+        
+        # If surrounding text is provided, add it for extra context
+        if surrounding_text:
+            full_context = f"Specific context around the term:\n{surrounding_text}\n\n{full_context}"
+        
+        # Create prompt for LLM
+        system_prompt = f"""You are a helpful assistant that provides clear, contextual definitions for technical terms.
+        You are looking at a document titled: "{document_title}"
+        {f'Document summary: {document_summary}' if document_summary else ''}
+        
+        Your task is to define the term "{term}" based on how it's used in this specific document.
+        Provide a concise but comprehensive definition that someone reading this document would find helpful.
+        Focus on the meaning within this document's context, not just a general dictionary definition."""
+        
+        user_prompt = f"""Please define the term "{term}" based on the following context from the document:
+
+{full_context}
+
+Provide a clear, contextual definition that explains what this term means in this specific document."""
+        
+        # Get LLM service and generate definition (this is async I/O, not DB)
+        llm = get_llm_service()
+        messages = [
+            Message(id="sys", conversation_id="def", parent_id=None, role=Role.SYSTEM, content=system_prompt, user_id=user_id, version=0),
+            Message(id="usr", conversation_id="def", parent_id="sys", role=Role.USER, content=user_prompt, user_id=user_id, version=0)
+        ]
+        
+        definition = await llm.generate_response(messages)
+        
+        return {
+            "term": term,
+            "definition": definition,
+            "context": full_context[:500] + "..." if len(full_context) > 500 else full_context
+        }

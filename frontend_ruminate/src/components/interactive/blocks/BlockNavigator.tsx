@@ -8,7 +8,7 @@ interface BlockNavigatorProps {
   documentId: string;
   onBlockChange?: (block: Block) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
-  onCreateAgentChat?: (text: string, startOffset: number, endOffset: number) => void;
+  onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
   onAddTextToChat?: (text: string) => void;
 }
@@ -19,7 +19,7 @@ export default function BlockNavigator({
   documentId,
   onBlockChange,
   onRabbitholeClick,
-  onCreateAgentChat,
+  onCreateRabbithole,
   onRefreshRabbitholes,
   onAddTextToChat
 }: BlockNavigatorProps) {
@@ -136,7 +136,7 @@ export default function BlockNavigator({
             onRefreshRabbitholes={onRefreshRabbitholes}
             onAddTextToChat={onAddTextToChat}
             onRabbitholeClick={onRabbitholeClick}
-            onCreateAgentChat={onCreateAgentChat}
+            onCreateRabbithole={onCreateRabbithole}
           />
         </div>
       </div>

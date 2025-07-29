@@ -15,6 +15,8 @@ interface ChatContainerProps {
   conversationId?: string;
   onClose?: () => void;
   onConversationCreated?: (id: string) => void;
+  pendingText?: string;
+  onTextAdded?: () => void;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -22,7 +24,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   selectedBlock = null,
   conversationId: initialConversationId,
   onClose,
-  onConversationCreated
+  onConversationCreated,
+  pendingText,
+  onTextAdded
 }) => {
   // Track conversation ID (may need to be created)
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
@@ -169,6 +173,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         <MessageInput
           onSendMessage={handleSendMessage}
           isDisabled={isLoadingTree || !!streamingMessageId}
+          pendingText={pendingText}
+          onTextConsumed={onTextAdded}
         />
       </div>
     </div>

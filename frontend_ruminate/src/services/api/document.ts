@@ -66,4 +66,36 @@ export const documentApi = {
     return data.pdf_url;
   },
 
+  /**
+   * Get contextual definition for a term
+   * @param documentId Document ID
+   * @param blockId Block ID containing the term
+   * @param term The term to define
+   * @param surroundingText Optional surrounding text for better context
+   * @returns Definition response
+   */
+  getTermDefinition: async (
+    documentId: string, 
+    blockId: string, 
+    term: string, 
+    surroundingText?: string
+  ): Promise<{ term: string; definition: string; context?: string }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/define`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        term,
+        block_id: blockId,
+        surrounding_text: surroundingText
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to get definition");
+    }
+    
+    return response.json();
+  },
 };

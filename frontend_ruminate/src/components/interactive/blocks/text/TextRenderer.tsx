@@ -13,6 +13,7 @@ interface TextRendererProps {
   blockId: string;
   documentId: string;
   onAddTextToChat?: (text: string) => void;
+  onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRabbitholeClick?: (
     id: string, 
     text: string, 
@@ -34,6 +35,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   blockId,
   documentId,
   onAddTextToChat,
+  onCreateRabbithole,
   onRabbitholeClick,
   rabbitholeHighlights = [],
   getBlockClassName,
@@ -123,6 +125,20 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setDefinitionVisible(true);
     setTooltipVisible(false);
   };
+
+  // Handle creating a rabbithole conversation
+  const handleCreateRabbithole = (text: string, startOffset: number, endOffset: number) => {
+    console.log('Creating rabbithole for:', { text, startOffset, endOffset });
+    if (onCreateRabbithole) {
+      // Use the actual selection range data if available, otherwise use provided offsets
+      if (selectedRange) {
+        onCreateRabbithole(selectedRange.text, selectedRange.startOffset, selectedRange.endOffset);
+      } else {
+        onCreateRabbithole(text, startOffset, endOffset);
+      }
+    }
+    setTooltipVisible(false);
+  };
   
   // Handle rabbithole highlight click
   const handleRabbitholeClick = (
@@ -180,6 +196,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           selectedText={selectedText}
           onAddToChat={handleAddToChat}
           onDefine={handleDefineText}
+          onCreateRabbithole={handleCreateRabbithole}
           onClose={() => {
             setTooltipVisible(false);
           } }
@@ -196,6 +213,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           term={definitionWord}
           position={definitionPosition}
           onClose={() => setDefinitionVisible(false)}
+          documentId={documentId}
+          blockId={blockId}
         />
       )}
     </div>
