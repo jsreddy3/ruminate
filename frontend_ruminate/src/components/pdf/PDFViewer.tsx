@@ -14,6 +14,7 @@ import { createRabbithole } from "../../services/rabbithole";
 import BlockContainer from "../interactive/blocks/BlockContainer";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import BlockNavigator from "../interactive/blocks/BlockNavigator";
+import BlockOverlay from "./BlockOverlay";
 
 // Custom CSS styles for resize handles
 const resizeHandleStyles = {
@@ -235,8 +236,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   const [loading, setLoading] = useState(false);
-  // Add state for PDFViewer collapsed state
-  const [isPdfCollapsed, setIsPdfCollapsed] = useState(false);
+  // Add state for block overlay
+  const [isBlockOverlayOpen, setIsBlockOverlayOpen] = useState(false);
   
   // Add state for conversation management
   const [mainConversationId, setMainConversationId] = useState<string | null>(null);
@@ -542,8 +543,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       fullBlock: block
     });
 
-    // Set the new selected block
+    // Set the new selected block and open overlay
     setSelectedBlock(block);
+    setIsBlockOverlayOpen(true);
   }, []);
   
   // Handle creation of rabbithole conversations
@@ -685,10 +687,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     [blocks, selectedBlock, handleBlockClick]
   );
 
-  // Use our custom hook for the main panel layout (PDF vs right side)
-  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [60, 40]);
-  // Use custom hook for right panel layout (block vs chat)
-  const [rightPanelSizes, saveRightPanelSizes] = usePanelStorage('right', [30, 70]);
+  // Use our custom hook for the main panel layout (PDF vs chat)
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
+  
+  // Track current panel sizes for overlay
+  const [currentPanelSizes, setCurrentPanelSizes] = useState(mainPanelSizes);
   
   // Ensure panel sizes are applied correctly
   useEffect(() => {
@@ -741,14 +744,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       <div className="h-screen flex w-full overflow-hidden">
         <PanelGroup 
           direction="horizontal" 
-          onLayout={(sizes) => saveMainPanelSizes(sizes)}
+          onLayout={(sizes) => {
+            saveMainPanelSizes(sizes);
+            setCurrentPanelSizes(sizes);
+          }}
           className="w-full"
         >
           {/* PDF viewer - left panel */}
           <Panel 
             defaultSize={mainPanelSizes[0]} 
-            minSize={30}
-            className="bg-white shadow-lg overflow-hidden"
+            minSize={50}
+            className="bg-white shadow-lg overflow-hidden relative"
           >
             <div className="h-full w-full overflow-hidden">
               <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
@@ -819,218 +825,197 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 </div>
               </Worker>
             </div>
+
+            {/* Block Overlay */}
+            <BlockOverlay
+              isOpen={isBlockOverlayOpen}
+              selectedBlock={selectedBlock}
+              flattenedBlocks={flattenedBlocks}
+              documentId={documentId}
+              pdfPanelWidth={currentPanelSizes[0]}
+              onClose={() => setIsBlockOverlayOpen(false)}
+              onBlockChange={(block) => {
+                setSelectedBlock(block);
+              }}
+              onRefreshRabbitholes={(refreshFn) => {
+                console.log("[DEBUG] BlockContainer provided refresh function");
+                refreshRabbitholesFnRef.current = refreshFn;
+              }}
+              onAddTextToChat={handleAddTextToChat}
+              onBlockMetadataUpdate={() => {
+                console.log("[DEBUG] Block metadata updated, fetching blocks");
+                fetchBlocks();
+              }}
+              onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
+                console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
+                
+                const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
+                if (existingConversation) {
+                  setActiveConversationId(rabbitholeId);
+                  return;
+                }
+                
+                const title = selectedText && selectedText.length > 30 
+                  ? `${selectedText.substring(0, 30)}...` 
+                  : selectedText || "Rabbithole Chat";
+                
+                setRabbitholeConversations(prev => [
+                  ...prev, 
+                  {
+                    id: rabbitholeId,
+                    title,
+                    selectionText: selectedText || "",
+                    blockId: selectedBlock?.id || ""
+                  }
+                ]);
+                
+                setActiveConversationId(rabbitholeId);
+              }}
+              onCreateRabbithole={(text: string, startOffset: number, endOffset: number) => {
+                console.log("[DEBUG] onCreateRabbithole called with text:", text, "offsets:", startOffset, endOffset);
+                
+                if (documentId && selectedBlock) {
+                  console.log("[DEBUG] Creating rabbithole for document:", documentId, "block:", selectedBlock.id);
+                  createRabbithole({
+                    document_id: documentId,
+                    block_id: selectedBlock.id,
+                    selected_text: text,
+                    start_offset: startOffset,
+                    end_offset: endOffset,
+                    type: 'rabbithole'
+                  }).then((conversation_id) => {
+                    console.log("[DEBUG] Rabbithole created successfully with conversation ID:", conversation_id);
+                    handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
+                    
+                    if (refreshRabbitholesFnRef.current) {
+                      console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
+                      refreshRabbitholesFnRef.current();
+                      
+                      setTimeout(() => {
+                        console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
+                        fetchBlocks();
+                      }, 500);
+                    } else {
+                      console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
+                      fetchBlocks();
+                    }
+                  }).catch(error => {
+                    console.error("Error creating rabbithole:", error);
+                  });
+                }
+              }}
+            />
           </Panel>
           
-          {/* Resize handle between PDF and right side */}
+          {/* Resize handle between PDF and chat */}
           <ResizeHandle />
           
-          {/* Right side panel group - vertical split between block view and chat */}
+          {/* Chat panel - right side */}
           <Panel 
             defaultSize={mainPanelSizes[1]} 
-            minSize={20}
+            minSize={25}
+            className="border-l border-gray-200 bg-white"
           >
-            <PanelGroup 
-              direction="vertical" 
-              onLayout={(sizes) => saveRightPanelSizes(sizes)}
-              className="h-full"
-            >
-              {/* Block view - top right */}
-              <Panel 
-                defaultSize={rightPanelSizes[0]} 
-                minSize={15}
-                className="border-l border-gray-200 bg-white"
-              >
-                <div className="h-full flex flex-col">
-                  {/* Block view header */}
-                  <div className="border-b border-gray-200 p-3 flex justify-between items-center">
-                    <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                      <span>🔍</span>
-                      Block View
-                      {selectedBlock && ` - ${selectedBlock.block_type}`}
-                    </h3>
-                  </div>
-                  
-                  {/* Block content */}
-                  <div className="flex-1 overflow-hidden">
-                    <BlockNavigator
-                      blocks={flattenedBlocks}
-                      currentBlockId={selectedBlock?.id}
-                      documentId={documentId}
-                      onBlockChange={(block) => {
-                        setSelectedBlock(block);
-                      }}
-                      onRefreshRabbitholes={(refreshFn) => {
-                        console.log("[DEBUG] BlockContainer provided refresh function");
-                        refreshRabbitholesFnRef.current = refreshFn;
-                      }}
-                      onAddTextToChat={handleAddTextToChat}
-                      onBlockMetadataUpdate={() => {
-                        console.log("[DEBUG] Block metadata updated, fetching blocks");
-                        fetchBlocks();
-                      }}
-                      onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
-                        console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
-                        
-                        const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
-                        if (existingConversation) {
-                          setActiveConversationId(rabbitholeId);
-                          return;
-                        }
-                        
-                        const title = selectedText && selectedText.length > 30 
-                          ? `${selectedText.substring(0, 30)}...` 
-                          : selectedText || "Rabbithole Chat";
-                        
-                        setRabbitholeConversations(prev => [
-                          ...prev, 
-                          {
-                            id: rabbitholeId,
-                            title,
-                            selectionText: selectedText || "",
-                            blockId: selectedBlock?.id || ""
-                          }
-                        ]);
-                        
-                        setActiveConversationId(rabbitholeId);
-                      }}
-                      onCreateRabbithole={(text: string, startOffset: number, endOffset: number) => {
-                        console.log("[DEBUG] onCreateRabbithole called with text:", text, "offsets:", startOffset, endOffset);
-                        
-                        if (documentId && selectedBlock) {
-                          console.log("[DEBUG] Creating rabbithole for document:", documentId, "block:", selectedBlock.id);
-                          createRabbithole({
-                            document_id: documentId,
-                            block_id: selectedBlock.id,
-                            selected_text: text,
-                            start_offset: startOffset,
-                            end_offset: endOffset,
-                            type: 'rabbithole'
-                          }).then((conversation_id) => {
-                            console.log("[DEBUG] Rabbithole created successfully with conversation ID:", conversation_id);
-                            handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
-                            
-                            if (refreshRabbitholesFnRef.current) {
-                              console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
-                              refreshRabbitholesFnRef.current();
-                              
-                              setTimeout(() => {
-                                console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
-                                fetchBlocks();
-                              }, 500);
-                            } else {
-                              console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
-                              fetchBlocks();
-                            }
-                          }).catch(error => {
-                            console.error("Error creating rabbithole:", error);
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </Panel>
-              
-              {/* Vertical resize handle between block view and chat */}
-              <HorizontalResizeHandle />
-              
-              {/* Chat panel - bottom right */}
-              <Panel 
-                defaultSize={rightPanelSizes[1]} 
-                minSize={25}
-                className="border-l border-t border-gray-200 bg-white"
-              >
-                <div className="flex flex-col h-full">
-                  {/* Chat header with tabs */}
-                  <div className="border-b border-gray-200 p-3 flex flex-col">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-medium text-gray-900">
-                        Document Chat
-                        {selectedBlock && ` - ${selectedBlock.block_type}`}
-                      </h3>
-                      
-                      {/* Minimize button */}
-                      <button 
-                        onClick={() => console.log("Chat minimize clicked")}
-                        className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
-                        title="Minimize chat"
-                      >
-                        <span>−</span>
-                      </button>
-                    </div>
-                    
-                    {/* Conversation tabs */}
-                    <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
-                      {/* Main chat tab */}
-                      <button 
-                        className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
-                          activeConversationId === null 
-                          ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                        onClick={() => setActiveConversationId(null)}
-                      >
-                        Main Chat
-                      </button>
-                      
-                      {/* Agent chat tabs */}
-                      {rabbitholeConversations.map(conv => (
+            <div className="flex flex-col h-full">
+              {/* Chat header with tabs */}
+              <div className="border-b border-gray-200 p-3 flex flex-col">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-medium text-gray-900">
+                    Document Chat
+                    {selectedBlock && (
+                      <>
+                        {` - ${selectedBlock.block_type}`}
                         <button
-                          key={conv.id}
-                          className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
-                            activeConversationId === conv.id
-                            ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                          }`}
-                          onClick={() => setActiveConversationId(conv.id)}
+                          onClick={() => setIsBlockOverlayOpen(true)}
+                          className="ml-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                          title="View block details"
                         >
-                          <span>🔍</span>
-                          <span>{conv.title}</span>
-                          <span 
-                            className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRabbitholeConversations(prev => prev.filter(c => c.id !== conv.id));
-                              if (activeConversationId === conv.id) {
-                                setActiveConversationId(null);
-                              }
-                            }}
-                          >
-                            ×
-                          </span>
+                          View Block
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Chat container */}
-                  <div className="flex-1 overflow-hidden">
-                    {activeConversationId === null ? (
-                      <ChatContainer 
-                        key={`main-chat-${mainConversationId || 'default'}`}
-                        documentId={documentId}
-                        selectedBlock={selectedBlock}
-                        conversationId={mainConversationId || undefined}
-                        pendingText={pendingChatText}
-                        onTextAdded={handleTextAdded}
-                        onConversationCreated={(id) => {
-                          setMainConversationId(id);
-                        }}
-                      />
-                    ) : (
-                      <ChatContainer 
-                        key={`agent-chat-${activeConversationId}`}
-                        documentId={documentId}
-                        selectedBlock={selectedBlock}
-                        conversationId={activeConversationId}
-                        pendingText={pendingChatText}
-                        onTextAdded={handleTextAdded}
-                      />
+                      </>
                     )}
-                  </div>
+                  </h3>
+                  
+                  {/* Minimize button */}
+                  <button 
+                    onClick={() => console.log("Chat minimize clicked")}
+                    className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
+                    title="Minimize chat"
+                  >
+                    <span>−</span>
+                  </button>
                 </div>
-              </Panel>
-            </PanelGroup>
+                
+                {/* Conversation tabs */}
+                <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
+                  {/* Main chat tab */}
+                  <button 
+                    className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
+                      activeConversationId === null 
+                      ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setActiveConversationId(null)}
+                  >
+                    Main Chat
+                  </button>
+                  
+                  {/* Agent chat tabs */}
+                  {rabbitholeConversations.map(conv => (
+                    <button
+                      key={conv.id}
+                      className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
+                        activeConversationId === conv.id
+                        ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                      onClick={() => setActiveConversationId(conv.id)}
+                    >
+                      <span>🔍</span>
+                      <span>{conv.title}</span>
+                      <span 
+                        className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRabbitholeConversations(prev => prev.filter(c => c.id !== conv.id));
+                          if (activeConversationId === conv.id) {
+                            setActiveConversationId(null);
+                          }
+                        }}
+                      >
+                        ×
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Chat container */}
+              <div className="flex-1 overflow-hidden">
+                {activeConversationId === null ? (
+                  <ChatContainer 
+                    key={`main-chat-${mainConversationId || 'default'}`}
+                    documentId={documentId}
+                    selectedBlock={selectedBlock}
+                    conversationId={mainConversationId || undefined}
+                    pendingText={pendingChatText}
+                    onTextAdded={handleTextAdded}
+                    onConversationCreated={(id) => {
+                      setMainConversationId(id);
+                    }}
+                  />
+                ) : (
+                  <ChatContainer 
+                    key={`agent-chat-${activeConversationId}`}
+                    documentId={documentId}
+                    selectedBlock={selectedBlock}
+                    conversationId={activeConversationId}
+                    pendingText={pendingChatText}
+                    onTextAdded={handleTextAdded}
+                  />
+                )}
+              </div>
+            </div>
           </Panel>
         </PanelGroup>
       </div>

@@ -16,7 +16,11 @@ Selected text:
 You are a helpful assistant focusing specifically on exploring this selected topic in depth.
 Provide detailed analysis and insights based on this specific selection and its context.
 Answer accurately, concisely, and precisely—avoid long lists of answers. Understand 
-the user's question/comment intuitively and provide them a clear response. Answer naturally as well.""",
+the user's question/comment intuitively and provide them a clear response. Answer naturally as well.
+
+Keep your answers CONCISE. NEVER send long paragraphs unless specifically instructed by the user.
+
+DO NOT send diagrams, tables, or markdown of ANY kind.""",
 }
 
 def agent_system_prompt(tools: list[Tool]) -> str:
