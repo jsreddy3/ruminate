@@ -8,6 +8,7 @@ import { MessageRole } from '../../types/chat';
 // Import components from absolute paths
 import MessageList from '../../components/chat/messages/MessageList';
 import MessageInput from '../../components/chat/messages/MessageInput';
+import { QuestionChips } from './QuestionChips';
 
 interface ChatContainerProps {
   documentId: string;
@@ -30,6 +31,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 }) => {
   // Track conversation ID (may need to be created)
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
+  const [questions, setQuestions] = useState<Array<{
+    id: string;
+    question: string;
+    type: string;
+    order: number;
+  }>>([]);
   
   // Track streaming state for displaying content during generation
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -73,11 +80,16 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           // Use the most recent conversation
           const mostRecent = existingConversations[0];
           setConversationId(mostRecent.id);
+          // Set questions if they exist in the conversation data
+          if (mostRecent.questions) {
+            setQuestions(mostRecent.questions);
+          }
           if (onConversationCreated) onConversationCreated(mostRecent.id);
         } else {
           // Create a new conversation if none exists
-          const { conversation_id } = await conversationApi.create(documentId);
+          const { conversation_id, questions: newQuestions = [] } = await conversationApi.create(documentId);
           setConversationId(conversation_id);
+          setQuestions(newQuestions);
           if (onConversationCreated) onConversationCreated(conversation_id);
         }
       } catch (error) {
@@ -137,6 +149,26 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     }
   }, [isStreamingComplete, streamingMessageId, refreshTree]);
   
+  // Fetch questions when conversation loads
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      if (!conversationId) return;
+      
+      try {
+        // Get the tree response which now includes questions
+        const response = await conversationApi.getMessageTree(conversationId);
+        if (response.questions && response.questions.length > 0) {
+          // Only update questions if we don't have any (avoid overriding local state changes)
+          setQuestions(prev => prev.length === 0 ? response.questions || [] : prev);
+        }
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+      }
+    };
+    
+    fetchQuestions();
+  }, [conversationId]);
+  
   return (
     <div className="flex flex-col h-full bg-white text-gray-900">
       {/* Chat header */}
@@ -167,6 +199,30 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           conversationId={conversationId || undefined}
         />
       </div>
+      
+      {/* Question chips */}
+      <QuestionChips
+        questions={questions}
+        onQuestionClick={async (questionId, questionText) => {
+          // Remove used question from display immediately
+          setQuestions(prev => prev.filter(q => q.id !== questionId));
+          
+          // Mark question as used in backend
+          if (conversationId) {
+            try {
+              await conversationApi.markQuestionAsUsed(conversationId, questionId);
+            } catch (error) {
+              console.error('Error marking question as used:', error);
+              // If marking as used fails, restore the question
+              setQuestions(prev => [...prev, { id: questionId, question: questionText, type: "GENERAL", order: 0 }]);
+            }
+          }
+          
+          // Send the question text
+          handleSendMessage(questionText);
+        }}
+        isLoading={!!streamingMessageId}
+      />
       
       {/* Message input */}
       <div className="border-t p-3 bg-white">

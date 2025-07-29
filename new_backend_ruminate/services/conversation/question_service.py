@@ -78,7 +78,6 @@ class QuestionGenerationService:
                 question = ConversationQuestion(
                     conversation_id=conversation_id,
                     question_text=q_data["question"],
-                    question_type=q_data.get("type", "COMPREHENSION"),
                     source_page_numbers=context["current_focus"]["page_number"] and [context["current_focus"]["page_number"]] or None,
                     source_block_ids=None,  # Could be enhanced to track specific blocks
                     display_order=i,
@@ -99,7 +98,6 @@ class QuestionGenerationService:
                 {
                     "id": q.id,
                     "question": q.question_text,
-                    "type": q.question_type,
                     "order": q.display_order
                 }
                 for q in question_entities
@@ -127,10 +125,9 @@ class QuestionGenerationService:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "question": {"type": "string"},
-                            "type": {"type": "string", "enum": ["COMPREHENSION", "ANALYSIS", "APPLICATION", "SYNTHESIS", "EVALUATION"]}
+                            "question": {"type": "string"}
                         },
-                        "required": ["question", "type"]
+                        "required": ["question"]
                     }
                 }
             },
@@ -183,23 +180,9 @@ Document Context:
 {context}
 
 Requirements for questions:
-1. Keep each question concise (ideally 8-15 words) - they will be displayed as clickable buttons in the UI
+1. Keep each question concise (ideally 5-12 words) - they will be displayed as clickable buttons in the UI
 2. Make them specific to the actual content provided
-3. Focus on key concepts, relationships, and practical applications
-4. Vary the question types to encourage different kinds of thinking
-5. Ensure questions are clear and immediately actionable
-
-Question types:
-- COMPREHENSION: Understanding main ideas and facts
-- ANALYSIS: Breaking down concepts and relationships  
-- APPLICATION: How to use or apply the information
-- SYNTHESIS: Connecting ideas across sections
-- EVALUATION: Critical thinking and assessment
-
-Good examples:
-- "What are the key benefits of this approach?" (COMPREHENSION)
-- "How do these concepts relate to each other?" (ANALYSIS)
-- "When would you apply this method?" (APPLICATION)
+3. Focus on guiding the user to understand highly specific details about the referenced text.
 
 The response will be structured JSON that I can parse reliably.
 
@@ -223,17 +206,11 @@ Generate {count} questions now:"""
                 
                 # Validate and clean the questions
                 valid_questions = []
-                valid_types = {"COMPREHENSION", "ANALYSIS", "APPLICATION", "SYNTHESIS", "EVALUATION"}
                 
                 for q in questions_data:
                     if isinstance(q, dict) and "question" in q:
-                        question_type = q.get("type", "COMPREHENSION")
-                        if question_type not in valid_types:
-                            question_type = "COMPREHENSION"
-                        
                         valid_questions.append({
                             "question": q["question"].strip(),
-                            "type": question_type
                         })
                 
                 return valid_questions
@@ -259,7 +236,6 @@ Generate {count} questions now:"""
             if len(clean_question) > 10:  # Filter out very short questions
                 questions.append({
                     "question": clean_question,
-                    "type": "COMPREHENSION"
                 })
         
         return questions
@@ -269,11 +245,9 @@ Generate {count} questions now:"""
         Generate template-based fallback questions when LLM fails.
         """
         fallback_templates = [
-            {"question": "What are the main concepts discussed in this section?", "type": "COMPREHENSION"},
-            {"question": "How do the ideas in this document relate to each other?", "type": "ANALYSIS"},
-            {"question": "What evidence supports the key arguments presented?", "type": "EVALUATION"},
-            {"question": "How could these concepts be applied in practice?", "type": "APPLICATION"},
-            {"question": "What connections can you draw between different sections?", "type": "SYNTHESIS"},
+            {"question": "What are the main concepts discussed in this section?"},
+            {"question": "How do the ideas in this document relate to each other?"},
+            {"question": "What connections can you draw between different sections?"},
         ]
         
         return fallback_templates[:count]
@@ -297,6 +271,7 @@ Generate {count} questions now:"""
     ) -> List[Dict[str, Any]]:
         """
         Retrieve stored questions for a conversation.
+        Only returns unused questions, limited to 3.
         """
         async with session_scope() as session:
             # Query questions using the repository pattern
@@ -305,14 +280,16 @@ Generate {count} questions now:"""
                 conversation_id, session
             )
             
+            # Filter unused questions and limit to 3
+            unused_questions = [q for q in questions if not q.is_used][:3]
+            
             return [
                 {
                     "id": q.id,
                     "question": q.question_text,
-                    "type": q.question_type,
                     "order": q.display_order
                 }
-                for q in questions
+                for q in unused_questions
             ]
     
     async def regenerate_questions(
@@ -335,4 +312,16 @@ Generate {count} questions now:"""
             # Generate new questions
             return await self.generate_questions_for_conversation(
                 conversation_id, document_id, current_page, question_count
+            )
+    
+    async def mark_question_as_used(self, question_id: str) -> None:
+        """
+        Mark a question as used when it's clicked/sent.
+        """
+        from datetime import datetime
+        
+        async with session_scope() as session:
+            # This would need to be implemented in the conversation repository
+            await self.conversation_repo.mark_question_as_used(
+                question_id, datetime.utcnow(), session
             )

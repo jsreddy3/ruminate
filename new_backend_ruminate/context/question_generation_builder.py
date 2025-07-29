@@ -139,9 +139,17 @@ class QuestionGenerationContextBuilder:
         """Get blocks grouped by page number."""
         blocks_by_page = {}
         
+        # First get all pages to have page IDs
+        all_pages = await self._get_document_pages(document_id, session)
+        page_id_map = {p.page_number: p.id for p in all_pages}
+        
         for page_num in page_numbers:
-            blocks = await self.document_repo.get_blocks_by_page(document_id, page_num, session)
-            blocks_by_page[page_num] = blocks or []
+            if page_num in page_id_map:
+                page_id = page_id_map[page_num]
+                blocks = await self.document_repo.get_blocks_by_page(page_id, session)
+                blocks_by_page[page_num] = blocks or []
+            else:
+                blocks_by_page[page_num] = []
         
         return blocks_by_page
     

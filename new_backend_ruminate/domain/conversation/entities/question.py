@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Dict, Any, Optional, List
 from uuid import uuid4
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -19,15 +19,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from new_backend_ruminate.infrastructure.db.meta import Base
-
-
-class QuestionType(str, Enum):
-    """Types of questions that can be generated"""
-    COMPREHENSION = "COMPREHENSION"  # Basic understanding questions
-    ANALYSIS = "ANALYSIS"            # Deeper analysis questions  
-    APPLICATION = "APPLICATION"      # How to apply concepts
-    SYNTHESIS = "SYNTHESIS"          # Connect ideas across sections
-    EVALUATION = "EVALUATION"        # Critical thinking questions
 
 
 class ConversationQuestion(Base):
@@ -55,9 +46,6 @@ class ConversationQuestion(Base):
     
     # Question content
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
-    question_type: Mapped[str] = mapped_column(
-        String, default="COMPREHENSION", nullable=False
-    )
     
     # Context information
     source_page_numbers: Mapped[Optional[List[int]]] = mapped_column(JSON)  # Pages used to generate question
@@ -65,6 +53,10 @@ class ConversationQuestion(Base):
     
     # Display ordering
     display_order: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Track if question has been used
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     # Metadata
     generation_context: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)  # Context used for generation

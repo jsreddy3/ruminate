@@ -59,13 +59,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
-  // Debug: Check if metadata with definitions is being passed
-  useEffect(() => {
-    if (metadata?.definitions) {
-      console.log('Block has definitions:', metadata.definitions);
-    }
-  }, [metadata]);
-  
   // State for tooltip handling
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -272,11 +265,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         document.body
       )}
       
-      {/* Definition popup */}
-      {(() => {
-        console.log('Rendering check - definitionVisible:', definitionVisible, 'has offsets:', !!(selectedRange || definitionOffsets));
-        return null;
-      })()}
       {definitionVisible && (selectedRange || definitionOffsets) && createPortal(
         <DefinitionPopup
           isVisible={definitionVisible}

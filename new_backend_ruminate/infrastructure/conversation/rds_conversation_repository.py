@@ -260,3 +260,15 @@ class RDSConversationRepository(ConversationRepository):
             delete(ConversationQuestion)
             .where(ConversationQuestion.conversation_id == cid)
         )
+    
+    async def mark_question_as_used(
+        self, question_id: str, used_at, session: AsyncSession
+    ) -> None:
+        """
+        Mark a question as used when it's clicked/sent.
+        """
+        await session.execute(
+            update(ConversationQuestion)
+            .where(ConversationQuestion.id == question_id)
+            .values(is_used=True, used_at=used_at)
+        )

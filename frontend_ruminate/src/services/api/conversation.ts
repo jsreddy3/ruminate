@@ -2,8 +2,20 @@ import { Message } from "../../types/chat";
 import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
 
 export const conversationApi = {
-  create: async (documentId?: string, type: string = "chat"): Promise<{ conversation_id: string; system_msg_id: string }> => {
-    const body = documentId ? { type: type.toUpperCase(), document_id: documentId } : { type: type.toUpperCase() };
+  create: async (documentId?: string, type: string = "chat", meta?: any): Promise<{ 
+    conversation_id: string; 
+    system_msg_id: string;
+    questions?: Array<{
+      id: string;
+      question: string;
+      type: string;
+      order: number;
+    }>;
+  }> => {
+    const body: any = { type: type.toUpperCase() };
+    if (documentId) body.document_id = documentId;
+    if (meta) body.meta = meta;
+    
     const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations`,
       { 
@@ -24,12 +36,26 @@ export const conversationApi = {
     return response.json();
   },
 
-  getMessageTree: async (conversationId: string): Promise<Message[]> => {
+  getMessageTree: async (conversationId: string): Promise<{
+    messages: Message[];
+    questions?: Array<{
+      id: string;
+      question: string;
+      type: string;
+      order: number;
+    }>;
+  }> => {
     const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/tree`
     );
     if (!response.ok) throw new Error("Failed to fetch conversation history");
-    return response.json();
+    const data = await response.json();
+    
+    // Handle both old format (array) and new format (object with messages and questions)
+    if (Array.isArray(data)) {
+      return { messages: data, questions: [] };
+    }
+    return data;
   },
 
   sendMessage: async (
@@ -99,5 +125,13 @@ export const conversationApi = {
     );
     if (!response.ok) throw new Error("Failed to edit message with streaming");
     return response.json();
+  },
+
+  markQuestionAsUsed: async (conversationId: string, questionId: string): Promise<void> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/conversations/${conversationId}/questions/${questionId}/use`,
+      { method: "POST" }
+    );
+    if (!response.ok) throw new Error("Failed to mark question as used");
   }
 };

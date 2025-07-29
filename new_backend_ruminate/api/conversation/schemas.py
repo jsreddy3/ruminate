@@ -111,7 +111,16 @@ class ConversationOut(BaseModel):
     selected_text: Optional[str] = None
     text_start_offset: Optional[int] = None
     text_end_offset: Optional[int] = None
+    
+    # Questions (optional)
+    questions: List[QuestionOut] = Field(default_factory=list)
+
+class QuestionOut(BaseModel):
+    id: str
+    question: str
+    order: int
 
 class ConversationInitResponse(BaseModel):
     conversation_id: str = Field(..., alias="conversation_id")
     system_msg_id:   str = Field(..., alias="system_msg_id")
+    questions: List[QuestionOut] = Field(default_factory=list)

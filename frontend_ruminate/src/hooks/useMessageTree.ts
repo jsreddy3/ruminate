@@ -127,7 +127,8 @@ export function useMessageTree({
     
     setIsLoading(true);
     try {
-      const messages = await conversationApi.getMessageTree(conversationId);
+      const response = await conversationApi.getMessageTree(conversationId);
+      const messages = response.messages || response; // Handle both old and new format
       setFlatMessages(messages);
       
       // Build tree structure
@@ -163,7 +164,8 @@ export function useMessageTree({
       setError(null);
       
       try {
-        const messages = await conversationApi.getMessageTree(conversationId);
+        const response = await conversationApi.getMessageTree(conversationId);
+        const messages = response.messages || response; // Handle both old and new format
         setFlatMessages(messages);
         
         // Build tree structure
