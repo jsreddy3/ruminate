@@ -9,6 +9,7 @@ import { Document } from '@/services/api/document';
 import DocumentTable from './DocumentTable';
 import UploadButton from './UploadButton';
 import UserMenu from './UserMenu';
+import ConfirmationDialog from '../common/ConfirmationDialog';
 
 export default function HomePage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -16,6 +17,8 @@ export default function HomePage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; documentId: string; documentTitle: string }>({ isOpen: false, documentId: '', documentTitle: '' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Redirect to landing if not authenticated
   useEffect(() => {
@@ -67,6 +70,43 @@ export default function HomePage() {
     // Refresh the documents list
     const docs = await documentApi.getAllDocuments();
     setDocuments(docs);
+  };
+
+  const handleDeleteRequest = (documentId: string) => {
+    const document = documents.find(doc => doc.id === documentId);
+    if (document) {
+      setDeleteConfirm({
+        isOpen: true,
+        documentId: documentId,
+        documentTitle: document.title
+      });
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.documentId) return;
+
+    setIsDeleting(true);
+    try {
+      await documentApi.deleteDocument(deleteConfirm.documentId);
+      
+      // Remove the document from the local state
+      setDocuments(prev => prev.filter(doc => doc.id !== deleteConfirm.documentId));
+      
+      // Close the dialog
+      setDeleteConfirm({ isOpen: false, documentId: '', documentTitle: '' });
+    } catch (err) {
+      console.error('Error deleting document:', err);
+      alert('Failed to delete document. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    if (!isDeleting) {
+      setDeleteConfirm({ isOpen: false, documentId: '', documentTitle: '' });
+    }
   };
 
   if (authLoading || !user) {
@@ -141,11 +181,25 @@ export default function HomePage() {
               <DocumentTable 
                 documents={documents} 
                 onDocumentClick={handleDocumentClick}
+                onDocumentDelete={handleDeleteRequest}
               />
             )}
           </div>
         </motion.div>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${deleteConfirm.documentTitle}"? This action cannot be undone and will remove all associated data including conversations and annotations.`}
+        confirmText="Delete Document"
+        cancelText="Keep Document"
+        isDestructive={true}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

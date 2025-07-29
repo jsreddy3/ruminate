@@ -773,3 +773,67 @@ Provide a clear, contextual definition that explains what this term means in thi
         await self._repo.update_block(block, session)
         
         return note_metadata
+    
+    async def delete_document(self, document_id: str, user_id: str, session: AsyncSession) -> bool:
+        """
+        Delete a document and all its associated data (cascade delete).
+        
+        This will delete:
+        - The document record
+        - All pages belonging to the document
+        - All blocks belonging to the document
+        - PDF file from object storage
+        
+        Args:
+            document_id: ID of the document to delete
+            user_id: ID of the user requesting deletion (for ownership validation)
+            session: Database session
+            
+        Returns:
+            bool: True if document was deleted, False if not found
+            
+        Raises:
+            PermissionError: If user doesn't own the document
+        """
+        # First verify the document exists and user owns it
+        document = await self.get_document(document_id, user_id, session)
+        if not document:
+            return False
+        
+        try:
+            # Delete PDF file from object storage if it exists
+            if document.s3_pdf_path:
+                print(f"[DocumentService] Deleting PDF from storage: {document.s3_pdf_path}")
+                try:
+                    # Handle both old format (full S3 URI) and new format (just the key)
+                    storage_path = document.s3_pdf_path
+                    if storage_path.startswith('s3://'):
+                        # Extract key from full S3 URI: s3://bucket-name/key -> key
+                        storage_key = '/'.join(storage_path.split('/')[3:])
+                    else:
+                        # Already just the key
+                        storage_key = storage_path
+                    
+                    deleted = await self._storage.delete_file(storage_key)
+                    if deleted:
+                        print(f"[DocumentService] Successfully deleted PDF from storage")
+                    else:
+                        print(f"[DocumentService] PDF file not found in storage (may have been already deleted)")
+                except Exception as storage_error:
+                    # Log but don't fail the entire delete operation
+                    print(f"[DocumentService] Warning: Failed to delete PDF from storage: {storage_error}")
+            
+            # Delete document from database (this will cascade to pages and blocks)
+            print(f"[DocumentService] Deleting document from database: {document_id}")
+            deleted = await self._repo.delete_document(document_id, session)
+            
+            if deleted:
+                print(f"[DocumentService] Successfully deleted document: {document_id}")
+            else:
+                print(f"[DocumentService] Document not found in database: {document_id}")
+            
+            return deleted
+            
+        except Exception as e:
+            print(f"[DocumentService] Error deleting document {document_id}: {type(e).__name__}: {str(e)}")
+            raise ValueError(f"Failed to delete document: {str(e)}")

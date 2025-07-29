@@ -2,13 +2,17 @@
 
 import { Document } from '@/services/api/document';
 import { formatDistanceToNow } from 'date-fns';
+import { TrashIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
 
 interface DocumentRowProps {
   document: Document;
   onClick: () => void;
+  onDelete?: (documentId: string) => void;
 }
 
-export default function DocumentRow({ document, onClick }: DocumentRowProps) {
+export default function DocumentRow({ document, onClick, onDelete }: DocumentRowProps) {
+  const [isHovering, setIsHovering] = useState(false);
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
     try {
@@ -39,10 +43,17 @@ export default function DocumentRow({ document, onClick }: DocumentRowProps) {
     }
   };
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    onDelete?.(document.id);
+  };
+
   return (
     <tr 
       className="hover:bg-gray-50 cursor-pointer transition-colors group"
       onClick={onClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
     >
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
@@ -78,19 +89,33 @@ export default function DocumentRow({ document, onClick }: DocumentRowProps) {
       </td>
       
       <td className="px-6 py-4">
-        <svg
-          className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 5l7 7-7 7"
-          />
-        </svg>
+        <div className="flex items-center gap-2">
+          {/* Delete Button - shown on hover */}
+          {onDelete && isHovering && (
+            <button
+              onClick={handleDeleteClick}
+              className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
+              title="Delete document"
+            >
+              <TrashIcon className="w-4 h-4" />
+            </button>
+          )}
+          
+          {/* Arrow Icon */}
+          <svg
+            className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </div>
       </td>
     </tr>
   );

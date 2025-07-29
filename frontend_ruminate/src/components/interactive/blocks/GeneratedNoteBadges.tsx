@@ -60,14 +60,14 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
         </button>
       ))}
 
-      {/* Note popup */}
+      {/* Note popup - positioned to fit in available space */}
       {activeNote && (
-        <div className="absolute top-8 right-0 z-50 w-80 max-h-64 bg-white rounded-lg shadow-lg border border-gray-200">
+        <div className="absolute bottom-8 right-0 z-50 w-72 max-h-48 bg-white rounded-lg shadow-lg border border-gray-200">
           {/* Header */}
           <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm font-medium text-gray-900">
+            <div className="flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-yellow-600" />
+              <span className="text-xs font-medium text-gray-900 truncate">
                 {activeNote.topic || 'Conversation Note'}
               </span>
             </div>
@@ -75,32 +75,32 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
               onClick={() => setActiveNoteId(null)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-3 max-h-40 overflow-y-auto">
-            <p className="text-sm text-gray-700 leading-relaxed">
+          <div className="p-3 max-h-28 overflow-y-auto">
+            <p className="text-xs text-gray-700 leading-relaxed">
               {activeNote.note}
             </p>
           </div>
 
           {/* Footer */}
           <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs">
               {activeNote.message_count && (
-                <span>{activeNote.message_count} messages</span>
+                <span>{activeNote.message_count}msg</span>
               )}
               <span>{new Date(activeNote.created_at).toLocaleDateString()}</span>
             </div>
             {activeNote.source_conversation_id && onViewConversation && (
               <button
                 onClick={() => onViewConversation(activeNote.source_conversation_id!)}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs"
               >
                 <MessageSquare className="w-3 h-3" />
-                View chat
+                Chat
               </button>
             )}
           </div>

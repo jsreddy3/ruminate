@@ -136,8 +136,13 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
     // Get container position for coordinate adjustment
     const contentRect = contentRef.current.getBoundingClientRect();
     
-    // Process each annotation
-    const newElements = Object.entries(annotations).map(([key, annotation]) => {
+    // Process each annotation (skip generated notes)
+    const newElements = Object.entries(annotations)
+      .filter(([key, annotation]) => {
+        // Skip generated conversation notes - they have special offset values
+        return !(annotation as any).is_generated && annotation.text_start_offset !== -1;
+      })
+      .map(([key, annotation]) => {
       
       // Get positioned rectangles for this text range
       const rects = findTextPositionFromOffset(

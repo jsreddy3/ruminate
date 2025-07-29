@@ -7,12 +7,13 @@ import DocumentRow from './DocumentRow';
 interface DocumentTableProps {
   documents: Document[];
   onDocumentClick: (document: Document) => void;
+  onDocumentDelete?: (documentId: string) => void;
 }
 
 type SortField = 'title' | 'created_at' | 'updated_at' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export default function DocumentTable({ documents, onDocumentClick }: DocumentTableProps) {
+export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete }: DocumentTableProps) {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -106,6 +107,7 @@ export default function DocumentTable({ documents, onDocumentClick }: DocumentTa
               key={document.id}
               document={document}
               onClick={() => onDocumentClick(document)}
+              onDelete={onDocumentDelete}
             />
           ))}
         </tbody>

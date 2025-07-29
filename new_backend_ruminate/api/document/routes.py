@@ -334,3 +334,40 @@ async def update_block_annotations(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating annotation: {str(e)}")
+
+
+@router.delete("/{document_id}")
+async def delete_document(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """
+    Delete a document and all its associated data.
+    
+    This endpoint will:
+    1. Verify the user owns the document
+    2. Delete the PDF file from object storage
+    3. Delete the document record (which cascades to pages and blocks)
+    4. Clean up any related conversations and messages
+    
+    Returns 204 No Content on success, 404 if document not found.
+    """
+    try:
+        deleted = await svc.delete_document(document_id, current_user.id, session)
+        
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        return {"message": "Document deleted successfully"}
+        
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[DELETE Route] Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[DELETE Route] Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")

@@ -110,6 +110,12 @@ export default function BlockNavigator({
             totalBlocks={blocks.length}
             onPrevious={goToPrevBlock}
             onNext={goToNextBlock}
+            currentBlockMetadata={currentBlock.metadata}
+            onViewConversation={onRabbitholeClick ? (conversationId) => {
+              // Find the rabbithole with this conversation ID and trigger click
+              // This is a simple implementation - could be enhanced later
+              onRabbitholeClick(conversationId, '', 0, 0);
+            } : undefined}
           />
         </div>
       </div>

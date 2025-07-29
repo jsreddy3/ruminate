@@ -1,15 +1,12 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import GeneratedNoteBadges from './GeneratedNoteBadges';
 
 interface BlockNavigatorPillProps {
   currentIndex: number;
   totalBlocks: number;
   onPrevious: () => void;
   onNext: () => void;
-  currentBlockMetadata?: { [key: string]: any };
-  onViewConversation?: (conversationId: string) => void;
 }
 
 export default function BlockNavigatorPill({
@@ -57,12 +54,6 @@ export default function BlockNavigatorPill({
         {currentIndex + 1}/{totalBlocks}
       </span>
 
-      {/* Generated note badges */}
-      <GeneratedNoteBadges
-        annotations={currentBlockMetadata?.annotations}
-        onViewConversation={onViewConversation}
-      />
-
       {/* Forward button */}
       <button
         onClick={onNext}
@@ -76,6 +67,12 @@ export default function BlockNavigatorPill({
       >
         <ChevronRight className="w-4 h-4" />
       </button>
+
+      {/* Generated note badges - outside the main pill */}
+      <GeneratedNoteBadges
+        annotations={currentBlockMetadata?.annotations}
+        onViewConversation={onViewConversation}
+      />
     </motion.div>
   );
 }

@@ -178,4 +178,22 @@ export const documentApi = {
     
     return response.json();
   },
+
+  /**
+   * Delete a document and all its associated data
+   * @param documentId Document ID to delete
+   * @returns Success message
+   */
+  deleteDocument: async (documentId: string): Promise<{ message: string }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to delete document");
+    }
+    
+    return response.json();
+  },
 };
