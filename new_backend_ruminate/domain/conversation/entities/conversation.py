@@ -71,3 +71,4 @@ class Conversation(Base):
     # Relationships
     user = relationship("UserModel", back_populates="conversations")
     document = relationship("DocumentModel", back_populates="conversations")
+    # questions relationship will be added after ConversationQuestion is properly registered

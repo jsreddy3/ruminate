@@ -277,6 +277,8 @@ async def get_definition(
             document_id=document_id,
             block_id=request.block_id,
             term=request.term,
+            text_start_offset=request.text_start_offset,
+            text_end_offset=request.text_end_offset,
             surrounding_text=request.surrounding_text,
             user_id=current_user.id
         )

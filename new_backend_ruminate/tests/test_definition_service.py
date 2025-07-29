@@ -104,6 +104,8 @@ class TestDefinitionService:
                 document_id="doc-123",
                 block_id="block-target",
                 term="neural networks",
+                text_start_offset=20,
+                text_end_offset=35,
                 surrounding_text="Deep learning uses neural networks with multiple hidden layers",
                 user_id="test-user"
             )
@@ -144,6 +146,8 @@ class TestDefinitionService:
                 document_id="doc-123",
                 block_id="block-target",
                 term="hidden layers",
+                text_start_offset=45,
+                text_end_offset=58,
                 surrounding_text="In the context of deep learning architectures, hidden layers are the intermediate layers between input and output",
                 user_id="test-user"
             )

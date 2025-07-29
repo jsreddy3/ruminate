@@ -9,6 +9,16 @@ interface BlockContainerProps {
   htmlContent: string;
   documentId: string;
   images?: { [key: string]: string };
+  metadata?: {
+    definitions?: {
+      [term: string]: {
+        term: string;
+        definition: string;
+        created_at: string;
+      };
+    };
+    [key: string]: any;
+  };
   highlights?: Array<{
     phrase: string;
     insight: string;
@@ -17,6 +27,7 @@ interface BlockContainerProps {
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
+  onBlockMetadataUpdate?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -30,11 +41,13 @@ export default function BlockContainer({
   htmlContent,
   documentId,
   images = {},
+  metadata,
   highlights = [],
   onAddTextToChat,
   onRabbitholeClick,
   onCreateRabbithole,
   onRefreshRabbitholes,
+  onBlockMetadataUpdate,
   customStyle
 }: BlockContainerProps) {
   // Add component lifecycle logging
@@ -78,6 +91,7 @@ export default function BlockContainer({
       blockType={blockType}
       htmlContent={htmlContent}
       images={images}
+      metadata={metadata}
       blockId={blockId}
       documentId={documentId}
       highlights={highlights}
@@ -85,6 +99,7 @@ export default function BlockContainer({
       onAddTextToChat={onAddTextToChat}
       onRabbitholeClick={onRabbitholeClick}
       onCreateRabbithole={onCreateRabbithole}
+      onBlockMetadataUpdate={onBlockMetadataUpdate}
       customStyle={customStyle}
     />
   );

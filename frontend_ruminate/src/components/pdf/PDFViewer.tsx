@@ -52,6 +52,16 @@ export interface Block {
   pageIndex?: number;
   children?: Block[];
   images?: { [key: string]: string };
+  metadata?: {
+    definitions?: {
+      [term: string]: {
+        term: string;
+        definition: string;
+        created_at: string;
+      };
+    };
+    [key: string]: any;
+  };
 }
 
 // A minimal Block Info component (for the built-in sidebar tab, if you still want it)
@@ -854,6 +864,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                         refreshRabbitholesFnRef.current = refreshFn;
                       }}
                       onAddTextToChat={handleAddTextToChat}
+                      onBlockMetadataUpdate={() => {
+                        console.log("[DEBUG] Block metadata updated, fetching blocks");
+                        fetchBlocks();
+                      }}
                       onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
                         console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
                         

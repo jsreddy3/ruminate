@@ -251,9 +251,10 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         if not db_block:
             raise ValueError(f"Block {block.id} not found")
         
-        # Update critical content fields
+        # Update all modifiable fields
         db_block.is_critical = block.is_critical
         db_block.critical_summary = block.critical_summary
+        db_block.meta_data = block.metadata  # Update metadata field
         db_block.updated_at = datetime.now()
         
         await session.commit()

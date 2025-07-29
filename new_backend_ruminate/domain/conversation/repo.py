@@ -4,6 +4,7 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from new_backend_ruminate.domain.conversation.entities.message import Message
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
+from new_backend_ruminate.domain.conversation.entities.question import ConversationQuestion
 
 
 class ConversationRepository(ABC):
@@ -40,3 +41,9 @@ class ConversationRepository(ABC):
     async def update_message_content(self, mid: str, new: str, session: AsyncSession) -> None: ...
     @abstractmethod
     async def update_active_thread(self, cid: str, thread: list[str], session: AsyncSession) -> None: ...
+    
+    # question management
+    @abstractmethod
+    async def get_conversation_questions(self, cid: str, session: AsyncSession) -> List[ConversationQuestion]: ...
+    @abstractmethod
+    async def delete_conversation_questions(self, cid: str, session: AsyncSession) -> None: ...

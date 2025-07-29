@@ -71,13 +71,17 @@ export const documentApi = {
    * @param documentId Document ID
    * @param blockId Block ID containing the term
    * @param term The term to define
+   * @param textStartOffset Start position of the term in the block
+   * @param textEndOffset End position of the term in the block
    * @param surroundingText Optional surrounding text for better context
    * @returns Definition response
    */
   getTermDefinition: async (
     documentId: string, 
     blockId: string, 
-    term: string, 
+    term: string,
+    textStartOffset: number,
+    textEndOffset: number,
     surroundingText?: string
   ): Promise<{ term: string; definition: string; context?: string }> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/define`, {
@@ -88,6 +92,8 @@ export const documentApi = {
       body: JSON.stringify({
         term,
         block_id: blockId,
+        text_start_offset: textStartOffset,
+        text_end_offset: textEndOffset,
         surrounding_text: surroundingText
       })
     });

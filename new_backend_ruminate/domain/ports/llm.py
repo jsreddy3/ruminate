@@ -9,13 +9,13 @@ class LLMService(ABC):
 
     @abstractmethod
     async def generate_response_stream(
-        self, messages: List[Message]
+        self, messages: List[Message], model: str | None = None
     ) -> AsyncGenerator[str, None]:
         ...
 
-    async def generate_response(self, messages: List[Message]) -> str:
+    async def generate_response(self, messages: List[Message], model: str | None = None) -> str:
         buf: List[str] = []
-        async for chunk in self.generate_response_stream(messages):
+        async for chunk in self.generate_response_stream(messages, model):
             buf.append(chunk)
         return "".join(buf)
 
@@ -26,6 +26,7 @@ class LLMService(ABC):
         *,
         response_format: Dict[str, Any],
         json_schema: Dict[str, Any] | None = None,
+        model: str | None = None,
     ) -> Dict[str, Any]:
         ...
 

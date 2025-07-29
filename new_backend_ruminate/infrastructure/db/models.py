@@ -6,6 +6,7 @@ This file is imported by test fixtures and bootstrap to ensure all tables are cr
 # Import conversation models (these use Base from meta.py)
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.domain.conversation.entities.message import Message
+from new_backend_ruminate.domain.conversation.entities.question import ConversationQuestion
 
 # Import document models
 from new_backend_ruminate.infrastructure.document.models import DocumentModel, PageModel, BlockModel
@@ -15,7 +16,8 @@ from new_backend_ruminate.infrastructure.user.models import UserModel
 
 __all__ = [
     'Conversation',
-    'Message', 
+    'Message',
+    'ConversationQuestion',
     'DocumentModel',
     'PageModel',
     'BlockModel',

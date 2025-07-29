@@ -5,6 +5,7 @@ import DefinitionPopup from './TooltipManager/DefinitionPopup';
 import { RabbitholeHighlight } from '../../../../services/rabbithole';
 import SelectionManager from './SelectionManager';
 import ReactRabbitholeHighlight from './HighlightOverlay/RabbitholeHighlight';
+import ReactDefinitionHighlight from './HighlightOverlay/DefinitionHighlight';
 import { createPortal } from 'react-dom';
 
 interface TextRendererProps {
@@ -12,6 +13,16 @@ interface TextRendererProps {
   blockType: string;
   blockId: string;
   documentId: string;
+  metadata?: {
+    definitions?: {
+      [term: string]: {
+        term: string;
+        definition: string;
+        created_at: string;
+      };
+    };
+    [key: string]: any;
+  };
   onAddTextToChat?: (text: string) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRabbitholeClick?: (
@@ -26,6 +37,7 @@ interface TextRendererProps {
     phrase: string;
     insight: string;
   }>;
+  onBlockMetadataUpdate?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -34,16 +46,25 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   blockType,
   blockId,
   documentId,
+  metadata,
   onAddTextToChat,
   onCreateRabbithole,
   onRabbitholeClick,
   rabbitholeHighlights = [],
   getBlockClassName,
   highlights = [],
+  onBlockMetadataUpdate,
   customStyle
 }) => {
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Debug: Check if metadata with definitions is being passed
+  useEffect(() => {
+    if (metadata?.definitions) {
+      console.log('Block has definitions:', metadata.definitions);
+    }
+  }, [metadata]);
   
   // State for tooltip handling
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -61,6 +82,9 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [definitionVisible, setDefinitionVisible] = useState(false);
   const [definitionWord, setDefinitionWord] = useState('');
   const [definitionPosition, setDefinitionPosition] = useState({ x: 0, y: 0 });
+  const [savedDefinition, setSavedDefinition] = useState<string | null>(null);
+  const [definitionOffsets, setDefinitionOffsets] = useState<{startOffset: number, endOffset: number} | null>(null);
+  
   
   // Handle text selection
   const handleTextSelected = (
@@ -120,7 +144,15 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   // Handle define text action
   const handleDefineText = (text: string) => {
     console.log('Looking up definition for:', text);
+    
+    // Ensure we have the offsets from selectedRange
+    if (!selectedRange) {
+      console.error('No selected range available for definition');
+      return;
+    }
+    
     setDefinitionWord(text);
+    setSavedDefinition(null); // Clear any saved definition
     setDefinitionPosition(tooltipPosition);
     setDefinitionVisible(true);
     setTooltipVisible(false);
@@ -153,10 +185,35 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     }
   };
   
+  // Handle saved definition click (from highlight)
+  const handleSavedDefinitionClick = (term: string, definition: string, startOffset: number, endOffset: number, event: React.MouseEvent) => {
+    console.log('Showing saved definition for:', term);
+    console.log('Setting states - term:', term, 'definition:', definition);
+    setDefinitionWord(term);
+    setSavedDefinition(definition);
+    setDefinitionOffsets({ startOffset, endOffset });
+    // Position at mouse position
+    const mousePos = { x: event.clientX, y: event.clientY };
+    console.log('Mouse position:', mousePos);
+    setDefinitionPosition(mousePos);
+    setDefinitionVisible(true);
+    console.log('definitionVisible set to true');
+  };
+  
+  // Handle when a new definition is saved
+  const handleDefinitionSaved = (term: string, definition: string, startOffset: number, endOffset: number) => {
+    console.log('Definition saved for:', term, 'at offsets:', startOffset, '-', endOffset);
+    // The parent component should handle refreshing block data
+    // to get the updated metadata with the new definition
+    if (onBlockMetadataUpdate) {
+      onBlockMetadataUpdate();
+    }
+  };
+  
   // Handle clicks outside of tooltips to close them
   const handleClick = (e: React.MouseEvent) => {
     // If clicking on the content (not a highlight), close tooltips
-    if ((e.target as HTMLElement).closest('.rabbithole-highlight')) {
+    if ((e.target as HTMLElement).closest('.rabbithole-highlight, .definition-highlight')) {
       // Don't close tooltips if clicking a highlight
       return;
     }
@@ -180,6 +237,15 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           />
         </div>
       </SelectionManager>
+      
+      {/* Definition highlights overlay (rendered before rabbithole so rabbithole is on top) */}
+      {metadata?.definitions && (
+        <ReactDefinitionHighlight
+          contentRef={contentRef as React.RefObject<HTMLElement>}
+          definitions={metadata.definitions}
+          onDefinitionClick={handleSavedDefinitionClick}
+        />
+      )}
       
       {/* Rabbithole highlights overlay */}
       <ReactRabbitholeHighlight
@@ -207,15 +273,28 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
       
       {/* Definition popup */}
-      {definitionVisible && (
+      {(() => {
+        console.log('Rendering check - definitionVisible:', definitionVisible, 'has offsets:', !!(selectedRange || definitionOffsets));
+        return null;
+      })()}
+      {definitionVisible && (selectedRange || definitionOffsets) && createPortal(
         <DefinitionPopup
           isVisible={definitionVisible}
           term={definitionWord}
+          textStartOffset={definitionOffsets?.startOffset || selectedRange?.startOffset || 0}
+          textEndOffset={definitionOffsets?.endOffset || selectedRange?.endOffset || 0}
           position={definitionPosition}
-          onClose={() => setDefinitionVisible(false)}
+          savedDefinition={savedDefinition || undefined}
+          onClose={() => {
+            setDefinitionVisible(false);
+            setSavedDefinition(null);
+            setDefinitionOffsets(null);
+          }}
+          onDefinitionSaved={handleDefinitionSaved}
           documentId={documentId}
           blockId={blockId}
-        />
+        />,
+        document.body
       )}
     </div>
   );

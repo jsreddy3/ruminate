@@ -11,6 +11,7 @@ interface BlockNavigatorProps {
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
   onAddTextToChat?: (text: string) => void;
+  onBlockMetadataUpdate?: () => void;
 }
 
 export default function BlockNavigator({
@@ -21,7 +22,8 @@ export default function BlockNavigator({
   onRabbitholeClick,
   onCreateRabbithole,
   onRefreshRabbitholes,
-  onAddTextToChat
+  onAddTextToChat,
+  onBlockMetadataUpdate
 }: BlockNavigatorProps) {
   // Track current index
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -132,11 +134,13 @@ export default function BlockNavigator({
             htmlContent={currentBlock.html_content || ''}
             documentId={documentId}
             images={currentBlock.images}
+            metadata={currentBlock.metadata}
             customStyle={{ backgroundColor: 'white' }}
             onRefreshRabbitholes={onRefreshRabbitholes}
             onAddTextToChat={onAddTextToChat}
             onRabbitholeClick={onRabbitholeClick}
             onCreateRabbithole={onCreateRabbithole}
+            onBlockMetadataUpdate={onBlockMetadataUpdate}
           />
         </div>
       </div>

@@ -417,6 +417,8 @@ class DocumentService:
         document_id: str,
         block_id: str,
         term: str,
+        text_start_offset: int,
+        text_end_offset: int,
         surrounding_text: Optional[str],
         user_id: str
     ) -> dict:
@@ -497,7 +499,7 @@ class DocumentService:
 
 {full_context}
 
-Provide a clear, contextual definition that explains what this term means in this specific document."""
+Provide a clear, contextual definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two."""
         
         # Get LLM service and generate definition (this is async I/O, not DB)
         llm = get_llm_service()
@@ -506,7 +508,35 @@ Provide a clear, contextual definition that explains what this term means in thi
             Message(id="usr", conversation_id="def", parent_id="sys", role=Role.USER, content=user_prompt, user_id=user_id, version=0)
         ]
         
-        definition = await llm.generate_response(messages)
+        definition = await llm.generate_response(messages, model="gpt-4o-mini")
+        
+        # Save the definition to block metadata
+        async with session_scope() as session:
+            # Re-fetch the block to update it
+            block = await self._repo.get_block(block_id, session)
+            if block:
+                # Initialize metadata if not exists
+                if not block.metadata:
+                    block.metadata = {}
+                
+                # Initialize definitions dict if not exists
+                if 'definitions' not in block.metadata:
+                    block.metadata['definitions'] = {}
+                
+                # Store the definition with position information
+                # Use offsets as the key for position-based lookup
+                definition_key = f"{text_start_offset}-{text_end_offset}"
+                block.metadata['definitions'][definition_key] = {
+                    'term': term,
+                    'definition': definition,
+                    'text_start_offset': text_start_offset,
+                    'text_end_offset': text_end_offset,
+                    'created_at': datetime.now().isoformat()
+                }
+                
+                # Update the block in database
+                block.updated_at = datetime.now()
+                await self._repo.update_block(block, session)
         
         return {
             "term": term,

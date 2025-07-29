@@ -28,11 +28,11 @@ class OpenAILLM(LLMService):
         return out
 
     async def generate_response_stream(
-        self, messages: List[Message]
+        self, messages: List[Message], model: str | None = None
     ) -> AsyncGenerator[str, None]:
         chat_msgs = await self._normalise(messages)
         stream = await self._client.chat.completions.create(
-            model=self._model,
+            model=model or self._model,
             messages=chat_msgs,
             stream=True,
         )
@@ -47,6 +47,7 @@ class OpenAILLM(LLMService):
         *,
         response_format: Dict[str, Any],
         json_schema: Dict[str, Any] | None = None,
+        model: str | None = None,
     ) -> Dict[str, Any]:
         chat_msgs = await self._normalise(messages)
         tools = None
@@ -64,7 +65,7 @@ class OpenAILLM(LLMService):
             tool_choice = {"type": "function", "function": {"name": "output_structure"}}
 
         resp = await self._client.chat.completions.create(
-            model=self._model,
+            model=model or self._model,
             messages=chat_msgs,
             response_format=response_format,
             tools=tools,

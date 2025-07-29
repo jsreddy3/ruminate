@@ -75,6 +75,8 @@ class DefinitionRequest(BaseModel):
     """Request schema for getting a definition"""
     term: str = Field(..., description="The term to define")
     block_id: str = Field(..., description="The block ID containing the term")
+    text_start_offset: int = Field(..., description="Start position of the term in the block text")
+    text_end_offset: int = Field(..., description="End position of the term in the block text")
     surrounding_text: Optional[str] = Field(None, description="Optional surrounding text for better context")
 
 

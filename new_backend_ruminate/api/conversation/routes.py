@@ -18,9 +18,11 @@ from new_backend_ruminate.dependencies import (
     get_session,
     get_current_user,
     get_current_user_from_query_token,
+    get_question_service,
 )
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.services.conversation.service import ConversationService
+from new_backend_ruminate.services.conversation.question_service import QuestionGenerationService
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 router = APIRouter(prefix="/conversations")
@@ -170,3 +172,68 @@ async def list_conversations(
         criteria["type"] = type.upper()
     
     return await svc.get_conversations_by_criteria(criteria, current_user.id, session)
+
+
+@router.post("/{cid}/questions", response_model=List[dict])
+async def generate_questions(
+    cid: str,
+    document_id: str = Query(..., description="Document ID for question generation"),
+    current_page: Optional[int] = Query(None, description="Current page number"),
+    question_count: int = Query(5, description="Number of questions to generate"),
+    current_user: User = Depends(get_current_user),
+    question_service: QuestionGenerationService = Depends(get_question_service),
+):
+    """
+    Generate contextual questions for a conversation based on document content.
+    
+    These questions help users explore the document and understand key concepts.
+    Questions are generated based on the current page context if provided,
+    or document overview if no specific page is given.
+    """
+    questions = await question_service.generate_questions_for_conversation(
+        conversation_id=cid,
+        document_id=document_id,
+        current_page=current_page,
+        question_count=question_count
+    )
+    return questions
+
+
+@router.get("/{cid}/questions", response_model=List[dict])
+async def get_questions(
+    cid: str,
+    current_user: User = Depends(get_current_user),
+    question_service: QuestionGenerationService = Depends(get_question_service),
+):
+    """
+    Retrieve stored questions for a conversation.
+    
+    Returns previously generated questions that can be displayed
+    as clickable buttons in the UI.
+    """
+    questions = await question_service.get_questions_for_conversation(cid)
+    return questions
+
+
+@router.put("/{cid}/questions", response_model=List[dict])
+async def regenerate_questions(
+    cid: str,
+    document_id: str = Query(..., description="Document ID for question generation"),
+    current_page: Optional[int] = Query(None, description="Current page number"),
+    question_count: int = Query(5, description="Number of questions to generate"),
+    current_user: User = Depends(get_current_user),
+    question_service: QuestionGenerationService = Depends(get_question_service),
+):
+    """
+    Regenerate questions for a conversation.
+    
+    Useful when the user moves to a different page or wants fresh questions.
+    This will delete existing questions and generate new ones.
+    """
+    questions = await question_service.regenerate_questions(
+        conversation_id=cid,
+        document_id=document_id,
+        current_page=current_page,
+        question_count=question_count
+    )
+    return questions
