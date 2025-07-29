@@ -1,0 +1,46 @@
+/* Definition highlight styles */
+.definition-highlight-visual {
+  /* Visual highlight is handled inline, this is for any additional styling */
+  transition: border-bottom-color 0.2s ease, border-bottom-width 0.2s ease;
+}
+
+/* Hover state for the entire definition area */
+.definition-highlight-clickable:hover {
+  /* Show a subtle red indicator when hovering over clickable area */
+  background: linear-gradient(
+    to bottom, 
+    transparent 0%, 
+    rgba(220, 38, 38, 0.05) 50%, 
+    rgba(220, 38, 38, 0.1) 100%
+  );
+}
+
+/* When selecting text over a definition highlight */
+.selection-manager-container:has(.selection-highlights) .definition-highlight-clickable {
+  /* Temporarily disable clickable area when selecting text */
+  pointer-events: none !important;
+}
+
+/* Tooltip hint for definition highlights */
+.definition-highlight-clickable::after {
+  content: "📖 " attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.definition-highlight-clickable:hover::after {
+  opacity: 1;
+  bottom: calc(100% + 4px);
+}

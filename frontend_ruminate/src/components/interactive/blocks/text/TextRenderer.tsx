@@ -237,6 +237,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           contentRef={contentRef as React.RefObject<HTMLElement>}
           definitions={metadata.definitions}
           onDefinitionClick={handleSavedDefinitionClick}
+          rabbitholeHighlights={rabbitholeHighlights}
         />
       )}
       
@@ -245,6 +246,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         contentRef={contentRef as React.RefObject<HTMLElement>}
         highlights={rabbitholeHighlights}
         onHighlightClick={handleRabbitholeClick}
+        definitions={metadata?.definitions}
       />
       
       {/* Text selection tooltip */}

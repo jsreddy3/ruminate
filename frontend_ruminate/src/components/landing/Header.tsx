@@ -17,7 +17,7 @@ export default function Header() {
           The AI agent that reads between the lines
         </p>
         <p className="text-lg text-neutral-500 mt-4 max-w-xl mx-auto">
-          Upload your document AI to start!
+          Transform your PDFs with AI-powered analysis
         </p>
       </div>
       

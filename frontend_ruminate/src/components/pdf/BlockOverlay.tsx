@@ -86,65 +86,21 @@ export default function BlockOverlay({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="relative h-full flex items-center justify-center p-8"
             >
-              <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Block Details - {selectedBlock.block_type}
-                    </h2>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {/* Navigation arrows */}
-                    <button
-                      onClick={() => {
-                        const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-                        if (currentIndex > 0) {
-                          onBlockChange(flattenedBlocks[currentIndex - 1]);
-                        }
-                      }}
-                      disabled={flattenedBlocks.findIndex(b => b.id === selectedBlock.id) === 0}
-                      className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Previous block"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        const currentIndex = flattenedBlocks.findIndex(b => b.id === selectedBlock.id);
-                        if (currentIndex < flattenedBlocks.length - 1) {
-                          onBlockChange(flattenedBlocks[currentIndex + 1]);
-                        }
-                      }}
-                      disabled={flattenedBlocks.findIndex(b => b.id === selectedBlock.id) === flattenedBlocks.length - 1}
-                      className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Next block"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                    
-                    {/* Close button */}
-                    <button
-                      onClick={onClose}
-                      className="p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-800"
-                      title="Close (Esc)"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+              <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col relative">
+                {/* Close button - positioned absolutely in top right corner */}
+                <button
+                  onClick={onClose}
+                  className="absolute z-30 p-2 rounded-full bg-white shadow-lg hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition-colors"
+                  style={{ top: '12px', right: '12px' }}
+                  title="Close (Esc)"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
 
-                {/* Content */}
-                <div className="flex-1 overflow-hidden">
+                {/* Content - full height */}
+                <div className="flex-1 overflow-hidden rounded-lg">
                   <BlockNavigator
                     blocks={flattenedBlocks}
                     currentBlockId={selectedBlock.id}

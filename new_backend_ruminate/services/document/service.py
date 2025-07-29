@@ -313,6 +313,34 @@ class DocumentService:
         blocks = await self._repo.get_blocks_by_document(document_id, session)
         if page_number is not None:
             blocks = [b for b in blocks if b.page_number == page_number]
+        
+        # Add rabbithole conversation IDs to block metadata
+        # Simple query: get all rabbithole conversations for this document and user
+        from sqlalchemy import select
+        from new_backend_ruminate.domain.conversation.entities.conversation import Conversation, ConversationType
+        
+        stmt = select(Conversation.id, Conversation.source_block_id).where(
+            Conversation.document_id == document_id,
+            Conversation.user_id == user_id,
+            Conversation.type == ConversationType.RABBITHOLE
+        )
+        result = await session.execute(stmt)
+        rabbithole_convs = result.fetchall()
+        
+        # Group conversation IDs by block
+        block_conversations = {}
+        for conv_id, block_id in rabbithole_convs:
+            if block_id not in block_conversations:
+                block_conversations[block_id] = []
+            block_conversations[block_id].append(conv_id)
+        
+        # Add conversation IDs to block metadata
+        for block in blocks:
+            if block.id in block_conversations:
+                if not block.metadata:
+                    block.metadata = {}
+                block.metadata["rabbithole_conversation_ids"] = block_conversations[block.id]
+        
         return blocks
     
     async def get_document_pdf_url(self, document_id: str, user_id: str, session: AsyncSession, expiration: int = 3600) -> str:

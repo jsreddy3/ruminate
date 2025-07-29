@@ -15,6 +15,7 @@ import BlockContainer from "../interactive/blocks/BlockContainer";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import BlockNavigator from "../interactive/blocks/BlockNavigator";
 import BlockOverlay from "./BlockOverlay";
+import PDFBlockOverlay from "./PDFBlockOverlay";
 
 // Custom CSS styles for resize handles
 const resizeHandleStyles = {
@@ -61,6 +62,7 @@ export interface Block {
         created_at: string;
       };
     };
+    rabbithole_conversation_ids?: string[];  // Just the conversation IDs
     [key: string]: any;
   };
 }
@@ -601,87 +603,14 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
-      const { scale, pageIndex } = props;
-
-      // Fix the page number filtering - there was an off-by-one error
-      // If blocks from page 1 are showing on page 0, then we need to REMOVE the +1 adjustment
-      const filteredBlocks = blocks.filter((b) => {
-        const blockPageNumber = b.page_number ?? 0;
-        // Compare directly with pageIndex instead of pageIndex + 1
-        return b.block_type !== "Page" && blockPageNumber === pageIndex;
-      });
-
       return (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          {filteredBlocks.map((b) => {
-            if (!b.polygon || b.polygon.length < 4) return null;
-            const x = Math.min(...b.polygon.map((p) => p[0]));
-            const y = Math.min(...b.polygon.map((p) => p[1]));
-            const w = Math.max(...b.polygon.map((p) => p[0])) - x;
-            const h = Math.max(...b.polygon.map((p) => p[1])) - y;
-
-            const isSelected = selectedBlock?.id === b.id;
-
-            // Determine the block's status
-            const blockStatus = isSelected ? 'selected' : '';
-
-            // Get the appropriate styling based on status
-            const getBlockStyle = () => {
-              const baseStyle = {
-                position: "absolute" as const,
-                left: `${x * scale}px`,
-                top: `${y * scale}px`,
-                width: `${w * scale}px`,
-                height: `${h * scale}px`,
-                cursor: 'pointer',
-                transition: 'all 0.3s ease-in-out',
-                zIndex: isSelected ? 2 : 1,
-                borderRadius: '2px',
-              };
-
-              if (isSelected) {
-                return {
-                  ...baseStyle,
-                  border: '2px solid rgba(59, 130, 246, 0.8)',
-                  backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                };
-              }
-
-              return {
-                ...baseStyle,
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                backgroundColor: 'transparent',
-              };
-            };
-
-            return (
-              <motion.div
-                key={b.id}
-                style={getBlockStyle()}
-                className="hover:bg-primary-100/10 hover:border-primary-400 hover:shadow-block-hover group"
-                onClick={() => handleBlockClick(b)}
-                title={b.html_content?.replace(/<[^>]*>/g, "") || ""}
-              >
-                {/* Optional: Show a dot indicator for selected blocks */}
-                {blockStatus && (
-                  <div className="absolute top-1/2 -translate-y-1/2 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-4 h-4 rounded-full bg-primary-100 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-primary-500" />
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
+        <PDFBlockOverlay
+          blocks={blocks}
+          selectedBlock={selectedBlock}
+          pageIndex={props.pageIndex}
+          scale={props.scale}
+          onBlockClick={handleBlockClick}
+        />
       );
     },
     [blocks, selectedBlock, handleBlockClick]

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import './DefinitionHighlight.css';
 
 interface SavedDefinition {
   term: string;
@@ -94,23 +95,16 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
   
   // Calculate and render highlights when content or definitions change
   useEffect(() => {
-    console.log('[DefinitionHighlight] useEffect triggered');
-    console.log('[DefinitionHighlight] contentRef exists:', !!contentRef.current);
-    console.log('[DefinitionHighlight] definitions:', definitions);
-    
     if (!contentRef.current || !definitions || Object.keys(definitions).length === 0) {
-      console.log('[DefinitionHighlight] Early return - missing data');
       setHighlightElements([]);
       return;
     }
     
     // Get container position for coordinate adjustment
     const contentRect = contentRef.current.getBoundingClientRect();
-    console.log('[DefinitionHighlight] Container rect:', contentRect);
     
     // Process each definition
     const newElements = Object.entries(definitions).map(([key, definition]) => {
-      console.log(`[DefinitionHighlight] Processing definition for: "${definition.term}" at ${definition.text_start_offset}-${definition.text_end_offset}`);
       
       // Get positioned rectangles for this text range
       const rects = findTextPositionFromOffset(
@@ -120,11 +114,8 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
       );
       
       if (!rects || rects.length === 0) {
-        console.log(`[DefinitionHighlight] Could not find position for: ${definition.term}`);
         return null;
       }
-      
-      console.log(`[DefinitionHighlight] Found ${rects.length} rects for "${definition.term}"`);
       
       // Create a highlight element for each rect
       return rects.map((rect, rectIndex) => {
@@ -136,9 +127,22 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
           width: `${rect.width}px`,
           height: `${rect.height}px`,
           backgroundColor: 'transparent',
-          borderBottom: '2px solid rgba(34, 197, 94, 0.6)', // Green underline
+          borderBottom: '2px solid rgba(220, 38, 38, 0.6)', // Red underline
+          borderRadius: '0px',
           cursor: 'help', // Question mark cursor
           zIndex: 8, // Below rabbithole highlights
+          pointerEvents: 'none', // Allow text selection through the highlight
+        };
+        
+        // Create a clickable area that's just a thin strip at the bottom
+        const clickableStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: `${rect.left - contentRect.left}px`,
+          top: `${rect.top - contentRect.top + rect.height - 8}px`, // Position at bottom of text
+          width: `${rect.width}px`,
+          height: '8px', // Thin clickable area
+          cursor: 'help',
+          zIndex: 9,
           pointerEvents: 'auto',
         };
         
@@ -149,13 +153,36 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
         };
         
         return (
-          <div
-            key={`definition-${key}-${rectIndex}`}
-            className="definition-highlight"
-            style={style}
-            onClick={handleClick}
-            title={`Click to see definition of "${definition.term}"`}
-          />
+          <React.Fragment key={`definition-${key}-${rectIndex}`}>
+            {/* Visual highlight - not clickable */}
+            <div
+              className="definition-highlight-visual"
+              style={style}
+            />
+            {/* Clickable area - just at the bottom */}
+            <div
+              className="definition-highlight-clickable"
+              style={clickableStyle}
+              onClick={handleClick}
+              title={`Click to see definition of "${definition.term}"`}
+              onMouseEnter={(e) => {
+                // Add hover effect to visual highlight
+                const visual = e.currentTarget.previousSibling as HTMLElement;
+                if (visual) {
+                  visual.style.borderBottomWidth = '3px';
+                  visual.style.borderBottomColor = 'rgba(220, 38, 38, 0.8)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                // Remove hover effect
+                const visual = e.currentTarget.previousSibling as HTMLElement;
+                if (visual) {
+                  visual.style.borderBottomWidth = '2px';
+                  visual.style.borderBottomColor = 'rgba(220, 38, 38, 0.6)';
+                }
+              }}
+            />
+          </React.Fragment>
         );
       });
     })

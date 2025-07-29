@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RabbitholeHighlight as RabbitholeHighlightType } from '../../../../../services/rabbithole';
+import './RabbitholeHighlight.css';
 
 interface ReactRabbitholeHighlightProps {
   contentRef: React.RefObject<HTMLElement>;
@@ -120,16 +121,27 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           top: `${rect.top - contentRect.top}px`,
           width: `${rect.width}px`,
           height: `${rect.height}px`,
-          backgroundColor: 'transparent',  // Remove background color
-          borderBottom: '1.5px solid rgba(99, 102, 241, 0.8)', // Stronger underline
-          textDecoration: 'underline',
-          textDecorationColor: 'rgba(99, 102, 241, 0.8)',
-          textDecorationStyle: 'dotted',
-          borderRadius: '0px',  // Remove rounded corners
+          backgroundColor: 'transparent',
+          borderBottom: '1.5px solid rgba(99, 102, 241, 0.8)',
+          borderRadius: '0px',
           cursor: 'pointer',
           zIndex: 10,
           boxShadow: 'none',
+          pointerEvents: 'none', // Allow text selection through the highlight
+        };
+        
+        // Create a clickable area that's just a thin strip at the bottom
+        const clickableStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: `${rect.left - contentRect.left}px`,
+          top: `${rect.top - contentRect.top + rect.height - 8}px`, // Position at bottom of text
+          width: `${rect.width}px`,
+          height: '8px', // Thin clickable area
+          cursor: 'pointer',
+          zIndex: 11,
           pointerEvents: 'auto',
+          // Uncomment to debug clickable area:
+          // backgroundColor: 'rgba(255, 0, 0, 0.2)',
         };
         
         const handleClick = (e: React.MouseEvent) => {
@@ -152,13 +164,36 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
         };
         
         return (
-          <div
-            key={`rabbithole-${id}-${rectIndex}`}
-            className="rabbithole-highlight"
-            style={style}
-            onClick={handleClick}
-            title={`Rabbithole conversation: ${selected_text}`}
-          />
+          <React.Fragment key={`rabbithole-${id}-${rectIndex}`}>
+            {/* Visual highlight - not clickable */}
+            <div
+              className="rabbithole-highlight-visual"
+              style={style}
+            />
+            {/* Clickable area - just at the bottom */}
+            <div
+              className="rabbithole-highlight-clickable"
+              style={clickableStyle}
+              onClick={handleClick}
+              title={`Click to open rabbithole conversation: ${selected_text}`}
+              onMouseEnter={(e) => {
+                // Add hover effect to visual highlight
+                const visual = e.currentTarget.previousSibling as HTMLElement;
+                if (visual) {
+                  visual.style.borderBottomWidth = '2px';
+                  visual.style.borderBottomColor = 'rgba(99, 102, 241, 1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                // Remove hover effect
+                const visual = e.currentTarget.previousSibling as HTMLElement;
+                if (visual) {
+                  visual.style.borderBottomWidth = '1.5px';
+                  visual.style.borderBottomColor = 'rgba(99, 102, 241, 0.8)';
+                }
+              }}
+            />
+          </React.Fragment>
         );
       });
     })
