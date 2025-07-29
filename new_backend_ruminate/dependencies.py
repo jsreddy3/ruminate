@@ -23,6 +23,7 @@ from new_backend_ruminate.services.conversation.service import ConversationServi
 from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.context.builder import ContextBuilder
+from new_backend_ruminate.context.windowed import WindowedContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
 from new_backend_ruminate.context.renderers.agent import register_agent_renderers
 from new_backend_ruminate.infrastructure.document_processing.llm_document_analyzer import LLMDocumentAnalyzer
@@ -43,7 +44,7 @@ _llm  = OpenAILLM(
     api_key=settings().openai_api_key,
     model=settings().openai_model,
 )
-_ctx_builder = ContextBuilder()
+_ctx_builder = WindowedContextBuilder(_document_repo)
 _storage = get_object_storage_singleton()
 _document_analyzer = LLMDocumentAnalyzer(_llm)
 # Auth components (only initialize if settings are provided)

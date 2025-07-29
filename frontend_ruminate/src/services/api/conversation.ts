@@ -54,9 +54,7 @@ export const conversationApi = {
     );
     if (!response.ok) throw new Error("Failed to send message");
     
-    const responseData = await response.json();
-    console.log("conversationApi.sendMessage response:", responseData);
-    return responseData;
+    return response.json();
   },
 
   editMessage: async (

@@ -100,13 +100,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       }
       
       // Send message and get response ID for streaming
-      const [userMsgId, responseMessageId] = await sendMessage(content, parentId);
-      
-      console.log(`ChatContainer: Got IDs from sendMessage - user: ${userMsgId}, ai: ${responseMessageId}`);
+      const [, responseMessageId] = await sendMessage(content, parentId);
       
       // Set up token streaming
       setStreamingMessageId(responseMessageId);
-      console.log(`ChatContainer: Set streamingMessageId to: ${responseMessageId}`);
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -130,7 +127,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // When streaming completes, refresh the tree to fetch the completed message
   useEffect(() => {
     if (isStreamingComplete && streamingMessageId) {
-      console.log(`Stream completed for message: ${streamingMessageId}`);
       refreshTree().then(() => {
         setStreamingMessageId(null);
       });

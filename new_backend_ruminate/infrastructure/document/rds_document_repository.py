@@ -161,7 +161,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
                 polygon=block.polygon,
                 page_number=block.page_number,
                 section_hierarchy=block.section_hierarchy,
-                metadata=block.metadata,
+                meta_data=block.metadata,
                 images=block.images,
                 is_critical=block.is_critical,
                 critical_summary=block.critical_summary,
@@ -180,15 +180,44 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         return [self._to_domain_block(b) for b in db_blocks]
     
     async def get_blocks_by_document(self, document_id: str, session: AsyncSession) -> List[Block]:
-        """Get all blocks for a document"""
-        result = await session.execute(
+        """Get all blocks for a document in proper reading order"""
+        # First get all pages for this document in order
+        pages_result = await session.execute(
+            select(PageModel)
+            .where(PageModel.document_id == document_id)
+            .order_by(PageModel.page_number)
+        )
+        pages = pages_result.scalars().all()
+        
+        # Then get all blocks for this document
+        blocks_result = await session.execute(
             select(BlockModel)
             .where(BlockModel.document_id == document_id)
-            .order_by(BlockModel.page_number, BlockModel.id)
         )
-        db_blocks = result.scalars().all()
+        db_blocks = blocks_result.scalars().all()
         
-        return [self._to_domain_block(block) for block in db_blocks]
+        # Create a lookup map for blocks
+        block_map = {block.id: block for block in db_blocks}
+        
+        # Build ordered list using page block_ids order
+        ordered_blocks = []
+        for page in pages:
+            if page.block_ids:
+                for block_id in page.block_ids:
+                    if block_id in block_map:
+                        ordered_blocks.append(block_map[block_id])
+        
+        # Add any blocks not referenced in page block_ids (fallback)
+        referenced_ids = set()
+        for page in pages:
+            if page.block_ids:
+                referenced_ids.update(page.block_ids)
+        
+        for block in db_blocks:
+            if block.id not in referenced_ids:
+                ordered_blocks.append(block)
+        
+        return [self._to_domain_block(block) for block in ordered_blocks]
     
     async def get_blocks_by_page(self, page_id: str, session: AsyncSession) -> List[Block]:
         """Get all blocks for a page"""
@@ -312,7 +341,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             polygon=db_block.polygon,
             page_number=db_block.page_number,
             section_hierarchy=db_block.section_hierarchy,
-            metadata=db_block.metadata,
+            metadata=db_block.meta_data,
             images=db_block.images,
             is_critical=db_block.is_critical,
             critical_summary=db_block.critical_summary,

@@ -54,27 +54,10 @@ export default function LandingPage() {
   const handleSelectDocument = useCallback(async (selectedDocId: string, pdfUrl: string) => {
     resetUploadState(); 
     setDocumentIdDirectly(selectedDocId); 
-
-    try {
-      const response = await fetch(pdfUrl);
-      if (!response.ok) throw new Error("Failed to fetch PDF");
-      const blob = await response.blob();
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setPdfFileDirectly(dataUrl); 
-        setHasUploadedFileDirectly(true); 
-      };
-      reader.onerror = () => {
-         console.error("Error reading PDF blob for selected document");
-         setHasUploadedFileDirectly(false); 
-      }
-      reader.readAsDataURL(blob);
-    } catch (err) {
-      console.error("Error fetching selected PDF:", err);
-      setHasUploadedFileDirectly(false);
-    }
+    
+    // Use the S3 URL directly instead of converting to base64
+    setPdfFileDirectly(pdfUrl); 
+    setHasUploadedFileDirectly(true); 
   }, [resetUploadState, setDocumentIdDirectly, setPdfFileDirectly, setHasUploadedFileDirectly]); 
 
   // Conditional rendering based on whether a file has been successfully uploaded/processed

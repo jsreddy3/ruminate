@@ -148,10 +148,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <div>
               {message.role === MessageRole.ASSISTANT && isStreaming ? (
                 // Show streaming content for assistant messages
-                <>
-                  {console.log(`MessageItem ${message.id}: streaming=${isStreaming}, content length=${streamingContent?.length || 0}, content="${streamingContent}"`)}
-                  {streamingContent || 'AI is responding...'}
-                </>
+                streamingContent || 'AI is responding...'
               ) : (
                 // Show regular content
                 message.content

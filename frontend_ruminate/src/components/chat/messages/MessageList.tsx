@@ -69,11 +69,6 @@ const MessageList: React.FC<MessageListProps> = ({
       {displayMessages.map((message) => {
         // Determine if this message should be streaming
         const isMessageStreaming = message.id === streamingMessageId;
-        
-        // Debug logging
-        if (streamingMessageId) {
-          console.log(`MessageList: streamingMessageId=${streamingMessageId}, message.id=${message.id}, isStreaming=${isMessageStreaming}, streamingContent length=${streamingContent?.length || 0}`);
-        }
           
         return (
           <MessageItem

@@ -202,7 +202,6 @@ export function useMessageTree({
         
         // Return the real IDs immediately for streaming setup
         // Don't wait for refreshTree - streaming should start ASAP
-        console.log(`sendMessage returning: user_id=${user_id}, ai_id=${ai_id}`);
         
         // Refresh in background to show the user message and empty AI message
         refreshTree().catch(err => console.error('Background refresh failed:', err));

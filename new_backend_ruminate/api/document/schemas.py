@@ -59,6 +59,11 @@ class BlockResponse(BaseModel):
     block_type: Optional[str]
     html_content: Optional[str]
     polygon: Optional[List[List[float]]]
+    section_hierarchy: Optional[Dict[str, str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    images: Optional[Dict[str, str]] = None
+    is_critical: Optional[bool] = None
+    critical_summary: Optional[str] = None
     
     class Config:
         json_encoders = {

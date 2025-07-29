@@ -192,7 +192,12 @@ async def get_document_blocks(
             page_number=block.page_number,
             block_type=block.block_type.value if block.block_type else None,
             html_content=block.html_content,
-            polygon=block.polygon
+            polygon=block.polygon,
+            section_hierarchy=block.section_hierarchy,
+            metadata=block.metadata,
+            images=block.images,
+            is_critical=block.is_critical,
+            critical_summary=block.critical_summary
         )
         for block in blocks
     ]

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Worker, Viewer } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
 import MathJaxProvider from "../common/MathJaxProvider";
-import TabView from "../common/TabView";
 import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
 import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
@@ -204,6 +203,25 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
+  
+  // Debug PDF URL
+  useEffect(() => {
+    if (pdfFile.startsWith('data:application/pdf;base64,')) {
+      const base64Length = pdfFile.length;
+      const estimatedSizeMB = (base64Length * 0.75) / (1024 * 1024); // rough estimate
+      console.log('PDF: Base64 data URL detected');
+      console.log(`Base64 length: ${base64Length} chars (~${estimatedSizeMB.toFixed(1)}MB)`);
+      
+      if (base64Length > 10000000) { // ~7.5MB
+        console.warn('⚠️ Very large base64 PDF - this might cause loading issues');
+      }
+    } else {
+      console.log('PDF URL being loaded:', pdfFile);
+      if (pdfFile.startsWith('file://')) {
+        console.error('❌ Invalid PDF URL: file:// URLs cannot be loaded in browsers');
+      }
+    }
+  }, [pdfFile]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   const [loading, setLoading] = useState(false);
@@ -212,7 +230,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   
   // Add state for conversation management
   const [mainConversationId, setMainConversationId] = useState<string | null>(null);
-  const [showChat, setShowChat] = useState<boolean>(false);
   
   // Update the state management to handle multiple conversations
   // Add state for tracking rabbithole conversations
@@ -250,6 +267,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       const blocksResp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks`);
       const blocksData = await blocksResp.json();
       console.log("[DEBUG] Fetched blocks data:", blocksData.length, "blocks");
+      
+      // Debug block ordering
+      console.log("[DEBUG] Block order received from API:");
+      blocksData.slice(0, 10).forEach((block, index) => {
+        console.log(`  ${index}: Page ${block.page_number} - ${block.block_type} - ${block.id.substring(0, 8)} - "${(block.html_content || '').substring(0, 50)}..."`);
+      });
+      
       if (Array.isArray(blocksData)) {
         setBlocks(blocksData);
         console.log("[DEBUG] Updated blocks state");
@@ -327,28 +351,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       });
   }, [documentId, mainConversationId]);
   
-  // Function to switch to the notes tab
-  const switchToNotesTab = useCallback(() => {
-    setActiveTabId('notes');
-  }, []);
-
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
-  
-  // Add state for active tab
-  const [activeTabId, setActiveTabId] = useState<string>('pdf');
-  
-  // State for notes content
-  const [notesContent, setNotesContent] = useState<string>('');
-  
-  // Create a map of blockId to sequence number for notes sorting
-  const blockSequenceMap = useMemo(() => {
-    const map = new Map<string, number>();
-    flattenedBlocks.forEach((block, index) => {
-      map.set(block.id, index);
-    });
-    return map;
-  }, [flattenedBlocks]);
 
   // Flatten blocks for easy navigation
   useEffect(() => {
@@ -381,7 +385,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         // Must have content (HTML or images)
         (
           block.html_content ||
-          (block.images && Object.keys(block.images || {}).length > 0) ||
+          (block.images && Object.keys(block.images).length > 0) ||
           ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
         )
       );
@@ -516,7 +520,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return nextPageIndex;
   };
 
-  // Update handleBlockClick to switch to the block tab
+  // Handle block click to select and view it
   const handleBlockClick = useCallback((block: Block) => {
     console.log('Selected Block:', {
       id: block.id,
@@ -527,12 +531,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
     // Set the new selected block
     setSelectedBlock(block);
-    
-    // Show the chat panel with this block
-    setShowChat(true);
-    
-    // Switch to the block tab automatically
-    setActiveTabId('block');
   }, []);
   
   // Handle creation of rabbithole conversations
@@ -562,7 +560,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       console.log("[DEBUG] Found existing conversation, activating it:", existingConversation);
       // If it already exists, just activate it
       setActiveConversationId(conversationId);
-      setShowChat(true);
       return;
     }
     
@@ -585,9 +582,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     // Set this as the active conversation
     console.log("[DEBUG] Setting active conversation ID:", conversationId);
     setActiveConversationId(conversationId);
-    
-    // Ensure chat is visible
-    setShowChat(true);
   }, [rabbitholeConversations]);
 
   const renderOverlay = useCallback(
@@ -678,8 +672,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     [blocks, selectedBlock, handleBlockClick]
   );
 
-  // Use our custom hook for the main panel layout
-  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
+  // Use our custom hook for the main panel layout (PDF vs right side)
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [60, 40]);
+  // Use custom hook for right panel layout (block vs chat)
+  const [rightPanelSizes, saveRightPanelSizes] = usePanelStorage('right', [30, 70]);
   
   // Ensure panel sizes are applied correctly
   useEffect(() => {
@@ -690,7 +686,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [showChat]); // Re-trigger when chat visibility changes
+  }, []); // Run once on mount
 
   useEffect(() => {
     console.log("[DEBUG] rabbitholeConversations updated:", rabbitholeConversations);
@@ -704,10 +700,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     console.log("[DEBUG] blocks updated, count:", blocks.length);
   }, [blocks]);
 
-  // Add effect to log when chat should be visible and with which conversation
+  // Add effect to log active conversation changes
   useEffect(() => {
-    console.log('[DEBUG] Chat visibility updated:', { 
-      showChat, 
+    console.log('[DEBUG] Active conversation updated:', { 
       activeConversationId, 
       rabbitholeConversationsCount: rabbitholeConversations.length 
     });
@@ -717,7 +712,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       const activeConversation = rabbitholeConversations.find(c => c.id === activeConversationId);
       console.log('[DEBUG] Active conversation:', activeConversation);
     }
-  }, [showChat, activeConversationId, rabbitholeConversations]);
+  }, [activeConversationId, rabbitholeConversations]);
 
   return (
     <MathJaxProvider>
@@ -727,275 +722,289 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           onLayout={(sizes) => saveMainPanelSizes(sizes)}
           className="w-full"
         >
-          {/* PDF viewer */}
+          {/* PDF viewer - left panel */}
           <Panel 
             defaultSize={mainPanelSizes[0]} 
             minSize={30}
-            className="bg-white shadow-lg overflow-hidden flex flex-col"
+            className="bg-white shadow-lg overflow-hidden"
           >
-            <div className="h-full w-full overflow-hidden flex flex-col">
-              <TabView
-                tabs={[
-                  {
-                    id: 'pdf',
-                    label: 'PDF',
-                    icon: <span>📄</span>,
-                    content: (
-                      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                        <div 
-                          style={{
-                            border: 'none',
-                            height: '100%',
-                            width: '100%',
-                            backgroundColor: 'rgb(243 244 246)',
-                            position: 'relative', // Ensure proper positioning context
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                          className="overflow-auto"
-                        >
-                          <Viewer
-                            fileUrl={pdfFile}
-                            plugins={[defaultLayoutPluginInstance]}
-                            defaultScale={1.2}
-                            theme="light"
-                            pageLayout={pageLayout}
-                            renderLoader={(percentages: number) => (
-                              <div className="flex items-center justify-center p-4">
-                                <div className="w-full max-w-sm">
-                                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                                    <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                                      <div
-                                        className="h-full bg-primary-600 transition-all duration-300"
-                                        style={{ width: `${Math.round(percentages)}%` }}
-                                      />
-                                    </div>
-                                    <div className="text-sm text-neutral-600 mt-2 text-center">
-                                      Loading {Math.round(percentages)}%
-                                    </div>
-                                  </div>
+            <div className="h-full w-full overflow-hidden">
+              <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                <div 
+                  style={{
+                    border: 'none',
+                    height: '100%',
+                    width: '100%',
+                    backgroundColor: 'rgb(243 244 246)',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}
+                  className="overflow-auto"
+                >
+                  <Viewer
+                    fileUrl={pdfFile}
+                    plugins={[defaultLayoutPluginInstance]}
+                    defaultScale={1.2}
+                    theme="light"
+                    pageLayout={pageLayout}
+                    renderLoader={(percentages: number) => (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="w-full max-w-sm">
+                          <div className="bg-white p-4 rounded-lg shadow-sm">
+                            {percentages === 0 ? (
+                              <div>
+                                <div className="text-sm text-orange-600 mb-2">Initializing PDF...</div>
+                                <div className="text-xs text-gray-500">
+                                  {pdfFile.startsWith('data:application/pdf;base64,') 
+                                    ? `Base64 PDF (${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB)`
+                                    : `URL: ${pdfFile.substring(0, 50)}...`
+                                  }
+                                </div>
+                                <div className="text-xs text-red-500 mt-1">
+                                  {pdfFile.startsWith('file://') && '❌ file:// URLs are blocked by browsers'}
+                                  {pdfFile.startsWith('data:application/pdf;base64,') && pdfFile.length > 10000000 && '⚠️ Large PDF may cause issues'}
+                                </div>
+                                <div className="text-xs text-blue-500 mt-2">
+                                  If stuck, try refreshing or check console for errors
                                 </div>
                               </div>
-                            )}
-                            renderPage={(props) => (
+                            ) : (
                               <>
-                                {props.canvasLayer.children}
-                                {props.textLayer.children}
-                                {renderOverlay(props)}
+                                <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary-600 transition-all duration-300"
+                                    style={{ width: `${Math.round(percentages)}%` }}
+                                  />
+                                </div>
+                                <div className="text-sm text-neutral-600 mt-2 text-center">
+                                  Loading {Math.round(percentages)}%
+                                </div>
                               </>
                             )}
-                          />
+                          </div>
                         </div>
-                      </Worker>
-                    )
-                  },
-                  {
-                    id: 'block',
-                    label: 'Block',
-                    icon: <span>🔍</span>,
-                    content: (
-                      <BlockNavigator
-                        blocks={flattenedBlocks}
-                        currentBlockId={selectedBlock?.id}
-                        documentId={documentId}
-                        onBlockChange={(block) => {
-                          // Update the selected block when navigating
-                          setSelectedBlock(block);
-                        }}
-                        onRefreshRabbitholes={(refreshFn) => {
-                          console.log("[DEBUG] BlockContainer provided refresh function");
-                          // Store the refresh function for later use
-                          refreshRabbitholesFnRef.current = refreshFn;
-                        }}
-                        onAddTextToChat={(text: string) => {
-                          // Find the active chat's message input and add the text
-                          const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
-                          if (messageInput) {
-                            messageInput.value += (messageInput.value ? ' ' : '') + text;
-                            messageInput.focus();
-                          }
-                        }}
-                        onRabbitholeClick={(rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => {
-                          // Open the agent chat for this rabbithole conversation
-                          console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
-                          
-                          // Check if this conversation is already in our list
-                          const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
-                          if (existingConversation) {
-                            // If it exists, just activate it
-                            setActiveConversationId(rabbitholeId);
-                            setShowChat(true);
-                            return;
-                          }
-                          
-                          // Otherwise, add it to our conversations list
-                          // Use the exact selected text that was passed from the rabbithole click
-                          const title = selectedText && selectedText.length > 30 
-                            ? `${selectedText.substring(0, 30)}...` 
-                            : selectedText || "Rabbithole Chat";
-                          
-                          setAgentConversations(prev => [
-                            ...prev, 
-                            {
-                              id: rabbitholeId,
-                              title,
-                              selectionText: selectedText || "",
-                              blockId: selectedBlock?.id || ""
-                            }
-                          ]);
-                          
-                          // Set this as the active conversation
-                          setActiveConversationId(rabbitholeId);
-                          setShowChat(true);
-                        }}
-                        onCreateAgentChat={(text: string, startOffset: number, endOffset: number) => {
-                          // Consolidated method that handles all agent chat creation
-                          console.log("[DEBUG] onCreateAgentChat called with text:", text, "offsets:", startOffset, endOffset);
-                          
-                          if (documentId && selectedBlock) {
-                            console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
-                            createRabbithole({
-                              document_id: documentId,
-                              block_id: selectedBlock.id,
-                              selected_text: text,
-                              start_offset: startOffset,
-                              end_offset: endOffset,
-                              type: 'rabbithole'
-                            }).then((conversation_id) => {
-                              console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
-                              // Pass the exact selected text for the agent chat
-                              handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
-                              
-                              // First refresh the rabbithole data in the current block view
-                              if (refreshRabbitholesFnRef.current) {
-                                console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
-                                refreshRabbitholesFnRef.current();
-                                
-                                // Wait a bit before fetching all blocks to avoid overwhelming the UI
-                                // This ensures the rabbithole highlight appears in the current view first
-                                setTimeout(() => {
-                                  console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
-                                  fetchBlocks();
-                                }, 500);
-                              } else {
-                                // If no refresh function is available, just fetch blocks
-                                console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
-                                fetchBlocks();
-                              }
-                            }).catch(error => {
-                              console.error("Error creating agent chat:", error);
-                            });
-                          }
-                        }}
-                      />
-                    )
-                  }
-                ]}
-                activeTabId={activeTabId}
-                onTabChange={setActiveTabId}
-                className="h-full flex flex-col"
-              />
+                      </div>
+                    )}
+                    renderPage={(props) => (
+                      <>
+                        {props.canvasLayer.children}
+                        {props.textLayer.children}
+                        {renderOverlay(props)}
+                      </>
+                    )}
+                  />
+                </div>
+              </Worker>
             </div>
           </Panel>
           
-          {/* Resize handle */}
-          {showChat && <ResizeHandle />}
+          {/* Resize handle between PDF and right side */}
+          <ResizeHandle />
           
-          {/* Chat panel - now showing the full height chat without vertical split */}
-          {showChat && (
-            <Panel 
-              defaultSize={mainPanelSizes[1]} 
-              minSize={20}
+          {/* Right side panel group - vertical split between block view and chat */}
+          <Panel 
+            defaultSize={mainPanelSizes[1]} 
+            minSize={20}
+          >
+            <PanelGroup 
+              direction="vertical" 
+              onLayout={(sizes) => saveRightPanelSizes(sizes)}
+              className="h-full"
             >
-              <div className="border-l border-gray-200 flex flex-col h-full bg-white">
-                {/* Chat header with tabs */}
-                <div className="border-b border-gray-200 p-3 flex flex-col">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-medium text-gray-900">
-                      Document Chat
+              {/* Block view - top right */}
+              <Panel 
+                defaultSize={rightPanelSizes[0]} 
+                minSize={15}
+                className="border-l border-gray-200 bg-white"
+              >
+                <div className="h-full flex flex-col">
+                  {/* Block view header */}
+                  <div className="border-b border-gray-200 p-3 flex justify-between items-center">
+                    <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                      <span>🔍</span>
+                      Block View
                       {selectedBlock && ` - ${selectedBlock.block_type}`}
                     </h3>
-                    
-                    {/* Close button */}
-                    <button 
-                      onClick={() => setShowChat(false)}
-                      className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
-                    >
-                      <span>×</span>
-                    </button>
                   </div>
                   
-                  {/* Conversation tabs */}
-                  <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
-                    {/* Main chat tab */}
-                    <button 
-                      className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
-                        activeConversationId === null 
-                        ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                      }`}
-                      onClick={() => setActiveConversationId(null)}
-                    >
-                      Main Chat
-                    </button>
-                    
-                    {/* Agent chat tabs */}
-                    {rabbitholeConversations.map(conv => (
-                      <button
-                        key={conv.id}
-                        className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
-                          activeConversationId === conv.id
-                          ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                        onClick={() => setActiveConversationId(conv.id)}
-                      >
-                        <span>🔍</span>
-                        <span>{conv.title}</span>
-                        <span 
-                          className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAgentConversations(prev => prev.filter(c => c.id !== conv.id));
-                            if (activeConversationId === conv.id) {
-                              setActiveConversationId(null);
+                  {/* Block content */}
+                  <div className="flex-1 overflow-hidden">
+                    <BlockNavigator
+                      blocks={flattenedBlocks}
+                      currentBlockId={selectedBlock?.id}
+                      documentId={documentId}
+                      onBlockChange={(block) => {
+                        setSelectedBlock(block);
+                      }}
+                      onRefreshRabbitholes={(refreshFn) => {
+                        console.log("[DEBUG] BlockContainer provided refresh function");
+                        refreshRabbitholesFnRef.current = refreshFn;
+                      }}
+                      onAddTextToChat={(text: string) => {
+                        const messageInput = document.querySelector('.message-input textarea') as HTMLTextAreaElement;
+                        if (messageInput) {
+                          messageInput.value += (messageInput.value ? ' ' : '') + text;
+                          messageInput.focus();
+                        }
+                      }}
+                      onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
+                        console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
+                        
+                        const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
+                        if (existingConversation) {
+                          setActiveConversationId(rabbitholeId);
+                          return;
+                        }
+                        
+                        const title = selectedText && selectedText.length > 30 
+                          ? `${selectedText.substring(0, 30)}...` 
+                          : selectedText || "Rabbithole Chat";
+                        
+                        setRabbitholeConversations(prev => [
+                          ...prev, 
+                          {
+                            id: rabbitholeId,
+                            title,
+                            selectionText: selectedText || "",
+                            blockId: selectedBlock?.id || ""
+                          }
+                        ]);
+                        
+                        setActiveConversationId(rabbitholeId);
+                      }}
+                      onCreateAgentChat={(text: string, startOffset: number, endOffset: number) => {
+                        console.log("[DEBUG] onCreateAgentChat called with text:", text, "offsets:", startOffset, endOffset);
+                        
+                        if (documentId && selectedBlock) {
+                          console.log("[DEBUG] Creating agent chat for document:", documentId, "block:", selectedBlock.id);
+                          createRabbithole({
+                            document_id: documentId,
+                            block_id: selectedBlock.id,
+                            selected_text: text,
+                            start_offset: startOffset,
+                            end_offset: endOffset,
+                            type: 'rabbithole'
+                          }).then((conversation_id) => {
+                            console.log("[DEBUG] Agent chat created successfully with conversation ID:", conversation_id);
+                            handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
+                            
+                            if (refreshRabbitholesFnRef.current) {
+                              console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
+                              refreshRabbitholesFnRef.current();
+                              
+                              setTimeout(() => {
+                                console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
+                                fetchBlocks();
+                              }, 500);
+                            } else {
+                              console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
+                              fetchBlocks();
                             }
-                          }}
-                        >
-                          ×
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Chat container - simplified to always use full height */}
-                <div className="h-full overflow-hidden">
-                  {activeConversationId === null ? (
-                    <ChatContainer 
-                      key={`main-chat-${mainConversationId || 'default'}`}
-                      documentId={documentId}
-                      selectedBlock={selectedBlock}
-                      conversationId={mainConversationId || undefined}
-                      onClose={() => setShowChat(false)}
-                    />
-                  ) : (
-                    <ChatContainer 
-                      key={`agent-chat-${activeConversationId}`}
-                      documentId={documentId}
-                      selectedBlock={selectedBlock}
-                      conversationId={activeConversationId}
-                      onClose={() => {
-                        if (activeConversationId) {
-                          setActiveConversationId(null);
+                          }).catch(error => {
+                            console.error("Error creating agent chat:", error);
+                          });
                         }
                       }}
                     />
-                  )}
+                  </div>
                 </div>
-              </div>
-            </Panel>
-          )}
+              </Panel>
+              
+              {/* Vertical resize handle between block view and chat */}
+              <HorizontalResizeHandle />
+              
+              {/* Chat panel - bottom right */}
+              <Panel 
+                defaultSize={rightPanelSizes[1]} 
+                minSize={25}
+                className="border-l border-t border-gray-200 bg-white"
+              >
+                <div className="flex flex-col h-full">
+                  {/* Chat header with tabs */}
+                  <div className="border-b border-gray-200 p-3 flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-medium text-gray-900">
+                        Document Chat
+                        {selectedBlock && ` - ${selectedBlock.block_type}`}
+                      </h3>
+                      
+                      {/* Minimize button */}
+                      <button 
+                        onClick={() => console.log("Chat minimize clicked")}
+                        className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
+                        title="Minimize chat"
+                      >
+                        <span>−</span>
+                      </button>
+                    </div>
+                    
+                    {/* Conversation tabs */}
+                    <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
+                      {/* Main chat tab */}
+                      <button 
+                        className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
+                          activeConversationId === null 
+                          ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                        onClick={() => setActiveConversationId(null)}
+                      >
+                        Main Chat
+                      </button>
+                      
+                      {/* Agent chat tabs */}
+                      {rabbitholeConversations.map(conv => (
+                        <button
+                          key={conv.id}
+                          className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
+                            activeConversationId === conv.id
+                            ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                          }`}
+                          onClick={() => setActiveConversationId(conv.id)}
+                        >
+                          <span>🔍</span>
+                          <span>{conv.title}</span>
+                          <span 
+                            className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRabbitholeConversations(prev => prev.filter(c => c.id !== conv.id));
+                              if (activeConversationId === conv.id) {
+                                setActiveConversationId(null);
+                              }
+                            }}
+                          >
+                            ×
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Chat container */}
+                  <div className="flex-1 overflow-hidden">
+                    {activeConversationId === null ? (
+                      <ChatContainer 
+                        key={`main-chat-${mainConversationId || 'default'}`}
+                        documentId={documentId}
+                        selectedBlock={selectedBlock}
+                        conversationId={mainConversationId || undefined}
+                      />
+                    ) : (
+                      <ChatContainer 
+                        key={`agent-chat-${activeConversationId}`}
+                        documentId={documentId}
+                        selectedBlock={selectedBlock}
+                        conversationId={activeConversationId}
+                      />
+                    )}
+                  </div>
+                </div>
+              </Panel>
+            </PanelGroup>
+          </Panel>
         </PanelGroup>
       </div>
     </MathJaxProvider>

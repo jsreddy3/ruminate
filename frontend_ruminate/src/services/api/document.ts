@@ -66,23 +66,4 @@ export const documentApi = {
     return data.pdf_url;
   },
 
-  /**
-   * Get PDF data URL for a document (legacy method - downloads through backend)
-   * @param documentId Document ID
-   * @returns Data URL for the PDF
-   */
-  getPdfDataUrl: async (documentId: string): Promise<string> => {
-    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/pdf`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch PDF");
-    }
-    
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
 };

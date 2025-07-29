@@ -16,14 +16,9 @@ export function useMessageStream(conversationId: string | null, messageId: strin
   const [error, setError] = useState<Error | null>(null);
   const currentMessageRef = useRef<string | null>(null);
 
-  // Add logging for when stream parameters change
+  // Reset isComplete when messageId changes
   useEffect(() => {
-    console.log("Stream params changed - conversationId:", conversationId, "messageId:", messageId);
-    
-    // Important: Reset isComplete when messageId changes
-    // This prevents stale isComplete values from affecting new messages
     if (messageId !== currentMessageRef.current) {
-      console.log(`Message ID changed from ${currentMessageRef.current} to ${messageId}, resetting isComplete`);
       setIsComplete(false);
       currentMessageRef.current = messageId;
     }
@@ -41,7 +36,7 @@ export function useMessageStream(conversationId: string | null, messageId: strin
     setIsComplete(false);
     setError(null);
 
-    console.log(`Creating stream for message: ${messageId}. isComplete: ${isComplete}. content is ${content}`);
+    // Creating EventSource for streaming
     
     // Create EventSource for SSE connection with authentication
     const token = localStorage.getItem('auth_token');
@@ -58,16 +53,10 @@ export function useMessageStream(conversationId: string | null, messageId: strin
         
         // Check for completion signal
         if (data === "[DONE]") {
-          console.log(`Stream completed for message: ${messageId}. Final content length: ${content.length}`);
           setIsComplete(true);
           setIsLoading(false);
           eventSource.close();
         } else {
-          // Log chunk size for debugging
-          if (data.length > 0 && data.length % 50 === 0) {
-            console.log(`Received ${data.length} chars for message: ${messageId}. Total: ${content.length + data.length}`);
-          }
-          
           // Append the new chunk to our content
           setContent(prevContent => prevContent + data);
         }
@@ -75,7 +64,6 @@ export function useMessageStream(conversationId: string | null, messageId: strin
 
       // Handle connection established
       eventSource.onopen = () => {
-        console.log(`Stream connection opened for message: ${messageId}`);
         setIsLoading(true);
       };
 
@@ -95,7 +83,6 @@ export function useMessageStream(conversationId: string | null, messageId: strin
     // Clean up the connection when the component unmounts or messageId changes
     return () => {
       if (eventSource) {
-        console.log(`Cleaning up stream for message: ${messageId}`);
         eventSource.close();
       }
     };
