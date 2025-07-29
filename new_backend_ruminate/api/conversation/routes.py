@@ -11,11 +11,14 @@ from new_backend_ruminate.api.conversation.schemas import (
     MessageOut,
     ConversationOut, 
     ConversationInitResponse,
-    CreateConversationRequest
+    CreateConversationRequest,
+    GenerateNoteRequest,
+    GenerateNoteResponse
 )
 from pydantic import BaseModel, Field
 from new_backend_ruminate.dependencies import (
     get_conversation_service, 
+    get_document_service,
     get_event_hub,
     get_session,
     get_current_user,
@@ -23,6 +26,7 @@ from new_backend_ruminate.dependencies import (
 )
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.services.conversation.service import ConversationService
+from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 router = APIRouter(prefix="/conversations")
@@ -179,5 +183,51 @@ async def list_conversations(
     
     conversations = await svc.get_conversations_by_criteria(criteria, current_user.id, session)
     return conversations
+
+
+@router.post("/{conversation_id}/generate-note", response_model=GenerateNoteResponse)
+async def generate_note_from_conversation(
+    conversation_id: str,
+    request: GenerateNoteRequest,
+    current_user: User = Depends(get_current_user),
+    conv_svc: ConversationService = Depends(get_conversation_service),
+    doc_svc: DocumentService = Depends(get_document_service),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Generate a note from conversation messages and save it to a block.
+    
+    This endpoint:
+    1. Verifies user owns the conversation
+    2. Gets recent messages from the conversation
+    3. Generates a note summarizing the conversation
+    4. Saves the note as an annotation on the specified block
+    
+    The generated note appears as a special annotation with metadata indicating
+    it was generated from a conversation.
+    """
+    # Verify user owns the conversation
+    conversation = await conv_svc.get_conversation(conversation_id, current_user.id, session)
+    
+    # Get messages from the conversation
+    messages = await conv_svc.get_latest_thread(conversation_id, current_user.id, session)
+    
+    # Generate and save the note
+    result = await doc_svc.generate_note_from_conversation(
+        conversation_id=conversation_id,
+        block_id=request.block_id,
+        messages=messages,
+        message_count=request.message_count,
+        topic=request.topic,
+        user_id=current_user.id,
+        session=session
+    )
+    
+    return GenerateNoteResponse(
+        note=result["note"],
+        note_id=result["note_id"],
+        block_id=result["block_id"],
+        conversation_id=result["conversation_id"]
+    )
 
 

@@ -14,6 +14,7 @@ from new_backend_ruminate.domain.document.entities import Document, DocumentStat
 from new_backend_ruminate.domain.document.repositories.document_repository_interface import DocumentRepositoryInterface
 from new_backend_ruminate.domain.object_storage.storage_interface import ObjectStorageInterface
 from new_backend_ruminate.domain.ports.document_analyzer import DocumentAnalyzer
+from new_backend_ruminate.domain.ports.llm import LLMService
 from new_backend_ruminate.infrastructure.document_processing.marker_client import MarkerClient, MarkerResponse
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
@@ -28,13 +29,15 @@ class DocumentService:
         repo: DocumentRepositoryInterface,
         hub: EventStreamHub,
         storage: ObjectStorageInterface,
+        llm: Optional[LLMService] = None,
         marker_client: Optional[MarkerClient] = None,
         analyzer: Optional[DocumentAnalyzer] = None,
-        note_context: Optional[Any] = None
+        note_context: Optional[NoteGenerationContext] = None
     ) -> None:
         self._repo = repo
         self._hub = hub
         self._storage = storage
+        self._llm = llm
         self._marker_client = marker_client or MarkerClient()
         self._analyzer = analyzer
         self._note_context = note_context
@@ -462,7 +465,6 @@ class DocumentService:
         - context: The context used to generate the definition
         """
         from new_backend_ruminate.domain.conversation.entities.message import Message, Role
-        from new_backend_ruminate.dependencies import get_llm_service
         import re
         
         # First, gather all data from DB within session scope
@@ -533,13 +535,15 @@ class DocumentService:
 Provide a clear, contextual definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two."""
         
         # Get LLM service and generate definition (this is async I/O, not DB)
-        llm = get_llm_service()
+        if not self._llm:
+            raise ValueError("LLM service not configured")
+            
         messages = [
             Message(id="sys", conversation_id="def", parent_id=None, role=Role.SYSTEM, content=system_prompt, user_id=user_id, version=0),
             Message(id="usr", conversation_id="def", parent_id="sys", role=Role.USER, content=user_prompt, user_id=user_id, version=0)
         ]
         
-        definition = await llm.generate_response(messages, model="gpt-4o-mini")
+        definition = await self._llm.generate_response(messages, model="gpt-4o-mini")
         
         # Save the definition to block metadata
         async with session_scope() as session:
@@ -703,8 +707,10 @@ Provide a clear, contextual definition that explains what this term means in thi
         )
         
         # Generate note using LLM
-        llm = get_llm_service()
-        generated_note = await llm.generate_response(llm_messages, model="gpt-4o-mini")
+        if not self._llm:
+            raise ValueError("LLM service not configured")
+            
+        generated_note = await self._llm.generate_response(llm_messages, model="gpt-4o-mini")
         
         # Save the note to block metadata
         note_metadata = await self._save_generated_note(

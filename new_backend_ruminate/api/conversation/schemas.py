@@ -48,6 +48,18 @@ class CreateConversationRequest(BaseModel):
         if start is not None and v is not None and v <= start:
             raise ValueError('text_end_offset must be greater than text_start_offset')
         return v
+    
+    @validator('selected_text')
+    def validate_rabbithole_fields(cls, v, values):
+        """Ensure all rabbithole fields are provided together for RABBITHOLE type"""
+        if values.get('type') == ConversationType.RABBITHOLE:
+            if not v:
+                raise ValueError('selected_text is required for RABBITHOLE conversations')
+            if not values.get('document_id'):
+                raise ValueError('document_id is required for RABBITHOLE conversations')
+            if not values.get('source_block_id'):
+                raise ValueError('source_block_id is required for RABBITHOLE conversations')
+        return v
 
 
 class GenerateNoteRequest(BaseModel):
@@ -63,19 +75,6 @@ class GenerateNoteResponse(BaseModel):
     note_id: str = Field(..., description="Unique ID of the generated note")
     block_id: str = Field(..., description="Block ID where the note was saved")
     conversation_id: str = Field(..., description="Source conversation ID")
-
-
-@validator('selected_text')
-    def validate_rabbithole_fields(cls, v, values):
-        """Ensure all rabbithole fields are provided together for RABBITHOLE type"""
-        if values.get('type') == ConversationType.RABBITHOLE:
-            if not v:
-                raise ValueError('selected_text is required for RABBITHOLE conversations')
-            if not values.get('document_id'):
-                raise ValueError('document_id is required for RABBITHOLE conversations')
-            if not values.get('source_block_id'):
-                raise ValueError('source_block_id is required for RABBITHOLE conversations')
-        return v
 
 
 class SendMessageRequest(BaseModel):

@@ -71,7 +71,8 @@ _agent_service = AgentService(_repo, _llm, _hub, _ctx_builder)
 _document_service = DocumentService(
     _document_repo, 
     _hub, 
-    _storage, 
+    _storage,
+    llm=_llm,
     analyzer=_document_analyzer,
     note_context=_note_generation_context
 )

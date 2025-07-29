@@ -228,10 +228,22 @@ class MarkerClient:
                 continue
             
             # Extract page information
+            page_html = page_data.get('html', "")
+            if page_html:
+                # Unescape HTML entities in page HTML too
+                page_html = (page_html
+                    .replace('&lt;', '<')
+                    .replace('&gt;', '>')
+                    .replace('&amp;', '&')
+                    .replace('&quot;', '"')
+                    .replace('&#39;', "'")
+                    .replace('&nbsp;', ' ')
+                )
+            
             page = {
                 "page_number": page_number + 1,  # 1-based numbering for display
                 "polygon": page_data.get('polygon'),
-                "html": page_data.get('html', ""),
+                "html": page_html,
                 "blocks": []
             }
             
@@ -251,10 +263,23 @@ class MarkerClient:
         blocks = []
         
         for block_data in block_list:
+            # Get HTML and unescape it if needed
+            html_content = block_data.get('html', '')
+            if html_content:
+                # Unescape common HTML entities that Marker might have escaped
+                html_content = (html_content
+                    .replace('&lt;', '<')
+                    .replace('&gt;', '>')
+                    .replace('&amp;', '&')
+                    .replace('&quot;', '"')
+                    .replace('&#39;', "'")
+                    .replace('&nbsp;', ' ')
+                )
+            
             # Create simplified block structure
             block = {
                 "block_type": block_data.get('block_type'),
-                "html": block_data.get('html'),
+                "html": html_content,
                 "polygon": block_data.get('polygon'),
                 "section_hierarchy": block_data.get('section_hierarchy'),
                 "metadata": block_data.get('metadata'),
