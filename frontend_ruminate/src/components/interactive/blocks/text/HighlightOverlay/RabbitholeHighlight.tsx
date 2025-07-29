@@ -136,7 +136,7 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           borderBottom: '1.5px solid rgba(99, 102, 241, 0.8)', // Always show at bottom
           borderRadius: '0px',
           cursor: 'pointer',
-          zIndex: 10,
+          zIndex: 7,
           boxShadow: 'none',
           pointerEvents: 'none', // Allow text selection through the highlight
         };
@@ -149,7 +149,7 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           width: `${rect.width}px`,
           height: '8px', // Thin clickable area
           cursor: 'pointer',
-          zIndex: 11,
+          zIndex: 8,
           pointerEvents: 'auto',
           // Uncomment to debug clickable area:
           // backgroundColor: 'rgba(255, 0, 0, 0.2)',
@@ -186,7 +186,7 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
               className="rabbithole-highlight-clickable"
               style={clickableStyle}
               onClick={handleClick}
-              title={`Click to open rabbithole conversation: ${selected_text}`}
+              title={`Click to open rabbithole conversation: ${selected_text.length > 30 ? selected_text.substring(0, 30) + '...' : selected_text}`}
               onMouseEnter={(e) => {
                 // Add hover effect to visual highlight
                 const visual = e.currentTarget.previousSibling as HTMLElement;
@@ -212,7 +212,7 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
     .flat();
     
     setHighlightElements(newElements as React.ReactNode[]);
-  }, [highlights, contentRef, onHighlightClick]);
+  }, [highlights, contentRef, onHighlightClick, definitions]);
   
   return (
     <div 

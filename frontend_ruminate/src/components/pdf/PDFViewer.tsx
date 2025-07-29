@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Worker, Viewer } from "@react-pdf-viewer/core";
+import { Worker, Viewer, SpecialZoomLevel } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
@@ -494,7 +494,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               <div className="flex items-center gap-2 min-w-[200px] justify-end">
                 <div className="flex items-center gap-2">
                   <ZoomOut />
-                  <Zoom />
                   <ZoomIn />
                 </div>
                 <div className="flex items-center gap-2 ml-4">
@@ -716,7 +715,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   <Viewer
                     fileUrl={pdfFile}
                     plugins={[defaultLayoutPluginInstance]}
-                    defaultScale={1.2}
+                    defaultScale={SpecialZoomLevel.PageFit}
                     theme="light"
                     pageLayout={pageLayout}
                     renderLoader={(percentages: number) => (
@@ -863,33 +862,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             <div className="flex flex-col h-full">
               {/* Chat header with tabs */}
               <div className="border-b border-gray-200 p-3 flex flex-col">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-medium text-gray-900">
-                    Document Chat
-                    {selectedBlock && (
-                      <>
-                        {` - ${selectedBlock.block_type}`}
-                        <button
-                          onClick={() => setIsBlockOverlayOpen(true)}
-                          className="ml-2 text-sm text-blue-600 hover:text-blue-800 underline"
-                          title="View block details"
-                        >
-                          View Block
-                        </button>
-                      </>
-                    )}
-                  </h3>
-                  
-                  {/* Minimize button */}
-                  <button 
-                    onClick={() => console.log("Chat minimize clicked")}
-                    className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
-                    title="Minimize chat"
-                  >
-                    <span>−</span>
-                  </button>
-                </div>
-                
                 {/* Conversation tabs */}
                 <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
                   {/* Main chat tab */}

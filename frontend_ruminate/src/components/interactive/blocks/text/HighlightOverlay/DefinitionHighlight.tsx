@@ -141,7 +141,7 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
           borderBottom: '2px solid rgba(220, 38, 38, 0.6)', // Red underline
           borderRadius: '0px',
           cursor: 'help',
-          zIndex: hasOverlappingRabbithole ? 12 : 8,
+          zIndex: hasOverlappingRabbithole ? 9 : 8,
           pointerEvents: 'none',
           // When overlapping, shift the entire element down by 4px for better separation
           transform: hasOverlappingRabbithole ? 'translateY(4px)' : 'none',
@@ -157,7 +157,7 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
           width: `${rect.width}px`,
           height: '8px', // Thin clickable area
           cursor: 'help',
-          zIndex: hasOverlappingRabbithole ? 13 : 9,
+          zIndex: hasOverlappingRabbithole ? 10 : 9,
           pointerEvents: 'auto',
         };
         
@@ -179,7 +179,7 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
               className="definition-highlight-clickable"
               style={clickableStyle}
               onClick={handleClick}
-              title={`Click to see definition of "${definition.term}"`}
+              title={`Click to see definition of "${definition.term.length > 30 ? definition.term.substring(0, 30) + '...' : definition.term}"`}
               onMouseEnter={(e) => {
                 // Add hover effect to visual highlight
                 const visual = e.currentTarget.previousSibling as HTMLElement;
@@ -205,7 +205,7 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
     .flat();
     
     setHighlightElements(newElements as React.ReactNode[]);
-  }, [definitions, contentRef, onDefinitionClick]);
+  }, [definitions, contentRef, onDefinitionClick, rabbitholeHighlights]);
   
   return (
     <div 

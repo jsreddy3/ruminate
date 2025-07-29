@@ -140,22 +140,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   return (
     <div className="flex flex-col h-full bg-white text-gray-900">
-      {/* Chat header */}
-      <div className="border-b p-3 flex justify-between items-center">
-        <h3 className="font-medium text-gray-900">
-          Chat
-          {selectedBlock && ` - ${selectedBlock.block_type}`}
-        </h3>
-        {onClose && (
-          <button 
-            onClick={onClose}
-            className="rounded-full p-1 hover:bg-gray-100 text-gray-700"
-          >
-            <span>×</span>
-          </button>
-        )}
-      </div>
-      
       <div className="flex-1 overflow-auto bg-white" key={`chat-container-${conversationId || 'main'}`}>
         {/* Message list */}
         <MessageList 

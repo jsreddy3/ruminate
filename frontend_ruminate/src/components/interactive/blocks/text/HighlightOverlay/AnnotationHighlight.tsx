@@ -165,10 +165,8 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
           backgroundColor: 'rgba(255, 235, 59, 0.3)', // Yellow highlight background
           borderRadius: '2px',
           cursor: 'pointer',
-          zIndex: hasOverlappingRabbithole || hasOverlappingDefinition ? 14 : 6, // Lower than other highlights
+          zIndex: 5, // Background layer, below all underlines
           pointerEvents: 'none', // Allow text selection through the highlight
-          // Adjust position if overlapping
-          transform: (hasOverlappingRabbithole || hasOverlappingDefinition) ? 'translateY(-1px)' : 'none',
         };
         
         // Create a clickable area covering the entire highlight
@@ -179,7 +177,7 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
           width: `${rect.width}px`,
           height: `${rect.height}px`,
           cursor: 'pointer',
-          zIndex: hasOverlappingRabbithole || hasOverlappingDefinition ? 15 : 7,
+          zIndex: 6, // Background layer clickable area
           pointerEvents: 'auto',
         };
         
@@ -202,7 +200,7 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
               className="annotation-highlight-clickable"
               style={clickableStyle}
               onClick={handleClick}
-              title={`Annotation: ${annotation.note.substring(0, 100)}${annotation.note.length > 100 ? '...' : ''}`}
+              title={`Annotation: ${annotation.note.length > 30 ? annotation.note.substring(0, 30) + '...' : annotation.note}`}
               onMouseEnter={(e) => {
                 // Add hover effect to visual highlight
                 const visual = e.currentTarget.previousSibling as HTMLElement;
@@ -226,7 +224,7 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
     .flat();
     
     setHighlightElements(newElements as React.ReactNode[]);
-  }, [annotations, onAnnotationClick]);
+  }, [annotations, contentRef, onAnnotationClick, rabbitholeHighlights, definitions]);
   
   return (
     <div 
