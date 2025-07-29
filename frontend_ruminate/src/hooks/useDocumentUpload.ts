@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { CachedDocument, ProcessingProgress } from '@/types';
+import { CachedDocument, ProcessingProgress, DocumentProcessingEvent, DocumentStatus } from '@/types';
 import { authenticatedFetch, API_BASE_URL } from '@/utils/api';
 import { documentApi } from '@/services/api/document';
 
@@ -15,14 +15,17 @@ interface UseDocumentUploadResult {
   isProcessing: boolean;
   progress: ProcessingProgress | null;
   error: string | null;
-  documentId: string | null; // ID of the document being processed or completed
-  pdfFile: string | null; // Data URL of the PDF for viewing
+  documentId: string | null;
+  pdfFile: string | null;
   uploadFile: (file: File) => Promise<void>;
-  resetUploadState: () => void; // Function to reset state if needed
-  hasUploadedFile: boolean; // Indicates if a file has been successfully processed and is ready
+  resetUploadState: () => void;
+  hasUploadedFile: boolean;
   setPdfFileDirectly: (dataUrl: string | null) => void;
   setDocumentIdDirectly: (docId: string | null) => void;
   setHasUploadedFileDirectly: (status: boolean) => void;
+  // New properties for enhanced progress tracking
+  processingEvents: DocumentProcessingEvent[];
+  currentStatus: DocumentStatus;
 }
 
 export function useDocumentUpload(): UseDocumentUploadResult {
@@ -32,6 +35,8 @@ export function useDocumentUpload(): UseDocumentUploadResult {
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [pdfFile, setPdfFile] = useState<string | null>(null);
   const [hasUploadedFile, setHasUploadedFile] = useState(false);
+  const [processingEvents, setProcessingEvents] = useState<DocumentProcessingEvent[]>([]);
+  const [currentStatus, setCurrentStatus] = useState<DocumentStatus>('PENDING');
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Cleanup EventSource on unmount or when dependencies change
@@ -52,6 +57,8 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     setDocumentId(null);
     setPdfFile(null);
     setHasUploadedFile(false);
+    setProcessingEvents([]);
+    setCurrentStatus('PENDING');
     if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -69,10 +76,31 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     }
   };
 
+  // Helper function to add processing event
+  const addProcessingEvent = useCallback((eventType: string, status: DocumentStatus, message?: string, error?: string) => {
+    const event: DocumentProcessingEvent = {
+      event_type: eventType,
+      status,
+      document_id: documentId || '',
+      message,
+      error,
+      timestamp: new Date().toISOString()
+    };
+    
+    setProcessingEvents(prev => [...prev, event]);
+    setCurrentStatus(status);
+    setProgress({
+      status,
+      detail: message,
+      error,
+      event_type: eventType
+    });
+  }, [documentId]);
+
   const uploadFile = useCallback(async (file: File) => {
-    resetUploadState(); // Reset state before starting a new upload
+    resetUploadState();
     setIsProcessing(true);
-    setProgress({ status: "INITIALIZING", detail: "Preparing upload..." });
+    addProcessingEvent('upload_start', 'INITIALIZING', 'Preparing your document for upload...');
 
     try {
       const fileHash = await calculateHash(file);
@@ -80,38 +108,38 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       const cachedData = cachedDocuments[fileHash];
 
       if (cachedData) {
-         setProgress({ status: "CACHE_CHECK", detail: "Checking cache..." });
+        addProcessingEvent('cache_check', 'CACHE_CHECK', 'Checking if this document was processed before...');
         try {
           const docResponse = await authenticatedFetch(`${API_BASE_URL}/documents/${cachedData.documentId}`);
           if (docResponse.ok) {
             const docData = await docResponse.json();
             if (docData.status === "READY") {
-              setProgress({ status: "CACHE_HIT", detail: "Found previously processed document." });
+              addProcessingEvent('cache_hit', 'CACHE_HIT', 'Great! Found your previously processed document.');
               const pdfUrl = await fetchPdfUrl(cachedData.documentId);
               if (pdfUrl) {
                 setDocumentId(cachedData.documentId);
                 setPdfFile(pdfUrl);
                 setHasUploadedFile(true);
                 setIsProcessing(false);
-                setProgress(null);
-                return; // Exit early
+                addProcessingEvent('ready', 'READY', 'Your document is ready to explore!');
+                return;
               }
             } else {
-                 setProgress({ status: "CACHE_INFO", detail: "Previous processing incomplete or failed. Re-uploading..." });
+              addProcessingEvent('cache_info', 'CACHE_INFO', 'Previous processing incomplete. Starting fresh...');
             }
           } else {
-             setProgress({ status: "CACHE_MISS", detail: "Cached record found, but document missing on server. Uploading..." });
-             delete cachedDocuments[fileHash];
-             localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
+            addProcessingEvent('cache_miss', 'CACHE_MISS', 'Document not found on server. Uploading...');
+            delete cachedDocuments[fileHash];
+            localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
           }
         } catch (fetchError) {
           console.error("Error checking cached document:", fetchError);
-           setProgress({ status: "CACHE_ERROR", detail: "Error verifying cached document. Proceeding with upload..." });
+          addProcessingEvent('cache_error', 'CACHE_ERROR', 'Cache check failed. Proceeding with upload...');
         }
       }
 
       // ---- Proceed with upload ----
-      setProgress({ status: "UPLOADING", detail: "Uploading document..." });
+      addProcessingEvent('upload_start', 'UPLOADING', 'Securely uploading your document...');
       const formData = new FormData();
       formData.append('file', file);
 
@@ -128,10 +156,10 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       const newDocumentId = initialDocData.document?.id;
       if (!newDocumentId) throw new Error("Server did not return a document ID after upload.");
 
-      setDocumentId(newDocumentId); // Store ID early
+      setDocumentId(newDocumentId);
+      addProcessingEvent('upload_complete', 'PROCESSING_START', 'Upload complete! Starting document processing...');
 
       // ---- Start SSE Listening ----
-      setProgress({ status: "PROCESSING_START", detail: "Waiting for processing updates..." });
       const token = localStorage.getItem('auth_token');
       const eventSourceUrl = `${API_BASE_URL}/documents/${newDocumentId}/processing-stream`;
       // Note: EventSource doesn't support custom headers, so we add token as query param
@@ -139,56 +167,118 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       const es = new EventSource(authenticatedEventSourceUrl);
       eventSourceRef.current = es;
 
+      // Enhanced SSE message handler
       es.onmessage = async (event) => {
         try {
-          const progressData: ProcessingProgress = JSON.parse(event.data);
-          setProgress(progressData);
+          console.log('Raw SSE event received:', event);
+          console.log('Event data:', event.data);
+          
+          let eventData;
+          
+          // Handle case where event.data might contain full SSE format
+          if (event.data.includes('event:') && event.data.includes('data:')) {
+            // Extract JSON from SSE format
+            const lines = event.data.split('\n');
+            const dataLine = lines.find((line: string) => line.startsWith('data:'));
+            if (dataLine) {
+              const jsonStr = dataLine.substring(5).trim(); // Remove 'data:' prefix
+              eventData = JSON.parse(jsonStr);
+            } else {
+              throw new Error('No data line found in SSE message');
+            }
+          } else {
+            // Standard case - event.data should be JSON
+            eventData = JSON.parse(event.data);
+          }
+          
+          console.log('Parsed SSE event data:', eventData);
+          
+          const status = eventData.status as DocumentStatus;
+          const message = eventData.message || eventData.detail;
+          const error = eventData.error;
+          
+          // Map backend statuses to user-friendly messages
+          const getDisplayMessage = (status: DocumentStatus, message?: string) => {
+            switch (status) {
+              case 'PROCESSING_MARKER':
+                return 'Our AI is carefully reading through your document...';
+              case 'ANALYZING_CONTENT':
+                return 'Creating an intelligent summary of your content...';
+              case 'ANALYSIS_COMPLETE':
+                return 'Almost ready! Finalizing everything...';
+              case 'ANALYSIS_WARNING':
+                return 'Summary generation had some issues, but your document is still being processed...';
+              case 'READY':
+                return 'Your document is ready to explore!';
+              case 'ERROR':
+                return error || message || 'Something went wrong during processing';
+              default:
+                return message || `Processing: ${status}`;
+            }
+          };
+          
+          // Add the processing event
+          addProcessingEvent(
+            event.type || 'processing_update',
+            status,
+            getDisplayMessage(status, message),
+            error
+          );
 
-          if (progressData.status === "READY") {
-            es.close(); eventSourceRef.current = null;
+          // Handle completion states
+          if (status === 'READY') {
+            es.close();
+            eventSourceRef.current = null;
             const pdfUrl = await fetchPdfUrl(newDocumentId);
             if (pdfUrl) {
               setPdfFile(pdfUrl);
               setHasUploadedFile(true);
-              cachedDocuments[fileHash] = { documentId: newDocumentId, title: file.name, blockConversations: {} };
+              cachedDocuments[fileHash] = { 
+                documentId: newDocumentId, 
+                title: file.name, 
+                blockConversations: {} 
+              };
               localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
-            } // fetchPdfUrl handles error state
+            }
             setIsProcessing(false);
-            setProgress(null);
-          } else if (progressData.status === "ERROR") {
-            es.close(); eventSourceRef.current = null;
-            setError(`Processing failed: ${progressData.detail}`);
+          } else if (status === 'ERROR') {
+            es.close();
+            eventSourceRef.current = null;
+            setError(getDisplayMessage(status, message));
             setIsProcessing(false);
-            setProgress(null);
           }
+          
         } catch (parseError) {
           console.error("Failed to parse SSE message:", event.data, parseError);
-          setError("Received invalid progress update.");
-          es.close(); eventSourceRef.current = null;
+          addProcessingEvent('parse_error', 'ERROR', 'Received invalid update from server');
+          setError("Communication error during processing");
+          es.close();
+          eventSourceRef.current = null;
           setIsProcessing(false);
-          setProgress(null);
         }
       };
 
       es.onerror = (err) => {
         console.error("EventSource failed:", err);
-        setError("Connection error during processing updates.");
-        es.close(); eventSourceRef.current = null;
+        addProcessingEvent('connection_error', 'ERROR', 'Lost connection during processing');
+        setError("Connection error during processing. Please try again.");
+        es.close();
+        eventSourceRef.current = null;
         setIsProcessing(false);
-        setProgress(null);
       };
 
     } catch (err) {
       console.error("Upload process failed:", err);
-      setError(err instanceof Error ? err.message : "An unknown upload error occurred.");
+      const errorMessage = err instanceof Error ? err.message : "An unknown upload error occurred.";
+      addProcessingEvent('upload_error', 'ERROR', errorMessage);
+      setError(errorMessage);
       setIsProcessing(false);
-      setProgress(null);
       if (eventSourceRef.current) {
-          eventSourceRef.current.close();
-          eventSourceRef.current = null;
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     }
-  }, [resetUploadState]);
+  }, [resetUploadState, addProcessingEvent]);
 
   // Functions to allow LandingPage to set state when selecting an existing document
   const setPdfFileDirectly = useCallback((dataUrl: string | null) => setPdfFile(dataUrl), []);
@@ -207,6 +297,8 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     hasUploadedFile,
     setPdfFileDirectly,
     setDocumentIdDirectly,
-    setHasUploadedFileDirectly
+    setHasUploadedFileDirectly,
+    processingEvents,
+    currentStatus
   };
 }

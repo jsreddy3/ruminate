@@ -163,6 +163,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       return;
     }
 
+    // Close popup immediately to allow block selection
+    setShowNotePopup(false);
+
     // Request block selection from PDF viewer
     onRequestBlockSelection({
       prompt: "Select a block to save your conversation note",
@@ -192,10 +195,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           const result = await response.json();
           console.log('Note generated successfully:', result);
           
-          // Close the popup
-          setShowNotePopup(false);
-          
-          // TODO: Show success message or refresh block data
+          // TODO: Update block data to show new note (without full page reload)
         } catch (error) {
           console.error('Error generating note:', error);
           // TODO: Show error message
@@ -204,9 +204,38 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     });
   }, [conversationId, onRequestBlockSelection]);
 
-  // Count user messages for pill visibility (exclude system messages)
-  const userMessageCount = messageTree.filter(msg => msg.role === MessageRole.USER).length;
-  const shouldShowNotePill = userMessageCount >= 5;
+  // Count total messages for pill visibility (exclude system messages)
+  // Use activeThreadIds length instead of messageTree since tree building has issues
+  const totalMessageCount = Math.max(0, activeThreadIds.length - 1); // -1 to exclude system message
+  const shouldShowNotePill = totalMessageCount >= 5;
+  
+  // Debug logging
+  console.log('[NOTE PILL DEBUG]', {
+    totalMessages: messageTree.length,
+    totalMessageCount,
+    shouldShowNotePill,
+    messageTree: messageTree.map(msg => ({ role: msg.role, content: msg.content?.substring(0, 50) + '...' })),
+    conversationId,
+    isLoadingTree,
+    treeError: treeError?.message,
+    activeThreadIds
+  });
+
+  // More detailed API debugging
+  useEffect(() => {
+    if (conversationId) {
+      console.log('[MESSAGE TREE DEBUG] Testing API call for conversation:', conversationId);
+      conversationApi.getMessageTree(conversationId)
+        .then(response => {
+          console.log('[MESSAGE TREE DEBUG] API Response:', response);
+          const messages = response.messages || response;
+          console.log('[MESSAGE TREE DEBUG] Parsed messages:', messages);
+        })
+        .catch(error => {
+          console.error('[MESSAGE TREE DEBUG] API Error:', error);
+        });
+    }
+  }, [conversationId]);
   
   
   return (
@@ -224,18 +253,18 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         />
       </div>
       
-      {/* Note generation pill - appears between messages and input when 5+ messages */}
+      {/* Note generation pill - minimal clean design */}
       {shouldShowNotePill && (
-        <div className="px-3 py-2 border-t border-gray-100">
+        <div className="px-4 py-1.5 flex justify-center">
           <button
             onClick={() => setShowNotePopup(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-full border border-blue-200 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs rounded-full transition-colors border border-gray-200"
             disabled={isLoadingTree || !!streamingMessageId}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Generate note from conversation
+            Generate note
           </button>
         </div>
       )}
@@ -253,7 +282,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       {/* Note Generation Popup */}
       <NoteGenerationPopup
         isVisible={showNotePopup}
-        totalMessages={userMessageCount}
+        totalMessages={totalMessageCount}
         onClose={() => setShowNotePopup(false)}
         onGenerate={handleGenerateNote}
       />

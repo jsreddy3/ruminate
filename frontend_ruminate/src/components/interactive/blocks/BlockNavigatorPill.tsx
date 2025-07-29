@@ -1,19 +1,24 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import GeneratedNoteBadges from './GeneratedNoteBadges';
 
 interface BlockNavigatorPillProps {
   currentIndex: number;
   totalBlocks: number;
   onPrevious: () => void;
   onNext: () => void;
+  currentBlockMetadata?: { [key: string]: any };
+  onViewConversation?: (conversationId: string) => void;
 }
 
 export default function BlockNavigatorPill({
   currentIndex,
   totalBlocks,
   onPrevious,
-  onNext
+  onNext,
+  currentBlockMetadata,
+  onViewConversation
 }: BlockNavigatorPillProps) {
   const progress = ((currentIndex + 1) / totalBlocks) * 100;
   const canGoPrevious = currentIndex > 0;
@@ -51,6 +56,12 @@ export default function BlockNavigatorPill({
       <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
         {currentIndex + 1}/{totalBlocks}
       </span>
+
+      {/* Generated note badges */}
+      <GeneratedNoteBadges
+        annotations={currentBlockMetadata?.annotations}
+        onViewConversation={onViewConversation}
+      />
 
       {/* Forward button */}
       <button

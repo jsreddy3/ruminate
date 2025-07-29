@@ -166,14 +166,22 @@ export function useMessageTree({
       try {
         const response = await conversationApi.getMessageTree(conversationId);
         const messages = response.messages || response; // Handle both old and new format
+        
+        console.log('[useMessageTree DEBUG] Raw API response:', response);
+        console.log('[useMessageTree DEBUG] Parsed messages:', messages);
+        console.log('[useMessageTree DEBUG] Messages length:', messages.length);
+        
         setFlatMessages(messages);
         
         // Build tree structure
         const tree = buildMessageTree(messages);
+        console.log('[useMessageTree DEBUG] Built tree:', tree);
+        console.log('[useMessageTree DEBUG] Tree length:', tree.length);
         setMessageTree(tree);
         
         // Determine active thread
         const activeThread = determineActiveThread(messages);
+        console.log('[useMessageTree DEBUG] Active thread:', activeThread);
         setActiveThreadIds(activeThread);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch message tree'));
