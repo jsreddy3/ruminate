@@ -13,9 +13,7 @@ export default function BlockNavigatorPill({
   currentIndex,
   totalBlocks,
   onPrevious,
-  onNext,
-  currentBlockMetadata,
-  onViewConversation
+  onNext
 }: BlockNavigatorPillProps) {
   const progress = ((currentIndex + 1) / totalBlocks) * 100;
   const canGoPrevious = currentIndex > 0;
@@ -68,11 +66,6 @@ export default function BlockNavigatorPill({
         <ChevronRight className="w-4 h-4" />
       </button>
 
-      {/* Generated note badges - outside the main pill */}
-      <GeneratedNoteBadges
-        annotations={currentBlockMetadata?.annotations}
-        onViewConversation={onViewConversation}
-      />
     </motion.div>
   );
 }

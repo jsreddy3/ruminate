@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import BlockContainer from './BlockContainer';
 import BlockNavigatorPill from './BlockNavigatorPill';
+import GeneratedNoteBadges from './GeneratedNoteBadges';
 import { Block } from '../../../components/pdf/PDFViewer';
 
 interface BlockNavigatorProps {
@@ -82,7 +83,7 @@ export default function BlockNavigator({
   return (
     <div className="h-full flex flex-col">
       {/* Block content - takes available space */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 relative">
         <div className="border border-gray-100 rounded-md p-2 bg-white">
           <BlockContainer
             key={currentBlock.id}
@@ -100,20 +101,24 @@ export default function BlockNavigator({
             onBlockMetadataUpdate={onBlockMetadataUpdate}
           />
         </div>
+        
       </div>
       
-      {/* Spacer and floating pill container */}
+      {/* Spacer and floating pill container with note badges */}
       <div className="relative h-20">
-        <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center gap-3">
           <BlockNavigatorPill
             currentIndex={currentIndex}
             totalBlocks={blocks.length}
             onPrevious={goToPrevBlock}
             onNext={goToNextBlock}
-            currentBlockMetadata={currentBlock.metadata}
+          />
+          
+          {/* Generated note badges next to the progress bar */}
+          <GeneratedNoteBadges
+            annotations={currentBlock.metadata?.annotations}
             onViewConversation={onRabbitholeClick ? (conversationId) => {
               // Find the rabbithole with this conversation ID and trigger click
-              // This is a simple implementation - could be enhanced later
               onRabbitholeClick(conversationId, '', 0, 0);
             } : undefined}
           />
