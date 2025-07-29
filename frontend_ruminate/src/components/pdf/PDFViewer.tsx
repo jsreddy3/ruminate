@@ -6,6 +6,7 @@ import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
 import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
@@ -60,6 +61,17 @@ export interface Block {
         term: string;
         definition: string;
         created_at: string;
+      };
+    };
+    annotations?: {
+      [key: string]: {
+        id: string;
+        text: string;
+        note: string;
+        text_start_offset: number;
+        text_end_offset: number;
+        created_at: string;
+        updated_at: string;
       };
     };
     rabbithole_conversation_ids?: string[];  // Just the conversation IDs
@@ -214,6 +226,7 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 };
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
+  const router = useRouter();
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   
@@ -447,6 +460,20 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           } = slots;
           return (
             <div className="flex items-center w-full px-4">
+              {/* Back Button */}
+              <div className="flex items-center mr-4">
+                <button
+                  onClick={() => router.push('/home')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all duration-200"
+                  title="Back to Home"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="font-medium">Back</span>
+                </button>
+              </div>
+              
               {/* Page Navigation Group */}
               <div className="flex items-center gap-2 min-w-[200px]">
                 <div className="flex items-center gap-1">
@@ -471,7 +498,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   <ZoomIn />
                 </div>
                 <div className="flex items-center gap-2 ml-4">
-                  <ShowSearchPopover />
                   <SwitchTheme />
                 </div>
               </div>
@@ -480,20 +506,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         }}
       </Toolbar>
     ),
-    sidebarTabs: (defaultTabs) => [
-      {
-        content: <BlockInformation block={selectedBlock} />,
-        icon: (
-          <svg viewBox="0 0 24 24" width="24px" height="24px">
-            <path
-              d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"
-              fill="currentColor"
-            />
-          </svg>
-        ),
-        title: "Block Information",
-      },
-    ],
+    sidebarTabs: () => [],
   });
 
   // Add page layout customization

@@ -82,6 +82,10 @@ export default function PDFBlockOverlay({
         const hasConversations = block.metadata?.rabbithole_conversation_ids && block.metadata.rabbithole_conversation_ids.length > 0;
         const conversationCount = hasConversations ? block.metadata.rabbithole_conversation_ids.length : 0;
 
+        // Check for annotations
+        const hasAnnotations = block.metadata?.annotations && Object.keys(block.metadata.annotations).length > 0;
+        const annotationCount = hasAnnotations ? Object.keys(block.metadata.annotations).length : 0;
+
         return (
           <motion.div
             key={block.id}
@@ -103,8 +107,10 @@ export default function PDFBlockOverlay({
             <BlockIndicators
               hasConversations={hasConversations}
               hasDefinitions={hasDefinitions}
+              hasAnnotations={hasAnnotations}
               conversationCount={conversationCount}
               definitionCount={definitionCount}
+              annotationCount={annotationCount}
               position="top-right"
             />
           </motion.div>

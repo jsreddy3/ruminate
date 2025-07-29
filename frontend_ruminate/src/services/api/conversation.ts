@@ -5,12 +5,6 @@ export const conversationApi = {
   create: async (documentId?: string, type: string = "chat", meta?: any): Promise<{ 
     conversation_id: string; 
     system_msg_id: string;
-    questions?: Array<{
-      id: string;
-      question: string;
-      type: string;
-      order: number;
-    }>;
   }> => {
     const body: any = { type: type.toUpperCase() };
     if (documentId) body.document_id = documentId;
@@ -38,12 +32,6 @@ export const conversationApi = {
 
   getMessageTree: async (conversationId: string): Promise<{
     messages: Message[];
-    questions?: Array<{
-      id: string;
-      question: string;
-      type: string;
-      order: number;
-    }>;
   }> => {
     const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/tree`
@@ -51,11 +39,11 @@ export const conversationApi = {
     if (!response.ok) throw new Error("Failed to fetch conversation history");
     const data = await response.json();
     
-    // Handle both old format (array) and new format (object with messages and questions)
+    // Handle both old format (array) and new format (object with messages)
     if (Array.isArray(data)) {
-      return { messages: data, questions: [] };
+      return { messages: data };
     }
-    return data;
+    return { messages: data.messages };
   },
 
   sendMessage: async (
@@ -127,11 +115,4 @@ export const conversationApi = {
     return response.json();
   },
 
-  markQuestionAsUsed: async (conversationId: string, questionId: string): Promise<void> => {
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/conversations/${conversationId}/questions/${questionId}/use`,
-      { method: "POST" }
-    );
-    if (!response.ok) throw new Error("Failed to mark question as used");
-  }
 };

@@ -44,3 +44,14 @@
   opacity: 1;
   bottom: calc(100% + 4px);
 }
+
+/* When overlapping with rabbithole, add visual separation */
+.definition-highlight-visual {
+  /* Keep definition clean without shadow effects */
+}
+
+/* Indicator for multi-annotation areas */
+.definition-highlight-clickable[style*="z-index: 13"] {
+  /* Higher z-index indicates overlap */
+  position: relative;
+}

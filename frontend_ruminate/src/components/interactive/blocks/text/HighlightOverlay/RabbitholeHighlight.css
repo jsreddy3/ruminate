@@ -1,7 +1,7 @@
 /* Rabbithole highlight styles */
 .rabbithole-highlight-visual {
   /* Visual highlight is handled inline, this is for any additional styling */
-  transition: border-bottom-color 0.2s ease, border-bottom-width 0.2s ease;
+  transition: border-color 0.2s ease, border-width 0.2s ease;
 }
 
 /* Hover state for the entire rabbithole area */
@@ -43,4 +43,16 @@
 .rabbithole-highlight-clickable:hover::after {
   opacity: 1;
   bottom: calc(100% + 4px);
+}
+
+/* Special styling for overlapping highlights */
+.rabbithole-highlight-visual[style*="box-shadow"] {
+  /* When rabbithole overlaps with definition */
+  /* No offset needed - box-shadow handles the positioning */
+}
+
+/* Adjust clickable area tooltip when on top */
+.rabbithole-highlight-clickable[style*="top: -"]::after {
+  bottom: auto;
+  top: calc(100% + 4px);
 }

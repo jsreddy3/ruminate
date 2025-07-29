@@ -86,3 +86,13 @@ class DefinitionResponse(BaseModel):
     definition: str
     context: Optional[str] = Field(None, description="The context used to generate the definition")
     block_id: str
+
+
+class AnnotationRequest(BaseModel):
+    """Request schema for creating/updating an annotation"""
+    text: str = Field(..., description="The selected text being annotated")
+    note: str = Field(..., description="The annotation content")
+    text_start_offset: int = Field(..., description="Start position of the annotated text in the block")
+    text_end_offset: int = Field(..., description="End position of the annotated text in the block")
+
+

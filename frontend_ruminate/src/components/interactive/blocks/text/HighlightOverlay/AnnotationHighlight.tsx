@@ -1,28 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { RabbitholeHighlight as RabbitholeHighlightType } from '../../../../../services/rabbithole';
-import './RabbitholeHighlight.css';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-interface ReactRabbitholeHighlightProps {
+interface SavedAnnotation {
+  id: string;
+  text: string;
+  note: string;
+  text_start_offset: number;
+  text_end_offset: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ReactAnnotationHighlightProps {
   contentRef: React.RefObject<HTMLElement>;
-  highlights: RabbitholeHighlightType[];
-  onHighlightClick: (id: string, text: string, start: number, end: number) => void;
-  definitions?: { [key: string]: any }; // To check for overlaps
+  annotations: { [key: string]: SavedAnnotation };
+  onAnnotationClick: (annotation: SavedAnnotation, event: React.MouseEvent) => void;
+  rabbitholeHighlights?: any[];
+  definitions?: { [key: string]: any };
 }
 
 /**
- * Renders rabbithole highlights as React components
- * Uses text offsets to create properly positioned highlights
+ * Renders annotation highlights as React components
+ * Uses text offsets to create properly positioned highlights with yellow background
  */
-const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
+const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
   contentRef,
-  highlights,
-  onHighlightClick,
-  definitions
+  annotations,
+  onAnnotationClick,
+  rabbitholeHighlights = [],
+  definitions = {}
 }) => {
   const [highlightElements, setHighlightElements] = useState<React.ReactNode[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
   
-  // Helper function to find text position from character offset
+  // Helper function to find text position from character offset (copied from other highlights)
   const findTextPositionFromOffset = (
     root: HTMLElement, 
     startOffset: number, 
@@ -88,9 +98,37 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
     return null;
   };
   
-  // Calculate and render highlights when content or highlights change
+  // Simple overlap check function
+  const getOverlaps = (annotation: any) => {
+    const hasOverlappingRabbithole = (rabbitholeHighlights || []).some((rh: any) => {
+      return (
+        (annotation.text_start_offset >= rh.text_start_offset && annotation.text_start_offset < rh.text_end_offset) ||
+        (annotation.text_end_offset > rh.text_start_offset && annotation.text_end_offset <= rh.text_end_offset) ||
+        (annotation.text_start_offset <= rh.text_start_offset && annotation.text_end_offset >= rh.text_end_offset)
+      );
+    });
+
+    const hasOverlappingDefinition = Object.values(definitions || {}).some((def: any) => {
+      return (
+        (annotation.text_start_offset >= def.text_start_offset && annotation.text_start_offset < def.text_end_offset) ||
+        (annotation.text_end_offset > def.text_start_offset && annotation.text_end_offset <= def.text_end_offset) ||
+        (annotation.text_start_offset <= def.text_start_offset && annotation.text_end_offset >= def.text_end_offset)
+      );
+    });
+    
+    return { hasOverlappingRabbithole, hasOverlappingDefinition };
+  };
+
+  // Calculate and render highlights when content or annotations change
   useEffect(() => {
-    if (!contentRef.current || !highlights?.length) {
+    console.log('AnnotationHighlight useEffect triggered:', { 
+      hasContentRef: !!contentRef.current, 
+      annotations, 
+      annotationCount: annotations ? Object.keys(annotations).length : 0 
+    });
+    
+    if (!contentRef.current || !annotations || Object.keys(annotations).length === 0) {
+      console.log('Setting empty highlight elements');
       setHighlightElements([]);
       return;
     }
@@ -98,31 +136,23 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
     // Get container position for coordinate adjustment
     const contentRect = contentRef.current.getBoundingClientRect();
     
-    // Process each highlight
-    const newElements = highlights.map((highlight, index) => {
-      const { id, selected_text, text_start_offset, text_end_offset, conversation_id } = highlight;
+    // Process each annotation
+    const newElements = Object.entries(annotations).map(([key, annotation]) => {
       
       // Get positioned rectangles for this text range
       const rects = findTextPositionFromOffset(
         contentRef.current as HTMLElement,
-        text_start_offset,
-        text_end_offset
+        annotation.text_start_offset,
+        annotation.text_end_offset
       );
       
       if (!rects || rects.length === 0) {
-        console.log(`Could not find position for highlight: ${selected_text}`);
         return null;
       }
       
-      // Check if this rabbithole overlaps with any definition
-      const hasOverlappingDefinition = definitions && Object.values(definitions).some((def: any) => {
-        return (
-          (text_start_offset >= def.text_start_offset && text_start_offset < def.text_end_offset) ||
-          (text_end_offset > def.text_start_offset && text_end_offset <= def.text_end_offset) ||
-          (text_start_offset <= def.text_start_offset && text_end_offset >= def.text_end_offset)
-        );
-      });
-
+      // Get overlap data for this annotation
+      const { hasOverlappingRabbithole, hasOverlappingDefinition } = getOverlaps(annotation);
+      
       // Create a highlight element for each rect
       return rects.map((rect, rectIndex) => {
         // Convert coordinates to be relative to the container
@@ -131,76 +161,60 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           left: `${rect.left - contentRect.left}px`,
           top: `${rect.top - contentRect.top}px`,
           width: `${rect.width}px`,
-          height: `${rect.height}px`, // Keep original height
-          backgroundColor: 'transparent',
-          borderBottom: '1.5px solid rgba(99, 102, 241, 0.8)', // Always show at bottom
-          borderRadius: '0px',
+          height: `${rect.height}px`,
+          backgroundColor: 'rgba(255, 235, 59, 0.3)', // Yellow highlight background
+          borderRadius: '2px',
           cursor: 'pointer',
-          zIndex: 10,
-          boxShadow: 'none',
+          zIndex: hasOverlappingRabbithole || hasOverlappingDefinition ? 14 : 6, // Lower than other highlights
           pointerEvents: 'none', // Allow text selection through the highlight
+          // Adjust position if overlapping
+          transform: (hasOverlappingRabbithole || hasOverlappingDefinition) ? 'translateY(-1px)' : 'none',
         };
         
-        // Create a clickable area that's always at the bottom
+        // Create a clickable area covering the entire highlight
         const clickableStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${rect.left - contentRect.left}px`,
-          top: `${rect.top - contentRect.top + rect.height - 8}px`, // Always at bottom
+          top: `${rect.top - contentRect.top}px`,
           width: `${rect.width}px`,
-          height: '8px', // Thin clickable area
+          height: `${rect.height}px`,
           cursor: 'pointer',
-          zIndex: 11,
+          zIndex: hasOverlappingRabbithole || hasOverlappingDefinition ? 15 : 7,
           pointerEvents: 'auto',
-          // Uncomment to debug clickable area:
-          // backgroundColor: 'rgba(255, 0, 0, 0.2)',
         };
         
         const handleClick = (e: React.MouseEvent) => {
+          console.log('Annotation clicked:', annotation);
           e.stopPropagation();
           e.preventDefault();
-          console.log('[RabbitholeHighlight] Highlight clicked with data:', {
-            conversation_id,
-            id,
-            selected_text,
-            text_start_offset,
-            text_end_offset,
-            highlightId: id
-          });
-          
-          // Use the id field as the conversation_id if conversation_id is undefined
-          // This fixes a naming mismatch between frontend and backend
-          const effectiveConversationId = conversation_id || id;
-          
-          onHighlightClick(effectiveConversationId, selected_text, text_start_offset, text_end_offset);
+          onAnnotationClick(annotation, e);
         };
         
         return (
-          <React.Fragment key={`rabbithole-${id}-${rectIndex}`}>
-            {/* Visual highlight - not clickable */}
+          <React.Fragment key={`annotation-${key}-${rectIndex}`}>
+            {/* Visual highlight */}
             <div
-              className="rabbithole-highlight-visual"
+              className="annotation-highlight-visual"
               style={style}
             />
-            {/* Clickable area - just at the bottom */}
+            {/* Clickable area */}
             <div
-              className="rabbithole-highlight-clickable"
+              className="annotation-highlight-clickable"
               style={clickableStyle}
               onClick={handleClick}
-              title={`Click to open rabbithole conversation: ${selected_text}`}
+              title={`Annotation: ${annotation.note.substring(0, 100)}${annotation.note.length > 100 ? '...' : ''}`}
               onMouseEnter={(e) => {
                 // Add hover effect to visual highlight
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.borderBottomWidth = '2px';
-                  visual.style.borderBottomColor = 'rgba(99, 102, 241, 1)';
+                  visual.style.backgroundColor = 'rgba(255, 235, 59, 0.5)';
                 }
               }}
               onMouseLeave={(e) => {
                 // Remove hover effect
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.borderBottomWidth = '1.5px';
-                  visual.style.borderBottomColor = 'rgba(99, 102, 241, 0.8)';
+                  visual.style.backgroundColor = 'rgba(255, 235, 59, 0.3)';
                 }
               }}
             />
@@ -212,7 +226,7 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
     .flat();
     
     setHighlightElements(newElements as React.ReactNode[]);
-  }, [highlights, contentRef, onHighlightClick]);
+  }, [annotations, onAnnotationClick]);
   
   return (
     <div 
@@ -224,7 +238,7 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
         right: 0,
         bottom: 0,
         pointerEvents: 'none',
-        zIndex: 5
+        zIndex: 3 // Below other highlights
       }}
     >
       {highlightElements}
@@ -232,4 +246,4 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
   );
 };
 
-export default ReactRabbitholeHighlight;
+export default ReactAnnotationHighlight;

@@ -104,4 +104,78 @@ export const documentApi = {
     
     return response.json();
   },
+
+  /**
+   * Create or update an annotation on a block
+   * @param documentId Document ID
+   * @param blockId Block ID containing the annotation
+   * @param text The selected text being annotated
+   * @param note The annotation content
+   * @param textStartOffset Start position of the annotated text in the block
+   * @param textEndOffset End position of the annotated text in the block
+   * @returns Success message
+   */
+  createAnnotation: async (
+    documentId: string,
+    blockId: string,
+    text: string,
+    note: string,
+    textStartOffset: number,
+    textEndOffset: number
+  ): Promise<{ message: string }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks/${blockId}/annotate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        note,
+        text_start_offset: textStartOffset,
+        text_end_offset: textEndOffset
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to create annotation");
+    }
+    
+    return response.json();
+  },
+
+  /**
+   * Delete an annotation by sending empty note
+   * @param documentId Document ID
+   * @param blockId Block ID containing the annotation
+   * @param text The selected text (for identification)
+   * @param textStartOffset Start position of the annotated text
+   * @param textEndOffset End position of the annotated text
+   * @returns Success message
+   */
+  deleteAnnotation: async (
+    documentId: string,
+    blockId: string,
+    text: string,
+    textStartOffset: number,
+    textEndOffset: number
+  ): Promise<{ message: string }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks/${blockId}/annotate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        note: "", // Empty note deletes the annotation
+        text_start_offset: textStartOffset,
+        text_end_offset: textEndOffset
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to delete annotation");
+    }
+    
+    return response.json();
+  },
 };

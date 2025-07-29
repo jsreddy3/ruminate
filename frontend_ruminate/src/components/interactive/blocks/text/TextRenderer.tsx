@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import TextContent from './TextContentFile';
 import TextSelectionTooltip from './TooltipManager/TextSelectionTooltip';
 import DefinitionPopup from './TooltipManager/DefinitionPopup';
+import AnnotationEditor from './TooltipManager/AnnotationEditor';
 import { RabbitholeHighlight } from '../../../../services/rabbithole';
 import SelectionManager from './SelectionManager';
 import ReactRabbitholeHighlight from './HighlightOverlay/RabbitholeHighlight';
 import ReactDefinitionHighlight from './HighlightOverlay/DefinitionHighlight';
+import ReactAnnotationHighlight from './HighlightOverlay/AnnotationHighlight';
+import { documentApi } from '@/services/api/document';
 import { createPortal } from 'react-dom';
 
 interface TextRendererProps {
@@ -19,6 +22,17 @@ interface TextRendererProps {
         term: string;
         definition: string;
         created_at: string;
+      };
+    };
+    annotations?: {
+      [key: string]: {
+        id: string;
+        text: string;
+        note: string;
+        text_start_offset: number;
+        text_end_offset: number;
+        created_at: string;
+        updated_at: string;
       };
     };
     [key: string]: any;
@@ -56,6 +70,15 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   onBlockMetadataUpdate,
   customStyle
 }) => {
+  // Debug metadata
+  useEffect(() => {
+    console.log('TextRenderer metadata updated:', {
+      blockId,
+      metadata,
+      hasAnnotations: metadata?.annotations ? Object.keys(metadata.annotations).length : 0,
+      hasDefinitions: metadata?.definitions ? Object.keys(metadata.definitions).length : 0
+    });
+  }, [blockId, metadata]);
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -77,6 +100,16 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [definitionPosition, setDefinitionPosition] = useState({ x: 0, y: 0 });
   const [savedDefinition, setSavedDefinition] = useState<string | null>(null);
   const [definitionOffsets, setDefinitionOffsets] = useState<{startOffset: number, endOffset: number} | null>(null);
+  
+  // State for annotation editor
+  const [annotationVisible, setAnnotationVisible] = useState(false);
+  const [annotationPosition, setAnnotationPosition] = useState({ x: 0, y: 0 });
+  const [editingAnnotation, setEditingAnnotation] = useState<{
+    id: string;
+    note: string;
+    created_at: string;
+    updated_at: string;
+  } | null>(null);
   
   
   // Handle text selection
@@ -120,6 +153,10 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   // Clear selection
   const clearSelection = () => {
+    // Don't clear selection if annotation editor is open
+    if (annotationVisible) {
+      return;
+    }
     const selection = window.getSelection();
     if (selection) selection.removeAllRanges();
   };
@@ -166,7 +203,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   };
   
   // Handle rabbithole highlight click
-  const handleRabbitholeClick = (
+  const handleRabbitholeClick = useCallback((
     id: string, 
     text: string, 
     startOffset: number, 
@@ -176,10 +213,10 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     if (onRabbitholeClick) {
       onRabbitholeClick(id, text, startOffset, endOffset);
     }
-  };
+  }, [onRabbitholeClick]);
   
   // Handle saved definition click (from highlight)
-  const handleSavedDefinitionClick = (term: string, definition: string, startOffset: number, endOffset: number, event: React.MouseEvent) => {
+  const handleSavedDefinitionClick = useCallback((term: string, definition: string, startOffset: number, endOffset: number, event: React.MouseEvent) => {
     console.log('Showing saved definition for:', term);
     console.log('Setting states - term:', term, 'definition:', definition);
     setDefinitionWord(term);
@@ -191,7 +228,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setDefinitionPosition(mousePos);
     setDefinitionVisible(true);
     console.log('definitionVisible set to true');
-  };
+  }, []);
   
   // Handle when a new definition is saved
   const handleDefinitionSaved = (term: string, definition: string, startOffset: number, endOffset: number) => {
@@ -202,18 +239,136 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       onBlockMetadataUpdate();
     }
   };
+
+  // Handle annotation text action (from tooltip)
+  const handleAnnotateText = (text: string) => {
+    console.log('Creating annotation for:', text);
+    
+    // Ensure we have the offsets from selectedRange
+    if (!selectedRange) {
+      console.error('No selected range available for annotation');
+      return;
+    }
+    
+    setEditingAnnotation(null); // Clear any existing annotation
+    setAnnotationPosition(tooltipPosition);
+    setAnnotationVisible(true);
+    setTooltipVisible(false);
+  };
+
+  // Handle annotation click (from highlight)
+  const handleAnnotationClick = useCallback((annotation: any, event: React.MouseEvent) => {
+    console.log('Showing annotation:', annotation);
+    
+    // Set up the selectedRange based on the annotation's stored offsets
+    setSelectedRange({
+      text: annotation.text,
+      startOffset: annotation.text_start_offset,
+      endOffset: annotation.text_end_offset
+    });
+    
+    setEditingAnnotation({
+      id: annotation.id,
+      note: annotation.note,
+      created_at: annotation.created_at,
+      updated_at: annotation.updated_at
+    });
+    // Position at mouse position
+    const mousePos = { x: event.clientX, y: event.clientY };
+    setAnnotationPosition(mousePos);
+    setAnnotationVisible(true);
+  }, []);
+
+  // Handle annotation save
+  const handleAnnotationSave = async (note: string) => {
+    if (!selectedRange) {
+      console.error('No selected range available for annotation save');
+      return;
+    }
+
+    console.log('Saving annotation:', {
+      documentId,
+      blockId,
+      text: selectedRange.text,
+      note,
+      startOffset: selectedRange.startOffset,
+      endOffset: selectedRange.endOffset
+    });
+
+    try {
+      const result = await documentApi.createAnnotation(
+        documentId,
+        blockId,
+        selectedRange.text,
+        note,
+        selectedRange.startOffset,
+        selectedRange.endOffset
+      );
+
+      console.log('Annotation saved successfully:', result);
+      
+      // Refresh block data to get updated annotations
+      if (onBlockMetadataUpdate) {
+        console.log('Calling onBlockMetadataUpdate to refresh block data');
+        // Small delay to ensure the annotation editor has closed before refreshing
+        setTimeout(() => {
+          onBlockMetadataUpdate();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to save annotation:', error);
+      throw error; // Let the component handle the error
+    }
+  };
+
+  // Handle annotation delete
+  const handleAnnotationDelete = async () => {
+    if (!selectedRange) {
+      console.error('No selected range available for annotation delete');
+      return;
+    }
+
+    try {
+      await documentApi.deleteAnnotation(
+        documentId,
+        blockId,
+        selectedRange.text,
+        selectedRange.startOffset,
+        selectedRange.endOffset
+      );
+
+      console.log('Annotation deleted successfully');
+      
+      // Refresh block data to get updated annotations
+      if (onBlockMetadataUpdate) {
+        // Small delay to ensure the annotation editor has closed before refreshing
+        setTimeout(() => {
+          onBlockMetadataUpdate();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to delete annotation:', error);
+      throw error; // Let the component handle the error
+    }
+  };
   
   // Handle clicks outside of tooltips to close them
   const handleClick = (e: React.MouseEvent) => {
     // If clicking on the content (not a highlight), close tooltips
-    if ((e.target as HTMLElement).closest('.rabbithole-highlight, .definition-highlight')) {
+    if ((e.target as HTMLElement).closest('.rabbithole-highlight, .definition-highlight, .annotation-highlight')) {
       // Don't close tooltips if clicking a highlight
+      return;
+    }
+    
+    // Don't clear selection if annotation editor is open
+    if (annotationVisible) {
       return;
     }
     
     // Close tooltips
     setTooltipVisible(false);
     setDefinitionVisible(false);
+    setAnnotationVisible(false);
   };
   
   return (
@@ -231,6 +386,17 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         </div>
       </SelectionManager>
       
+      {/* Annotation highlights overlay (rendered first, lowest z-index) */}
+      {metadata?.annotations && (
+        <ReactAnnotationHighlight
+          contentRef={contentRef as React.RefObject<HTMLElement>}
+          annotations={metadata.annotations}
+          onAnnotationClick={handleAnnotationClick}
+          rabbitholeHighlights={rabbitholeHighlights || []}
+          definitions={metadata?.definitions || {}}
+        />
+      )}
+
       {/* Definition highlights overlay (rendered before rabbithole so rabbithole is on top) */}
       {metadata?.definitions && (
         <ReactDefinitionHighlight
@@ -258,6 +424,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           onAddToChat={handleAddToChat}
           onDefine={handleDefineText}
           onCreateRabbithole={handleCreateRabbithole}
+          onAnnotate={handleAnnotateText}
           onClose={() => {
             setTooltipVisible(false);
           } }
@@ -283,6 +450,27 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           onDefinitionSaved={handleDefinitionSaved}
           documentId={documentId}
           blockId={blockId}
+        />,
+        document.body
+      )}
+      
+      {/* Annotation editor */}
+      {annotationVisible && selectedRange && createPortal(
+        <AnnotationEditor
+          isVisible={annotationVisible}
+          position={annotationPosition}
+          selectedText={selectedRange.text}
+          textStartOffset={selectedRange.startOffset}
+          textEndOffset={selectedRange.endOffset}
+          documentId={documentId}
+          blockId={blockId}
+          existingAnnotation={editingAnnotation}
+          onClose={() => {
+            setAnnotationVisible(false);
+            setEditingAnnotation(null);
+          }}
+          onSave={handleAnnotationSave}
+          onDelete={editingAnnotation ? handleAnnotationDelete : undefined}
         />,
         document.body
       )}

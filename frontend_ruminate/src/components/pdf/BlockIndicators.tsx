@@ -4,19 +4,23 @@ import { motion } from 'framer-motion';
 interface BlockIndicatorsProps {
   hasConversations?: boolean;
   hasDefinitions?: boolean;
+  hasAnnotations?: boolean;
   conversationCount?: number;
   definitionCount?: number;
+  annotationCount?: number;
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
 }
 
 export default function BlockIndicators({
   hasConversations = false,
   hasDefinitions = false,
+  hasAnnotations = false,
   conversationCount = 0,
   definitionCount = 0,
+  annotationCount = 0,
   position = 'top-right'
 }: BlockIndicatorsProps) {
-  if (!hasConversations && !hasDefinitions) return null;
+  if (!hasConversations && !hasDefinitions && !hasAnnotations) return null;
 
   // Position classes based on prop
   const positionClasses = {
@@ -26,15 +30,24 @@ export default function BlockIndicators({
     'bottom-left': 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2'
   };
 
+  // Calculate total width needed for layered icons
+  const iconCount = [hasConversations, hasDefinitions, hasAnnotations].filter(Boolean).length;
+  const offsetPixels = 6; // How much each icon is offset
+  const totalWidth = iconCount > 0 ? 20 + (iconCount - 1) * offsetPixels : 20;
+
   return (
-    <div className={`absolute ${positionClasses[position]} flex gap-1 pointer-events-none`}>
-      {/* Conversation indicator - Purple */}
+    <div className={`absolute ${positionClasses[position]} pointer-events-none`} style={{ width: `${totalWidth}px`, height: '20px' }}>
+      {/* Conversation indicator - Purple (back layer) */}
       {hasConversations && (
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className="relative"
+          className="absolute"
+          style={{ 
+            left: '0px',
+            zIndex: 1
+          }}
         >
           <div 
             style={{
@@ -46,8 +59,9 @@ export default function BlockIndicators({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
             }}
+            title="Has conversations"
           >
             <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -56,13 +70,17 @@ export default function BlockIndicators({
         </motion.div>
       )}
 
-      {/* Definition indicator - Red */}
+      {/* Definition indicator - Red (middle layer) */}
       {hasDefinitions && (
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.05 }}
-          className="relative"
+          className="absolute"
+          style={{ 
+            left: hasConversations ? `${offsetPixels}px` : '0px',
+            zIndex: 2
+          }}
         >
           <div 
             style={{
@@ -70,22 +88,51 @@ export default function BlockIndicators({
               height: '20px',
               backgroundColor: '#ef4444',  // red-500
               borderRadius: '50%',
-              border: '2px solid #fecaca',  // red-200
+              border: '2px solid white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
             }}
+            title="Has definitions"
           >
-            <svg style={{ width: '12px', height: '12px' }} fill="#fee2e2" stroke="#fee2e2" viewBox="0 0 24 24">
+            <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
           </div>
-          {definitionCount > 1 && (
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-700 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">{definitionCount}</span>
-            </div>
-          )}
+        </motion.div>
+      )}
+
+      {/* Annotation indicator - Yellow (front layer) */}
+      {hasAnnotations && (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.1 }}
+          className="absolute"
+          style={{ 
+            left: `${[hasConversations, hasDefinitions].filter(Boolean).length * offsetPixels}px`,
+            zIndex: 3
+          }}
+        >
+          <div 
+            style={{
+              width: '20px',
+              height: '20px',
+              backgroundColor: '#eab308',  // yellow-500
+              borderRadius: '50%',
+              border: '2px solid white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+            }}
+            title="Has annotations"
+          >
+            <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
         </motion.div>
       )}
     </div>
@@ -96,9 +143,10 @@ export default function BlockIndicators({
 export function BlockDotIndicators({
   hasConversations = false,
   hasDefinitions = false,
+  hasAnnotations = false,
   position = 'top-right'
 }: BlockIndicatorsProps) {
-  if (!hasConversations && !hasDefinitions) return null;
+  if (!hasConversations && !hasDefinitions && !hasAnnotations) return null;
 
   const positionClasses = {
     'top-right': 'top-1 right-1',
@@ -107,14 +155,24 @@ export function BlockDotIndicators({
     'bottom-left': 'bottom-1 left-1'
   };
 
+  // Calculate total width needed for layered dots
+  const iconCount = [hasConversations, hasDefinitions, hasAnnotations].filter(Boolean).length;
+  const offsetPixels = 3; // Smaller offset for dots
+  const dotSize = 8; // 2 * 4px (w-2 h-2)
+  const totalWidth = iconCount > 0 ? dotSize + (iconCount - 1) * offsetPixels : dotSize;
+
   return (
-    <div className={`absolute ${positionClasses[position]} flex gap-1`}>
+    <div className={`absolute ${positionClasses[position]}`} style={{ width: `${totalWidth}px`, height: `${dotSize}px` }}>
       {hasConversations && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="w-2 h-2 bg-purple-500 rounded-full shadow-sm"
+          className="absolute w-2 h-2 bg-purple-500 rounded-full shadow-sm"
+          style={{ 
+            left: '0px',
+            zIndex: 1
+          }}
           title="Has conversations"
         />
       )}
@@ -123,8 +181,25 @@ export function BlockDotIndicators({
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.2, delay: 0.05 }}
-          className="w-2 h-2 bg-red-500 rounded-full shadow-sm"
+          className="absolute w-2 h-2 bg-red-500 rounded-full shadow-sm"
+          style={{ 
+            left: hasConversations ? `${offsetPixels}px` : '0px',
+            zIndex: 2
+          }}
           title="Has definitions"
+        />
+      )}
+      {hasAnnotations && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2, delay: 0.1 }}
+          className="absolute w-2 h-2 bg-yellow-500 rounded-full shadow-sm"
+          style={{ 
+            left: `${[hasConversations, hasDefinitions].filter(Boolean).length * offsetPixels}px`,
+            zIndex: 3
+          }}
+          title="Has annotations"
         />
       )}
     </div>

@@ -10,8 +10,7 @@ from new_backend_ruminate.api.conversation.schemas import (
     MessageOut,
     ConversationOut, 
     ConversationInitResponse,
-    CreateConversationRequest,
-    QuestionOut
+    CreateConversationRequest
 )
 from pydantic import BaseModel, Field
 from new_backend_ruminate.dependencies import (
@@ -20,11 +19,9 @@ from new_backend_ruminate.dependencies import (
     get_session,
     get_current_user,
     get_current_user_from_query_token,
-    get_question_service,
 )
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.services.conversation.service import ConversationService
-from new_backend_ruminate.services.conversation.question_service import QuestionGenerationService
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 router = APIRouter(prefix="/conversations")
@@ -38,7 +35,6 @@ async def create_conversation(
     body: Optional[CreateConversationRequest] = None,
     current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
-    question_service: QuestionGenerationService = Depends(get_question_service),
 ):
     """
     Create a new conversation.
@@ -49,8 +45,6 @@ async def create_conversation(
     if body is None:
         # Default to CHAT conversation for backward compatibility
         conv_id, root_id = await svc.create_conversation(user_id=current_user.id, conv_type="chat")
-        # No document, no questions
-        questions = []
     else:
         # Pass all fields to service, it will handle based on type
         conv_id, root_id = await svc.create_conversation(
@@ -63,25 +57,8 @@ async def create_conversation(
             text_start_offset=body.text_start_offset,
             text_end_offset=body.text_end_offset
         )
-        
-        # Generate questions if document_id is provided
-        questions = []
-        if body.document_id:
-            try:
-                # Generate questions based on current context
-                current_page = body.meta.get("current_page") if body.meta else None
-                questions = await question_service.generate_questions_for_conversation(
-                    conversation_id=conv_id,
-                    document_id=body.document_id,
-                    current_page=current_page,
-                    question_count=3
-                )
-            except Exception as e:
-                # Don't fail conversation creation if question generation fails
-                print(f"Failed to generate questions: {e}")
-                questions = []
     
-    return {"conversation_id": conv_id, "system_msg_id": root_id, "questions": questions}
+    return {"conversation_id": conv_id, "system_msg_id": root_id}
 
 @router.post("/{cid}/messages", response_model=MessageIdsResponse)
 async def post_message(
@@ -142,27 +119,16 @@ async def get_thread(
     return await svc.get_latest_thread(cid, current_user.id, session)
 
 
-class MessageTreeResponse(BaseModel):
-    messages: List[MessageOut]
-    questions: List[QuestionOut] = Field(default_factory=list)
 
-@router.get("/{cid}/tree", response_model=MessageTreeResponse)
+@router.get("/{cid}/tree", response_model=List[MessageOut])
 async def get_tree(
     cid: str,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
-    question_service: QuestionGenerationService = Depends(get_question_service),
 ):
     messages = await svc.get_full_tree(cid, current_user.id, session)
-    
-    # Get questions for this conversation
-    try:
-        questions = await question_service.get_questions_for_conversation(cid)
-    except:
-        questions = []
-    
-    return {"messages": messages, "questions": questions}
+    return messages
 
 
 @router.get("/{cid}/messages/{mid}/versions", response_model=List[MessageOut])
@@ -182,17 +148,8 @@ async def get_conversation(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
-    question_service: QuestionGenerationService = Depends(get_question_service),
 ):
     conversation = await svc.get_conversation(cid, current_user.id, session)
-    
-    # Include questions if they exist
-    try:
-        questions = await question_service.get_questions_for_conversation(cid)
-        conversation.questions = questions
-    except:
-        conversation.questions = []
-    
     return conversation
 
 
@@ -204,7 +161,6 @@ async def list_conversations(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: ConversationService = Depends(get_conversation_service),
-    question_service: QuestionGenerationService = Depends(get_question_service),
 ):
     """
     List conversations with optional filters.
@@ -219,92 +175,6 @@ async def list_conversations(
         criteria["type"] = type.upper()
     
     conversations = await svc.get_conversations_by_criteria(criteria, current_user.id, session)
-    
-    # Include questions for each conversation
-    for conv in conversations:
-        try:
-            questions = await question_service.get_questions_for_conversation(str(conv.id))
-            conv.questions = questions
-        except:
-            conv.questions = []
-    
     return conversations
 
 
-@router.post("/{cid}/questions", response_model=List[dict])
-async def generate_questions(
-    cid: str,
-    document_id: str = Query(..., description="Document ID for question generation"),
-    current_page: Optional[int] = Query(None, description="Current page number"),
-    question_count: int = Query(5, description="Number of questions to generate"),
-    current_user: User = Depends(get_current_user),
-    question_service: QuestionGenerationService = Depends(get_question_service),
-):
-    """
-    Generate contextual questions for a conversation based on document content.
-    
-    These questions help users explore the document and understand key concepts.
-    Questions are generated based on the current page context if provided,
-    or document overview if no specific page is given.
-    """
-    questions = await question_service.generate_questions_for_conversation(
-        conversation_id=cid,
-        document_id=document_id,
-        current_page=current_page,
-        question_count=question_count
-    )
-    return questions
-
-
-@router.get("/{cid}/questions", response_model=List[dict])
-async def get_questions(
-    cid: str,
-    current_user: User = Depends(get_current_user),
-    question_service: QuestionGenerationService = Depends(get_question_service),
-):
-    """
-    Retrieve stored questions for a conversation.
-    
-    Returns previously generated questions that can be displayed
-    as clickable buttons in the UI.
-    """
-    questions = await question_service.get_questions_for_conversation(cid)
-    return questions
-
-
-@router.put("/{cid}/questions", response_model=List[dict])
-async def regenerate_questions(
-    cid: str,
-    document_id: str = Query(..., description="Document ID for question generation"),
-    current_page: Optional[int] = Query(None, description="Current page number"),
-    question_count: int = Query(5, description="Number of questions to generate"),
-    current_user: User = Depends(get_current_user),
-    question_service: QuestionGenerationService = Depends(get_question_service),
-):
-    """
-    Regenerate questions for a conversation.
-    
-    Useful when the user moves to a different page or wants fresh questions.
-    This will delete existing questions and generate new ones.
-    """
-    questions = await question_service.regenerate_questions(
-        conversation_id=cid,
-        document_id=document_id,
-        current_page=current_page,
-        question_count=question_count
-    )
-    return questions
-
-
-@router.post("/{cid}/questions/{qid}/use")
-async def mark_question_used(
-    cid: str,
-    qid: str,
-    current_user: User = Depends(get_current_user),
-    question_service: QuestionGenerationService = Depends(get_question_service),
-):
-    """
-    Mark a question as used when it is clicked/sent.
-    """
-    await question_service.mark_question_as_used(qid)
-    return {"status": "ok"}

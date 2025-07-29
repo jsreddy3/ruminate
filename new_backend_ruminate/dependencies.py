@@ -31,8 +31,6 @@ from new_backend_ruminate.infrastructure.user.rds_user_repository import RDSUser
 from new_backend_ruminate.infrastructure.auth.google_oauth_client import GoogleOAuthClient
 from new_backend_ruminate.infrastructure.auth.jwt_manager import JWTManager
 from new_backend_ruminate.services.auth.service import AuthService
-from new_backend_ruminate.context.question_generation_builder import QuestionGenerationContextBuilder
-from new_backend_ruminate.services.conversation.question_service import QuestionGenerationService
 
 register_agent_renderers()
 
@@ -69,8 +67,6 @@ if settings().google_client_id and settings().google_client_secret and settings(
 _conversation_service = ConversationService(_repo, _llm, _hub, _ctx_builder)
 _agent_service = AgentService(_repo, _llm, _hub, _ctx_builder)
 _document_service = DocumentService(_document_repo, _hub, _storage, analyzer=_document_analyzer)
-_question_context_builder = QuestionGenerationContextBuilder(_document_repo)
-_question_service = QuestionGenerationService(_repo, _document_repo, _llm, _question_context_builder)
 # ─────────────────────── DI provider helpers ───────────────────── #
 
 def get_event_hub() -> EventStreamHub:
@@ -107,9 +103,6 @@ def get_conversation_repository() -> RDSConversationRepository:
 def get_llm_service() -> OpenAILLM:
     return _llm
 
-def get_question_service() -> QuestionGenerationService:
-    """Return the singleton QuestionGenerationService; stateless, safe to share."""
-    return _question_service
 
 
 # Re-export get_session so routers can do Depends(deps.get_session)

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageSquarePlus, BookOpen, Search } from 'lucide-react';
+import { MessageSquarePlus, BookOpen, Search, FileText } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
   documentId: string;
@@ -10,6 +10,7 @@ interface TextSelectionTooltipProps {
   onAddToChat?: (text: string) => void;
   onDefine?: (text: string) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
+  onAnnotate?: (text: string) => void;
   onClose: () => void;
 }
 
@@ -22,6 +23,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   onAddToChat,
   onDefine,
   onCreateRabbithole,
+  onAnnotate,
   onClose,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -94,6 +96,11 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       label: 'Define',
       icon: <BookOpen size={16} />,
       onClick: safeExecute(onDefine),
+    }] : []),
+    ...( onAnnotate ? [{
+      label: 'Annotate',
+      icon: <FileText size={16} />,
+      onClick: safeExecute(onAnnotate),
     }] : [])
   ];
 

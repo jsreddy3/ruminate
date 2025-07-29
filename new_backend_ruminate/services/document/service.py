@@ -571,3 +571,71 @@ Provide a clear, contextual definition that explains what this term means in thi
             "definition": definition,
             "context": full_context[:500] + "..." if len(full_context) > 500 else full_context
         }
+    
+    async def update_block_annotation(
+        self,
+        *,
+        document_id: str,
+        block_id: str,
+        text: str,
+        note: str,
+        text_start_offset: int,
+        text_end_offset: int,
+        user_id: str,
+        session: AsyncSession
+    ) -> None:
+        """
+        Update block annotation - handles create, update, and delete.
+        
+        - If note is empty string, deletes the annotation
+        - If annotation exists at given offsets, updates it
+        - Otherwise creates a new annotation
+        """
+        import uuid
+        from datetime import datetime
+        
+        # Verify user has access to document and block exists
+        document = await self._repo.get_document(document_id, session)
+        if not document or (document.user_id and document.user_id != user_id):
+            raise ValueError("Document not found or access denied")
+        
+        block = await self._repo.get_block(block_id, session)
+        if not block or block.document_id != document_id:
+            raise ValueError("Block not found or does not belong to document")
+        
+        # Initialize metadata if not exists
+        if not block.metadata:
+            block.metadata = {}
+        
+        # Initialize annotations dict if not exists
+        if 'annotations' not in block.metadata:
+            block.metadata['annotations'] = {}
+        
+        annotation_key = f"{text_start_offset}-{text_end_offset}"
+        
+        # Delete if note is empty
+        if not note:
+            if annotation_key in block.metadata['annotations']:
+                del block.metadata['annotations'][annotation_key]
+                # Clean up empty annotations dict
+                if not block.metadata['annotations']:
+                    del block.metadata['annotations']
+        else:
+            # Create or update annotation
+            existing = block.metadata['annotations'].get(annotation_key)
+            
+            annotation_data = {
+                'id': existing['id'] if existing else str(uuid.uuid4()),
+                'text': text,
+                'note': note,
+                'text_start_offset': text_start_offset,
+                'text_end_offset': text_end_offset,
+                'created_at': existing['created_at'] if existing else datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            block.metadata['annotations'][annotation_key] = annotation_data
+        
+        # Update the block in database
+        block.updated_at = datetime.now()
+        await self._repo.update_block(block, session)

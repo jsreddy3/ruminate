@@ -12,7 +12,8 @@ from new_backend_ruminate.api.document.schemas import (
     PageResponse,
     BlockResponse,
     DefinitionRequest,
-    DefinitionResponse
+    DefinitionResponse,
+    AnnotationRequest
 )
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token
@@ -294,3 +295,42 @@ async def get_definition(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating definition: {str(e)}")
+
+
+@router.post("/{document_id}/blocks/{block_id}/annotate")
+async def update_block_annotations(
+    document_id: str,
+    block_id: str,
+    request: AnnotationRequest,
+    current_user: User = Depends(get_current_user),
+    svc: DocumentService = Depends(get_document_service),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Create or update an annotation on a block.
+    
+    This endpoint handles all annotation operations:
+    - Create: Provide text, note, and offsets
+    - Update: Provide same offsets with new note
+    - Delete: Provide offsets with empty note ("")
+    
+    Annotations are stored in block metadata and fetched with block data.
+    """
+    try:
+        await svc.update_block_annotation(
+            document_id=document_id,
+            block_id=block_id,
+            text=request.text,
+            note=request.note,
+            text_start_offset=request.text_start_offset,
+            text_end_offset=request.text_end_offset,
+            user_id=current_user.id,
+            session=session
+        )
+        
+        return {"message": "Annotation updated successfully"}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating annotation: {str(e)}")

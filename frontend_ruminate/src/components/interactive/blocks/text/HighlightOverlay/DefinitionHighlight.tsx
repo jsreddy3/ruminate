@@ -13,6 +13,7 @@ interface ReactDefinitionHighlightProps {
   contentRef: React.RefObject<HTMLElement>;
   definitions: { [key: string]: SavedDefinition };
   onDefinitionClick: (term: string, definition: string, startOffset: number, endOffset: number, event: React.MouseEvent) => void;
+  rabbitholeHighlights?: any[]; // To check for overlaps
 }
 
 /**
@@ -22,7 +23,8 @@ interface ReactDefinitionHighlightProps {
 const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
   contentRef,
   definitions,
-  onDefinitionClick
+  onDefinitionClick,
+  rabbitholeHighlights = []
 }) => {
   const [highlightElements, setHighlightElements] = useState<React.ReactNode[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -117,6 +119,15 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
         return null;
       }
       
+      // Check if this definition overlaps with any rabbithole
+      const hasOverlappingRabbithole = rabbitholeHighlights.some((rh: any) => {
+        return (
+          (definition.text_start_offset >= rh.text_start_offset && definition.text_start_offset < rh.text_end_offset) ||
+          (definition.text_end_offset > rh.text_start_offset && definition.text_end_offset <= rh.text_end_offset) ||
+          (definition.text_start_offset <= rh.text_start_offset && definition.text_end_offset >= rh.text_end_offset)
+        );
+      });
+
       // Create a highlight element for each rect
       return rects.map((rect, rectIndex) => {
         // Convert coordinates to be relative to the container
@@ -129,20 +140,24 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
           backgroundColor: 'transparent',
           borderBottom: '2px solid rgba(220, 38, 38, 0.6)', // Red underline
           borderRadius: '0px',
-          cursor: 'help', // Question mark cursor
-          zIndex: 8, // Below rabbithole highlights
-          pointerEvents: 'none', // Allow text selection through the highlight
+          cursor: 'help',
+          zIndex: hasOverlappingRabbithole ? 12 : 8,
+          pointerEvents: 'none',
+          // When overlapping, shift the entire element down by 4px for better separation
+          transform: hasOverlappingRabbithole ? 'translateY(4px)' : 'none',
         };
         
         // Create a clickable area that's just a thin strip at the bottom
         const clickableStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${rect.left - contentRect.left}px`,
-          top: `${rect.top - contentRect.top + rect.height - 8}px`, // Position at bottom of text
+          top: hasOverlappingRabbithole 
+            ? `${rect.top - contentRect.top + rect.height - 8 + 6}px` // Add 6px offset when overlapping
+            : `${rect.top - contentRect.top + rect.height - 8}px`, // Normal position
           width: `${rect.width}px`,
           height: '8px', // Thin clickable area
           cursor: 'help',
-          zIndex: 9,
+          zIndex: hasOverlappingRabbithole ? 13 : 9,
           pointerEvents: 'auto',
         };
         

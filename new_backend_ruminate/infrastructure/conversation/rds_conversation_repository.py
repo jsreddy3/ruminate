@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from new_backend_ruminate.domain.conversation.entities.conversation import Conversation
 from new_backend_ruminate.domain.conversation.entities.message import Message
-from new_backend_ruminate.domain.conversation.entities.question import ConversationQuestion
 from new_backend_ruminate.domain.conversation.repo import (
     ConversationRepository,
 )
@@ -230,45 +229,3 @@ class RDSConversationRepository(ConversationRepository):
         result = await session.execute(query)
         return list(result.scalars().all())
     
-    # ─────────────────────────────── question management ───────────────────────────── #
-    
-    async def get_conversation_questions(
-        self, cid: str, session: AsyncSession
-    ) -> List[ConversationQuestion]:
-        """
-        Get all questions for a conversation, ordered by display_order.
-        """
-        query = (
-            select(ConversationQuestion)
-            .where(ConversationQuestion.conversation_id == cid)
-            .order_by(ConversationQuestion.display_order)
-        )
-        
-        result = await session.execute(query)
-        return list(result.scalars().all())
-    
-    async def delete_conversation_questions(
-        self, cid: str, session: AsyncSession
-    ) -> None:
-        """
-        Delete all questions for a conversation.
-        Used when regenerating questions.
-        """
-        from sqlalchemy import delete
-        
-        await session.execute(
-            delete(ConversationQuestion)
-            .where(ConversationQuestion.conversation_id == cid)
-        )
-    
-    async def mark_question_as_used(
-        self, question_id: str, used_at, session: AsyncSession
-    ) -> None:
-        """
-        Mark a question as used when it's clicked/sent.
-        """
-        await session.execute(
-            update(ConversationQuestion)
-            .where(ConversationQuestion.id == question_id)
-            .values(is_used=True, used_at=used_at)
-        )
