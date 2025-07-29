@@ -26,6 +26,7 @@ from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.context.windowed import WindowedContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
 from new_backend_ruminate.context.renderers.agent import register_agent_renderers
+from new_backend_ruminate.context.renderers.note_generation import NoteGenerationContext
 from new_backend_ruminate.infrastructure.document_processing.llm_document_analyzer import LLMDocumentAnalyzer
 from new_backend_ruminate.infrastructure.user.rds_user_repository import RDSUserRepository
 from new_backend_ruminate.infrastructure.auth.google_oauth_client import GoogleOAuthClient
@@ -47,6 +48,7 @@ _llm  = OpenAILLM(
 _ctx_builder = WindowedContextBuilder(_document_repo)
 _storage = get_object_storage_singleton()
 _document_analyzer = LLMDocumentAnalyzer(_llm)
+_note_generation_context = NoteGenerationContext()
 # Auth components (only initialize if settings are provided)
 _google_client = None
 _jwt_manager = None
@@ -66,7 +68,13 @@ if settings().google_client_id and settings().google_client_secret and settings(
     _auth_service = AuthService(_user_repo, _google_client, _jwt_manager)
 _conversation_service = ConversationService(_repo, _llm, _hub, _ctx_builder)
 _agent_service = AgentService(_repo, _llm, _hub, _ctx_builder)
-_document_service = DocumentService(_document_repo, _hub, _storage, analyzer=_document_analyzer)
+_document_service = DocumentService(
+    _document_repo, 
+    _hub, 
+    _storage, 
+    analyzer=_document_analyzer,
+    note_context=_note_generation_context
+)
 # ─────────────────────── DI provider helpers ───────────────────── #
 
 def get_event_hub() -> EventStreamHub:

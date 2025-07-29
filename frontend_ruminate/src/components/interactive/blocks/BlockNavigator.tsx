@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import BlockContainer from './BlockContainer';
+import BlockNavigatorPill from './BlockNavigatorPill';
 import { Block } from '../../../components/pdf/PDFViewer';
 
 interface BlockNavigatorProps {
@@ -79,54 +80,10 @@ export default function BlockNavigator({
   const currentBlock = blocks[currentIndex];
   
   return (
-    <div className="flex flex-col h-full">
-      {/* Navigation controls */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-200">
-        <div className="flex space-x-2">
-          <button
-            onClick={goToPrevBlock}
-            disabled={currentIndex === 0}
-            className={`p-1.5 rounded ${
-              currentIndex === 0 
-                ? 'text-gray-400 cursor-not-allowed' 
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-            title="Previous block"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={goToNextBlock}
-            disabled={currentIndex === blocks.length - 1}
-            className={`p-1.5 rounded ${
-              currentIndex === blocks.length - 1 
-                ? 'text-gray-400 cursor-not-allowed' 
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-            title="Next block"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
-        </div>
-        
-        <div className="text-sm text-gray-600">
-          Block {currentIndex + 1} of {blocks.length}
-          {currentBlock.block_type && 
-            <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded-full text-xs">
-              {currentBlock.block_type}
-            </span>
-          }
-        </div>
-      </div>
-      
-      {/* Block content */}
-      <div className="flex-grow overflow-auto p-3">
-        <div className="border border-gray-100 rounded-md p-2 bg-white h-full">
+    <div className="h-full flex flex-col">
+      {/* Block content - takes available space */}
+      <div className="flex-1 overflow-auto p-4">
+        <div className="border border-gray-100 rounded-md p-2 bg-white">
           <BlockContainer
             key={currentBlock.id}
             blockId={currentBlock.id}
@@ -141,6 +98,18 @@ export default function BlockNavigator({
             onRabbitholeClick={onRabbitholeClick}
             onCreateRabbithole={onCreateRabbithole}
             onBlockMetadataUpdate={onBlockMetadataUpdate}
+          />
+        </div>
+      </div>
+      
+      {/* Spacer and floating pill container */}
+      <div className="relative h-20">
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+          <BlockNavigatorPill
+            currentIndex={currentIndex}
+            totalBlocks={blocks.length}
+            onPrevious={goToPrevBlock}
+            onNext={goToNextBlock}
           />
         </div>
       </div>

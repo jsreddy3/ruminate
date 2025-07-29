@@ -48,8 +48,24 @@ class CreateConversationRequest(BaseModel):
         if start is not None and v is not None and v <= start:
             raise ValueError('text_end_offset must be greater than text_start_offset')
         return v
-    
-    @validator('selected_text')
+
+
+class GenerateNoteRequest(BaseModel):
+    """Request body for generating a note from conversation"""
+    block_id: str = Field(..., description="Target block ID to attach the note to")
+    message_count: int = Field(5, ge=1, le=50, description="Number of recent messages to include")
+    topic: Optional[str] = Field(None, description="Optional topic/focus for the note generation")
+
+
+class GenerateNoteResponse(BaseModel):
+    """Response from note generation"""
+    note: str = Field(..., description="The generated note content")
+    note_id: str = Field(..., description="Unique ID of the generated note")
+    block_id: str = Field(..., description="Block ID where the note was saved")
+    conversation_id: str = Field(..., description="Source conversation ID")
+
+
+@validator('selected_text')
     def validate_rabbithole_fields(cls, v, values):
         """Ensure all rabbithole fields are provided together for RABBITHOLE type"""
         if values.get('type') == ConversationType.RABBITHOLE:

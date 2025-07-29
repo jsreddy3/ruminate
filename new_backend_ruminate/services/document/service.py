@@ -1,6 +1,6 @@
 # new_backend_ruminate/services/document/service.py
 from __future__ import annotations
-from typing import Optional, List, BinaryIO
+from typing import Optional, List, BinaryIO, Dict, Any
 from uuid import uuid4
 from datetime import datetime
 import asyncio
@@ -17,6 +17,7 @@ from new_backend_ruminate.domain.ports.document_analyzer import DocumentAnalyzer
 from new_backend_ruminate.infrastructure.document_processing.marker_client import MarkerClient, MarkerResponse
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
+from new_backend_ruminate.context.renderers.note_generation import NoteGenerationContext
 
 
 class DocumentService:
@@ -28,13 +29,15 @@ class DocumentService:
         hub: EventStreamHub,
         storage: ObjectStorageInterface,
         marker_client: Optional[MarkerClient] = None,
-        analyzer: Optional[DocumentAnalyzer] = None
+        analyzer: Optional[DocumentAnalyzer] = None,
+        note_context: Optional[Any] = None
     ) -> None:
         self._repo = repo
         self._hub = hub
         self._storage = storage
         self._marker_client = marker_client or MarkerClient()
         self._analyzer = analyzer
+        self._note_context = note_context
     
     # ─────────────────────────────── helpers ──────────────────────────────── #
     
@@ -639,3 +642,128 @@ Provide a clear, contextual definition that explains what this term means in thi
         # Update the block in database
         block.updated_at = datetime.now()
         await self._repo.update_block(block, session)
+    
+    async def generate_note_from_conversation(
+        self,
+        *,
+        conversation_id: str,
+        block_id: str,
+        messages: List[Any],  # Message objects from conversation
+        message_count: int = 5,
+        topic: Optional[str] = None,
+        user_id: str,
+        session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Generate a note from conversation messages and save it to a block.
+        
+        Args:
+            conversation_id: ID of the source conversation
+            block_id: Target block to attach the note to
+            messages: List of message objects from the conversation
+            message_count: Number of recent messages to include (default: 5)
+            topic: Optional topic/focus for the note generation
+            user_id: User ID for permission checking
+            session: Database session
+            
+        Returns:
+            Dictionary with generated note content and metadata
+        """
+        from new_backend_ruminate.domain.conversation.entities.message import Message, Role
+        import uuid
+        
+        # Verify user has access to the block
+        block = await self._repo.get_block(block_id, session)
+        if not block:
+            raise ValueError("Block not found")
+            
+        document = await self._repo.get_document(block.document_id, session)
+        if not document or (document.user_id and document.user_id != user_id):
+            raise ValueError("Document not found or access denied")
+        
+        # Filter to get user/assistant messages only (skip system/tool messages)
+        conversation_messages = [
+            msg for msg in messages 
+            if msg.role in [Role.USER, Role.ASSISTANT]
+        ]
+        
+        # Take the most recent messages based on message_count
+        recent_messages = conversation_messages[-message_count:] if len(conversation_messages) > message_count else conversation_messages
+        
+        # Build context for note generation using injected context builder
+        if not self._note_context:
+            raise ValueError("Note generation context not configured")
+            
+        llm_messages = self._note_context.build_context(
+            document=document,
+            block=block,
+            conversation_messages=recent_messages,
+            topic=topic,
+            user_id=user_id
+        )
+        
+        # Generate note using LLM
+        llm = get_llm_service()
+        generated_note = await llm.generate_response(llm_messages, model="gpt-4o-mini")
+        
+        # Save the note to block metadata
+        note_metadata = await self._save_generated_note(
+            block=block,
+            note_content=generated_note,
+            conversation_id=conversation_id,
+            message_count=len(recent_messages),
+            topic=topic,
+            session=session
+        )
+        
+        return {
+            "note": generated_note,
+            "note_id": note_metadata['id'],
+            "block_id": block_id,
+            "conversation_id": conversation_id
+        }
+    
+    async def _save_generated_note(
+        self,
+        block: Block,
+        note_content: str,
+        conversation_id: str,
+        message_count: int,
+        topic: Optional[str],
+        session: AsyncSession
+    ) -> Dict[str, Any]:
+        """Save generated note to block metadata"""
+        import uuid
+        
+        if not block.metadata:
+            block.metadata = {}
+        
+        if 'annotations' not in block.metadata:
+            block.metadata['annotations'] = {}
+        
+        # Create a unique key for the generated note
+        note_id = str(uuid.uuid4())
+        annotation_key = f"generated-{note_id}"
+        
+        # Store the note with special metadata
+        note_metadata = {
+            'id': note_id,
+            'text': '[Generated from conversation]',
+            'note': note_content,
+            'text_start_offset': -1,  # Special value to indicate generated note
+            'text_end_offset': -1,
+            'is_generated': True,
+            'source_conversation_id': conversation_id,
+            'message_count': message_count,
+            'topic': topic,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        block.metadata['annotations'][annotation_key] = note_metadata
+        
+        # Update the block in database
+        block.updated_at = datetime.now()
+        await self._repo.update_block(block, session)
+        
+        return note_metadata

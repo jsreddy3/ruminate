@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { getBlockTypeStyles, baseTextStyles, containerStyles } from './textStyles';
 
 interface TextContentProps {
   htmlContent: string;
@@ -16,7 +17,6 @@ interface TextContentProps {
 const TextContent = forwardRef<HTMLDivElement, TextContentProps>(
   (
     {
-      htmlContent,
       blockType,
       processedContent,
       onClickHighlight,
@@ -25,24 +25,20 @@ const TextContent = forwardRef<HTMLDivElement, TextContentProps>(
     },
     ref
   ) => {
+  // Merge styles in order of precedence
+  const mergedStyles = {
+    ...containerStyles,
+    ...baseTextStyles,
+    ...getBlockTypeStyles(blockType),
+    ...customStyle, // Custom overrides last
+  };
+
   return (
     <div
-      className={`p-4 bg-stone-50 text-stone-900 rounded-md border border-amber-200 leading-relaxed ${getBlockClassName(blockType)}`}
+      className={`text-renderer ${getBlockClassName(blockType)}`}
       ref={ref}
       onClick={onClickHighlight}
-      style={{
-        // default text content styles
-        fontFamily: '"Times New Roman", Times, serif',
-        fontSize: '1.05rem',
-        lineHeight: '1.5',
-        color: '#222',
-        textAlign: 'justify',
-        textRendering: 'optimizeLegibility',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        background: 'linear-gradient(to right, rgba(255,253,242,1) 0%, rgba(255,251,235,1) 100%)',
-        // apply custom overrides last
-        ...customStyle
-      }}
+      style={mergedStyles}
       dangerouslySetInnerHTML={{ __html: processedContent }}
     />
   );
