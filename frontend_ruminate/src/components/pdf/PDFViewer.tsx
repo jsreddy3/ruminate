@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
 import ChatContainer from "../chat/ChatContainer";
 import { conversationApi } from "../../services/api/conversation";
+import { documentApi } from "../../services/api/document";
 import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
 import { createRabbithole } from "../../services/rabbithole";
 import BlockContainer from "../interactive/blocks/BlockContainer";
@@ -231,6 +232,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const router = useRouter();
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
+  const [documentTitle, setDocumentTitle] = useState<string>('');
   
   // Add states for PDF loading management
   const [pdfLoadingState, setPdfLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error' | 'stuck'>('idle');
@@ -260,6 +262,24 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       }
     }
   }, [pdfFile, documentId]);
+
+  // Fetch document title
+  useEffect(() => {
+    const fetchDocumentTitle = async () => {
+      try {
+        const document = await documentApi.getDocument(documentId);
+        setDocumentTitle(document.title);
+      } catch (error) {
+        console.error('Error fetching document title:', error);
+        setDocumentTitle('Unknown Document');
+      }
+    };
+
+    if (documentId) {
+      fetchDocumentTitle();
+    }
+  }, [documentId]);
+
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   // Add state for block overlay
@@ -661,7 +681,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       const timeout = setTimeout(() => {
         console.warn('⚠️ PDF loading timeout reached - marking as stuck');
         setPdfLoadingState('stuck');
-      }, 5000); // 5 second timeout
+      }, 10000); // 5 second timeout
       
       setLoadingTimeout(timeout);
       
@@ -707,7 +727,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           display: none !important;
         }
       `}</style>
-      <div className="h-screen flex w-full overflow-hidden relative">
+      <div className="h-screen flex flex-col w-full overflow-hidden relative">
+        {/* Header with back button and title */}
+        <div className="flex items-center gap-3 px-3 py-2 bg-white border-b border-gray-200 z-10">
+          <button
+            onClick={() => router.push('/home')}
+            className="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-all duration-200"
+            title="Back to Home"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="font-medium">Back</span>
+          </button>
+          <div className="w-px h-4 bg-gray-300"></div>
+          <h1 className="text-sm font-medium text-gray-900 truncate">
+            {documentTitle || 'Loading...'}
+          </h1>
+        </div>
+
+        {/* Main content area */}
+        <div className="flex-1 flex w-full overflow-hidden relative">
         {/* Block Selection Mode Banner */}
         {isBlockSelectionMode && (
           <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
@@ -796,10 +836,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     border: 'none',
                     height: '100%',
                     width: '100%',
-                    backgroundColor: 'rgb(243 244 246)',
+                    backgroundColor: 'white',
                     position: 'relative',
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    margin: 0,
+                    padding: 0
                   }}
                   className="overflow-auto"
                 >
@@ -1083,6 +1125,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             </div>
           </Panel>
         </PanelGroup>
+        </div>
       </div>
     </MathJaxProvider>
   );
