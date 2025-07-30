@@ -1,7 +1,6 @@
 import React from 'react';
 import { Block } from './PDFViewer';
 import ChatContainer from '../chat/ChatContainer';
-import ConversationCodex from '../chat/ConversationCodex';
 
 interface RabbitholeConversation {
   id: string;
@@ -68,15 +67,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      {/* Beautiful ConversationCodex replaces ugly tabs */}
-      <ConversationCodex
-        conversations={conversations}
-        activeConversationId={activeConversationId}
-        onConversationChange={onSetActiveConversationId}
-        onConversationClose={handleConversationClose}
-      />
-      
+    <div className="flex flex-col h-full">
       {/* Chat container */}
       <div className="flex-1 overflow-hidden">
         {activeConversationId === null ? (

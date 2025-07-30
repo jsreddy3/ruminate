@@ -3,68 +3,78 @@ import React from 'react';
 export interface IndicatorConfig {
   key: string;
   color: string;
+  gradient: string;
   title: string;
   icon: React.ReactNode;
   delay: number;
   zIndex: number;
+  glowColor: string;
 }
 
-// SVG icons as React nodes
-const LightbulbIcon = (
-  <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+// Clean, readable scholarly icons optimized for small sizes
+const ScholarlyInsightIcon = (
+  <svg style={{ width: '16px', height: '16px' }} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
   </svg>
 );
 
-const AnnotationIcon = (
-  <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+const QuillAnnotationIcon = (
+  <svg style={{ width: '16px', height: '16px' }} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
   </svg>
 );
 
-const BookIcon = (
-  <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+const ManuscriptIcon = (
+  <svg style={{ width: '16px', height: '16px' }} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
   </svg>
 );
 
-const ConversationIcon = (
-  <svg style={{ width: '12px', height: '12px' }} fill="white" stroke="white" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+const ScholarlyDiscourseIcon = (
+  <svg style={{ width: '16px', height: '16px' }} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
   </svg>
 );
 
-// Indicator configurations in display order (front to back)
+// Clean library-themed indicator configurations in display order (front to back)
 export const INDICATOR_CONFIGS: IndicatorConfig[] = [
   {
     key: 'generatedNotes',
-    color: '#f59e0b', // amber-500
-    title: 'Has generated notes',
-    icon: LightbulbIcon,
+    color: '#f9cf5f', // library-gold
+    gradient: 'linear-gradient(135deg, #f9cf5f 0%, #e6b84f 100%)',
+    glowColor: 'rgba(249, 207, 95, 0.3)',
+    title: 'AI-Generated Insights',
+    icon: ScholarlyInsightIcon,
     delay: 0.15,
     zIndex: 4
   },
   {
     key: 'annotations',
-    color: '#eab308', // yellow-500
-    title: 'Has user annotations',
-    icon: AnnotationIcon,
+    color: '#af5f37', // library-mahogany
+    gradient: 'linear-gradient(135deg, #af5f37 0%, #8b4513 100%)',
+    glowColor: 'rgba(175, 95, 55, 0.3)',
+    title: 'Personal Annotations',
+    icon: QuillAnnotationIcon,
     delay: 0.1,
     zIndex: 3
   },
   {
     key: 'definitions',
-    color: '#ef4444', // red-500
-    title: 'Has definitions',
-    icon: BookIcon,
+    color: '#5a735f', // library-forest
+    gradient: 'linear-gradient(135deg, #5a735f 0%, #4a5d4f 100%)',
+    glowColor: 'rgba(90, 115, 95, 0.3)',
+    title: 'Term Definitions',
+    icon: ManuscriptIcon,
     delay: 0.05,
     zIndex: 2
   },
   {
     key: 'conversations',
-    color: '#9333ea', // purple-600
-    title: 'Has conversations',
-    icon: ConversationIcon,
+    color: '#798779', // library-sage
+    gradient: 'linear-gradient(135deg, #798779 0%, #6b7069 100%)',
+    glowColor: 'rgba(121, 135, 121, 0.3)',
+    title: 'Discussion Threads',
+    icon: ScholarlyDiscourseIcon,
     delay: 0,
     zIndex: 1
   }

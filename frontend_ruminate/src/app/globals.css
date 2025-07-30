@@ -1,5 +1,60 @@
 /* Import scholarly fonts */
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Iowan Old Style - Local font declarations */
+@font-face {
+    font-family: 'Iowan Old Style';
+    src: url('/webfontkit-20250730-174949/bitstream-iowan-old-style-bt-586c36a8d7712-webfont.woff2') format('woff2'),
+         url('/webfontkit-20250730-174949/bitstream-iowan-old-style-bt-586c36a8d7712-webfont.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Iowan Old Style';
+    src: url('/webfontkit-20250730-174949/bitstream-iowan-old-style-italic-bt-586c3740dc396-webfont.woff2') format('woff2'),
+         url('/webfontkit-20250730-174949/bitstream-iowan-old-style-italic-bt-586c3740dc396-webfont.woff') format('woff');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Iowan Old Style';
+    src: url('/webfontkit-20250730-174949/bitstream-iowan-old-style-bold-bt-586c371d8d669-webfont.woff2') format('woff2'),
+         url('/webfontkit-20250730-174949/bitstream-iowan-old-style-bold-bt-586c371d8d669-webfont.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Iowan Old Style';
+    src: url('/webfontkit-20250730-174949/bitstream-iowan-old-style-bold-italic-bt-586c37701cb62-webfont.woff2') format('woff2'),
+         url('/webfontkit-20250730-174949/bitstream-iowan-old-style-bold-italic-bt-586c37701cb62-webfont.woff') format('woff');
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Iowan Old Style';
+    src: url('/webfontkit-20250730-174949/bitstream-iowan-old-style-black-bt-586c36e930225-webfont.woff2') format('woff2'),
+         url('/webfontkit-20250730-174949/bitstream-iowan-old-style-black-bt-586c36e930225-webfont.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Iowan Old Style';
+    src: url('/webfontkit-20250730-174949/bitstream-iowan-old-style-black-italic-bt-586c378f12ca1-webfont.woff2') format('woff2'),
+         url('/webfontkit-20250730-174949/bitstream-iowan-old-style-black-italic-bt-586c378f12ca1-webfont.woff') format('woff');
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -42,10 +97,10 @@
   body {
     color: var(--reading-primary);
     background: var(--surface-paper);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Iowan Old Style', 'Crimson Text', Georgia, 'Times New Roman', serif;
     font-weight: 400;
     line-height: 1.7;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.02em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -72,10 +127,10 @@
 /* Enhanced text content styles with library aesthetic */
 @layer components {
   .text-renderer {
-    font-family: 'Crimson Text', Georgia, 'Times New Roman', serif;
+    font-family: 'Iowan Old Style', 'Crimson Text', Georgia, 'Times New Roman', serif;
     color: var(--reading-primary);
     line-height: 1.7;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.02em;
   }
   
   .text-renderer em {
@@ -309,21 +364,6 @@
     margin-bottom: 0;
   }
   
-  /* DRAMATIC drop cap for first paragraph */
-  .text-renderer p:first-of-type::first-letter {
-    float: left;
-    font-size: 4rem;
-    line-height: 0.8;
-    margin: 0.1rem 0.5rem 0 0;
-    font-weight: 700;
-    color: var(--library-mahogany);
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-    font-family: 'Crimson Text', Georgia, serif;
-    background: linear-gradient(135deg, var(--library-mahogany), var(--library-gold));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
   
   /* ORNATE paragraph indentation */
   .text-renderer p + p {
@@ -386,5 +426,98 @@
   
   .text-renderer tr:hover {
     background: rgba(249, 207, 95, 0.05);
+  }
+}
+
+/* Elegant library-themed animations for sophisticated UI elements */
+@layer utilities {
+  @keyframes ink-spread {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+      filter: blur(1px);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.02);
+      filter: blur(0.5px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+      filter: blur(0px);
+    }
+  }
+
+  @keyframes scholarly-glow {
+    0%, 100% {
+      box-shadow: 
+        0 3px 8px rgba(0, 0, 0, 0.18),
+        0 0 12px rgba(175, 95, 55, 0.08),
+        inset 0 1px 2px rgba(255, 255, 255, 0.25);
+    }
+    50% {
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.22),
+        0 0 20px rgba(175, 95, 55, 0.15),
+        inset 0 1px 3px rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  @keyframes parchment-shimmer {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes quill-flourish {
+    0% {
+      transform: rotate(0deg) scale(1);
+    }
+    25% {
+      transform: rotate(-2deg) scale(1.05);
+    }
+    75% {
+      transform: rotate(2deg) scale(1.05);
+    }
+    100% {
+      transform: rotate(0deg) scale(1);
+    }
+  }
+
+  @keyframes manuscript-breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.02);
+      opacity: 0.95;
+    }
+  }
+
+  /* Utility classes for applying animations */
+  .animate-ink-spread {
+    animation: ink-spread 0.5s ease-out;
+  }
+
+  .animate-scholarly-glow {
+    animation: scholarly-glow 3s ease-in-out infinite;
+  }
+
+  .animate-parchment-shimmer {
+    animation: parchment-shimmer 4s ease-in-out infinite;
+    background-size: 200% 200%;
+  }
+
+  .animate-quill-flourish {
+    animation: quill-flourish 2s ease-in-out infinite;
+  }
+
+  .animate-manuscript-breathe {
+    animation: manuscript-breathe 4s ease-in-out infinite;
   }
 }

@@ -35,7 +35,7 @@ export default function BlockIndicators({
   
   if (visibleIndicators.length === 0) return null;
 
-  const offsetPixels = 6;
+  const offsetPixels = 6; // Clean spacing for visual clarity
 
   return (
     <IndicatorLayout 
@@ -48,6 +48,8 @@ export default function BlockIndicators({
           key={config.key}
           type="icon"
           color={config.color}
+          gradient={config.gradient}
+          glowColor={config.glowColor}
           icon={config.icon}
           title={config.title}
           delay={config.delay}
@@ -82,7 +84,7 @@ export function BlockDotIndicators({
   
   if (visibleIndicators.length === 0) return null;
 
-  const offsetPixels = 3;
+  const offsetPixels = 4; // Enhanced spacing for dot indicators
 
   return (
     <IndicatorLayout 
@@ -95,6 +97,8 @@ export function BlockDotIndicators({
           key={config.key}
           type="dot"
           color={config.color}
+          gradient={config.gradient}
+          glowColor={config.glowColor}
           title={config.title}
           delay={config.delay}
           position={{

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { findTextPositionFromOffset } from './CorrectOffsetCalculator';
 import './DefinitionHighlight.css';
 
 interface SavedDefinition {
@@ -29,71 +30,6 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
   const [highlightElements, setHighlightElements] = useState<React.ReactNode[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
   
-  // Helper function to find text position from character offset (copied from RabbitholeHighlight)
-  const findTextPositionFromOffset = (
-    root: HTMLElement, 
-    startOffset: number, 
-    endOffset: number
-  ): DOMRect[] | null => {
-    // Gather all text nodes in order
-    const textNodes: Node[] = [];
-    const walker = document.createTreeWalker(
-      root,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-    
-    let node;
-    while (node = walker.nextNode()) {
-      textNodes.push(node);
-    }
-    
-    if (textNodes.length === 0) return null;
-    
-    // Find start and end positions
-    let currentOffset = 0;
-    let startNode: Node | null = null;
-    let startNodeOffset = 0;
-    let endNode: Node | null = null;
-    let endNodeOffset = 0;
-    
-    // Find start and end nodes based on character offsets
-    for (const node of textNodes) {
-      const nodeLength = node.textContent?.length || 0;
-      
-      // Find start node and offset
-      if (startNode === null && currentOffset + nodeLength > startOffset) {
-        startNode = node;
-        startNodeOffset = startOffset - currentOffset;
-      }
-      
-      // Find end node and offset
-      if (endNode === null && currentOffset + nodeLength >= endOffset) {
-        endNode = node;
-        endNodeOffset = endOffset - currentOffset;
-        break;
-      }
-      
-      currentOffset += nodeLength;
-    }
-    
-    // If we found start and end nodes, create a range
-    if (startNode && endNode) {
-      try {
-        const range = document.createRange();
-        range.setStart(startNode, startNodeOffset);
-        range.setEnd(endNode, endNodeOffset);
-        
-        // Get client rects of the range
-        return Array.from(range.getClientRects());
-      } catch (err) {
-        console.error('Error creating range:', err);
-        return null;
-      }
-    }
-    
-    return null;
-  };
   
   // Calculate and render highlights when content or definitions change
   useEffect(() => {

@@ -69,7 +69,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             className={`
               w-full font-serif text-reading-primary resize-none 
               border-2 border-library-sage-300 rounded-journal
-              focus:outline-none focus:ring-4 focus:ring-library-gold-300 focus:border-library-mahogany-400
+              focus:outline-none focus:border-library-mahogany-400
               shadow-inner transition-all duration-500 ease-out
               placeholder:text-reading-muted placeholder:italic placeholder:font-serif
               ${isDisabled 
@@ -94,27 +94,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
             rows={4}
           />
           
-          {/* Decorative manuscript border corners */}
-          <div className="absolute -top-1 -left-1 w-4 h-4 opacity-60">
-            <svg viewBox="0 0 24 24" className="w-full h-full text-library-gold-500">
-              <path fill="currentColor" d="M12,2L14,14L12,22L10,14L12,2M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2Z" />
-            </svg>
-          </div>
-          <div className="absolute -top-1 -right-1 w-4 h-4 opacity-60 rotate-90">
-            <svg viewBox="0 0 24 24" className="w-full h-full text-library-gold-500">
-              <path fill="currentColor" d="M12,2L14,14L12,22L10,14L12,2M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2Z" />
-            </svg>
-          </div>
-          <div className="absolute -bottom-1 -left-1 w-4 h-4 opacity-60 rotate-270">
-            <svg viewBox="0 0 24 24" className="w-full h-full text-library-gold-500">
-              <path fill="currentColor" d="M12,2L14,14L12,22L10,14L12,2M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2Z" />
-            </svg>
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 opacity-60 rotate-180">
-            <svg viewBox="0 0 24 24" className="w-full h-full text-library-gold-500">
-              <path fill="currentColor" d="M12,2L14,14L12,22L10,14L12,2M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,12 0 0,1 12,2Z" />
-            </svg>
-          </div>
         </div>
         
         {/* ELEGANT send button with manuscript styling */}

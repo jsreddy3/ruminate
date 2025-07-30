@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MessageSquare, Lightbulb } from 'lucide-react';
+import { motion } from 'framer-motion';
 import BasePopover from '../../common/BasePopover';
 
 interface GeneratedNote {
@@ -22,6 +23,8 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
 }) => {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [previousNoteCount, setPreviousNoteCount] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Filter generated notes from annotations
   const generatedNotes: GeneratedNote[] = Object.entries(annotations)
@@ -40,6 +43,14 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
 
   const activeNote = generatedNotes.find(note => note.id === activeNoteId);
 
+  // Detect when a new note is added and trigger celebration
+  React.useEffect(() => {
+    if (generatedNotes.length > previousNoteCount && previousNoteCount > 0) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2000);
+    }
+    setPreviousNoteCount(generatedNotes.length);
+  }, [generatedNotes.length, previousNoteCount]);
 
   // Early return after all hooks are called
   
@@ -50,40 +61,62 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
   return (
     <div className="flex items-center gap-2">
       {/* Note badges - larger and horizontal */}
-      {generatedNotes.map((note, index) => (
-        <button
-          key={note.id}
-          onClick={() => {
-            const isOpening = activeNoteId !== note.id;
-            setActiveNoteId(activeNoteId === note.id ? null : note.id);
-            // Reset position when opening a new note - center on screen
-            if (isOpening) {
-              const centerX = Math.max(20, (window.innerWidth - 480) / 2);
-              const centerY = Math.max(20, (window.innerHeight - 360) / 2);
-              setPopupPosition({ x: centerX, y: centerY });
-            }
-          }}
-          className={`group relative p-3 rounded-lg transition-all transform hover:scale-105 shadow-lg ${
-            activeNoteId === note.id
-              ? 'bg-gradient-to-br from-yellow-400 to-yellow-500 text-white shadow-yellow-200'
-              : 'bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-800 hover:from-yellow-200 hover:to-yellow-300 border border-yellow-200'
-          }`}
-          title={`Generated note${note.topic ? `: ${note.topic}` : ''}`}
-          style={{
-            zIndex: activeNoteId === note.id ? 60 : 50 + index
-          }}
-        >
-          <Lightbulb className="w-5 h-5" />
-          
-          {/* Note indicator badge */}
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-            {index + 1}
-          </div>
-          
-          {/* Subtle glow effect on hover */}
-          <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-yellow-300 to-transparent opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none" />
-        </button>
-      ))}
+      {generatedNotes.map((note, index) => {
+        const isNewestNote = index === generatedNotes.length - 1 && showCelebration;
+        
+        return (
+          <motion.button
+            key={note.id}
+            animate={isNewestNote ? {
+              scale: [1, 1.2, 1],
+              y: [0, -8, 0],
+            } : {}}
+            transition={isNewestNote ? {
+              duration: 0.6,
+              ease: "easeOut"
+            } : {}}
+            onClick={() => {
+              const isOpening = activeNoteId !== note.id;
+              setActiveNoteId(activeNoteId === note.id ? null : note.id);
+              // Reset position when opening a new note - center on screen
+              if (isOpening) {
+                const centerX = Math.max(20, (window.innerWidth - 480) / 2);
+                const centerY = Math.max(20, (window.innerHeight - 360) / 2);
+                setPopupPosition({ x: centerX, y: centerY });
+              }
+            }}
+            className={`group relative p-3 rounded-lg transition-all transform hover:scale-105 shadow-lg ${
+              activeNoteId === note.id
+                ? 'bg-gradient-to-br from-yellow-400 to-yellow-500 text-white shadow-yellow-200'
+                : 'bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-800 hover:from-yellow-200 hover:to-yellow-300 border border-yellow-200'
+            } ${isNewestNote ? 'animate-pulse' : ''}`}
+            title={`Generated note${note.topic ? `: ${note.topic}` : ''}`}
+            style={{
+              zIndex: activeNoteId === note.id ? 60 : 50 + index
+            }}
+          >
+            <motion.div
+              animate={isNewestNote ? {
+                rotate: [0, -5, 5, 0]
+              } : {}}
+              transition={isNewestNote ? {
+                duration: 0.4,
+                delay: 0.2
+              } : {}}
+            >
+              <Lightbulb className="w-5 h-5" />
+            </motion.div>
+            
+            {/* Note indicator badge */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+              {index + 1}
+            </div>
+            
+            {/* Subtle glow effect on hover */}
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-yellow-300 to-transparent opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none" />
+          </motion.button>
+        );
+      })}
 
       {/* Draggable and resizable note popup using BasePopover */}
       {activeNote && (

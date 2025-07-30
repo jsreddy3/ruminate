@@ -25,6 +25,7 @@ import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
 import PDFDocumentViewer from "./PDFDocumentViewer";
 import { ResizeHandle, HorizontalResizeHandle } from "../common/ResizeHandles";
+import ConversationLibrary from "../chat/ConversationLibrary";
 
 export interface Block {
   id: string;
@@ -330,6 +331,24 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     fetchRabbitholeData();
   }, [documentId]);
 
+  // Transform fetched rabbithole data into conversation tabs format
+  useEffect(() => {
+    if (!rabbitholeData || rabbitholeData.length === 0) return;
+
+    const transformedConversations = rabbitholeData.map(rabbithole => ({
+      id: rabbithole.id,
+      title: rabbithole.selected_text 
+        ? (rabbithole.selected_text.length > 30 
+            ? rabbithole.selected_text.substring(0, 30) + '...' 
+            : rabbithole.selected_text)
+        : 'Rabbithole Discussion',
+      selectionText: rabbithole.selected_text || '',
+      blockId: rabbithole.source_block_id || ''
+    }));
+
+    setRabbitholeConversations(transformedConversations);
+  }, [rabbitholeData]);
+
   // Initialize the main document conversation
   useEffect(() => {
     if (!documentId) return;
@@ -571,17 +590,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setPendingChatText('');
   }, []);
 
-  // Handle block selection requests from chat
-  const handleBlockSelectionRequest = useCallback((config: {
-    prompt: string;
-    onComplete: (blockId: string) => void;
-  }) => {
-    setIsBlockSelectionMode(true);
-    setBlockSelectionPrompt(config.prompt);
-    setOnBlockSelectionComplete(() => config.onComplete);
-  }, []);
-
-  // Block overlay manager hook - must be after all dependencies are declared
+  // Block overlay manager hook - declare before callbacks that use it
   const blockOverlayManager = useBlockOverlayManager({
     blocks,
     flattenedBlocks,
@@ -603,6 +612,23 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onAddRabbitholeConversation: addRabbitholeConversation,
     refreshRabbitholesFnRef,
   });
+
+  // Handle block selection requests from chat - now has access to blockOverlayManager
+  const handleBlockSelectionRequest = useCallback((config: {
+    prompt: string;
+    onComplete: (blockId: string) => void;
+  }) => {
+    // Auto-select if block overlay is open with a selected block
+    if (blockOverlayManager.selectedBlock && blockOverlayManager.isBlockOverlayOpen) {
+      config.onComplete(blockOverlayManager.selectedBlock.id);
+      return;
+    }
+    
+    // Otherwise use manual selection
+    setIsBlockSelectionMode(true);
+    setBlockSelectionPrompt(config.prompt);
+    setOnBlockSelectionComplete(() => config.onComplete);
+  }, [blockOverlayManager.selectedBlock, blockOverlayManager.isBlockOverlayOpen]);
 
   // PDF overlay renderer - now has access to blockOverlayManager
   const renderOverlay = useCallback(
@@ -731,13 +757,28 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 </span>
               </div>
             </div>
-            
-            {/* Reading mode indicator */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-library-gold-50 text-library-mahogany-700 rounded-book border border-library-gold-200">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              <span className="text-xs font-sans font-medium">Scholarly Reading</span>
+
+            {/* Conversation Library in the header */}
+            <div className="flex-shrink-0">
+              <ConversationLibrary
+                conversations={[
+                  {
+                    id: null,
+                    title: 'Main Discussion',
+                    type: 'main' as const,
+                    isActive: activeConversationId === null
+                  },
+                  ...rabbitholeConversations.map(conv => ({
+                    id: conv.id,
+                    title: conv.title,
+                    type: 'rabbithole' as const,
+                    selectionText: conv.selectionText,
+                    isActive: activeConversationId === conv.id
+                  }))
+                ]}
+                activeConversationId={activeConversationId}
+                onConversationChange={setActiveConversationId}
+              />
             </div>
           </div>
         </div>
@@ -927,10 +968,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </Panel>
           
           {/* Elegant resize handle between PDF and chat */}
-          <div className="w-1 bg-gradient-to-b from-library-sage-100 via-library-sage-200 to-library-sage-100 hover:bg-gradient-to-b hover:from-library-gold-200 hover:via-library-gold-300 hover:to-library-gold-200 transition-all duration-300 cursor-col-resize group relative">
+          <PanelResizeHandle className="w-1 bg-gradient-to-b from-library-sage-100 via-library-sage-200 to-library-sage-100 hover:bg-gradient-to-b hover:from-library-gold-200 hover:via-library-gold-300 hover:to-library-gold-200 transition-all duration-300 cursor-col-resize group relative">
             {/* Subtle grip indicator */}
             <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-0.5 bg-library-sage-300 group-hover:bg-library-gold-400 opacity-50 group-hover:opacity-80 transition-all duration-300"></div>
-          </div>
+          </PanelResizeHandle>
           
           {/* Chat panel - scholarly discussion area */}
           <Panel 

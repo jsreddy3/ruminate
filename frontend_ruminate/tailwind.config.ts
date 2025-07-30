@@ -99,12 +99,14 @@ export default {
         },
       },
       fontFamily: {
-        // Scholarly serif fonts
-        serif: ['Crimson Text', 'Georgia', 'Times New Roman', 'serif'],
-        // Supporting sans-serif for UI elements
+        // Primary scholarly serif font
+        serif: ['Iowan Old Style', 'Crimson Text', 'Georgia', 'Times New Roman', 'serif'],
+        // Supporting sans-serif for UI elements  
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         // Monospace for code
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
+        // Specific font utilities
+        'iowan': ['Iowan Old Style', 'Crimson Text', 'Georgia', 'serif'],
       },
       fontSize: {
         // Typography scale for reading

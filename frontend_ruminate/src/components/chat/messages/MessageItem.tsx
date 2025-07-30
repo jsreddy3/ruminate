@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageNode, MessageRole } from '../../../types/chat';
+import MessageContentRenderer from './MessageContentRenderer';
 
 interface MessageItemProps {
   message: MessageNode;
@@ -95,23 +96,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
           relative max-w-[90%] rounded-journal backdrop-blur-sm
           ${styles.container}
           ${styles.glow}
-          ${hasVersions && isActive ? 'ring-4 ring-library-gold-400 ring-opacity-50' : ''}
           transition-all duration-500 ease-out
           hover:shadow-[0_0_30px_rgba(0,0,0,0.15)]
           transform hover:scale-[1.02]
         `}
       >
-        {/* Ornate decorative corner flourishes */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 opacity-60">
-          <svg viewBox="0 0 24 24" className="w-full h-full text-library-gold-500">
-            <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4Z" />
-          </svg>
-        </div>
-        <div className="absolute -top-2 -right-2 w-6 h-6 opacity-60 rotate-90">
-          <svg viewBox="0 0 24 24" className="w-full h-full text-library-gold-500">
-            <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4Z" />
-          </svg>
-        </div>
         
         {/* Elegant border accent */}
         <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-full ${styles.accent.replace('border-l-4', 'bg-gradient-to-b from-transparent via-current to-transparent')}`}></div>
@@ -158,12 +147,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 message.role === MessageRole.USER ? 'text-library-mahogany-700' :
                 message.role === MessageRole.ASSISTANT ? 'text-library-forest-700' : 'text-library-gold-700'
               }`}>
-                {message.role === MessageRole.USER ? 'Scholar' : 
-                  message.role === MessageRole.ASSISTANT ? 'Learned Colleague' : 'Scribe'}
-              </div>
-              <div className="text-xs text-reading-muted font-sans italic">
-                {message.role === MessageRole.USER ? 'Your Inquiry' : 
-                  message.role === MessageRole.ASSISTANT ? 'Scholarly Response' : 'System Notice'}
+                {message.role === MessageRole.USER ? 'Inquirer' : 
+                  message.role === MessageRole.ASSISTANT ? 'Reading Colleague' : 'Scribe'}
               </div>
             </div>
           </div>
@@ -196,20 +181,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
               </button>
             )}
             
-            {/* ORNATE version selector */}
-            {hasVersions && !isStreaming && (
-              <button
-                onClick={() => setIsShowingVersions(!isShowingVersions)}
-                className="group flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-library-gold-100 to-library-gold-200 hover:from-library-gold-200 hover:to-library-gold-300 text-library-gold-700 hover:text-library-gold-800 rounded-book transition-all duration-300 shadow-paper hover:shadow-book border border-library-gold-200"
-              >
-                <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12,18.17L8.83,15L7.42,16.41L12,21L16.59,16.41L15.17,15M12,5.83L15.17,9L16.58,7.59L12,3L7.41,7.59L8.83,9L12,5.83Z"/>
-                </svg>
-                <span className="text-xs font-serif font-medium">
-                  {isShowingVersions ? 'Hide Variants' : 'Show Variants'}
-                </span>
-              </button>
-            )}
           </div>
         </div>
         
@@ -223,7 +194,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={5}
-                  className="w-full p-4 font-serif text-reading-primary bg-gradient-to-br from-surface-paper to-library-cream-50 border-2 border-library-sage-300 rounded-journal focus:outline-none focus:ring-4 focus:ring-library-gold-300 focus:border-library-mahogany-400 shadow-inner transition-all duration-300 placeholder:text-reading-muted placeholder:italic"
+                  className="w-full p-4 font-serif text-reading-primary bg-gradient-to-br from-surface-paper to-library-cream-50 border-2 border-library-sage-300 rounded-journal focus:outline-none focus:border-library-mahogany-400 shadow-inner transition-all duration-300 placeholder:text-reading-muted placeholder:italic"
                   placeholder="Refine your scholarly thoughts..."
                   style={{
                     background: `
@@ -233,12 +204,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
                     lineHeight: '1.8'
                   }}
                 />
-                {/* Decorative quill */}
-                <div className="absolute -right-3 -top-3 w-8 h-8 bg-gradient-to-br from-library-gold-400 to-library-mahogany-500 rounded-full flex items-center justify-center shadow-lg opacity-80">
-                  <svg className="w-4 h-4 text-library-cream-50" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
-                  </svg>
-                </div>
               </div>
               
               {/* ORNATE action buttons */}
@@ -265,93 +230,67 @@ const MessageItem: React.FC<MessageItemProps> = ({
             </div>
           ) : (
             <div className="relative">
-              {/* ORNATE drop cap for first character */}
+              {/* Message content rendered through dedicated component */}
               <div className="font-serif text-base leading-relaxed text-reading-primary">
-                {message.role === MessageRole.ASSISTANT && isStreaming ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-library-forest-400 to-library-forest-600 rounded-full flex items-center justify-center animate-pulse">
-                      <svg className="w-4 h-4 text-library-cream-50" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12.5,7H11V12.5L15.75,15.1L16.5,13.9L12.5,11.7V7Z"/>
-                      </svg>
-                    </div>
-                    <span className="font-serif italic text-library-forest-600">
-                      {streamingContent || 'The learned colleague contemplates your inquiry...'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    {/* Drop cap for long messages */}
-                    {message.content.length > 50 && (
-                      <span className={`
-                        float-left text-6xl leading-[0.7] font-bold mr-2 mt-2
-                        ${message.role === MessageRole.USER ? 'text-library-mahogany-500' : 'text-library-forest-500'}
-                        drop-shadow-lg
-                      `}>
-                        {message.content.charAt(0)}
-                      </span>
-                    )}
-                    <span className="text-serif">
-                      {message.content.length > 50 ? message.content.slice(1) : message.content}
-                    </span>
-                  </div>
-                )}
+                <MessageContentRenderer
+                  content={message.content}
+                  role={message.role}
+                  isStreaming={isStreaming}
+                  streamingContent={streamingContent}
+                />
               </div>
             </div>
           )}
         </div>
         
-        {/* ORNATE message versions */}
-        {isShowingVersions && hasVersions && !isStreaming && (
-          <div className="mt-6 pt-4 border-t border-library-sage-200/50 relative">
-            {/* Decorative divider ornament */}
-            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-              <div className="w-6 h-1 bg-library-gold-300 rounded-full opacity-60"></div>
-            </div>
-            
-            <div className="text-sm font-serif font-semibold mb-3 text-library-forest-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12,18.17L8.83,15L7.42,16.41L12,21L16.59,16.41L15.17,15M12,5.83L15.17,9L16.58,7.59L12,3L7.41,7.59L8.83,9L12,5.83Z"/>
-              </svg>
-              Manuscript Variants:
-            </div>
-            <div className="space-y-2">
-              {versions.map((version, index) => (
-                <button
-                  key={version.id}
-                  onClick={() => onSwitchVersion(version.id)}
-                  className={`
-                    w-full text-left p-3 rounded-book transition-all duration-300 text-sm font-serif
-                    ${version.id === message.id
-                      ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-library-gold-800 border-2 border-library-gold-300 shadow-book'
-                      : 'bg-gradient-to-r from-library-cream-50 to-surface-parchment hover:from-library-cream-100 hover:to-library-cream-200 text-reading-secondary border border-library-sage-200 hover:border-library-sage-300 shadow-paper hover:shadow-book'
-                    }
-                  `}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`
-                      w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                      ${version.id === message.id
-                        ? 'bg-library-gold-400 text-library-cream-50'
-                        : 'bg-library-sage-300 text-library-sage-700'
-                      }
-                    `}>
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate">
-                        {version.content.substring(0, 80)}
-                        {version.content.length > 80 ? '...' : ''}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         
-        {/* ELEGANT timestamp with flourish */}
-        <div className="flex items-center justify-end mt-4 pt-2 border-t border-library-sage-200/30">
+        {/* ELEGANT timestamp with version navigation */}
+        <div className="flex items-center justify-between mt-4 pt-2 border-t border-library-sage-200/30">
+          {/* Version navigation - minimal arrows (only show if multiple versions) */}
+          {hasVersions && versions.length > 1 && !isStreaming && (() => {
+            const currentIndex = versions.findIndex(v => v.id === message.id);
+            const totalVersions = versions.length;
+            const canGoPrev = currentIndex > 0;
+            const canGoNext = currentIndex < totalVersions - 1;
+            
+            return (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => canGoPrev && onSwitchVersion(versions[currentIndex - 1].id)}
+                  className={`p-1 rounded-full transition-all duration-200 ${
+                    canGoPrev 
+                      ? 'text-reading-muted hover:text-reading-primary hover:bg-library-sage-100' 
+                      : 'text-library-sage-300 cursor-not-allowed'
+                  }`}
+                  disabled={!canGoPrev}
+                >
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"/>
+                  </svg>
+                </button>
+                
+                <span className="text-xs text-reading-muted font-mono">
+                  {currentIndex + 1}/{totalVersions}
+                </span>
+                
+                <button
+                  onClick={() => canGoNext && onSwitchVersion(versions[currentIndex + 1].id)}
+                  className={`p-1 rounded-full transition-all duration-200 ${
+                    canGoNext 
+                      ? 'text-reading-muted hover:text-reading-primary hover:bg-library-sage-100' 
+                      : 'text-library-sage-300 cursor-not-allowed'
+                  }`}
+                  disabled={!canGoNext}
+                >
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                  </svg>
+                </button>
+              </div>
+            );
+          })()}
+          
+          {/* Timestamp */}
           <div className="flex items-center gap-2 text-xs text-reading-muted font-sans italic">
             <svg className="w-3 h-3 opacity-60" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12.5,7H11V12.5L15.75,15.1L16.5,13.9L12.5,11.7V7Z"/>
