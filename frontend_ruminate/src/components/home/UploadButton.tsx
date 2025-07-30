@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
@@ -37,10 +37,12 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   };
 
   // Navigate to viewer when upload is complete
-  if (hasUploadedFile && documentId) {
-    router.push(`/viewer/${documentId}`);
-    onUploadComplete?.(); // Call the callback if provided
-  }
+  useEffect(() => {
+    if (hasUploadedFile && documentId) {
+      router.push(`/viewer/${documentId}`);
+      onUploadComplete?.(); // Call the callback if provided
+    }
+  }, [hasUploadedFile, documentId, router, onUploadComplete]);
 
 
   return (
