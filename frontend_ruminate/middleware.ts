@@ -9,23 +9,25 @@ const publicRoutes = ['/']
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Check for auth token in cookies first, then URL params (for OAuth callback)
+  // Check for auth token in cookies
   const cookieToken = request.cookies.get('auth_token')?.value
   const urlToken = request.nextUrl.searchParams.get('token')
-  const hasToken = cookieToken || urlToken
+  
+  // If this is an OAuth callback (has token in URL), let it through to be processed
+  if (urlToken) {
+    return NextResponse.next()
+  }
 
   // For protected routes - redirect to landing if not authenticated
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
-    if (!hasToken) {
+    if (!cookieToken) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
   // For public routes (landing page) - redirect to home if already authenticated
-  if (publicRoutes.includes(pathname)) {
-    if (hasToken) {
-      return NextResponse.redirect(new URL('/home', request.url))
-    }
+  if (publicRoutes.includes(pathname) && cookieToken) {
+    return NextResponse.redirect(new URL('/home', request.url))
   }
 
   return NextResponse.next()

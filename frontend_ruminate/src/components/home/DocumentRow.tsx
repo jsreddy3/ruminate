@@ -1,6 +1,6 @@
 "use client";
 
-import { Document, documentApi } from '@/services/api/document';
+import { Document } from '@/services/api/document';
 import { formatDistanceToNow } from 'date-fns';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
@@ -9,11 +9,11 @@ interface DocumentRowProps {
   document: Document;
   onClick: () => void;
   onDelete?: (documentId: string) => void;
+  onStartProcessing?: (documentId: string) => void;
 }
 
-export default function DocumentRow({ document, onClick, onDelete }: DocumentRowProps) {
+export default function DocumentRow({ document, onClick, onDelete, onStartProcessing }: DocumentRowProps) {
   const [isHovering, setIsHovering] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
@@ -57,15 +57,8 @@ export default function DocumentRow({ document, onClick, onDelete }: DocumentRow
 
   const handleProcessClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
-    setIsProcessing(true);
-    try {
-      await documentApi.startProcessing(document.id);
-      // Navigate to the upload progress view with the document ID
-      window.location.href = `/upload-progress?documentId=${document.id}`;
-    } catch (error) {
-      console.error('Failed to start processing:', error);
-      alert('Failed to start processing. Please try again.');
-      setIsProcessing(false);
+    if (onStartProcessing) {
+      onStartProcessing(document.id);
     }
   };
 
@@ -115,11 +108,10 @@ export default function DocumentRow({ document, onClick, onDelete }: DocumentRow
           {document.status === 'AWAITING_PROCESSING' && (
             <button
               onClick={handleProcessClick}
-              disabled={isProcessing}
-              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
               title="Start processing this chunk"
             >
-              {isProcessing ? 'Processing...' : 'Process'}
+              Process
             </button>
           )}
           

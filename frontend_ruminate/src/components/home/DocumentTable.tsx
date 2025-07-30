@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Document } from '@/services/api/document';
+import { Document, documentApi } from '@/services/api/document';
 import DocumentRow from './DocumentRow';
+import ProcessingModal from './ProcessingModal';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -16,6 +17,7 @@ type SortDirection = 'asc' | 'desc';
 export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete }: DocumentTableProps) {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [processingDocumentId, setProcessingDocumentId] = useState<string | null>(null);
 
   const sortedDocuments = useMemo(() => {
     const sorted = [...documents].sort((a, b) => {
@@ -46,6 +48,16 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
     }
   };
 
+  const handleStartProcessing = async (documentId: string) => {
+    try {
+      await documentApi.startProcessing(documentId);
+      setProcessingDocumentId(documentId);
+    } catch (error) {
+      console.error('Failed to start processing:', error);
+      alert('Failed to start processing. Please try again.');
+    }
+  };
+
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
@@ -67,8 +79,9 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
             <th 
@@ -108,10 +121,21 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               document={document}
               onClick={() => onDocumentClick(document)}
               onDelete={onDocumentDelete}
+              onStartProcessing={handleStartProcessing}
             />
           ))}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+      
+      {/* Processing Modal - rendered outside the table */}
+      {processingDocumentId && (
+        <ProcessingModal
+          documentId={processingDocumentId}
+          isOpen={true}
+          onClose={() => setProcessingDocumentId(null)}
+        />
+      )}
+    </>
   );
 }

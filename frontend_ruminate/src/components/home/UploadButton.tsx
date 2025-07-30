@@ -37,8 +37,8 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   };
 
   // Navigate to viewer when upload is complete
-  if (hasUploadedFile && pdfFile && documentId) {
-    router.push(`/viewer?documentId=${documentId}&pdfUrl=${encodeURIComponent(pdfFile)}`);
+  if (hasUploadedFile && documentId) {
+    router.push(`/viewer/${documentId}`);
     onUploadComplete?.(); // Call the callback if provided
   }
 
