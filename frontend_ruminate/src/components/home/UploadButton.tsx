@@ -207,7 +207,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                           value={urlInput}
                           onChange={(e) => setUrlInput(e.target.value)}
                           placeholder="https://example.com/article"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 placeholder-gray-400 bg-white"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && urlInput.trim()) {
                               handleUrlUpload();
