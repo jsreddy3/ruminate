@@ -42,4 +42,4 @@ kill_timeout = "5s"
   cpus = 1
 
 [deploy]
-  release_command = "alembic upgrade head"
+  release_command = "alembic -c new_backend_ruminate/alembic.ini upgrade head"
