@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import ScholarlyProgressBar from '../../common/ScholarlyProgressBar';
 
 interface BlockNavigatorPillProps {
   currentIndex: number;
@@ -23,49 +24,52 @@ export default function BlockNavigatorPill({
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="inline-flex items-center gap-3 px-2 py-1.5 bg-white border border-gray-200 rounded-full shadow-xl"
+      className="inline-flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-surface-parchment to-library-cream-100 border-2 border-library-sage-300 rounded-journal shadow-book"
     >
-      {/* Back button */}
+      {/* Back button with scholarly styling */}
       <button
         onClick={onPrevious}
         disabled={!canGoPrevious}
-        className={`p-1.5 rounded-full transition-all ${
+        className={`group p-1.5 rounded-book transition-all duration-300 ${
           canGoPrevious 
-            ? 'hover:bg-gray-100 text-gray-600 hover:text-gray-800' 
-            : 'text-gray-300 cursor-not-allowed'
+            ? 'hover:bg-library-cream-200 text-library-mahogany-600 hover:text-library-mahogany-800' 
+            : 'text-library-sage-400 cursor-not-allowed'
         }`}
-        aria-label="Previous block"
+        aria-label="Previous passage"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
       </button>
 
-      {/* Progress bar */}
-      <div className="w-40 h-2 bg-gray-100 rounded-full relative">
-        <div 
-          className="absolute inset-y-0 left-0 bg-indigo-500 rounded-full transition-all duration-300"
-          style={{ width: `${progress}%` }}
+      {/* Compact progress bar */}
+      <div className="flex items-center gap-2">
+        <ScholarlyProgressBar
+          progress={progress}
+          variant="reading"
+          size="sm"
+          animated={true}
+          showPercentage={false}
+          className="flex-shrink-0"
         />
+        
+        {/* Page counter */}
+        <span className="text-xs font-serif font-medium text-reading-primary whitespace-nowrap min-w-[3rem] text-center">
+          {currentIndex + 1}/{totalBlocks}
+        </span>
       </div>
-      
-      {/* Progress numbers */}
-      <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
-        {currentIndex + 1}/{totalBlocks}
-      </span>
 
-      {/* Forward button */}
+      {/* Forward button with scholarly styling */}
       <button
         onClick={onNext}
         disabled={!canGoNext}
-        className={`p-1.5 rounded-full transition-all ${
+        className={`group p-1.5 rounded-book transition-all duration-300 ${
           canGoNext 
-            ? 'hover:bg-gray-100 text-gray-600 hover:text-gray-800' 
-            : 'text-gray-300 cursor-not-allowed'
+            ? 'hover:bg-library-cream-200 text-library-mahogany-600 hover:text-library-mahogany-800' 
+            : 'text-library-sage-400 cursor-not-allowed'
         }`}
-        aria-label="Next block"
+        aria-label="Next passage"
       >
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
       </button>
-
     </motion.div>
   );
 }

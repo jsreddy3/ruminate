@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentProcessingEvent, DocumentStatus } from '@/types';
 import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid';
+import ScholarlyProgressBar from '../common/ScholarlyProgressBar';
 
 interface UploadProgressStepsProps {
   events: DocumentProcessingEvent[];
@@ -300,6 +301,19 @@ export default function UploadProgressSteps({ events, currentStatus, error: _err
           );
         })}
       </div>
+
+      {/* Beautiful overall progress indicator */}
+      {currentStatus !== 'READY' && currentStatus !== 'ERROR' && (
+        <div className="mb-8 flex justify-center">
+          <ScholarlyProgressBar
+            progress={Math.round(((steps.findIndex(step => getStepStatus(step.id, currentStatus, events, steps) === 'active') + 1) / steps.length) * 100)}
+            label="Document Processing"
+            variant="processing"
+            size="md"
+            animated={true}
+          />
+        </div>
+      )}
 
       {/* Processing Messages */}
       <ProcessingMessages events={events} currentStatus={currentStatus} />

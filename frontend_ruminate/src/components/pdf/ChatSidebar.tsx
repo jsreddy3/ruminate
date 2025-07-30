@@ -1,6 +1,7 @@
 import React from 'react';
 import { Block } from './PDFViewer';
 import ChatContainer from '../chat/ChatContainer';
+import ConversationCodex from '../chat/ConversationCodex';
 
 interface RabbitholeConversation {
   id: string;
@@ -42,53 +43,39 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onOpenBlockWithNote,
   getBlockMetadata,
 }) => {
+  // Transform data for ConversationCodex
+  const conversations = [
+    {
+      id: null,
+      title: 'Main Discussion',
+      type: 'main' as const,
+      isActive: activeConversationId === null
+    },
+    ...rabbitholeConversations.map(conv => ({
+      id: conv.id,
+      title: conv.title,
+      type: 'rabbithole' as const,
+      selectionText: conv.selectionText,
+      isActive: activeConversationId === conv.id
+    }))
+  ];
+
+  const handleConversationClose = (id: string) => {
+    onSetRabbitholeConversations(prev => prev.filter(c => c.id !== id));
+    if (activeConversationId === id) {
+      onSetActiveConversationId(null);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Chat header with tabs */}
-      <div className="border-b border-gray-200 p-3 flex flex-col">
-        {/* Conversation tabs */}
-        <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
-          {/* Main chat tab */}
-          <button 
-            className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
-              activeConversationId === null 
-              ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-            onClick={() => onSetActiveConversationId(null)}
-          >
-            Main Chat
-          </button>
-          
-          {/* Agent chat tabs */}
-          {rabbitholeConversations.map(conv => (
-            <button
-              key={conv.id}
-              className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
-                activeConversationId === conv.id
-                ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => onSetActiveConversationId(conv.id)}
-            >
-              <span>🔍</span>
-              <span>{conv.title}</span>
-              <span 
-                className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSetRabbitholeConversations(prev => prev.filter(c => c.id !== conv.id));
-                  if (activeConversationId === conv.id) {
-                    onSetActiveConversationId(null);
-                  }
-                }}
-              >
-                ×
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="flex flex-col h-full relative">
+      {/* Beautiful ConversationCodex replaces ugly tabs */}
+      <ConversationCodex
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onConversationChange={onSetActiveConversationId}
+        onConversationClose={handleConversationClose}
+      />
       
       {/* Chat container */}
       <div className="flex-1 overflow-hidden">
