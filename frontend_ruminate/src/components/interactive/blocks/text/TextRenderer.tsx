@@ -169,7 +169,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   };
   
   // Handle define text action
-  const handleDefineText = (_text: string) => {
+  const handleDefineText = async (text: string) => {
     
     // Ensure we have the offsets from selectedRange
     if (!selectedRange) {
@@ -178,10 +178,20 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     }
     
     setDefinitionWord(text);
-    setSavedDefinition(null); // Clear any saved definition
-    setDefinitionPosition(tooltipPosition);
-    setDefinitionVisible(true);
     setTooltipVisible(false);
+    
+    try {
+      // Make API call first, get result
+      const result = await saveDefinition(text, selectedRange.startOffset, selectedRange.endOffset, metadata);
+      
+      // Now open popup with the result (no further fetching)
+      setSavedDefinition(result.definition);
+      setDefinitionPosition(tooltipPosition);
+      setDefinitionVisible(true);
+    } catch (error) {
+      console.error('Error fetching definition:', error);
+      // Could show error state here
+    }
   };
 
   // Handle creating a rabbithole conversation
@@ -220,13 +230,10 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setDefinitionVisible(true);
   }, []);
   
-  // Handle when a new definition is saved
-  const handleDefinitionSaved = async (term: string, _definition: string, startOffset: number, endOffset: number, _fullResponse?: any) => {
-    try {
-      await saveDefinition(term, startOffset, endOffset, metadata);
-    } catch (error) {
-      console.error('Error saving definition:', error);
-    }
+  // Handle when a new definition is saved (no-op since we already handled it)
+  const handleDefinitionSaved = () => {
+    // No-op: We already made the API call and updated metadata in handleDefineText
+    // This callback exists for DefinitionPopup compatibility but does nothing
   };
 
   // Handle annotation text action (from tooltip)

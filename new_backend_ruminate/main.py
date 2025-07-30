@@ -33,6 +33,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Local development
+        "http://localhost:3001",  # Local development
         "https://ruminate-six.vercel.app"  # Production frontend
     ],
     allow_credentials=True,

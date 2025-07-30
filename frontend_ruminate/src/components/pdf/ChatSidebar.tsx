@@ -5,6 +5,8 @@ import ChatContainer from '../chat/ChatContainer';
 interface RabbitholeConversation {
   id: string;
   title: string;
+  selectionText: string;
+  blockId: string;
 }
 
 interface ChatSidebarProps {

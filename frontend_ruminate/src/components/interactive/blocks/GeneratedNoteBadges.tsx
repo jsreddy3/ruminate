@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X, MessageSquare, Grip, Lightbulb } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageSquare, Lightbulb } from 'lucide-react';
+import BasePopover from '../../common/BasePopover';
 
 interface GeneratedNote {
   id: string;
@@ -22,12 +22,6 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
 }) => {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
-  const [popupSize, setPopupSize] = useState({ width: 480, height: 360 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 480, height: 360 });
-  const popupRef = useRef<HTMLDivElement>(null);
 
   // Filter generated notes from annotations
   const generatedNotes: GeneratedNote[] = Object.entries(annotations)
@@ -46,56 +40,6 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
 
   const activeNote = generatedNotes.find(note => note.id === activeNoteId);
 
-  // Mouse event handlers for dragging
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target === popupRef.current || (e.target as HTMLElement).closest('.drag-handle')) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - popupPosition.x, y: e.clientY - popupPosition.y });
-    }
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isDragging) {
-      setPopupPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
-    } else if (isResizing) {
-      const newWidth = Math.max(320, resizeStart.width + (e.clientX - resizeStart.x));
-      const newHeight = Math.max(240, resizeStart.height + (e.clientY - resizeStart.y));
-      setPopupSize({ width: newWidth, height: newHeight });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setIsResizing(false);
-  };
-
-  // Resize handlers
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsResizing(true);
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: popupSize.width,
-      height: popupSize.height
-    });
-  };
-
-  // Add global mouse event listeners
-  React.useEffect(() => {
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, isResizing, dragStart, resizeStart, popupPosition, popupSize]);
 
   // Early return after all hooks are called
   
@@ -114,8 +58,8 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
             setActiveNoteId(activeNoteId === note.id ? null : note.id);
             // Reset position when opening a new note - center on screen
             if (isOpening) {
-              const centerX = Math.max(20, (window.innerWidth - popupSize.width) / 2);
-              const centerY = Math.max(20, (window.innerHeight - popupSize.height) / 2);
+              const centerX = Math.max(20, (window.innerWidth - 480) / 2);
+              const centerY = Math.max(20, (window.innerHeight - 360) / 2);
               setPopupPosition({ x: centerX, y: centerY });
             }
           }}
@@ -141,82 +85,58 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
         </button>
       ))}
 
-      {/* Draggable and resizable note popup - rendered as portal */}
-      {activeNote && createPortal(
-        <div
-          ref={popupRef}
-          className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 select-none backdrop-blur-sm"
-          style={{
-            left: `${popupPosition.x}px`,
-            top: `${popupPosition.y}px`,
-            width: `${popupSize.width}px`,
-            height: `${popupSize.height}px`,
-            zIndex: 999999,
-            cursor: isDragging ? 'grabbing' : 'default'
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          {/* Draggable Header */}
-          <div className="drag-handle px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-yellow-50 to-amber-50 rounded-t-lg cursor-grab active:cursor-grabbing">
+      {/* Draggable and resizable note popup using BasePopover */}
+      {activeNote && (
+        <BasePopover
+          isVisible={true}
+          position={popupPosition}
+          onClose={() => setActiveNoteId(null)}
+          draggable={true}
+          resizable={true}
+          initialWidth={480}
+          initialHeight={360}
+          minWidth={320}
+          minHeight={240}
+          title={
             <div className="flex items-center gap-2">
-              <Grip className="w-4 h-4 text-gray-400" />
               <Lightbulb className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm font-medium text-gray-900 truncate">
+              <span className="text-yellow-900 truncate">
                 {activeNote.topic || 'Conversation Summary'}
               </span>
             </div>
-            <button
-              onClick={() => setActiveNoteId(null)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-100"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Resizable Content */}
-          <div 
-            className="p-4 overflow-y-auto"
-            style={{ 
-              height: `${popupSize.height - 110}px` // Account for header and footer
-            }}
-          >
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-              {activeNote.note}
-            </p>
-          </div>
-
-          {/* Footer */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-b-lg">
-            <div className="flex items-center gap-3 text-xs">
-              {activeNote.message_count && (
-                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                  {activeNote.message_count} messages
-                </span>
-              )}
-              <span>{new Date(activeNote.created_at).toLocaleDateString()}</span>
+          }
+          className="border-gray-200 shadow-2xl backdrop-blur-sm"
+        >
+          <div className="flex flex-col h-full">
+            {/* Content */}
+            <div className="p-4 flex-1 overflow-y-auto">
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {activeNote.note}
+              </p>
             </div>
-            {activeNote.source_conversation_id && onViewConversation && (
-              <button
-                onClick={() => onViewConversation(activeNote.source_conversation_id!)}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs px-2 py-1 rounded hover:bg-blue-50"
-              >
-                <MessageSquare className="w-3 h-3" />
-                View Chat
-              </button>
-            )}
-          </div>
 
-          {/* Resize handle */}
-          <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize opacity-50 hover:opacity-100 transition-opacity"
-            onMouseDown={handleResizeStart}
-          >
-            <div className="absolute bottom-1 right-1 w-0 h-0 border-l-2 border-b-2 border-gray-400"></div>
-            <div className="absolute bottom-0.5 right-2 w-0 h-0 border-l-2 border-b-2 border-gray-400"></div>
-            <div className="absolute bottom-2 right-0.5 w-0 h-0 border-l-2 border-b-2 border-gray-400"></div>
+            {/* Footer */}
+            <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-b-lg">
+              <div className="flex items-center gap-3 text-xs">
+                {activeNote.message_count && (
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                    {activeNote.message_count} messages
+                  </span>
+                )}
+                <span>{new Date(activeNote.created_at).toLocaleDateString()}</span>
+              </div>
+              {activeNote.source_conversation_id && onViewConversation && (
+                <button
+                  onClick={() => onViewConversation(activeNote.source_conversation_id!)}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs px-2 py-1 rounded hover:bg-blue-50"
+                >
+                  <MessageSquare className="w-3 h-3" />
+                  View Chat
+                </button>
+              )}
+            </div>
           </div>
-        </div>,
-        document.body
+        </BasePopover>
       )}
     </div>
   );
