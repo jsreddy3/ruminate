@@ -124,6 +124,11 @@ class AnnotationResponse(BaseModel):
         }
 
 
+class DocumentUpdateRequest(BaseModel):
+    """Request schema for updating document metadata"""
+    title: Optional[str] = Field(None, description="New title for the document", min_length=1, max_length=255)
+
+
 class EnhancedDefinitionResponse(BaseModel):
     """Enhanced response schema for definition with positioning data"""
     term: str

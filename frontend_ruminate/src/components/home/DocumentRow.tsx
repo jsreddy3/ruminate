@@ -1,8 +1,8 @@
 "use client";
 
-import { Document } from '@/services/api/document';
+import { Document, documentApi } from '@/services/api/document';
 import { formatDistanceToNow } from 'date-fns';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
 interface DocumentRowProps {
@@ -10,10 +10,14 @@ interface DocumentRowProps {
   onClick: () => void;
   onDelete?: (documentId: string) => void;
   onStartProcessing?: (documentId: string) => void;
+  onUpdate?: (document: Document) => void;
 }
 
-export default function DocumentRow({ document, onClick, onDelete, onStartProcessing }: DocumentRowProps) {
+export default function DocumentRow({ document, onClick, onDelete, onStartProcessing, onUpdate }: DocumentRowProps) {
   const [isHovering, setIsHovering] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(document.title);
+  const [isSaving, setIsSaving] = useState(false);
   
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
@@ -62,6 +66,49 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
     }
   };
 
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditedTitle(document.title);
+  };
+
+  const handleSaveTitle = async (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
+    
+    if (editedTitle.trim() === '' || editedTitle === document.title) {
+      setIsEditing(false);
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const updatedDoc = await documentApi.updateDocument(document.id, { title: editedTitle.trim() });
+      onUpdate?.(updatedDoc);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to update document title:', error);
+      alert('Failed to update document title');
+      setEditedTitle(document.title);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
+    setIsEditing(false);
+    setEditedTitle(document.title);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      handleSaveTitle(e);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit(e);
+    }
+  };
+
   return (
     <tr 
       className="hover:bg-gray-50 cursor-pointer transition-colors group"
@@ -86,10 +133,36 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           
           {/* Document Name */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-gray-900 truncate">
-              {document.title}
-            </h3>
-            {getStatusIcon()}
+            {isEditing ? (
+              <input
+                type="text"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={handleTitleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                onBlur={handleSaveTitle}
+                disabled={isSaving}
+                className="text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 flex-1"
+                autoFocus
+              />
+            ) : (
+              <>
+                <h3 className="text-sm font-medium text-gray-900 truncate">
+                  {document.title}
+                </h3>
+                {/* Edit Button - right next to title */}
+                {isHovering && (
+                  <button
+                    onClick={handleEditClick}
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50 flex-shrink-0"
+                    title="Edit document name"
+                  >
+                    <PencilIcon className="w-3 h-3" />
+                  </button>
+                )}
+                {getStatusIcon()}
+              </>
+            )}
           </div>
         </div>
       </td>
@@ -116,7 +189,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           )}
           
           {/* Delete Button - shown on hover */}
-          {onDelete && isHovering && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && (
+          {onDelete && isHovering && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && (
             <button
               onClick={handleDeleteClick}
               className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"

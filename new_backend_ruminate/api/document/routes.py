@@ -1,5 +1,6 @@
 """Document API routes"""
 from typing import Optional, List
+from datetime import datetime
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,8 @@ from new_backend_ruminate.api.document.schemas import (
     EnhancedDefinitionResponse,
     AnnotationRequest,
     AnnotationResponse,
-    S3UploadRequest
+    S3UploadRequest,
+    DocumentUpdateRequest
 )
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token, get_storage_service
@@ -455,6 +457,61 @@ async def update_block_annotations(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating annotation: {str(e)}")
+
+
+@router.patch("/{document_id}")
+async def update_document(
+    document_id: str,
+    update_data: DocumentUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """
+    Update document metadata.
+    
+    Currently supports updating:
+    - title: The display name of the document
+    
+    Returns the updated document.
+    """
+    try:
+        # Prepare updates dictionary
+        updates = {}
+        if update_data.title is not None:
+            updates["title"] = update_data.title
+        
+        # Use service method to update document
+        updated_document = await svc.update_document(document_id, current_user.id, updates, session)
+        
+        # Return the updated document
+        return DocumentResponse(
+            id=updated_document.id,
+            user_id=updated_document.user_id,
+            status=updated_document.status,
+            title=updated_document.title,
+            summary=updated_document.summary,
+            created_at=updated_document.created_at,
+            updated_at=updated_document.updated_at,
+            processing_error=updated_document.processing_error,
+            parent_document_id=updated_document.parent_document_id,
+            batch_id=updated_document.batch_id,
+            chunk_index=updated_document.chunk_index,
+            total_chunks=updated_document.total_chunks,
+            is_auto_processed=updated_document.is_auto_processed
+        )
+        
+    except ValueError as e:
+        print(f"[UPDATE_DOCUMENT] ValueError: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        print(f"[UPDATE_DOCUMENT] PermissionError: {str(e)}")
+        raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+    except Exception as e:
+        print(f"[UPDATE_DOCUMENT] Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error updating document: {str(e)}")
 
 
 @router.delete("/{document_id}")

@@ -79,6 +79,12 @@ export default function HomePage() {
     }
   };
 
+  const handleDocumentUpdate = (updatedDocument: Document) => {
+    setDocuments(prev => prev.map(doc => 
+      doc.id === updatedDocument.id ? updatedDocument : doc
+    ));
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteConfirm.documentId) return;
 
@@ -178,6 +184,7 @@ export default function HomePage() {
                 documents={documents} 
                 onDocumentClick={handleDocumentClick}
                 onDocumentDelete={handleDeleteRequest}
+                onDocumentUpdate={handleDocumentUpdate}
               />
             )}
           </div>

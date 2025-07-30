@@ -9,12 +9,13 @@ interface DocumentTableProps {
   documents: Document[];
   onDocumentClick: (document: Document) => void;
   onDocumentDelete?: (documentId: string) => void;
+  onDocumentUpdate?: (document: Document) => void;
 }
 
 type SortField = 'title' | 'created_at' | 'updated_at' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete }: DocumentTableProps) {
+export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate }: DocumentTableProps) {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [processingDocumentId, setProcessingDocumentId] = useState<string | null>(null);
@@ -122,6 +123,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               onClick={() => onDocumentClick(document)}
               onDelete={onDocumentDelete}
               onStartProcessing={handleStartProcessing}
+              onUpdate={onDocumentUpdate}
             />
           ))}
         </tbody>

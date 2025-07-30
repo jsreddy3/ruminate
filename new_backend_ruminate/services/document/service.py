@@ -963,6 +963,40 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         
         return note_metadata
     
+    async def update_document(self, document_id: str, user_id: str, updates: Dict[str, Any], session: AsyncSession) -> Document:
+        """
+        Update document metadata.
+        
+        Args:
+            document_id: The document ID to update
+            user_id: The user requesting the update (for ownership verification)
+            updates: Dictionary of fields to update (e.g., {"title": "New Title"})
+            session: Database session
+            
+        Returns:
+            Updated document entity
+            
+        Raises:
+            ValueError: If document not found or user doesn't own it
+        """
+        # Get and validate document
+        document = await self.get_document(document_id, user_id, session)
+        if not document:
+            raise ValueError("Document not found")
+        
+        # Apply updates
+        for field, value in updates.items():
+            if hasattr(document, field):
+                setattr(document, field, value)
+            else:
+                raise ValueError(f"Invalid field: {field}")
+        
+        # Update timestamp and save
+        document.updated_at = datetime.now()
+        updated_document = await self._repo.update_document(document, session)
+        
+        return updated_document
+
     async def delete_document(self, document_id: str, user_id: str, session: AsyncSession) -> bool:
         """
         Delete a document and all its associated data (cascade delete).

@@ -214,6 +214,29 @@ export const documentApi = {
   },
 
   /**
+   * Update document metadata
+   * @param documentId Document ID to update
+   * @param updates Object containing fields to update (e.g., { title: "New Title" })
+   * @returns Updated document
+   */
+  updateDocument: async (documentId: string, updates: { title?: string }): Promise<Document> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to update document');
+    }
+    
+    return response.json();
+  },
+
+  /**
    * Start processing for a document chunk in AWAITING_PROCESSING status
    * @param documentId Document ID to start processing
    * @returns Updated document object
