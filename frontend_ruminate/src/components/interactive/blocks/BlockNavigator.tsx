@@ -8,6 +8,7 @@ interface BlockNavigatorProps {
   blocks: Block[];
   currentBlockId?: string;
   documentId: string;
+  getRabbitholeHighlightsForBlock?: (blockId: string) => any[];
   onBlockChange?: (block: Block) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
@@ -22,6 +23,7 @@ export default function BlockNavigator({
   blocks,
   currentBlockId, 
   documentId,
+  getRabbitholeHighlightsForBlock,
   onBlockChange,
   onRabbitholeClick,
   onCreateRabbithole,
@@ -97,6 +99,7 @@ export default function BlockNavigator({
             documentId={documentId}
             images={currentBlock.images}
             metadata={currentBlock.metadata}
+            rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(currentBlock.id) : []}
             customStyle={{ backgroundColor: 'white' }}
             onRefreshRabbitholes={onRefreshRabbitholes}
             onAddTextToChat={onAddTextToChat}

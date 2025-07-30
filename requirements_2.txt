@@ -43,12 +43,11 @@ iniconfig==2.1.0
 Jinja2==3.1.6
 jiter==0.10.0
 jmespath==1.0.1
-# Removed - conflicts with PyJWT
 kombu==5.5.4
 Mako==1.3.10
 MarkupSafe==3.0.2
 multidict==6.6.2
-# Package installed via pip install -e . in Dockerfile
+-e git+https://github.com/jsreddy3/ruminate.git@82b2480bba85dfbc283e344386dbcd7eeb8bb5f3#egg=new_backend_ruminate
 numpy==2.2.6
 openai==1.93.0
 packaging==25.0

@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { useBlockData } from '../../../hooks/useBlockData';
 import BlockRenderer from './BlockRenderer';
 import { RabbitholeHighlight } from '../../../services/rabbithole';
 
@@ -23,6 +22,7 @@ interface BlockContainerProps {
     phrase: string;
     insight: string;
   }>;
+  rabbitholeHighlights?: RabbitholeHighlight[];
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
@@ -32,8 +32,8 @@ interface BlockContainerProps {
 }
 
 /**
- * BlockContainer is responsible for fetching and providing block data.
- * It acts as a container component that separates data fetching from presentation.
+ * BlockContainer now receives pre-computed rabbithole highlights.
+ * No more per-block fetching - data comes from document-level state.
  */
 export default function BlockContainer({
   blockId,
@@ -43,6 +43,7 @@ export default function BlockContainer({
   images = {},
   metadata,
   highlights = [],
+  rabbitholeHighlights = [],
   onAddTextToChat,
   onRabbitholeClick,
   onCreateRabbithole,
@@ -50,30 +51,18 @@ export default function BlockContainer({
   onUpdateBlockMetadata,
   customStyle
 }: BlockContainerProps) {
-  // Use the hook to fetch rabbithole highlights
-  const { rabbitholeHighlights, isLoading, error, refetch } = useBlockData(blockId);
+  // No-op refetch function for backwards compatibility
+  const noOpRefetch = () => {
+    // Rabbithole data is now managed at document level
+    // Refreshing happens via optimistic updates
+  };
   
-  if (error) {
-    console.error('Error loading block data:', error);
-  }
-  
-  // Expose refetch function through callback
+  // Expose refetch function through callback for backwards compatibility
   useEffect(() => {
     if (onRefreshRabbitholes) {
-      onRefreshRabbitholes(refetch);
+      onRefreshRabbitholes(noOpRefetch);
     }
-  }, [refetch, onRefreshRabbitholes]);
-  
-  // Render a loading state if data is being fetched
-  if (isLoading) {
-    return (
-      <div className="p-4 bg-slate-50 animate-pulse">
-        <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-        <div className="h-4 bg-slate-200 rounded w-1/2 mb-2"></div>
-        <div className="h-4 bg-slate-200 rounded w-5/6"></div>
-      </div>
-    );
-  }
+  }, [onRefreshRabbitholes]);
   
   // Delegate rendering to the appropriate renderer component
   return (

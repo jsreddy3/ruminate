@@ -9,6 +9,7 @@ interface BlockOverlayProps {
   flattenedBlocks: Block[];
   documentId: string;
   pdfPanelWidth: number; // Add this to track the PDF panel width
+  getRabbitholeHighlightsForBlock: (blockId: string) => any[];
   onClose: () => void;
   onBlockChange: (block: Block) => void;
   onRefreshRabbitholes: (refreshFn: () => void) => void;
@@ -26,6 +27,7 @@ export default function BlockOverlay({
   flattenedBlocks,
   documentId,
   pdfPanelWidth,
+  getRabbitholeHighlightsForBlock,
   onClose,
   onBlockChange,
   onRefreshRabbitholes,
@@ -109,6 +111,7 @@ export default function BlockOverlay({
                     blocks={flattenedBlocks}
                     currentBlockId={selectedBlock.id}
                     documentId={documentId}
+                    getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
                     onBlockChange={onBlockChange}
                     onRefreshRabbitholes={onRefreshRabbitholes}
                     onAddTextToChat={onAddTextToChat}

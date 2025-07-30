@@ -288,6 +288,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add state for conversation management
   const [mainConversationId, setMainConversationId] = useState<string | null>(null);
   
+  // Add state for all document conversations and rabbithole data
+  const [documentConversations, setDocumentConversations] = useState<any[]>([]);
+  const [rabbitholeData, setRabbitholeData] = useState<any[]>([]);
+  
   // Block selection mode state
   const [isBlockSelectionMode, setIsBlockSelectionMode] = useState(false);
   const [blockSelectionPrompt, setBlockSelectionPrompt] = useState<string>("Select a block");
@@ -351,6 +355,36 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [documentId]); // Remove selectedBlock from the dependencies
   
+  // Function to convert rabbithole conversations to highlights grouped by block
+  const getRabbitholeHighlightsForBlock = useCallback((blockId: string) => {
+    return rabbitholeData
+      .filter(conv => conv.source_block_id === blockId)
+      .map(conv => ({
+        id: conv.id,
+        selected_text: conv.selected_text || '',
+        text_start_offset: conv.text_start_offset || 0,
+        text_end_offset: conv.text_end_offset || 0,
+        created_at: conv.created_at,
+        conversation_id: conv.id
+      }));
+  }, [rabbitholeData]);
+
+  // Function to optimistically add a new rabbithole conversation
+  const addRabbitholeConversation = useCallback((blockId: string, conversationId: string, selectedText: string, startOffset: number, endOffset: number) => {
+    const newConversation = {
+      id: conversationId,
+      type: 'RABBITHOLE',
+      source_block_id: blockId,
+      selected_text: selectedText,
+      text_start_offset: startOffset,
+      text_end_offset: endOffset,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    setRabbitholeData(prevConversations => [...prevConversations, newConversation]);
+  }, []);
+
   // Function to update a specific block's metadata optimistically
   const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
     setBlocks(prevBlocks => 
@@ -369,6 +403,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     );
   }, []);
   
+  // Fetch rabbithole data for the document
+  useEffect(() => {
+    if (!documentId) return;
+    
+    const fetchRabbitholeData = async () => {
+      try {
+        const rabbitholeResponse = await authenticatedFetch(`${API_BASE_URL}/conversations?document_id=${documentId}&type=RABBITHOLE`);
+        if (rabbitholeResponse.ok) {
+          const rabbitholeConvos = await rabbitholeResponse.json();
+          setRabbitholeData(rabbitholeConvos || []);
+        }
+      } catch (error) {
+        console.error('Error fetching rabbithole data:', error);
+      }
+    };
+    
+    fetchRabbitholeData();
+  }, [documentId]);
+
   // Initialize the main document conversation
   useEffect(() => {
     if (!documentId) return;
@@ -386,6 +439,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         try {
           // Try fetching existing conversations for the document
           const existingConvos = await conversationApi.getDocumentConversations(documentId);
+          
+          // Store conversations in state
+          setDocumentConversations(existingConvos || []);
 
           // Use the first one found, or create if none exist
           if (existingConvos && existingConvos.length > 0) {
@@ -964,6 +1020,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               flattenedBlocks={flattenedBlocks}
               documentId={documentId}
               pdfPanelWidth={currentPanelSizes[0]}
+              getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
               onClose={() => setIsBlockOverlayOpen(false)}
               onBlockChange={(block) => {
                 setSelectedBlock(block);
@@ -1008,16 +1065,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   }).then((conversation_id) => {
                     handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
                     
+                    // Optimistically add the new rabbithole conversation
+                    addRabbitholeConversation(selectedBlock.id, conversation_id, text, startOffset, endOffset);
+                    
                     // Update block metadata optimistically with new rabbithole conversation ID
                     const currentRabbitholeIds = selectedBlock.metadata?.rabbithole_conversation_ids || [];
                     const newMetadata = {
                       rabbithole_conversation_ids: [...currentRabbitholeIds, conversation_id]
                     };
                     updateBlockMetadata(selectedBlock.id, newMetadata);
-                    
-                    if (refreshRabbitholesFnRef.current) {
-                      refreshRabbitholesFnRef.current();
-                    }
                   }).catch(error => {
                     console.error("Error creating rabbithole:", error);
                   });

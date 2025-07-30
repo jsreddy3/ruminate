@@ -1,4 +1,4 @@
-import jwt
+import jwt as PyJWT
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from new_backend_ruminate.domain.user.entities.user import User
@@ -24,16 +24,16 @@ class JWTManager:
             "exp": now + timedelta(hours=self.expire_hours),  # expiration
         }
         
-        return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
+        return PyJWT.encode(payload, self.secret_key, algorithm=self.algorithm)
     
     def decode_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Decode and validate JWT token"""
         try:
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            payload = PyJWT.decode(token, self.secret_key, algorithms=[self.algorithm])
             return payload
-        except jwt.ExpiredSignatureError:
+        except PyJWT.ExpiredSignatureError:
             return None
-        except jwt.InvalidTokenError:
+        except PyJWT.InvalidTokenError:
             return None
     
     def get_user_id_from_token(self, token: str) -> Optional[str]:
