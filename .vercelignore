@@ -11,4 +11,8 @@
 
 # Exclude backend and other directories
 /backend_ruminate
+/new_backend_ruminate
 /.git
+/.claude
+/.pytest_cache
+/storage
