@@ -1024,7 +1024,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 }
               }}
               onSwitchToMainChat={() => setActiveConversationId(null)}
-              mainConversationId={mainConversationId}
+              mainConversationId={mainConversationId ?? undefined}
             />
           </Panel>
           

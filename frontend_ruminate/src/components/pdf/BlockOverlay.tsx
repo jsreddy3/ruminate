@@ -17,7 +17,7 @@ interface BlockOverlayProps {
   onRabbitholeClick: (rabbitholeId: string, selectedText: string) => void;
   onCreateRabbithole: (text: string, startOffset: number, endOffset: number) => void;
   onSwitchToMainChat?: () => void;
-  mainConversationId?: string;
+  mainConversationId?: string | undefined;
 }
 
 export default function BlockOverlay({
