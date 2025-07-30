@@ -14,6 +14,10 @@ export interface Document {
   processing_error?: string | null;
   marker_job_id?: string | null;
   marker_check_url?: string | null;
+  // Reading progress fields
+  furthest_read_block_id?: string | null;
+  furthest_read_position?: number | null;
+  furthest_read_updated_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -301,6 +305,36 @@ export const documentApi = {
     
     if (!response.ok) {
       throw new Error('Failed to confirm upload');
+    }
+    
+    return response.json();
+  },
+
+  /**
+   * Update reading progress for a document
+   * @param documentId Document ID
+   * @param blockId ID of the furthest read block  
+   * @param position Position of the block in reading order
+   * @returns Updated document with reading progress
+   */
+  updateReadingProgress: async (
+    documentId: string, 
+    blockId: string, 
+    position: number
+  ): Promise<Document> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/reading-progress`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        block_id: blockId,
+        position: position
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to update reading progress");
     }
     
     return response.json();

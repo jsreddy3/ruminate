@@ -26,6 +26,7 @@ import { useBlockOverlayManager } from "./BlockOverlayManager";
 import PDFDocumentViewer from "./PDFDocumentViewer";
 import { ResizeHandle, HorizontalResizeHandle } from "../common/ResizeHandles";
 import ConversationLibrary from "../chat/ConversationLibrary";
+import { useReadingProgress } from "../../hooks/useReadingProgress";
 
 export interface Block {
   id: string;
@@ -185,23 +186,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [pdfFile, documentId]);
 
-  // Fetch document title
-  useEffect(() => {
-    const fetchDocumentTitle = async () => {
-      try {
-        const document = await documentApi.getDocument(documentId);
-        setDocumentTitle(document.title);
-      } catch (error) {
-        console.error('Error fetching document title:', error);
-        setDocumentTitle('Unknown Document');
-      }
-    };
-
-    if (documentId) {
-      fetchDocumentTitle();
-    }
-  }, [documentId]);
-
   const [blocks, setBlocks] = useState<Block[]>([]);
   // Block overlay state now managed by useBlockOverlayManager hook
   
@@ -299,18 +283,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setRabbitholeData(prevConversations => [...prevConversations, newConversation]);
   }, []);
 
-  // Function to update a specific block's metadata optimistically
-  const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
-    setBlocks(prevBlocks => 
-      prevBlocks.map(block => 
-        block.id === blockId 
-          ? { ...block, metadata: { ...block.metadata, ...newMetadata } }
-          : block
-      )
-    );
-    
-    // Selected block metadata updates now handled by useBlockOverlayManager hook
-  }, []);
   
   // Fetch rabbithole data for the document
   useEffect(() => {
@@ -450,6 +422,50 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [blocks]);
 
+  // Reading Progress Hook - initialized after flattenedBlocks are set
+  const { updateProgress, scrollToFurthestBlock, initializeProgress } = useReadingProgress({
+    documentId,
+    flattenedBlocks
+  });
+
+  // Fetch document title and initialize reading progress
+  useEffect(() => {
+    const fetchDocumentTitle = async () => {
+      try {
+        const document = await documentApi.getDocument(documentId);
+        setDocumentTitle(document.title);
+        
+        // Initialize reading progress from document data
+        if (initializeProgress) {
+          initializeProgress(document);
+        }
+      } catch (error) {
+        console.error('Error fetching document title:', error);
+        setDocumentTitle('Unknown Document');
+      }
+    };
+
+    if (documentId) {
+      fetchDocumentTitle();
+    }
+  }, [documentId, initializeProgress]);
+
+  // Function to update a specific block's metadata optimistically
+  const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
+    setBlocks(prevBlocks => 
+      prevBlocks.map(block => 
+        block.id === blockId 
+          ? { ...block, metadata: { ...block.metadata, ...newMetadata } }
+          : block
+      )
+    );
+    
+    // Update reading progress when user interacts with a block
+    updateProgress(blockId);
+    
+    // Selected block metadata updates now handled by useBlockOverlayManager hook
+  }, [updateProgress]);
+
   // Fetch blocks when component mounts
   useEffect(() => {
     if (documentId) {
@@ -551,7 +567,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     
     // Set this as the active conversation
     setActiveConversationId(conversationId);
-  }, [rabbitholeConversations]);
+    
+    // Update reading progress when user creates a rabbithole
+    if (blockId) {
+      updateProgress(blockId);
+    }
+  }, [rabbitholeConversations, updateProgress]);
 
   // renderOverlay moved to after blockOverlayManager hook
 
@@ -753,6 +774,21 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [flattenedBlocks, blockOverlayManager, setCurrentPage, scrollToBlock]);
 
+  // Resume reading functionality
+  const handleResumeReading = useCallback(async () => {
+    const furthestBlockId = scrollToFurthestBlock();
+    if (furthestBlockId) {
+      console.log('📖 Resuming reading at block:', furthestBlockId);
+      const block = flattenedBlocks.find(b => b.id === furthestBlockId);
+      if (block) {
+        await scrollToBlock(block);
+        setTimeout(() => {
+          blockOverlayManager.handleBlockClick(block);
+        }, 500);
+      }
+    }
+  }, [scrollToFurthestBlock, flattenedBlocks, scrollToBlock, blockOverlayManager]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -910,6 +946,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           totalPages={totalPages}
           currentPanelSizes={currentPanelSizes}
           onSearch={handleSearch}
+          onResumeReading={handleResumeReading}
+          hasReadingProgress={!!scrollToFurthestBlock()}
         />
 
         <PanelGroup 
