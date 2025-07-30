@@ -41,6 +41,11 @@ app.include_router(conversation_router)          # ← this line wires /conversa
 app.include_router(document_router)              # ← this line wires /documents/…
 app.include_router(auth_router)                  # ← this line wires /auth/…
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Fly.io monitoring"""
+    return {"status": "healthy", "service": "ruminate-backend"}
+
 @app.on_event("startup")
 async def _startup() -> None:
     await init_engine(settings())
