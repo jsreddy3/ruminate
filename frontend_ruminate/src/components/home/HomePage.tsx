@@ -54,16 +54,8 @@ export default function HomePage() {
       return;
     }
 
-    try {
-      // Get the PDF URL
-      const pdfUrl = await documentApi.getPdfUrl(document.id);
-      
-      // Navigate to the viewer with the document
-      router.push(`/viewer?documentId=${document.id}&pdfUrl=${encodeURIComponent(pdfUrl)}`);
-    } catch (err) {
-      console.error('Error opening document:', err);
-      alert('Failed to open document. Please try again.');
-    }
+    // Navigate to the viewer - it will fetch the PDF URL securely
+    router.push(`/viewer/${document.id}`);
   };
 
   const handleUploadComplete = async () => {
@@ -109,7 +101,7 @@ export default function HomePage() {
     }
   };
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>

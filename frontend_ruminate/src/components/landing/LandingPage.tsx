@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from './Header';
 import ParticlesBackground from './ParticlesBackground';
+import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();

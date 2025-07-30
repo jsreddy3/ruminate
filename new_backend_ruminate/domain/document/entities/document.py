@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 class DocumentStatus(str, Enum):
     PENDING = "PENDING"
+    AWAITING_PROCESSING = "AWAITING_PROCESSING"  # Waiting for user to trigger processing
     PROCESSING_MARKER = "PROCESSING_MARKER"
     PROCESSING_RUMINATION = "PROCESSING_RUMINATION"
     READY = "READY"
@@ -27,12 +28,23 @@ class Document:
     processing_error: Optional[str] = None
     marker_job_id: Optional[str] = None
     marker_check_url: Optional[str] = None
+    # Batch processing fields
+    parent_document_id: Optional[str] = None    # Links to parent document for chunks
+    batch_id: Optional[str] = None              # Groups chunks from same upload
+    chunk_index: Optional[int] = None           # Position in batch (0-based)
+    total_chunks: Optional[int] = None          # Total chunks in batch
+    is_auto_processed: bool = False             # True for first chunk only
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
     def start_marker_processing(self) -> None:
         """Start Marker processing"""
         self.status = DocumentStatus.PROCESSING_MARKER
+        self.updated_at = datetime.now()
+        
+    def set_awaiting_processing(self) -> None:
+        """Set status to awaiting user trigger"""
+        self.status = DocumentStatus.AWAITING_PROCESSING
         self.updated_at = datetime.now()
         
     def set_error(self, error: str) -> None:
@@ -60,6 +72,11 @@ class Document:
             "processing_error": self.processing_error,
             "marker_job_id": self.marker_job_id,
             "marker_check_url": self.marker_check_url,
+            "parent_document_id": self.parent_document_id,
+            "batch_id": self.batch_id,
+            "chunk_index": self.chunk_index,
+            "total_chunks": self.total_chunks,
+            "is_auto_processed": self.is_auto_processed,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

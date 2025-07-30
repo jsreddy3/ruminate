@@ -1,6 +1,6 @@
 "use client";
 
-import { Document } from '@/services/api/document';
+import { Document, documentApi } from '@/services/api/document';
 import { formatDistanceToNow } from 'date-fns';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
@@ -13,6 +13,8 @@ interface DocumentRowProps {
 
 export default function DocumentRow({ document, onClick, onDelete }: DocumentRowProps) {
   const [isHovering, setIsHovering] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
     try {
@@ -29,8 +31,13 @@ export default function DocumentRow({ document, onClick, onDelete }: DocumentRow
           <div className="w-2 h-2 bg-green-500 rounded-full" />
         );
       case 'PROCESSING':
+      case 'PROCESSING_MARKER':
         return (
           <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+        );
+      case 'AWAITING_PROCESSING':
+        return (
+          <div className="w-2 h-2 bg-blue-500 rounded-full" />
         );
       case 'ERROR':
         return (
@@ -46,6 +53,20 @@ export default function DocumentRow({ document, onClick, onDelete }: DocumentRow
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     onDelete?.(document.id);
+  };
+
+  const handleProcessClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    setIsProcessing(true);
+    try {
+      await documentApi.startProcessing(document.id);
+      // Navigate to the upload progress view with the document ID
+      window.location.href = `/upload-progress?documentId=${document.id}`;
+    } catch (error) {
+      console.error('Failed to start processing:', error);
+      alert('Failed to start processing. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -90,8 +111,20 @@ export default function DocumentRow({ document, onClick, onDelete }: DocumentRow
       
       <td className="px-6 py-4">
         <div className="flex items-center gap-2">
+          {/* Process Button - shown for AWAITING_PROCESSING status */}
+          {document.status === 'AWAITING_PROCESSING' && (
+            <button
+              onClick={handleProcessClick}
+              disabled={isProcessing}
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Start processing this chunk"
+            >
+              {isProcessing ? 'Processing...' : 'Process'}
+            </button>
+          )}
+          
           {/* Delete Button - shown on hover */}
-          {onDelete && isHovering && (
+          {onDelete && isHovering && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && (
             <button
               onClick={handleDeleteClick}
               className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"

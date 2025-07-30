@@ -29,6 +29,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper function to set auth token in both localStorage and cookies
+  const setAuthToken = (tokenValue: string | null) => {
+    if (tokenValue) {
+      localStorage.setItem('auth_token', tokenValue);
+      // Set cookie with 30-day expiration
+      document.cookie = `auth_token=${tokenValue}; path=/; max-age=${30 * 24 * 60 * 60}; samesite=lax`;
+    } else {
+      localStorage.removeItem('auth_token');
+      // Clear cookie
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  };
+
   // Initialize auth state on mount
   useEffect(() => {
     const initAuth = async () => {
@@ -47,19 +60,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const statusData = await response.json();
             if (statusData.authenticated && statusData.user) {
               setUser(statusData.user);
+              // Ensure cookie is set
+              setAuthToken(storedToken);
             } else {
               // Token is invalid, clear it
-              localStorage.removeItem('auth_token');
+              setAuthToken(null);
               setToken(null);
             }
           } else {
             // Token is invalid, clear it
-            localStorage.removeItem('auth_token');
+            setAuthToken(null);
             setToken(null);
           }
         } catch (error) {
           console.error('Error verifying token:', error);
-          localStorage.removeItem('auth_token');
+          setAuthToken(null);
           setToken(null);
         }
       }
@@ -88,10 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = JSON.parse(decodeURIComponent(userParam));
         setToken(tokenParam);
         setUser(userData);
-        localStorage.setItem('auth_token', tokenParam);
+        setAuthToken(tokenParam);
         
-        // Clean up URL
+        // Clean up URL and trigger redirect to home
         window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Force redirect to home after successful auth
+        if (window.location.pathname === '/') {
+          window.location.href = '/home';
+        }
       } catch (error) {
         console.error('Error parsing auth callback:', error);
       }
@@ -118,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setToken(null);
-      localStorage.removeItem('auth_token');
+      setAuthToken(null);
     }
   };
 

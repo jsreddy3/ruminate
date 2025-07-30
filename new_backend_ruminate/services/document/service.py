@@ -1,6 +1,6 @@
 # new_backend_ruminate/services/document/service.py
 from __future__ import annotations
-from typing import Optional, List, BinaryIO, Dict, Any
+from typing import Optional, List, BinaryIO, Dict, Any, Tuple
 from uuid import uuid4
 from datetime import datetime
 import asyncio
@@ -232,6 +232,55 @@ class DocumentService:
                 f"event: analysis_warning\ndata: {event_data}\n\n"
             )
     
+    def _get_pdf_page_count(self, file_content: bytes) -> int:
+        """Get the number of pages in a PDF file"""
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+            page_count = len(reader.pages)
+            print(f"[DocumentService] PDF has {page_count} pages")
+            return page_count
+        except Exception as e:
+            print(f"[DocumentService] Error getting PDF page count: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(f"[DocumentService] Traceback: {traceback.format_exc()}")
+            # Default to assuming it's a large document if we can't read it
+            return 50  # Assume large document to be safe
+    
+    def _split_pdf_into_chunks(self, file_content: bytes, pages_per_chunk: int = 20) -> List[bytes]:
+        """Split PDF into smaller chunks of specified page count"""
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+            total_pages = len(reader.pages)
+            chunks = []
+            
+            print(f"[DocumentService] Splitting PDF with {total_pages} pages into chunks of {pages_per_chunk} pages")
+            
+            for start_page in range(0, total_pages, pages_per_chunk):
+                end_page = min(start_page + pages_per_chunk, total_pages)
+                print(f"[DocumentService] Creating chunk: pages {start_page+1} to {end_page}")
+                
+                # Create a new PDF with the chunk pages
+                writer = PyPDF2.PdfWriter()
+                for page_num in range(start_page, end_page):
+                    writer.add_page(reader.pages[page_num])
+                
+                # Write to bytes
+                chunk_buffer = io.BytesIO()
+                writer.write(chunk_buffer)
+                chunk_buffer.seek(0)
+                chunks.append(chunk_buffer.getvalue())
+            
+            print(f"[DocumentService] Successfully created {len(chunks)} chunks")
+            return chunks
+        except Exception as e:
+            print(f"[DocumentService] Error splitting PDF: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(f"[DocumentService] Traceback: {traceback.format_exc()}")
+            # If splitting fails, return the original file as a single chunk
+            return [file_content]
+    
     # ───────────────────────────── public API ─────────────────────────────── #
     
     async def upload_document(
@@ -244,14 +293,56 @@ class DocumentService:
     ) -> Document:
         """
         Upload a document and start processing
-        Returns document immediately while processing continues in background
+        For large documents (>20 pages), creates batch with first chunk auto-processing
+        Returns the first document while batch creation continues in background
         """
+        # Read file content once
+        try:
+            file_content = file.read()
+            file.seek(0)  # Reset for any subsequent reads
+        except Exception as e:
+            print(f"[DocumentService] Error reading file: {type(e).__name__}: {str(e)}")
+            raise ValueError(f"Failed to read file: {str(e)}")
+        
+        print(f"[DocumentService] Processing upload for file: {filename}, size: {len(file_content)} bytes")
+        
+        # Check PDF page count to determine if we need batch processing
+        page_count = self._get_pdf_page_count(file_content)
+        
+        if page_count <= 20:
+            # Single document processing (existing flow)
+            return await self._upload_single_document(
+                background=background,
+                file_content=file_content,
+                filename=filename,
+                user_id=user_id
+            )
+        else:
+            # Batch processing for large documents
+            return await self._upload_batch_document(
+                background=background,
+                file_content=file_content,
+                filename=filename,
+                user_id=user_id,
+                total_pages=page_count
+            )
+    
+    async def _upload_single_document(
+        self,
+        *,
+        background: BackgroundTasks,
+        file_content: bytes,
+        filename: str,
+        user_id: str,
+    ) -> Document:
+        """Upload and process a single document (existing logic)"""
         # Create document record
         document = Document(
             id=str(uuid4()),
             user_id=user_id,
             title=filename,
             status=DocumentStatus.PENDING,
+            is_auto_processed=True,  # Single documents auto-process
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -264,12 +355,12 @@ class DocumentService:
         try:
             storage_key = f"documents/{document.id}/{filename}"
             await self._storage.upload_file(
-                file=file,
+                file=io.BytesIO(file_content),
                 key=storage_key,
                 content_type="application/pdf"
             )
             
-            # Update document with storage key for consistent access
+            # Update document with storage key
             async with session_scope() as session:
                 document.s3_pdf_path = storage_key
                 document = await self._repo.update_document(document, session)
@@ -288,6 +379,90 @@ class DocumentService:
         )
         
         return document
+    
+    async def _upload_batch_document(
+        self,
+        *,
+        background: BackgroundTasks,
+        file_content: bytes,
+        filename: str,
+        user_id: str,
+        total_pages: int,
+    ) -> Document:
+        """Upload and create batch documents for large PDFs"""
+        batch_id = str(uuid4())
+        pages_per_chunk = 20
+        total_chunks = (total_pages + pages_per_chunk - 1) // pages_per_chunk
+        
+        # Split PDF into chunks
+        pdf_chunks = self._split_pdf_into_chunks(file_content, pages_per_chunk)
+        documents = []
+        
+        try:
+            async with session_scope() as session:
+                # Create all document records in batch
+                for i, chunk_content in enumerate(pdf_chunks):
+                    chunk_title = f"{filename} (Part {i+1} of {total_chunks})"
+                    is_first_chunk = i == 0
+                    
+                    document = Document(
+                        id=str(uuid4()),
+                        user_id=user_id,
+                        title=chunk_title,
+                        status=DocumentStatus.PENDING if is_first_chunk else DocumentStatus.AWAITING_PROCESSING,
+                        batch_id=batch_id,
+                        chunk_index=i,
+                        total_chunks=total_chunks,
+                        is_auto_processed=is_first_chunk,  # Only first chunk auto-processes
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )
+                    
+                    # Save to database
+                    document = await self._repo.create_document(document, session)
+                    documents.append((document, chunk_content))
+            
+            # Upload all chunks to storage and start processing first chunk
+            first_document = None
+            for idx, (document, chunk_content) in enumerate(documents):
+                storage_key = f"documents/{batch_id}/chunk-{document.chunk_index}.pdf"
+                
+                print(f"[DocumentService] Uploading chunk {document.chunk_index} for batch {batch_id}")
+                
+                await self._storage.upload_file(
+                    file=io.BytesIO(chunk_content),
+                    key=storage_key,
+                    content_type="application/pdf"
+                )
+                
+                # Update document with storage key
+                async with session_scope() as session:
+                    document.s3_pdf_path = storage_key
+                    updated_document = await self._repo.update_document(document, session)
+                
+                # Keep reference to first chunk and start processing it
+                if idx == 0:  # First document in the list
+                    first_document = updated_document
+                    print(f"[DocumentService] Starting processing for first chunk: {first_document.id}")
+                    background.add_task(
+                        self._process_document_background,
+                        first_document.id,
+                        storage_key
+                    )
+            
+            if not first_document:
+                raise ValueError("Failed to create batch documents - no first document found")
+            
+            print(f"[DocumentService] Batch upload complete, returning first document: {first_document.id}")
+            return first_document
+            
+        except Exception as e:
+            # Clean up on error
+            async with session_scope() as session:
+                for document, _ in documents:
+                    document.set_error(f"Failed to upload batch: {str(e)}")
+                    await self._repo.update_document(document, session)
+            raise
     
     async def get_document(self, document_id: str, user_id: str, session: AsyncSession) -> Optional[Document]:
         """Get document by ID, with user ownership validation"""
@@ -851,3 +1026,60 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         except Exception as e:
             print(f"[DocumentService] Error deleting document {document_id}: {type(e).__name__}: {str(e)}")
             raise ValueError(f"Failed to delete document: {str(e)}")
+    
+    async def start_chunk_processing(
+        self,
+        document_id: str,
+        user_id: str,
+        background: BackgroundTasks,
+        session: AsyncSession
+    ) -> Document:
+        """
+        Start processing for a document chunk that's in AWAITING_PROCESSING status
+        
+        Args:
+            document_id: ID of the document to start processing
+            user_id: User ID for permission checking
+            background: FastAPI background tasks
+            session: Database session
+            
+        Returns:
+            Updated document with PENDING status
+            
+        Raises:
+            ValueError: If document not found, not owned by user, or not in correct status
+        """
+        # Get and validate document
+        document = await self.get_document(document_id, user_id, session)
+        if not document:
+            raise ValueError("Document not found")
+        
+        # Check if document is in correct status
+        if document.status != DocumentStatus.AWAITING_PROCESSING:
+            raise ValueError(f"Document is not awaiting processing (current status: {document.status})")
+        
+        # Check if document has storage path
+        if not document.s3_pdf_path:
+            raise ValueError("Document has no associated PDF file")
+        
+        try:
+            # Update status to PENDING
+            document.status = DocumentStatus.PENDING
+            document.updated_at = datetime.now()
+            await self._repo.update_document(document, session)
+            
+            # Start background processing
+            background.add_task(
+                self._process_document_background,
+                document.id,
+                document.s3_pdf_path
+            )
+            
+            print(f"[DocumentService] Started processing for chunk document {document_id}")
+            return document
+            
+        except Exception as e:
+            # Revert status on error
+            document.set_error(f"Failed to start processing: {str(e)}")
+            await self._repo.update_document(document, session)
+            raise ValueError(f"Failed to start processing: {str(e)}")

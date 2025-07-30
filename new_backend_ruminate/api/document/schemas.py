@@ -15,6 +15,12 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     processing_error: Optional[str]
+    # Batch processing fields
+    parent_document_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    chunk_index: Optional[int] = None
+    total_chunks: Optional[int] = None
+    is_auto_processed: bool = False
     
     class Config:
         use_enum_values = True

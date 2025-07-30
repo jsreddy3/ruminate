@@ -45,6 +45,8 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
     try:
+        print(f"[Upload Route] Starting upload for file: {file.filename}, size: {file.size if hasattr(file, 'size') else 'unknown'}")
+        
         # Upload document
         document = await svc.upload_document(
             background=background_tasks,
@@ -52,6 +54,8 @@ async def upload_document(
             filename=file.filename,
             user_id=current_user.id
         )
+        
+        print(f"[Upload Route] Upload successful, document ID: {document.id}")
         
         return DocumentUploadResponse(
             document=DocumentResponse(
@@ -62,11 +66,22 @@ async def upload_document(
                 summary=document.summary,
                 created_at=document.created_at,
                 updated_at=document.updated_at,
-                processing_error=document.processing_error
+                processing_error=document.processing_error,
+                parent_document_id=document.parent_document_id,
+                batch_id=document.batch_id,
+                chunk_index=document.chunk_index,
+                total_chunks=document.total_chunks,
+                is_auto_processed=document.is_auto_processed
             )
         )
         
+    except ValueError as e:
+        print(f"[Upload Route] ValueError: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        print(f"[Upload Route] Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[Upload Route] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -91,7 +106,12 @@ async def get_document(
         summary=document.summary,
         created_at=document.created_at,
         updated_at=document.updated_at,
-        processing_error=document.processing_error
+        processing_error=document.processing_error,
+        parent_document_id=document.parent_document_id,
+        batch_id=document.batch_id,
+        chunk_index=document.chunk_index,
+        total_chunks=document.total_chunks,
+        is_auto_processed=document.is_auto_processed
     )
 
 
@@ -137,7 +157,12 @@ async def list_documents(
                 summary=doc.summary,
                 created_at=doc.created_at,
                 updated_at=doc.updated_at,
-                processing_error=doc.processing_error
+                processing_error=doc.processing_error,
+                parent_document_id=doc.parent_document_id,
+                batch_id=doc.batch_id,
+                chunk_index=doc.chunk_index,
+                total_chunks=doc.total_chunks,
+                is_auto_processed=doc.is_auto_processed
             )
             for doc in documents
         ],
@@ -390,3 +415,54 @@ async def delete_document(
         import traceback
         print(f"[DELETE Route] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")
+
+
+@router.post("/{document_id}/start-processing", response_model=DocumentResponse)
+async def start_document_processing(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """
+    Start processing for a document chunk that's in AWAITING_PROCESSING status.
+    
+    This endpoint is used to trigger processing for document chunks created
+    from large PDF uploads that are waiting for user approval to process.
+    
+    Returns the updated document with PENDING status.
+    """
+    try:
+        document = await svc.start_chunk_processing(
+            document_id=document_id,
+            user_id=current_user.id,
+            background=background_tasks,
+            session=session
+        )
+        
+        return DocumentResponse(
+            id=document.id,
+            user_id=document.user_id,
+            status=document.status,
+            title=document.title,
+            summary=document.summary,
+            created_at=document.created_at,
+            updated_at=document.updated_at,
+            processing_error=document.processing_error,
+            parent_document_id=document.parent_document_id,
+            batch_id=document.batch_id,
+            chunk_index=document.chunk_index,
+            total_chunks=document.total_chunks,
+            is_auto_processed=document.is_auto_processed
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+    except Exception as e:
+        print(f"[START_PROCESSING Route] Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[START_PROCESSING Route] Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error starting document processing: {str(e)}")

@@ -235,8 +235,7 @@ export default function UploadProgressSteps({ events, currentStatus, error: _err
           className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100"
         >
           <p className="text-sm text-blue-700 text-center">
-            💡 <strong>Did you know?</strong> Our AI can understand complex documents including tables, 
-            figures, and mathematical equations to give you the most accurate analysis possible.
+            💡 <strong>Did you know?</strong> Our AI reads your document alongside you -- it's the perfect copilot!
           </p>
         </motion.div>
       )}

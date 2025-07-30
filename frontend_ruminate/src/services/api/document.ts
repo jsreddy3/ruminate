@@ -212,4 +212,22 @@ export const documentApi = {
     
     return response.json();
   },
+
+  /**
+   * Start processing for a document chunk in AWAITING_PROCESSING status
+   * @param documentId Document ID to start processing
+   * @returns Updated document object
+   */
+  startProcessing: async (documentId: string): Promise<Document> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/start-processing`, {
+      method: 'POST',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to start processing");
+    }
+    
+    return response.json();
+  },
 };

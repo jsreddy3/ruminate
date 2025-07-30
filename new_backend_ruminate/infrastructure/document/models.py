@@ -19,6 +19,12 @@ class DocumentModel(Base):
     processing_error = Column(String, nullable=True)
     marker_job_id = Column(String, nullable=True)
     marker_check_url = Column(String, nullable=True)
+    # Batch processing fields
+    parent_document_id = Column(String, ForeignKey("documents.id"), nullable=True)
+    batch_id = Column(String, nullable=True)
+    chunk_index = Column(Integer, nullable=True)
+    total_chunks = Column(Integer, nullable=True)
+    is_auto_processed = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -28,6 +34,8 @@ class DocumentModel(Base):
     blocks = relationship("BlockModel", back_populates="document", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="document")
     messages = relationship("Message", back_populates="document")
+    # Batch processing relationships
+    parent_document = relationship("DocumentModel", remote_side=[id], backref="child_documents")
 
 
 class PageModel(Base):

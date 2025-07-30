@@ -26,6 +26,11 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             processing_error=document.processing_error,
             marker_job_id=document.marker_job_id,
             marker_check_url=document.marker_check_url,
+            parent_document_id=document.parent_document_id,
+            batch_id=document.batch_id,
+            chunk_index=document.chunk_index,
+            total_chunks=document.total_chunks,
+            is_auto_processed=document.is_auto_processed,
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -78,6 +83,11 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         db_document.processing_error = document.processing_error
         db_document.marker_job_id = document.marker_job_id
         db_document.marker_check_url = document.marker_check_url
+        db_document.parent_document_id = document.parent_document_id
+        db_document.batch_id = document.batch_id
+        db_document.chunk_index = document.chunk_index
+        db_document.total_chunks = document.total_chunks
+        db_document.is_auto_processed = document.is_auto_processed
         db_document.updated_at = datetime.now()
         
         await session.commit()
@@ -313,6 +323,11 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             processing_error=db_document.processing_error,
             marker_job_id=db_document.marker_job_id,
             marker_check_url=db_document.marker_check_url,
+            parent_document_id=db_document.parent_document_id,
+            batch_id=db_document.batch_id,
+            chunk_index=db_document.chunk_index,
+            total_chunks=db_document.total_chunks,
+            is_auto_processed=db_document.is_auto_processed,
             created_at=db_document.created_at,
             updated_at=db_document.updated_at
         )

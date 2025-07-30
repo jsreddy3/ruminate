@@ -657,7 +657,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add timeout mechanism for stuck PDF loading
   useEffect(() => {
     if (pdfLoadingState === 'loading') {
-      console.log('⏳ PDF loading started, setting 3s timeout...');
+      console.log('⏳ PDF loading started, setting 5s timeout...');
       const timeout = setTimeout(() => {
         console.warn('⚠️ PDF loading timeout reached - marking as stuck');
         setPdfLoadingState('stuck');
@@ -666,18 +666,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       setLoadingTimeout(timeout);
       
       return () => {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-      };
-    } else if (pdfLoadingState === 'loaded') {
-      console.log('✅ PDF loaded successfully');
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
+        clearTimeout(timeout);
         setLoadingTimeout(null);
-      }
+      };
     }
-  }, [pdfLoadingState, loadingTimeout]);
+  }, [pdfLoadingState]);
 
   // Force refresh function
   const handleForceRefresh = useCallback(() => {
@@ -834,53 +827,80 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     renderLoader={(percentages: number) => {
                       // Don't set state during render - let useEffect handle it
                       return (
-                      <div className="flex items-center justify-center p-4">
-                        <div className="w-full max-w-sm">
-                          <div className="bg-white p-4 rounded-lg shadow-sm">
+                        <div className="flex items-center justify-center min-h-[400px] bg-gray-50">
+                          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4 border border-gray-100">
                             {percentages === 0 || pdfLoadingState === 'stuck' ? (
-                              <div>
-                                <div className={`text-sm mb-2 ${pdfLoadingState === 'stuck' ? 'text-red-600' : 'text-orange-600'}`}>
-                                  {pdfLoadingState === 'stuck' ? 'PDF Loading Stuck - Click to Retry' : 'Initializing PDF...'}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {pdfFile.startsWith('data:application/pdf;base64,') 
-                                    ? `Base64 PDF (${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB)`
-                                    : `URL: ${pdfFile.substring(0, 50)}...`
-                                  }
-                                </div>
-                                <div className="text-xs text-red-500 mt-1">
-                                  {pdfFile.startsWith('file://') && '❌ file:// URLs are blocked by browsers'}
-                                  {pdfFile.startsWith('data:application/pdf;base64,') && pdfFile.length > 10000000 && '⚠️ Large PDF may cause issues'}
-                                </div>
+                              <div className="text-center">
                                 {pdfLoadingState === 'stuck' ? (
-                                  <button 
-                                    onClick={handleForceRefresh}
-                                    className="mt-3 px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                  >
-                                    🔄 Force Refresh PDF
-                                  </button>
+                                  <div className="space-y-4">
+                                    <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF Loading Timeout</h3>
+                                      <p className="text-gray-600 text-sm mb-4">The PDF is taking longer than expected to load.</p>
+                                    </div>
+                                    <button 
+                                      onClick={handleForceRefresh}
+                                      className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      </svg>
+                                      Retry Loading
+                                    </button>
+                                  </div>
                                 ) : (
-                                  <div className="text-xs text-blue-500 mt-2">
-                                    Loading will timeout in 3 seconds if stuck...
+                                  <div className="space-y-4">
+                                    <div className="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
+                                      <svg className="w-6 h-6 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Loading PDF</h3>
+                                      <p className="text-gray-600 text-sm">
+                                        {pdfFile.startsWith('data:application/pdf;base64,') 
+                                          ? `Processing ${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB PDF...`
+                                          : 'Downloading PDF...'
+                                        }
+                                      </p>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                      <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '30%' }}></div>
+                                    </div>
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <>
-                                <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary-600 transition-all duration-300"
-                                    style={{ width: `${Math.round(percentages)}%` }}
-                                  />
+                              <div className="text-center space-y-4">
+                                <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
                                 </div>
-                                <div className="text-sm text-neutral-600 mt-2 text-center">
-                                  Loading {Math.round(percentages)}%
+                                <div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Loading PDF</h3>
+                                  <p className="text-gray-600 text-sm mb-4">Processing pages...</p>
                                 </div>
-                              </>
+                                <div className="space-y-2">
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="h-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 ease-out"
+                                      style={{ width: `${Math.round(percentages)}%` }}
+                                    />
+                                  </div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {Math.round(percentages)}%
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
-                      </div>
                       );
                     }}
                     renderPage={(props) => (
