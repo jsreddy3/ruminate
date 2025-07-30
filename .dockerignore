@@ -1,0 +1,132 @@
+# flyctl launch added from .gitignore
+# Virtual Environment
+**/backend_ruminate/myenv
+**/venv
+**/env
+**/myenv
+**/.venv
+**/ENV
+
+# Environment Variables
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/build
+**/develop-eggs
+**/dist
+**/downloads
+**/eggs
+**/.eggs
+**/lib
+**/lib64
+**/parts
+**/sdist
+**/var
+**/wheels
+**/*.egg-info
+**/.installed.cfg
+**/*.egg
+
+# JavaScript/Node.js
+**/node_modules
+**/npm-debug.log
+**/yarn-debug.log
+**/yarn-error.log
+**/.pnpm-debug.log
+**/.next
+**/out
+**/.nuxt
+**/.cache
+**/dist
+**/coverage
+
+# IDE specific files
+**/.idea
+**/.vscode
+**/*.swp
+**/*.swo
+**/.DS_Store
+**/.DS_Store?
+**/._*
+**/.Spotlight-V100
+**/.Trashes
+**/ehthumbs.db
+**/Thumbs.db
+**/.vercel
+
+**/*.pdf
+**/*.db
+
+# flyctl launch added from .pytest_cache/.gitignore
+# Created by pytest automatically.
+.pytest_cache/**/*
+
+# flyctl launch added from frontend_ruminate/.gitignore
+# dependencies
+frontend_ruminate/node_modules
+frontend_ruminate/.pnp
+frontend_ruminate/**/.pnp.js
+
+# testing
+frontend_ruminate/coverage
+
+# next.js
+frontend_ruminate/.next
+frontend_ruminate/out
+
+# production
+frontend_ruminate/build
+
+# misc
+frontend_ruminate/**/.DS_Store
+frontend_ruminate/**/*.pem
+
+# debug
+frontend_ruminate/**/npm-debug.log*
+frontend_ruminate/**/yarn-debug.log*
+frontend_ruminate/**/yarn-error.log*
+
+# local env files
+frontend_ruminate/**/.env*.local
+frontend_ruminate/**/.env
+
+# vercel
+frontend_ruminate/**/.vercel
+
+# typescript
+frontend_ruminate/**/*.tsbuildinfo
+frontend_ruminate/**/next-env.d.ts
+
+# misc
+frontend_ruminate/**/.DS_Store
+frontend_ruminate/**/*.pem
+
+# debug
+frontend_ruminate/**/npm-debug.log*
+frontend_ruminate/**/yarn-debug.log*
+frontend_ruminate/**/yarn-error.log*
+
+# local env files
+frontend_ruminate/**/.env*.local
+frontend_ruminate/**/.env
+
+# vercel
+frontend_ruminate/**/.vercel
+
+# typescript
+frontend_ruminate/**/*.tsbuildinfo
+frontend_ruminate/**/next-env.d.ts
+
+# flyctl launch added from new_backend_ruminate/.pytest_cache/.gitignore
+# Created by pytest automatically.
+new_backend_ruminate/.pytest_cache/**/*
+fly.toml
