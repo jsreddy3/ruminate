@@ -682,49 +682,98 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         [role="tooltip"] {
           display: none !important;
         }
+        
+        /* PDF viewer background styling for library feel */
+        .rpv-core__viewer {
+          background: linear-gradient(135deg, #fefcf7 0%, #fef9ed 100%) !important;
+        }
+        
+        /* Page styling */
+        .rpv-core__page-layer {
+          box-shadow: 0 8px 16px rgba(60, 64, 67, 0.15), 0 4px 8px rgba(60, 64, 67, 0.1) !important;
+          border-radius: 6px !important;
+          border: 1px solid rgba(175, 95, 55, 0.1) !important;
+        }
       `}</style>
-      <div className="h-screen flex flex-col w-full overflow-hidden relative">
-        {/* Header with back button and title */}
-        <div className="flex items-center gap-3 px-3 py-2 bg-white border-b border-gray-200 z-10">
-          <button
-            onClick={() => router.push('/home')}
-            className="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-all duration-200"
-            title="Back to Home"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="font-medium">Back</span>
-          </button>
-          <div className="w-px h-4 bg-gray-300"></div>
-          <h1 className="text-sm font-medium text-gray-900 truncate">
-            {documentTitle || 'Loading...'}
-          </h1>
-        </div>
-
-        {/* Main content area */}
-        <div className="flex-1 flex w-full overflow-hidden relative">
-        {/* Block Selection Mode Banner */}
-        {isBlockSelectionMode && (
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-bounce">
-              <div className="animate-pulse w-3 h-3 bg-white rounded-full"></div>
-              <span className="font-medium">{blockSelectionPrompt}</span>
-              <button 
-                onClick={() => {
-                  setIsBlockSelectionMode(false);
-                  setOnBlockSelectionComplete(null);
-                }}
-                className="ml-2 text-white hover:text-gray-200 bg-blue-600 hover:bg-blue-700 rounded-full p-1 transition-colors"
-                title="Cancel selection"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      <div className="h-screen flex flex-col w-full overflow-hidden relative bg-surface-paper">
+        {/* Scholarly header with warm library aesthetic */}
+        <div className="relative">
+          {/* Background gradient */}
+          <div className="absolute inset-0 bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50"></div>
+          
+          {/* Content */}
+          <div className="relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm">
+            <button
+              onClick={() => router.push('/home')}
+              className="group flex items-center gap-2 px-3 py-2 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-300 shadow-paper hover:shadow-book"
+              title="Return to Library"
+            >
+              <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="font-serif font-medium">Library</span>
+            </button>
+            
+            {/* Elegant divider */}
+            <div className="w-px h-5 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
+            
+            {/* Document title with scholarly styling */}
+            <div className="flex-1 min-w-0">
+              <h1 className="font-serif text-lg font-semibold text-reading-primary truncate tracking-wide">
+                {documentTitle || (
+                  <span className="animate-pulse text-reading-muted">Loading manuscript...</span>
+                )}
+              </h1>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-2 h-2 rounded-full bg-library-gold-400 opacity-60"></div>
+                <span className="text-xs font-sans text-reading-muted uppercase tracking-wider">
+                  Research Document
+                </span>
+              </div>
+            </div>
+            
+            {/* Reading mode indicator */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-library-gold-50 text-library-mahogany-700 rounded-book border border-library-gold-200">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              <span className="text-xs font-sans font-medium">Scholarly Reading</span>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Main content area with library atmosphere */}
+        <div className="flex-1 flex w-full overflow-hidden relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment">
+          {/* Elegant Block Selection Mode Banner */}
+          {isBlockSelectionMode && (
+            <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+              <div className="bg-gradient-to-r from-library-mahogany-500 to-library-mahogany-600 text-library-cream-50 px-8 py-4 rounded-journal shadow-deep border border-library-mahogany-400 backdrop-blur-paper">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-library-gold-300 rounded-full animate-pulse shadow-sm"></div>
+                    <span className="font-serif font-medium text-base tracking-wide">{blockSelectionPrompt}</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setIsBlockSelectionMode(false);
+                      setOnBlockSelectionComplete(null);
+                    }}
+                    className="ml-4 text-library-cream-200 hover:text-library-cream-50 bg-library-mahogany-600/50 hover:bg-library-mahogany-600/80 rounded-full p-2 transition-all duration-200 shadow-paper hover:shadow-book"
+                    title="Cancel selection"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Decorative flourish */}
+                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
+                  <div className="w-4 h-1 bg-library-gold-400 rounded-full opacity-60"></div>
+                </div>
+              </div>
+            </div>
+          )}
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
         <PDFToolbar
           GoToPreviousPage={GoToPreviousPage}
@@ -744,13 +793,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           }}
           className="w-full"
         >
-          {/* PDF viewer - left panel */}
+          {/* PDF viewer - left panel with library aesthetic */}
           <Panel 
             defaultSize={mainPanelSizes[0]} 
             minSize={20}
             maxSize={85}
-            className="bg-white shadow-lg overflow-hidden relative"
+            className="relative overflow-hidden"
           >
+            {/* Manuscript-like background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment">
+              {/* Subtle paper texture overlay */}
+              <div className="absolute inset-0 opacity-[0.02] bg-repeat" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000' fill-opacity='1'%3E%3Ccircle cx='3' cy='3' r='0.5'/%3E%3Ccircle cx='13' cy='13' r='0.5'/%3E%3C/g%3E%3C/svg%3E")`,
+                backgroundSize: '20px 20px'
+              }}></div>
+            </div>
+            
+            {/* PDF content with enhanced shadow */}
+            <div className="relative h-full shadow-inner"
+                 style={{ boxShadow: 'inset 0 0 20px rgba(175, 95, 55, 0.03)' }}>
             <PDFDocumentViewer
               pdfFile={pdfFile}
               forceRefreshKey={forceRefreshKey}
@@ -772,74 +833,77 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               renderLoader={(percentages: number) => {
                       // Don't set state during render - let useEffect handle it
                       return (
-                        <div className="flex items-center justify-center min-h-[400px] bg-gray-50">
-                          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4 border border-gray-100">
+                        <div className="flex items-center justify-center min-h-[400px] bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment">
+                          <div className="bg-gradient-to-br from-surface-paper to-library-cream-100 rounded-journal shadow-shelf p-10 max-w-md w-full mx-6 border border-library-sage-200 backdrop-blur-paper">
                             {percentages === 0 || pdfLoadingState === 'stuck' ? (
                               <div className="text-center">
                                 {pdfLoadingState === 'stuck' ? (
-                                  <div className="space-y-4">
-                                    <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-                                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                  <div className="space-y-6">
+                                    <div className="w-16 h-16 mx-auto bg-gradient-to-br from-library-mahogany-100 to-library-mahogany-200 rounded-full flex items-center justify-center border border-library-mahogany-300 shadow-paper">
+                                      <svg className="w-8 h-8 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                       </svg>
                                     </div>
                                     <div>
-                                      <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF Loading Timeout</h3>
-                                      <p className="text-gray-600 text-sm mb-4">The PDF is taking longer than expected to load.</p>
+                                      <h3 className="font-serif text-xl font-semibold text-reading-primary mb-3">Manuscript Loading Delayed</h3>
+                                      <p className="text-reading-secondary text-sm mb-6 leading-relaxed">The manuscript is taking longer than expected to prepare. This may occur with particularly large or complex documents.</p>
                                     </div>
                                     <button 
                                       onClick={handleForceRefresh}
-                                      className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                                      className="inline-flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-library-mahogany-500 to-library-mahogany-600 text-library-cream-50 font-serif font-medium rounded-book hover:from-library-mahogany-600 hover:to-library-mahogany-700 focus:outline-none focus:ring-2 focus:ring-library-gold-400 focus:ring-offset-2 transition-all duration-300 shadow-book hover:shadow-shelf"
                                     >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                       </svg>
-                                      Retry Loading
+                                      Reload Manuscript
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="space-y-4">
-                                    <div className="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
-                                      <svg className="w-6 h-6 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <div className="space-y-6">
+                                    <div className="w-16 h-16 mx-auto bg-gradient-to-br from-library-gold-100 to-library-gold-200 rounded-full flex items-center justify-center border border-library-gold-300 shadow-paper">
+                                      <svg className="w-8 h-8 text-library-mahogany-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                       </svg>
                                     </div>
                                     <div>
-                                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Loading PDF</h3>
-                                      <p className="text-gray-600 text-sm">
+                                      <h3 className="font-serif text-xl font-semibold text-reading-primary mb-2">Preparing Manuscript</h3>
+                                      <p className="text-reading-secondary text-sm leading-relaxed">
                                         {pdfFile.startsWith('data:application/pdf;base64,') 
-                                          ? `Processing ${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB PDF...`
-                                          : 'Downloading PDF...'
+                                          ? `Processing ${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB manuscript for scholarly review...`
+                                          : 'Retrieving manuscript from the archives...'
                                         }
                                       </p>
                                     </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                      <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '30%' }}></div>
+                                    <div className="w-full bg-library-sage-200 rounded-full h-2 shadow-inner">
+                                      <div className="bg-gradient-to-r from-library-gold-400 to-library-mahogany-400 h-2 rounded-full animate-pulse shadow-sm" style={{ width: '35%' }}></div>
                                     </div>
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <div className="text-center space-y-4">
-                                <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <div className="text-center space-y-6">
+                                <div className="w-16 h-16 mx-auto bg-gradient-to-br from-library-forest-100 to-library-forest-200 rounded-full flex items-center justify-center border border-library-forest-300 shadow-paper">
+                                  <svg className="w-8 h-8 text-library-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                 </div>
                                 <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Loading PDF</h3>
-                                  <p className="text-gray-600 text-sm mb-4">Processing pages...</p>
+                                  <h3 className="font-serif text-xl font-semibold text-reading-primary mb-2">Rendering Pages</h3>
+                                  <p className="text-reading-secondary text-sm mb-6 leading-relaxed">Carefully preparing each page for scholarly examination...</p>
                                 </div>
-                                <div className="space-y-2">
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="space-y-3">
+                                  <div className="w-full bg-library-sage-200 rounded-full h-3 shadow-inner">
                                     <div
-                                      className="h-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 ease-out"
+                                      className="h-3 bg-gradient-to-r from-library-gold-400 via-library-mahogany-400 to-library-forest-500 rounded-full transition-all duration-700 ease-out shadow-sm"
                                       style={{ width: `${Math.round(percentages)}%` }}
                                     />
                                   </div>
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {Math.round(percentages)}%
+                                  <div className="flex items-center justify-center gap-2">
+                                    <div className="text-sm font-serif font-medium text-reading-primary">
+                                      {Math.round(percentages)}% Complete
+                                    </div>
+                                    <div className="w-1 h-1 bg-library-gold-400 rounded-full animate-pulse"></div>
                                   </div>
                                 </div>
                               </div>
@@ -859,18 +923,35 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
             {/* Block Overlay */}
             {blockOverlayManager.blockOverlayComponent}
+            </div>
           </Panel>
           
-          {/* Resize handle between PDF and chat */}
-          <ResizeHandle />
+          {/* Elegant resize handle between PDF and chat */}
+          <div className="w-1 bg-gradient-to-b from-library-sage-100 via-library-sage-200 to-library-sage-100 hover:bg-gradient-to-b hover:from-library-gold-200 hover:via-library-gold-300 hover:to-library-gold-200 transition-all duration-300 cursor-col-resize group relative">
+            {/* Subtle grip indicator */}
+            <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-0.5 bg-library-sage-300 group-hover:bg-library-gold-400 opacity-50 group-hover:opacity-80 transition-all duration-300"></div>
+          </div>
           
-          {/* Chat panel - right side */}
+          {/* Chat panel - scholarly discussion area */}
           <Panel 
             defaultSize={mainPanelSizes[1]} 
             minSize={15}
             maxSize={80}
-            className="border-l border-gray-200 bg-white"
+            className="relative overflow-hidden"
           >
+            {/* Study room atmosphere background */}
+            <div className="absolute inset-0 bg-gradient-to-b from-library-cream-50 via-surface-parchment to-library-cream-100">
+              {/* Subtle vertical lines suggesting notebook paper */}
+              <div className="absolute inset-0 opacity-[0.03]" style={{
+                backgroundImage: `linear-gradient(to right, transparent 0px, transparent 24px, #af5f37 24px, #af5f37 25px, transparent 25px)`,
+                backgroundSize: '25px 100%'
+              }}></div>
+            </div>
+            
+            {/* Content with enhanced border */}
+            <div className="relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent">
+              {/* Decorative book spine edge */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-library-mahogany-400 via-library-mahogany-500 to-library-mahogany-600 shadow-sm"></div>
             <ChatSidebar
               documentId={documentId}
               selectedBlock={blockOverlayManager.selectedBlock}
@@ -890,6 +971,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 return block?.metadata || {};
               }}
             />
+            </div>
           </Panel>
         </PanelGroup>
         </div>

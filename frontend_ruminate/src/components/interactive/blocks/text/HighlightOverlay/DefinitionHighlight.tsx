@@ -138,13 +138,18 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
           width: `${rect.width}px`,
           height: `${rect.height}px`,
           backgroundColor: 'transparent',
-          borderBottom: '2px solid rgba(220, 38, 38, 0.6)', // Red underline
+          // Elegant scholarly underline with subtle gold accent
+          borderBottom: hasOverlappingRabbithole 
+            ? '2px solid rgba(175, 95, 55, 0.7)' // Mahogany when overlapping
+            : '2px solid rgba(249, 207, 95, 0.8)', // Gold primary
           borderRadius: '0px',
           cursor: 'help',
           zIndex: hasOverlappingRabbithole ? 9 : 8,
           pointerEvents: 'none',
           // When overlapping, shift the entire element down by 4px for better separation
           transform: hasOverlappingRabbithole ? 'translateY(4px)' : 'none',
+          // Add subtle depth
+          filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1))',
         };
         
         // Create a clickable area that's just a thin strip at the bottom
@@ -181,19 +186,25 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
               onClick={handleClick}
               title={`Click to see definition of "${definition.term.length > 30 ? definition.term.substring(0, 30) + '...' : definition.term}"`}
               onMouseEnter={(e) => {
-                // Add hover effect to visual highlight
+                // Add elegant hover effect to visual highlight
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
                   visual.style.borderBottomWidth = '3px';
-                  visual.style.borderBottomColor = 'rgba(220, 38, 38, 0.8)';
+                  visual.style.borderBottomColor = hasOverlappingRabbithole 
+                    ? 'rgba(175, 95, 55, 0.9)' // Enhanced mahogany
+                    : 'rgba(249, 207, 95, 1)'; // Enhanced gold
+                  visual.style.filter = 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15))';
                 }
               }}
               onMouseLeave={(e) => {
-                // Remove hover effect
+                // Restore original styling
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
                   visual.style.borderBottomWidth = '2px';
-                  visual.style.borderBottomColor = 'rgba(220, 38, 38, 0.6)';
+                  visual.style.borderBottomColor = hasOverlappingRabbithole 
+                    ? 'rgba(175, 95, 55, 0.7)' // Original mahogany
+                    : 'rgba(249, 207, 95, 0.8)'; // Original gold
+                  visual.style.filter = 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1))';
                 }
               }}
             />

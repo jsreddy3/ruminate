@@ -30,36 +30,38 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
         transform: 'translateX(-50%)'
       }}
     >
-      <div className="bg-white/95 backdrop-blur-sm shadow-lg rounded-full px-4 py-2 flex items-center gap-3 border border-gray-200">
-        {/* Back Button */}
+      <div className="bg-gradient-to-r from-surface-paper/95 to-library-cream-100/95 backdrop-blur-paper shadow-shelf rounded-journal px-6 py-3 flex items-center gap-4 border border-library-sage-300/50">
+        {/* Elegant back button */}
         <button
           onClick={() => router.push('/home')}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200"
-          title="Back to Home"
+          className="group flex items-center gap-2 px-4 py-2 text-sm text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-300 shadow-paper hover:shadow-book"
+          title="Return to Library"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
-          <span className="font-medium">Back</span>
+          <span className="font-serif font-medium">Library</span>
         </button>
 
-        <div className="w-px h-6 bg-gray-300"></div>
+        {/* Elegant divider */}
+        <div className="w-px h-6 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
 
-        {/* Toolbar controls */}
-        <div className="flex items-center gap-2">
+        {/* Scholarly toolbar controls */}
+        <div className="flex items-center gap-3">
           {/* Page Navigation */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <GoToPreviousPage />
-            <div className="px-2 py-1 bg-gray-100 rounded text-xs font-mono text-gray-600 min-w-[3rem] text-center">
-              {currentPage}/{totalPages}
+            <div className="px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-xs font-serif text-reading-primary min-w-[3.5rem] text-center shadow-paper">
+              {currentPage} of {totalPages}
             </div>
             <GoToNextPage />
           </div>
 
-          <div className="w-px h-6 bg-gray-300"></div>
+          {/* Elegant divider */}
+          <div className="w-px h-6 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1">
+          {/* Zoom Controls with scholarly styling */}
+          <div className="flex items-center gap-2">
             <ZoomOut />
             <ZoomIn />
           </div>

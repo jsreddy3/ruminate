@@ -87,33 +87,36 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       maxHeight={500}
       title={
         <div className="flex items-center gap-2">
-          <Book size={16} className="text-indigo-600" />
-          <span className="text-indigo-900 font-medium">Definition</span>
+          <Book size={16} className="text-library-mahogany-600" />
+          <span className="text-reading-primary font-serif font-semibold">Definition</span>
         </div>
       }
-      className="border-indigo-200 shadow-xl"
+      className="border-library-sage-300 shadow-deep"
       offsetY={30}
     >
-      <div className="p-4 flex flex-col h-full">
-        <div className="font-medium text-slate-900 mb-1">{term}</div>
-        <div className="text-slate-700 text-sm mt-2 flex-1">
+      <div className="p-5 flex flex-col h-full">
+        <div className="font-serif font-semibold text-reading-primary mb-2 text-base border-b border-library-sage-200 pb-2">{term}</div>
+        <div className="text-reading-secondary text-sm mt-3 flex-1 font-serif leading-relaxed">
           {isLoading ? (
-            <div className="flex items-center gap-2 text-slate-500">
-              <Loader size={16} className="animate-spin" />
-              <span>Loading definition...</span>
+            <div className="flex items-center gap-3 text-library-gold-600">
+              <Loader size={18} className="animate-spin" />
+              <span className="font-serif">Consulting scholarly sources...</span>
             </div>
           ) : error ? (
-            <div className="text-red-600">{error}</div>
+            <div className="text-library-mahogany-600 font-serif">{error}</div>
           ) : definition ? (
-            <div className="text-slate-700 leading-relaxed">{definition}</div>
+            <div className="text-reading-secondary leading-relaxed font-serif">{definition}</div>
           ) : (
-            <p className="italic text-slate-500">No definition available.</p>
+            <p className="italic text-reading-muted font-serif">No definition available in current context.</p>
           )}
         </div>
         
-        {/* Footer */}
-        <div className="pt-3 mt-3 border-t border-slate-200 text-xs text-slate-500">
-          <span>Definition based on document context</span>
+        {/* Elegant footer with flourish */}
+        <div className="pt-4 mt-4 border-t border-library-sage-200 text-xs text-reading-muted relative">
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+            <div className="w-4 h-1 bg-library-gold-300 rounded-full opacity-60"></div>
+          </div>
+          <span className="font-sans italic">Definition derived from document context</span>
         </div>
       </div>
     </BasePopover>

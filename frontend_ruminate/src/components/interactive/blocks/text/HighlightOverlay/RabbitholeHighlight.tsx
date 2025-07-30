@@ -132,12 +132,17 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           width: `${rect.width}px`,
           height: `${rect.height}px`, // Keep original height
           backgroundColor: 'transparent',
-          borderBottom: '1.5px solid rgba(99, 102, 241, 0.8)', // Always show at bottom
+          // Forest green underline for scholarly discourse
+          borderBottom: hasOverlappingDefinition 
+            ? '2px solid rgba(90, 115, 95, 0.9)' // Enhanced forest when overlapping
+            : '2px solid rgba(90, 115, 95, 0.7)', // Standard forest
           borderRadius: '0px',
           cursor: 'pointer',
           zIndex: 7,
           boxShadow: 'none',
           pointerEvents: 'none', // Allow text selection through the highlight
+          // Add subtle scholarly depth
+          filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08))',
         };
         
         // Create a clickable area that's always at the bottom
@@ -179,19 +184,25 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
               onClick={handleClick}
               title={`Click to open rabbithole conversation: ${selected_text.length > 30 ? selected_text.substring(0, 30) + '...' : selected_text}`}
               onMouseEnter={(e) => {
-                // Add hover effect to visual highlight
+                // Add elegant scholarly hover effect
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.borderBottomWidth = '2px';
-                  visual.style.borderBottomColor = 'rgba(99, 102, 241, 1)';
+                  visual.style.borderBottomWidth = '3px';
+                  visual.style.borderBottomColor = hasOverlappingDefinition 
+                    ? 'rgba(90, 115, 95, 1)' // Enhanced forest
+                    : 'rgba(90, 115, 95, 0.9)'; // Enhanced forest
+                  visual.style.filter = 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.12))';
                 }
               }}
               onMouseLeave={(e) => {
-                // Remove hover effect
+                // Restore original styling
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.borderBottomWidth = '1.5px';
-                  visual.style.borderBottomColor = 'rgba(99, 102, 241, 0.8)';
+                  visual.style.borderBottomWidth = '2px';
+                  visual.style.borderBottomColor = hasOverlappingDefinition 
+                    ? 'rgba(90, 115, 95, 0.9)' // Original enhanced forest
+                    : 'rgba(90, 115, 95, 0.7)'; // Original standard forest
+                  visual.style.filter = 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08))';
                 }
               }}
             />

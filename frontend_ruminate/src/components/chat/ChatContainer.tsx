@@ -139,7 +139,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   
   return (
-    <div className="flex flex-col h-full bg-white text-gray-900">
+    <div className="flex flex-col h-full bg-gradient-to-b from-surface-parchment via-library-cream-50 to-surface-paper text-reading-primary relative">
+      {/* Subtle notebook margin line */}
+      <div className="absolute left-8 top-0 bottom-0 w-px bg-library-mahogany-200 opacity-30"></div>
+      
       <ChatMessages
         messageTree={messageTree}
         activeThreadIds={activeThreadIds}
@@ -150,40 +153,46 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         onEditMessage={handleEditMessage}
       />
       
-      {/* Note generation pill - minimal clean design */}
+      {/* Scholarly note generation prompt */}
       {shouldShowNotePill && (
-        <div className="px-4 py-1.5 flex justify-center">
+        <div className="px-6 py-3 flex justify-center">
           <button
             onClick={() => setShowNotePopup(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs rounded-full transition-colors border border-gray-200"
+            className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-library-gold-50 to-library-cream-100 hover:from-library-gold-100 hover:to-library-cream-200 text-reading-accent border border-library-gold-200 rounded-book transition-all duration-300 shadow-paper hover:shadow-book"
             disabled={isLoadingTree || !!streamingMessageId || isGeneratingNote}
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Generate note
+            <span className="font-serif text-sm font-medium">Synthesize Notes</span>
           </button>
         </div>
       )}
 
-      {/* Note generation status indicator */}
+      {/* Elegant note generation status indicator */}
       {isGeneratingNote && noteGenerationStatus && (
-        <div className="px-4 py-2 flex justify-center">
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-200">
+        <div className="px-6 py-3 flex justify-center">
+          <div className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-surface-parchment to-library-cream-100 border border-library-sage-200 rounded-journal shadow-paper backdrop-blur-sm">
             {noteGenerationStatus.includes('Failed') ? (
-              <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className="w-5 h-5 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             ) : noteGenerationStatus.includes('successfully') ? (
-              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg className="w-5 h-5 text-library-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
               </svg>
             ) : (
-              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg className="w-5 h-5 animate-spin text-library-gold-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             )}
-            <span className={noteGenerationStatus.includes('Failed') ? 'text-red-700' : noteGenerationStatus.includes('successfully') ? 'text-green-700' : 'text-blue-700'}>
+            <span className={`font-serif text-sm ${
+              noteGenerationStatus.includes('Failed') 
+                ? 'text-library-mahogany-700' 
+                : noteGenerationStatus.includes('successfully') 
+                  ? 'text-library-forest-700' 
+                  : 'text-library-gold-700'
+            }`}>
               {noteGenerationStatus}
             </span>
           </div>

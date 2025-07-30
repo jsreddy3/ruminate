@@ -205,33 +205,35 @@ const BasePopover: React.FC<BasePopoverProps> = ({
     return createPortal(
       <div
         ref={popoverRef}
-        className={`fixed bg-white rounded-lg shadow-2xl border border-gray-200 select-none backdrop-blur-sm ${(initialHeight === 'auto' && !hasBeenResized) ? '' : 'flex flex-col'} ${className}`}
+        className={`fixed bg-gradient-to-br from-surface-paper to-library-cream-100 rounded-journal shadow-deep border border-library-sage-300 select-none backdrop-blur-paper ${(initialHeight === 'auto' && !hasBeenResized) ? '' : 'flex flex-col'} ${className}`}
         style={{
           left: `${popupPosition.x}px`,
           top: `${popupPosition.y}px`,
           width: `${popupSize.width}px`,
           height: (initialHeight === 'auto' && !hasBeenResized) ? 'auto' : `${popupSize.height}px`,
           zIndex: 999999,
-          cursor: isDragging ? 'grabbing' : 'default'
+          cursor: isDragging ? 'grabbing' : 'default',
+          // Add subtle paper texture
+          background: 'linear-gradient(135deg, #fefcf7 0%, #fcf0d2 50%, #fef9ed 100%), repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(175, 95, 55, 0.01) 35px, rgba(175, 95, 55, 0.01) 70px)'
         }}
         onMouseDown={handleMouseDown}
       >
-        {/* EXACT copy: Draggable Header */}
+        {/* Elegant scholarly header */}
         <div 
-          className="drag-handle px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-50 rounded-t-lg cursor-grab active:cursor-grabbing"
+          className="drag-handle px-5 py-4 border-b border-library-sage-200 flex items-center justify-between bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50 rounded-t-journal cursor-grab active:cursor-grabbing backdrop-blur-sm"
           onMouseDown={handleMouseDown}
         >
-          <div className="flex items-center gap-2">
-            <Grip className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-3">
+            <Grip className="w-4 h-4 text-library-sage-400" />
             {title && (
-              <h3 className="text-sm font-medium text-gray-900 truncate">{title}</h3>
+              <h3 className="font-serif text-sm font-semibold text-reading-primary truncate">{title}</h3>
             )}
           </div>
           {showCloseButton && (
             <button
               onClick={onClose}
               onMouseDown={(e) => e.stopPropagation()} // Prevent close button from triggering drag
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-100"
+              className="text-library-sage-400 hover:text-reading-secondary transition-all duration-200 p-1.5 rounded-book hover:bg-library-cream-100 shadow-paper hover:shadow-book"
             >
               <X className="w-4 h-4" />
             </button>
@@ -279,25 +281,27 @@ const BasePopover: React.FC<BasePopoverProps> = ({
     >
       <div
         ref={popoverRef}
-        className={`bg-white rounded-lg shadow-lg border border-gray-200 ${className}`}
+        className={`bg-gradient-to-br from-surface-paper to-library-cream-100 rounded-journal shadow-shelf border border-library-sage-300 backdrop-blur-paper ${className}`}
         style={{
           width: initialWidth,
           height: initialHeight === 'auto' ? 'auto' : initialHeight,
           maxHeight: maxHeight,
+          // Add subtle paper texture
+          background: 'linear-gradient(135deg, #fefcf7 0%, #fcf0d2 50%, #fef9ed 100%), repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(175, 95, 55, 0.01) 35px, rgba(175, 95, 55, 0.01) 70px)'
         }}
       >
-        {/* Header with title and close button */}
+        {/* Elegant header with title and close button */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-3 border-b border-gray-200">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between p-4 border-b border-library-sage-200 bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50 rounded-t-journal">
+            <div className="flex items-center space-x-3">
               {title && (
-                <h3 className="text-sm font-medium text-gray-900">{title}</h3>
+                <h3 className="font-serif text-sm font-semibold text-reading-primary">{title}</h3>
               )}
             </div>
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-library-sage-400 hover:text-reading-secondary transition-all duration-200 p-1.5 rounded-book hover:bg-library-cream-100 shadow-paper hover:shadow-book"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
