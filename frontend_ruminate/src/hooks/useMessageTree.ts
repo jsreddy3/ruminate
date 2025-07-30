@@ -194,7 +194,44 @@ export function useMessageTree({
         throw new Error("No active conversation");
       }
       
+      // 1. Create optimistic messages immediately
+      const timestamp = new Date().toISOString();
+      const tempUserMessageId = `temp-user-${Date.now()}-${Math.random()}`;
+      const tempAiMessageId = `temp-ai-${Date.now()}-${Math.random()}`;
+      
+      const optimisticUserMessage: Message = {
+        id: tempUserMessageId,
+        content,
+        role: MessageRole.USER,
+        created_at: timestamp,
+        parent_id: parentId,
+        children: [],
+        active_child_id: null
+      };
+      
+      const optimisticAiMessage: Message = {
+        id: tempAiMessageId,
+        content: '',
+        role: MessageRole.ASSISTANT,
+        created_at: timestamp,
+        parent_id: tempUserMessageId,
+        children: [],
+        active_child_id: null
+      };
+      
+      // 2. Add optimistic messages to state immediately
+      const newMessages = [...flatMessages, optimisticUserMessage, optimisticAiMessage];
+      setFlatMessages(newMessages);
+      
+      // Rebuild tree with optimistic messages
+      const newTree = buildMessageTree(newMessages);
+      setMessageTree(newTree);
+      
+      // Update active thread to include new messages
+      setActiveThreadIds(prev => [...prev, tempUserMessageId, tempAiMessageId]);
+      
       try {
+        // 3. Make API call to get real IDs
         const { user_id, ai_id } = await conversationApi.sendMessage(
           conversationId, 
           content, 
@@ -203,19 +240,18 @@ export function useMessageTree({
           selectedBlockId || undefined
         );
         
-        // Return the real IDs immediately for streaming setup
-        // Don't wait for refreshTree - streaming should start ASAP
-        
-        // Refresh in background to show the user message and empty AI message
-        refreshTree().catch(err => console.error('Background refresh failed:', err));
+        // 4. Refresh tree - this will replace optimistic messages with real ones
+        await refreshTree();
         
         return [user_id, ai_id];
       } catch (err) {
+        // 5. On error, refresh tree to remove optimistic messages
+        await refreshTree();
         setError(err instanceof Error ? err : new Error('Failed to send message'));
         throw err;
       }
     },
-    [conversationId, activeThreadIds, selectedBlockId, refreshTree]
+    [conversationId, activeThreadIds, selectedBlockId, refreshTree, flatMessages, buildMessageTree]
   );
 
   // Function to edit an existing message with streaming
@@ -225,7 +261,18 @@ export function useMessageTree({
         throw new Error("No active conversation");
       }
       
+      // 1. Optimistically update the message content immediately
+      const updatedMessages = flatMessages.map(msg => 
+        msg.id === messageId ? { ...msg, content, updated_at: new Date().toISOString() } : msg
+      );
+      setFlatMessages(updatedMessages);
+      
+      // Rebuild tree with updated message
+      const newTree = buildMessageTree(updatedMessages);
+      setMessageTree(newTree);
+      
       try {
+        // 2. Make API call to edit message
         const { user_id: userMessageId, ai_id: assistantMessageId } = await conversationApi.editMessageStreaming(
           conversationId,
           messageId,
@@ -234,16 +281,18 @@ export function useMessageTree({
           selectedBlockId || undefined
         );
         
-        // Immediately refresh to show the edited message and empty AI message
+        // 3. Refresh to get real data and new AI message
         await refreshTree();
         
         return [userMessageId, assistantMessageId];
       } catch (err) {
+        // 4. On error, refresh to revert optimistic changes
+        await refreshTree();
         setError(err instanceof Error ? err : new Error('Failed to edit message'));
         throw err;
       }
     },
-    [conversationId, activeThreadIds, selectedBlockId, refreshTree]
+    [conversationId, activeThreadIds, selectedBlockId, refreshTree, flatMessages, buildMessageTree]
   );
 
 
