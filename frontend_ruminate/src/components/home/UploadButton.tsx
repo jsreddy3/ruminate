@@ -194,9 +194,6 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                     </>
                   ) : (
                     <div className="space-y-4">
-                      <p className="text-sm text-gray-600">
-                        Generate a PDF from any URL using our AI service. This may take up to a minute.
-                      </p>
                       <div>
                         <label htmlFor="url-input" className="block text-sm font-medium text-gray-700 mb-2">
                           Enter URL to convert
@@ -215,16 +212,20 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                           }}
                         />
                       </div>
-                      <button
-                        onClick={handleUrlUpload}
-                        disabled={!urlInput.trim()}
-                        className="w-full py-3 px-4 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                      >
-                        Generate PDF and Upload
-                      </button>
-                      <p className="text-xs text-gray-500 text-center">
-                        The URL will be processed by augment.explainai.pro
-                      </p>
+                      <div className="flex flex-col items-center space-y-3">
+                        <button
+                          onClick={handleUrlUpload}
+                          disabled={!urlInput.trim()}
+                          className="w-full py-3 px-4 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Generate
+                        </button>
+                        <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-blue-100 border border-blue-300">
+                          <span className="text-sm font-semibold text-blue-700">
+                            BETA FEATURE
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
