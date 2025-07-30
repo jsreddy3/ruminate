@@ -11,13 +11,16 @@ async function calculateHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+export type UploadMethod = 'auto' | 'backend' | 's3';
+
 interface UseDocumentUploadResult {
   isProcessing: boolean;
   progress: ProcessingProgress | null;
   error: string | null;
   documentId: string | null;
   pdfFile: string | null;
-  uploadFile: (file: File) => Promise<void>;
+  uploadFile: (file: File, method?: UploadMethod) => Promise<void>;
+  uploadFromUrl: (url: string, filename?: string) => Promise<void>;
   resetUploadState: () => void;
   hasUploadedFile: boolean;
   setPdfFileDirectly: (dataUrl: string | null) => void;
@@ -97,7 +100,78 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     });
   }, [documentId]);
 
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFileViaBackend = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/`, {
+      method: 'POST', body: formData,
+    });
+
+    if (!response.ok) {
+      let errorDetail = `Upload failed: ${response.statusText}`; 
+      try { 
+        const ed = await response.json(); 
+        errorDetail = ed.detail || errorDetail; 
+      } catch {} 
+      throw new Error(errorDetail);
+    }
+
+    const initialDocData = await response.json();
+    const newDocumentId = initialDocData.document?.id;
+    if (!newDocumentId) throw new Error("Server did not return a document ID after upload.");
+    
+    return newDocumentId;
+  };
+
+  const uploadFileViaS3 = async (file: File) => {
+    // Get presigned URL
+    const urlResponse = await authenticatedFetch(`${API_BASE_URL}/documents/upload-url?filename=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+    });
+
+    if (!urlResponse.ok) {
+      throw new Error('Failed to get upload URL');
+    }
+
+    const { document_id, upload_url, fields, key } = await urlResponse.json();
+
+    // Create form data for S3
+    const formData = new FormData();
+    Object.entries(fields).forEach(([k, v]) => {
+      formData.append(k, v as string);
+    });
+    formData.append('file', file);
+
+    // Upload to S3
+    const s3Response = await fetch(upload_url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!s3Response.ok) {
+      throw new Error('Failed to upload to S3');
+    }
+
+    // Confirm upload with backend
+    const confirmResponse = await authenticatedFetch(`${API_BASE_URL}/documents/confirm-upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        document_id,
+        filename: file.name,
+        storage_key: key,
+      }),
+    });
+
+    if (!confirmResponse.ok) {
+      throw new Error('Failed to confirm upload');
+    }
+
+    return document_id;
+  };
+
+  const uploadFile = useCallback(async (file: File, method: UploadMethod = 'auto') => {
     resetUploadState();
     setIsProcessing(true);
     addProcessingEvent('upload_start', 'INITIALIZING', 'Preparing your document for upload...');
@@ -275,6 +349,174 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     }
   }, [resetUploadState, addProcessingEvent]);
 
+  // Upload from URL (e.g., from external PDF generation service)
+  const uploadFromUrl = useCallback(async (url: string, filename: string = 'generated.pdf') => {
+    resetUploadState();
+    setIsProcessing(true);
+    addProcessingEvent('upload_start', 'INITIALIZING', 'Generating PDF from URL...');
+
+    try {
+      // Step 1: Get presigned URL from backend
+      addProcessingEvent('presigned_url', 'UPLOADING', 'Getting upload location...');
+      const { upload_url, fields, key } = await documentApi.getUploadUrl(filename);
+      
+      // Step 2: Use SSE endpoint for real-time progress
+      addProcessingEvent('pdf_generation', 'UPLOADING', 'Connecting to PDF generation service...');
+      
+      // Extract the user's URL from the augment URL
+      const urlParams = new URL(url).searchParams;
+      const userUrl = urlParams.get('url') || url;
+      
+      // Create request body with presigned post data
+      const requestBody = {
+        url: userUrl,
+        presigned_post_data: {
+          url: upload_url,
+          fields: fields
+        }
+      };
+      
+      // Use EventSource for SSE
+      const sseUrl = 'https://augment.explainai.pro/generate-pdf-sse';
+      const response = await fetch(sseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to start PDF generation');
+      }
+      
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const text = decoder.decode(value);
+            const lines = text.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  
+                  switch (data.status) {
+                    case 'navigating':
+                      addProcessingEvent('pdf_navigating', 'UPLOADING', data.message);
+                      break;
+                    case 'generating':
+                      addProcessingEvent('pdf_generating', 'UPLOADING', data.message);
+                      break;
+                    case 'uploading':
+                      addProcessingEvent('pdf_uploading', 'UPLOADING', data.message);
+                      break;
+                    case 'complete':
+                      addProcessingEvent('pdf_complete', 'UPLOADING', 'PDF uploaded successfully!');
+                      break;
+                    case 'error':
+                      throw new Error(data.error || 'PDF generation failed');
+                  }
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e);
+                }
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
+      
+      // Step 4: Confirm upload with backend
+      addProcessingEvent('confirm_upload', 'UPLOADING', 'Confirming upload with server...');
+      const result = await documentApi.confirmS3Upload(key, filename);
+      
+      const newDocumentId = result.document?.id;
+      if (!newDocumentId) throw new Error("Server did not return a document ID after upload.");
+      
+      setDocumentId(newDocumentId);
+      addProcessingEvent('upload_complete', 'PROCESSING_START', 'Upload complete! Starting document processing...');
+      
+      // Start SSE listening for processing updates
+      const token = localStorage.getItem('auth_token');
+      const eventSourceUrl = `${API_BASE_URL}/documents/${newDocumentId}/processing-stream`;
+      const authenticatedEventSourceUrl = token ? `${eventSourceUrl}?token=${token}` : eventSourceUrl;
+      const es = new EventSource(authenticatedEventSourceUrl);
+      eventSourceRef.current = es;
+      
+      // Set up SSE handlers (same as regular upload)
+      es.onmessage = async (event) => {
+        try {
+          let eventData;
+          
+          // Handle case where event.data might contain full SSE format
+          if (event.data.includes('event:') && event.data.includes('data:')) {
+            // Extract JSON from SSE format
+            const lines = event.data.split('\n');
+            const dataLine = lines.find((line: string) => line.startsWith('data:'));
+            if (dataLine) {
+              const jsonStr = dataLine.substring(5).trim(); // Remove 'data:' prefix
+              eventData = JSON.parse(jsonStr);
+            } else {
+              throw new Error('No data line found in SSE message');
+            }
+          } else {
+            // Standard case - event.data should be JSON
+            eventData = JSON.parse(event.data);
+          }
+          
+          const status = eventData.status as DocumentStatus;
+          const message = eventData.message || eventData.detail;
+          const error = eventData.error;
+          
+          addProcessingEvent(status.toLowerCase(), status, message, error);
+          
+          if (status === 'READY') {
+            const pdfUrl = await fetchPdfUrl(newDocumentId);
+            if (pdfUrl) {
+              setPdfFile(pdfUrl);
+              setHasUploadedFile(true);
+              setIsProcessing(false);
+              
+              // Cache the document
+              const cachedDocuments = JSON.parse(localStorage.getItem('pdfDocuments') || '{}');
+              cachedDocuments[filename] = { documentId: newDocumentId, pdfUrl };
+              localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
+            }
+            es.close();
+          } else if (status === 'ERROR') {
+            setError(error || message || 'Processing failed');
+            setIsProcessing(false);
+            es.close();
+          }
+        } catch (err) {
+          console.error('Error processing SSE message:', err);
+        }
+      };
+      
+      es.onerror = (err) => {
+        console.error('SSE Error:', err);
+        setError('Lost connection to processing server');
+        setIsProcessing(false);
+        es.close();
+      };
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+      setIsProcessing(false);
+      addProcessingEvent('upload_error', 'ERROR', undefined, errorMessage);
+    }
+  }, [resetUploadState, addProcessingEvent, fetchPdfUrl]);
+
   // Functions to allow LandingPage to set state when selecting an existing document
   const setPdfFileDirectly = useCallback((dataUrl: string | null) => setPdfFile(dataUrl), []);
   const setDocumentIdDirectly = useCallback((docId: string | null) => setDocumentId(docId), []);
@@ -288,6 +530,7 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     documentId,
     pdfFile,
     uploadFile,
+    uploadFromUrl,
     resetUploadState,
     hasUploadedFile,
     setPdfFileDirectly,

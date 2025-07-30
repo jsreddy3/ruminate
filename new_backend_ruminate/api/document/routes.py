@@ -1,9 +1,10 @@
 """Document API routes"""
 from typing import Optional, List
-from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import io
+import uuid
 
 from new_backend_ruminate.api.document.schemas import (
     DocumentResponse, 
@@ -15,43 +16,119 @@ from new_backend_ruminate.api.document.schemas import (
     DefinitionResponse,
     EnhancedDefinitionResponse,
     AnnotationRequest,
-    AnnotationResponse
+    AnnotationResponse,
+    S3UploadRequest
 )
 from new_backend_ruminate.services.document.service import DocumentService
-from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token
+from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token, get_storage_service
 from new_backend_ruminate.domain.user.entities.user import User
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+@router.get("/upload-url")
+async def get_upload_url(
+    filename: str,
+    current_user: User = Depends(get_current_user),
+    storage = Depends(get_storage_service)
+):
+    """
+    Get a presigned URL for direct S3 upload.
+    
+    Returns:
+        - upload_url: The S3 URL to PUT the file to
+        - key: The S3 key where the file will be stored
+    """
+    from uuid import uuid4
+    
+    # Validate file type
+    if not filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    
+    # Generate S3 key
+    document_id = str(uuid4())
+    storage_key = f"documents/{document_id}/{filename}"
+    
+    try:
+        # Generate presigned POST URL and fields
+        presigned_data = await storage.generate_presigned_post(
+            key=storage_key,
+            content_type="application/pdf",
+            expires_in=3600  # 1 hour
+        )
+        
+        return {
+            "upload_url": presigned_data["url"],
+            "fields": presigned_data["fields"],
+            "key": storage_key
+        }
+        
+    except Exception as e:
+        print(f"[Upload URL Route] Error generating presigned URL: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating upload URL: {str(e)}")
 
 
 @router.post("/", response_model=DocumentUploadResponse)
 async def upload_document(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    request: Request,
+    file: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user),
-    svc: DocumentService = Depends(get_document_service)
+    svc: DocumentService = Depends(get_document_service),
+    storage = Depends(get_storage_service)
 ):
     """
     Upload a PDF document for processing
     
-    The document will be:
-    1. Stored in object storage
-    2. Processed by Marker API for text extraction
+    Accepts either:
+    1. A PDF file upload (multipart/form-data)
+    2. A JSON body with s3_key and filename (for files already uploaded to S3)
     
+    Both paths use the same processing logic.
     Returns immediately with document ID while processing continues in background.
     """
-    # Validate file type
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
-    try:
-        print(f"[Upload Route] Starting upload for file: {file.filename}, size: {file.size if hasattr(file, 'size') else 'unknown'}")
+    # Check if this is a file upload or S3 URL upload
+    content_type = request.headers.get("content-type", "")
+    
+    if file and file.filename:
+        # Traditional file upload path
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Only PDF files are supported")
         
-        # Upload document
+        filename = file.filename
+        file_obj = file.file
+        
+    elif "application/json" in content_type:
+        # S3 URL upload path - download the file first
+        try:
+            body = await request.json()
+            s3_request = S3UploadRequest(**body)
+            
+            print(f"[Upload Route] Downloading from S3 key: {s3_request.s3_key}")
+            
+            # Download file from S3
+            file_content = await storage.download_file(s3_request.s3_key)
+            file_obj = io.BytesIO(file_content)
+            filename = s3_request.filename
+            
+        except Exception as e:
+            print(f"[Upload Route] Error downloading from S3: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Failed to download from S3: {str(e)}")
+    
+    else:
+        raise HTTPException(
+            status_code=400, 
+            detail="Must provide either a file upload or JSON body with s3_key"
+        )
+    
+    # Now use the SAME upload logic regardless of source
+    try:
+        print(f"[Upload Route] Starting upload for file: {filename}")
+        
         document = await svc.upload_document(
             background=background_tasks,
-            file=file.file,
-            filename=file.filename,
+            file=file_obj,
+            filename=filename,
             user_id=current_user.id
         )
         

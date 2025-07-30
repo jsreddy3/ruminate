@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,11 +58,15 @@ export default function HomePage() {
     router.push(`/viewer/${document.id}`);
   };
 
-  const handleUploadComplete = async () => {
+  const handleUploadComplete = useCallback(async () => {
     // Refresh the documents list
-    const docs = await documentApi.getAllDocuments();
-    setDocuments(docs);
-  };
+    try {
+      const docs = await documentApi.getAllDocuments();
+      setDocuments(docs);
+    } catch (err) {
+      console.error('Error refreshing documents:', err);
+    }
+  }, []);
 
   const handleDeleteRequest = (documentId: string) => {
     const document = documents.find(doc => doc.id === documentId);

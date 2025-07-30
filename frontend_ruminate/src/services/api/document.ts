@@ -230,4 +230,56 @@ export const documentApi = {
     
     return response.json();
   },
+
+  /**
+   * Get presigned upload URL for direct S3 upload
+   * @param filename The filename to upload
+   * @returns Upload URL, form fields, and S3 key
+   */
+  getUploadUrl: async (filename: string): Promise<{
+    upload_url: string;
+    fields: Record<string, string>;
+    key: string;
+  }> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/documents/upload-url?filename=${encodeURIComponent(filename)}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to get upload URL');
+    }
+    
+    return response.json();
+  },
+
+  /**
+   * Confirm S3 upload and start processing
+   * @param s3Key The S3 key where file was uploaded
+   * @param filename The original filename
+   * @returns Document upload response
+   */
+  confirmS3Upload: async (s3Key: string, filename: string): Promise<{
+    document: Document;
+    message: string;
+  }> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/documents/`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          s3_key: s3Key,
+          filename: filename
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to confirm upload');
+    }
+    
+    return response.json();
+  },
 };

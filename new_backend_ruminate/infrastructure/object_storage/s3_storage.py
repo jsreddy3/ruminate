@@ -102,3 +102,28 @@ class S3ObjectStorage(ObjectStorageInterface):
             ExpiresIn=expiration
         )
         return url
+    
+    async def generate_presigned_post(self, key: str, content_type: Optional[str] = None, expires_in: int = 3600) -> dict:
+        """Generate a presigned POST URL and fields for direct upload"""
+        # Build conditions for the POST policy
+        conditions = [
+            {'bucket': self.bucket_name},
+            {'key': key}
+        ]
+        
+        fields = {'key': key}
+        
+        if content_type:
+            conditions.append({'Content-Type': content_type})
+            fields['Content-Type'] = content_type
+        
+        # Use sync client for presigned POST - it's a local operation
+        response = self._sync_client.generate_presigned_post(
+            Bucket=self.bucket_name,
+            Key=key,
+            Fields=fields,
+            Conditions=conditions,
+            ExpiresIn=expires_in
+        )
+        
+        return response

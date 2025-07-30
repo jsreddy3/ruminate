@@ -41,6 +41,12 @@ class DocumentUploadResponse(BaseModel):
     message: str = "Document uploaded successfully and processing started"
 
 
+class S3UploadRequest(BaseModel):
+    """Request schema for S3 URL upload"""
+    s3_key: str = Field(..., description="S3 key where the file was uploaded")
+    filename: str = Field(..., description="Original filename")
+
+
 class PageResponse(BaseModel):
     """Response schema for document page"""
     id: str

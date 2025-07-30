@@ -72,3 +72,18 @@ class ObjectStorageInterface(ABC):
             Presigned URL
         """
         pass
+    
+    @abstractmethod
+    async def generate_presigned_post(self, key: str, content_type: Optional[str] = None, expires_in: int = 3600) -> dict:
+        """
+        Generate a presigned POST URL and fields for direct upload
+        
+        Args:
+            key: Storage key/path where the file will be uploaded
+            content_type: MIME type of the file to be uploaded
+            expires_in: URL expiration time in seconds
+            
+        Returns:
+            Dictionary with 'url' and 'fields' for the POST request
+        """
+        pass

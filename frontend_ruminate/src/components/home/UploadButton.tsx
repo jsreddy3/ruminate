@@ -14,6 +14,8 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
+  const [urlInput, setUrlInput] = useState('');
 
   const {
     isProcessing,
@@ -21,6 +23,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
     documentId,
     pdfFile,
     uploadFile,
+    uploadFromUrl,
     hasUploadedFile,
     processingEvents,
     currentStatus,
@@ -36,11 +39,27 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
     }
   };
 
+  const handleUrlUpload = async () => {
+    if (urlInput.trim()) {
+      // Pass the user's URL to the augment service
+      const augmentUrl = `https://augment.explainai.pro/generate-pdf?url=${encodeURIComponent(urlInput)}`;
+      const filename = `generated-${Date.now()}.pdf`;
+      await uploadFromUrl(augmentUrl, filename);
+      setUrlInput('');
+    }
+  };
+
   // Navigate to viewer when upload is complete
   useEffect(() => {
     if (hasUploadedFile && documentId) {
+      // Close modal first
+      setIsOpen(false);
+      // Reset upload mode
+      setUploadMode('file');
+      // Navigate to viewer
       router.push(`/viewer/${documentId}`);
-      onUploadComplete?.(); // Call the callback if provided
+      // Call callback if provided
+      onUploadComplete?.();
     }
   }, [hasUploadedFile, documentId, router, onUploadComplete]);
 
@@ -116,36 +135,98 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
               {/* Upload Area or Progress */}
               {!isProcessing ? (
                 <div className="mb-6">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    ref={fileInputRef}
-                    disabled={isProcessing}
-                  />
-                  <div
-                    onClick={() => !isProcessing && fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition-all hover:border-primary-400 hover:bg-gray-50"
-                  >
-                    <svg
-                      className="mx-auto h-12 w-12 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                  {/* Upload mode toggle */}
+                  <div className="flex space-x-2 mb-4">
+                    <button
+                      onClick={() => setUploadMode('file')}
+                      className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                        uploadMode === 'file'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-600">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500">PDF files only</p>
+                      Upload PDF
+                    </button>
+                    <button
+                      onClick={() => setUploadMode('url')}
+                      className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                        uploadMode === 'url'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Generate from URL
+                    </button>
                   </div>
+
+                  {uploadMode === 'file' ? (
+                    <>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        ref={fileInputRef}
+                        disabled={isProcessing}
+                      />
+                      <div
+                        onClick={() => !isProcessing && fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition-all hover:border-primary-400 hover:bg-gray-50"
+                      >
+                        <svg
+                          className="mx-auto h-12 w-12 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <p className="mt-2 text-sm text-gray-600">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">PDF files only</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        Generate a PDF from any URL using our AI service. This may take up to a minute.
+                      </p>
+                      <div>
+                        <label htmlFor="url-input" className="block text-sm font-medium text-gray-700 mb-2">
+                          Enter URL to convert
+                        </label>
+                        <input
+                          id="url-input"
+                          type="url"
+                          value={urlInput}
+                          onChange={(e) => setUrlInput(e.target.value)}
+                          placeholder="https://example.com/article"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && urlInput.trim()) {
+                              handleUrlUpload();
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={handleUrlUpload}
+                        disabled={!urlInput.trim()}
+                        className="w-full py-3 px-4 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Generate PDF and Upload
+                      </button>
+                      <p className="text-xs text-gray-500 text-center">
+                        The URL will be processed by augment.explainai.pro
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="mb-6">
@@ -153,6 +234,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                     events={processingEvents}
                     currentStatus={currentStatus}
                     error={error || undefined}
+                    isUrlUpload={uploadMode === 'url'}
                   />
                 </div>
               )}

@@ -8,6 +8,7 @@ interface UploadProgressStepsProps {
   events: DocumentProcessingEvent[];
   currentStatus: DocumentStatus;
   error?: string;
+  isUrlUpload?: boolean;
 }
 
 interface StepInfo {
@@ -18,7 +19,51 @@ interface StepInfo {
   estimatedTime?: string;
 }
 
-const PROCESSING_STEPS: StepInfo[] = [
+const URL_PROCESSING_STEPS: StepInfo[] = [
+  {
+    id: 'pdf_navigating',
+    title: 'Navigating',
+    description: 'Opening the webpage',
+    icon: '🌐',
+    estimatedTime: '5-10 seconds'
+  },
+  {
+    id: 'pdf_generating',
+    title: 'Generating PDF',
+    description: 'Converting webpage to PDF format',
+    icon: '📄',
+    estimatedTime: '30-45 seconds'
+  },
+  {
+    id: 'pdf_uploading',
+    title: 'Uploading',
+    description: 'Transferring generated PDF',
+    icon: '📤',
+    estimatedTime: '5-10 seconds'
+  },
+  {
+    id: 'PROCESSING_MARKER',
+    title: 'Extracting Content',
+    description: 'Using AI to parse text and structure',
+    icon: '🔍',
+    estimatedTime: '30-60 seconds'
+  },
+  {
+    id: 'ANALYZING_CONTENT',
+    title: 'Creating Summary',
+    description: 'Generating intelligent overview',
+    icon: '🧠',
+    estimatedTime: '15-30 seconds'
+  },
+  {
+    id: 'READY',
+    title: 'Ready!',
+    description: 'Your document is ready',
+    icon: '✨',
+  }
+];
+
+const FILE_PROCESSING_STEPS: StepInfo[] = [
   {
     id: 'UPLOADING',
     title: 'Uploading Document',
@@ -48,9 +93,13 @@ const PROCESSING_STEPS: StepInfo[] = [
   }
 ];
 
-const getStepStatus = (stepId: string, currentStatus: DocumentStatus, _events: DocumentProcessingEvent[]) => {
-  const stepIndex = PROCESSING_STEPS.findIndex(step => step.id === stepId);
-  const currentIndex = PROCESSING_STEPS.findIndex(step => step.id === currentStatus);
+const getStepStatus = (stepId: string, currentStatus: DocumentStatus, events: DocumentProcessingEvent[], steps: StepInfo[]) => {
+  // For URL uploads, check if we have pdf_ events
+  const latestEvent = events[events.length - 1];
+  const effectiveStatus = latestEvent?.event_type?.startsWith('pdf_') ? latestEvent.event_type : currentStatus;
+  
+  const stepIndex = steps.findIndex(step => step.id === stepId);
+  const currentIndex = steps.findIndex(step => step.id === effectiveStatus);
   
   if (currentStatus === 'ERROR') {
     return stepIndex < currentIndex ? 'completed' : 'error';
@@ -140,6 +189,20 @@ const ProcessingMessages = ({ events, currentStatus }: { events: DocumentProcess
   const latestEvent = events[events.length - 1];
   
   const getDisplayMessage = () => {
+    // Check for custom PDF generation events first
+    if (latestEvent?.event_type) {
+      switch (latestEvent.event_type) {
+        case 'pdf_navigating':
+          return "Navigating to the webpage...";
+        case 'pdf_generating':
+          return "Generating PDF from the webpage...";
+        case 'pdf_uploading':
+          return "Uploading generated PDF...";
+        case 'pdf_complete':
+          return "PDF generation complete! Starting processing...";
+      }
+    }
+    
     switch (currentStatus) {
       case 'UPLOADING':
         return "Uploading your document...";
@@ -154,12 +217,22 @@ const ProcessingMessages = ({ events, currentStatus }: { events: DocumentProcess
       case 'ERROR':
         return latestEvent?.error || "Something went wrong. Please try again.";
       default:
-        return "Processing your document...";
+        return latestEvent?.message || "Processing your document...";
     }
   };
 
   const getSubMessage = () => {
-    const currentStep = PROCESSING_STEPS.find(step => step.id === currentStatus);
+    // Special handling for PDF generation
+    if (latestEvent?.event_type?.startsWith('pdf_')) {
+      const urlStep = URL_PROCESSING_STEPS.find(step => step.id === latestEvent.event_type);
+      if (urlStep?.estimatedTime) {
+        return `Estimated time: ${urlStep.estimatedTime}`;
+      }
+      return "This may take up to a minute...";
+    }
+    
+    // Try both step arrays to find the current step
+    const currentStep = [...FILE_PROCESSING_STEPS, ...URL_PROCESSING_STEPS].find(step => step.id === currentStatus);
     if (currentStep?.estimatedTime && currentStatus !== 'READY' && currentStatus !== 'ERROR') {
       return `Estimated time: ${currentStep.estimatedTime}`;
     }
@@ -188,14 +261,19 @@ const ProcessingMessages = ({ events, currentStatus }: { events: DocumentProcess
   );
 };
 
-export default function UploadProgressSteps({ events, currentStatus, error: _error }: UploadProgressStepsProps) {
+export default function UploadProgressSteps({ events, currentStatus, error: _error, isUrlUpload = false }: UploadProgressStepsProps) {
+  // Determine if this is a URL upload based on events or prop
+  const hasUrlEvents = events.some(e => e.event_type?.startsWith('pdf_'));
+  const isUrl = isUrlUpload || hasUrlEvents;
+  const steps = isUrl ? URL_PROCESSING_STEPS : FILE_PROCESSING_STEPS;
+  
   return (
     <div className="w-full max-w-2xl mx-auto p-6">
       {/* Progress Steps */}
       <div className="flex items-center justify-between mb-8">
-        {PROCESSING_STEPS.map((step, index) => {
-          const status = getStepStatus(step.id, currentStatus, events);
-          const isLast = index === PROCESSING_STEPS.length - 1;
+        {steps.map((step, index) => {
+          const status = getStepStatus(step.id, currentStatus, events, steps);
+          const isLast = index === steps.length - 1;
           
           return (
             <div key={step.id} className="flex items-center flex-1">

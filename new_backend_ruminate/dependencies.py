@@ -113,6 +113,11 @@ def get_llm_service() -> OpenAILLM:
     return _llm
 
 
+def get_storage_service():
+    """Return the singleton storage service"""
+    return _storage
+
+
 
 # Re-export get_session so routers can do Depends(deps.get_session)
 async def get_session():
