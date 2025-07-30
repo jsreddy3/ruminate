@@ -119,8 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = () => {
-    // Redirect to backend Google OAuth
-    window.location.href = `${API_BASE_URL}/auth/login`;
+    // Redirect to backend Google OAuth with current origin as redirect URL
+    const redirectUrl = window.location.origin;
+    window.location.href = `${API_BASE_URL}/auth/login?redirect_url=${encodeURIComponent(redirectUrl)}`;
   };
 
   const logout = async () => {
