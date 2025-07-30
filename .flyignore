@@ -1,0 +1,45 @@
+# Exclude frontend and build artifacts
+frontend_ruminate/
+.vercelignore
+
+# Exclude version control and caches
+.git/
+.github/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude development files
+.env
+.env.local
+.env.development
+.env.test
+*.log
+.DS_Store
+
+# Exclude storage and temporary files
+storage/
+*.tmp
+*.temp
+
+# Exclude egg-info and build directories
+*.egg-info/
+build/
+dist/
+
+# Exclude virtual environments
+venv/
+env/
+new_backend_ruminate/my_env/
+
+# Exclude IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Exclude documentation
+*.md
+TEARDOWN.md
