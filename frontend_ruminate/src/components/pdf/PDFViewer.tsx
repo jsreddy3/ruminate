@@ -21,33 +21,8 @@ import BlockNavigator from "../interactive/blocks/BlockNavigator";
 import BlockOverlay from "./BlockOverlay";
 import PDFBlockOverlay from "./PDFBlockOverlay";
 import PDFToolbar from "./PDFToolbar";
-
-// Custom CSS styles for resize handles
-const resizeHandleStyles = {
-  vertical: `
-    width: 4px;
-    margin: 0 -2px;
-    background-color: transparent;
-    position: relative;
-    cursor: col-resize;
-    transition: background-color 0.2s;
-  `,
-  horizontal: `
-    height: 4px;
-    margin: -2px 0;
-    background-color: transparent;
-    position: relative;
-    cursor: row-resize;
-    transition: background-color 0.2s;
-  `,
-  dot: `
-    position: absolute;
-    border-radius: 50%;
-    background-color: #cbd5e1;
-    width: 3px;
-    height: 3px;
-  `,
-};
+import ChatSidebar from "./ChatSidebar";
+import { useBlockOverlayManager } from "./BlockOverlayManager";
 
 export interface Block {
   id: string;
@@ -282,9 +257,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [documentId]);
 
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
-  // Add state for block overlay
-  const [isBlockOverlayOpen, setIsBlockOverlayOpen] = useState(false);
+  // Block overlay state now managed by useBlockOverlayManager hook
   
   // Add state for conversation management
   const [mainConversationId, setMainConversationId] = useState<string | null>(null);
@@ -342,13 +315,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       if (Array.isArray(blocksData)) {
         setBlocks(blocksData);
         
-        // If we have a selected block, update it with the new data
-        if (selectedBlock) {
-          const updatedBlock = blocksData.find(b => b.id === selectedBlock.id);
-          if (updatedBlock) {
-            setSelectedBlock(updatedBlock);
-          }
-        }
+        // Block selection state is now managed by useBlockOverlayManager hook
       }
     } catch (error) {
       console.error("Error fetching document data:", error);
@@ -396,12 +363,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       )
     );
     
-    // Also update selectedBlock if it's the same block
-    setSelectedBlock(prevSelected => 
-      prevSelected?.id === blockId 
-        ? { ...prevSelected, metadata: { ...prevSelected.metadata, ...newMetadata } }
-        : prevSelected
-    );
+    // Selected block metadata updates now handled by useBlockOverlayManager hook
   }, []);
   
   // Fetch rabbithole data for the document
@@ -592,24 +554,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return nextPageIndex;
   };
 
-  // Handle block click to select and view it
-  const handleBlockClick = useCallback((block: Block) => {
-    // Set the new selected block and open overlay
-    setSelectedBlock(block);
-    setIsBlockOverlayOpen(true);
-  }, []);
-
-  // Programmatically open a block (for auto-navigation after note generation)
-  const handleOpenBlockWithNote = useCallback((blockId: string, noteId: string) => {
-    // Find the block in flattened blocks
-    const targetBlock = flattenedBlocks.find(block => block.id === blockId);
-    if (targetBlock) {
-      setSelectedBlock(targetBlock);
-      setIsBlockOverlayOpen(true);
-    } else {
-      console.error('Block not found:', blockId);
-    }
-  }, [flattenedBlocks]);
+  // Block interaction handlers now managed by useBlockOverlayManager hook
   
   // Handle creation of rabbithole conversations
   const handleRabbitholeCreated = useCallback((
@@ -655,28 +600,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setActiveConversationId(conversationId);
   }, [rabbitholeConversations]);
 
-  const renderOverlay = useCallback(
-    (props: { pageIndex: number; scale: number; rotation: number }) => {
-      return (
-        <PDFBlockOverlay
-          blocks={blocks}
-          selectedBlock={selectedBlock}
-          pageIndex={props.pageIndex}
-          scale={props.scale}
-          onBlockClick={handleBlockClick}
-          isSelectionMode={isBlockSelectionMode}
-          onBlockSelect={(blockId: string) => {
-            if (onBlockSelectionComplete) {
-              onBlockSelectionComplete(blockId);
-              setIsBlockSelectionMode(false);
-              setOnBlockSelectionComplete(null);
-            }
-          }}
-        />
-      );
-    },
-    [blocks, selectedBlock, handleBlockClick, isBlockSelectionMode, onBlockSelectionComplete]
-  );
+  // renderOverlay moved to after blockOverlayManager hook
 
   // Use our custom hook for the main panel layout (PDF vs chat)
   const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
@@ -722,6 +646,47 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setBlockSelectionPrompt(config.prompt);
     setOnBlockSelectionComplete(() => config.onComplete);
   }, []);
+
+  // Block overlay manager hook - must be after all dependencies are declared
+  const blockOverlayManager = useBlockOverlayManager({
+    blocks,
+    flattenedBlocks,
+    documentId,
+    currentPanelSizes,
+    mainConversationId,
+    rabbitholeConversations,
+    onSetRabbitholeConversations: setRabbitholeConversations,
+    onSetActiveConversationId: setActiveConversationId,
+    onAddTextToChat: handleAddTextToChat,
+    onUpdateBlockMetadata: updateBlockMetadata,
+    onFetchBlocks: fetchBlocks,
+    getRabbitholeHighlightsForBlock,
+    isBlockSelectionMode,
+    onBlockSelectionComplete,
+    onSetBlockSelectionMode: setIsBlockSelectionMode,
+    onSetBlockSelectionComplete: setOnBlockSelectionComplete,
+    onHandleRabbitholeCreated: handleRabbitholeCreated,
+    onAddRabbitholeConversation: addRabbitholeConversation,
+    refreshRabbitholesFnRef,
+  });
+
+  // PDF overlay renderer - now has access to blockOverlayManager
+  const renderOverlay = useCallback(
+    (props: { pageIndex: number; scale: number; rotation: number }) => {
+      return (
+        <PDFBlockOverlay
+          blocks={blocks}
+          selectedBlock={blockOverlayManager.selectedBlock}
+          pageIndex={props.pageIndex}
+          scale={props.scale}
+          onBlockClick={blockOverlayManager.handleBlockClick}
+          isSelectionMode={isBlockSelectionMode}
+          onBlockSelect={blockOverlayManager.handleBlockSelect}
+        />
+      );
+    },
+    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect]
+  );
 
   // Add effect to log active conversation changes
   useEffect(() => {
@@ -981,74 +946,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             </div>
 
             {/* Block Overlay */}
-            <BlockOverlay
-              isOpen={isBlockOverlayOpen}
-              selectedBlock={selectedBlock}
-              flattenedBlocks={flattenedBlocks}
-              documentId={documentId}
-              pdfPanelWidth={currentPanelSizes[0]}
-              getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
-              onClose={() => setIsBlockOverlayOpen(false)}
-              onBlockChange={(block) => {
-                setSelectedBlock(block);
-              }}
-              onRefreshRabbitholes={(refreshFn) => {
-                refreshRabbitholesFnRef.current = refreshFn;
-              }}
-              onAddTextToChat={handleAddTextToChat}
-              onUpdateBlockMetadata={updateBlockMetadata}
-              onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
-                const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
-                if (existingConversation) {
-                  setActiveConversationId(rabbitholeId);
-                  return;
-                }
-                
-                const title = selectedText && selectedText.length > 30 
-                  ? `${selectedText.substring(0, 30)}...` 
-                  : selectedText || "Rabbithole Chat";
-                
-                setRabbitholeConversations(prev => [
-                  ...prev, 
-                  {
-                    id: rabbitholeId,
-                    title,
-                    selectionText: selectedText || "",
-                    blockId: selectedBlock?.id || ""
-                  }
-                ]);
-                
-                setActiveConversationId(rabbitholeId);
-              }}
-              onCreateRabbithole={(text: string, startOffset: number, endOffset: number) => {
-                if (documentId && selectedBlock) {
-                  createRabbithole({
-                    document_id: documentId,
-                    block_id: selectedBlock.id,
-                    selected_text: text,
-                    start_offset: startOffset,
-                    end_offset: endOffset,
-                    type: 'rabbithole'
-                  }).then((conversation_id) => {
-                    handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
-                    
-                    // Optimistically add the new rabbithole conversation
-                    addRabbitholeConversation(selectedBlock.id, conversation_id, text, startOffset, endOffset);
-                    
-                    // Update block metadata optimistically with new rabbithole conversation ID
-                    const currentRabbitholeIds = selectedBlock.metadata?.rabbithole_conversation_ids || [];
-                    const newMetadata = {
-                      rabbithole_conversation_ids: [...currentRabbitholeIds, conversation_id]
-                    };
-                    updateBlockMetadata(selectedBlock.id, newMetadata);
-                  }).catch(error => {
-                    console.error("Error creating rabbithole:", error);
-                  });
-                }
-              }}
-              onSwitchToMainChat={() => setActiveConversationId(null)}
-              mainConversationId={mainConversationId ?? undefined}
-            />
+            {blockOverlayManager.blockOverlayComponent}
           </Panel>
           
           {/* Resize handle between PDF and chat */}
@@ -1061,91 +959,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             maxSize={80}
             className="border-l border-gray-200 bg-white"
           >
-            <div className="flex flex-col h-full">
-              {/* Chat header with tabs */}
-              <div className="border-b border-gray-200 p-3 flex flex-col">
-                {/* Conversation tabs */}
-                <div className="flex space-x-1 overflow-x-auto pb-2 -mb-px">
-                  {/* Main chat tab */}
-                  <button 
-                    className={`px-3 py-1.5 rounded-t-md text-sm whitespace-nowrap ${
-                      activeConversationId === null 
-                      ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveConversationId(null)}
-                  >
-                    Main Chat
-                  </button>
-                  
-                  {/* Agent chat tabs */}
-                  {rabbitholeConversations.map(conv => (
-                    <button
-                      key={conv.id}
-                      className={`px-3 py-1.5 rounded-t-md text-sm flex items-center space-x-1 whitespace-nowrap ${
-                        activeConversationId === conv.id
-                        ? 'bg-white border border-gray-200 border-b-white text-indigo-600 font-medium' 
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                      }`}
-                      onClick={() => setActiveConversationId(conv.id)}
-                    >
-                      <span>🔍</span>
-                      <span>{conv.title}</span>
-                      <span 
-                        className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRabbitholeConversations(prev => prev.filter(c => c.id !== conv.id));
-                          if (activeConversationId === conv.id) {
-                            setActiveConversationId(null);
-                          }
-                        }}
-                      >
-                        ×
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Chat container */}
-              <div className="flex-1 overflow-hidden">
-                {activeConversationId === null ? (
-                  mainConversationId ? (
-                    <ChatContainer 
-                      key={`main-chat-${mainConversationId}`}
-                      documentId={documentId}
-                      selectedBlock={selectedBlock}
-                      conversationId={mainConversationId}
-                      pendingText={pendingChatText}
-                      onTextAdded={handleTextAdded}
-                      onRequestBlockSelection={handleBlockSelectionRequest}
-                      onUpdateBlockMetadata={updateBlockMetadata}
-                      onBlockMetadataUpdate={() => {
-                        fetchBlocks();
-                      }}
-                      onOpenBlockWithNote={handleOpenBlockWithNote}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      Initializing conversation...
-                    </div>
-                  )
-                ) : (
-                  <ChatContainer 
-                    key={`agent-chat-${activeConversationId}`}
-                    documentId={documentId}
-                    selectedBlock={selectedBlock}
-                    conversationId={activeConversationId}
-                    pendingText={pendingChatText}
-                    onTextAdded={handleTextAdded}
-                    onRequestBlockSelection={handleBlockSelectionRequest}
-                    onUpdateBlockMetadata={updateBlockMetadata}
-                    onOpenBlockWithNote={handleOpenBlockWithNote}
-                  />
-                )}
-              </div>
-            </div>
+            <ChatSidebar
+              documentId={documentId}
+              selectedBlock={blockOverlayManager.selectedBlock}
+              mainConversationId={mainConversationId}
+              activeConversationId={activeConversationId}
+              rabbitholeConversations={rabbitholeConversations}
+              pendingChatText={pendingChatText}
+              onSetActiveConversationId={setActiveConversationId}
+              onSetRabbitholeConversations={setRabbitholeConversations}
+              onTextAdded={handleTextAdded}
+              onBlockSelectionRequest={handleBlockSelectionRequest}
+              onUpdateBlockMetadata={updateBlockMetadata}
+              onFetchBlocks={fetchBlocks}
+              onOpenBlockWithNote={blockOverlayManager.handleOpenBlockWithNote}
+              getBlockMetadata={(blockId: string) => {
+                const block = blocks.find(b => b.id === blockId);
+                return block?.metadata || {};
+              }}
+            />
           </Panel>
         </PanelGroup>
         </div>

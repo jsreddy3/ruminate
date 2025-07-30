@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Block } from '../pdf/PDFViewer';
 import { useMessageTree } from '../../hooks/useMessageTree';
-import { useMessageStream } from '../../hooks/useMessageStream';
-import { conversationApi } from '../../services/api/conversation';
+import { useMessageStreamHandler } from '../../hooks/useMessageStreamHandler';
+import { useNoteGeneration } from '../../hooks/useNoteGeneration';
 import { MessageRole } from '../../types/chat';
 
-// Import components from absolute paths
-import MessageList from '../../components/chat/messages/MessageList';
-import MessageInput from '../../components/chat/messages/MessageInput';
+// Import components
+import ChatMessages from './ChatMessages';
+import ChatInput from './ChatInput';
 import NoteGenerationPopup from './NoteGenerationPopup';
 
 interface ChatContainerProps {
@@ -24,6 +24,7 @@ interface ChatContainerProps {
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onBlockMetadataUpdate?: () => void;
   onOpenBlockWithNote?: (blockId: string, noteId: string) => void;
+  getBlockMetadata?: (blockId: string) => any;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -36,28 +37,17 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   onRequestBlockSelection,
   onUpdateBlockMetadata,
   onBlockMetadataUpdate,
-  onOpenBlockWithNote
+  onOpenBlockWithNote,
+  getBlockMetadata
 }) => {
   // Track conversation ID (may need to be created)
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
-  
-  // Track streaming state for displaying content during generation
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  
-  // Note generation state
-  const [showNotePopup, setShowNotePopup] = useState(false);
-  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
-  const [noteGenerationStatus, setNoteGenerationStatus] = useState<string>('');
-  
-  // Ref for scrollable container
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Core message tree state for the conversation
   const {
     messageTree,
     activeThreadIds,
     isLoading: isLoadingTree,
-    error: treeError,
     sendMessage,
     editMessage,
     switchToVersion,
@@ -67,13 +57,31 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     selectedBlockId: selectedBlock?.id
   });
   
-  // Stream content for chats
+  // Message streaming handler
   const {
-    content: streamingContent,
-    isComplete: isStreamingComplete,
-    isLoading: isStreamingActive,
-    error: streamingError
-  } = useMessageStream(conversationId, streamingMessageId);
+    streamingMessageId,
+    streamingContent,
+    startStreaming
+  } = useMessageStreamHandler({
+    conversationId,
+    onStreamComplete: refreshTree
+  });
+
+  // Note generation handler
+  const {
+    showNotePopup,
+    setShowNotePopup,
+    isGeneratingNote,
+    noteGenerationStatus,
+    handleGenerateNote
+  } = useNoteGeneration({
+    conversationId,
+    onRequestBlockSelection,
+    onUpdateBlockMetadata,
+    onBlockMetadataUpdate,
+    onOpenBlockWithNote,
+    getBlockMetadata
+  });
   
   // Set conversation ID from parent immediately (no initialization logic)
   useEffect(() => {
@@ -101,11 +109,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       const [, responseMessageId] = await sendMessage(content, parentId);
       
       // Set up token streaming
-      setStreamingMessageId(responseMessageId);
+      startStreaming(responseMessageId);
     } catch (error) {
       console.error('Error sending message:', error);
     }
-  }, [conversationId, activeThreadIds, messageTree, sendMessage]);
+  }, [conversationId, activeThreadIds, messageTree, sendMessage, startStreaming]);
   
   // Handle editing a message
   const handleEditMessage = useCallback(async (messageId: string, content: string) => {
@@ -116,124 +124,13 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       const [_, responseMessageId] = await editMessage(messageId, content);
       
       // Set up token streaming for edited message
-      setStreamingMessageId(responseMessageId);
+      startStreaming(responseMessageId);
     } catch (error) {
       console.error('Error editing message:', error);
     }
-  }, [conversationId, editMessage]);
+  }, [conversationId, editMessage, startStreaming]);
+
   
-  // When streaming completes, refresh the tree to fetch the completed message
-  useEffect(() => {
-    if (isStreamingComplete && streamingMessageId) {
-      refreshTree().then(() => {
-        setStreamingMessageId(null);
-      });
-    }
-  }, [isStreamingComplete, streamingMessageId, refreshTree]);
-  
-  // Auto-scroll to bottom when messages change or streaming content updates
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-    }
-  }, [messageTree.length, streamingContent]);
-
-  // Handle note generation
-  const handleGenerateNote = useCallback(async (messageCount: number, topic: string) => {
-    if (!conversationId || !onRequestBlockSelection) {
-      console.error('Cannot generate note: missing conversation ID or block selection handler');
-      return;
-    }
-
-    // Close popup immediately to allow block selection
-    setShowNotePopup(false);
-
-    // Request block selection from PDF viewer
-    onRequestBlockSelection({
-      prompt: "Select a block to save your conversation note",
-      onComplete: async (blockId: string) => {
-        try {          
-          // Set loading state
-          setIsGeneratingNote(true);
-          setNoteGenerationStatus('Generating note...');
-          
-          // Call the backend API to generate note using existing API setup
-          const { authenticatedFetch, API_BASE_URL } = await import('../../utils/api');
-          const response = await authenticatedFetch(
-            `${API_BASE_URL}/conversations/${conversationId}/generate-note`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                block_id: blockId,
-                message_count: messageCount,
-                topic: topic || undefined
-              })
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error('Failed to generate note');
-          }
-
-          const result = await response.json();
-          
-          setNoteGenerationStatus('Note created successfully!');
-          
-          // Update block metadata optimistically with generated note
-          if (result.note_id && result.block_id && result.note && onUpdateBlockMetadata) {
-            const annotationKey = '-1'; // Generated notes use special key with -1 offset
-            const newMetadata = {
-              annotations: {
-                // Preserve existing annotations, add the new generated note
-                [annotationKey]: {
-                  id: result.note_id,
-                  text: '', // Generated notes have empty text
-                  note: result.note,
-                  text_start_offset: -1, // Special value for generated notes
-                  text_end_offset: -1,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                  is_generated: true, // Special flag for generated notes
-                  conversation_id: result.conversation_id,
-                  source_conversation_id: result.conversation_id,
-                  message_count: messageCount,
-                  topic: topic || undefined
-                }
-              }
-            };
-            onUpdateBlockMetadata(result.block_id, newMetadata);            
-            
-            // Auto-open the block with the new note after a short delay
-            setTimeout(() => {
-              if (onOpenBlockWithNote && result.note_id && result.block_id) {
-                onOpenBlockWithNote(result.block_id, result.note_id);
-              }
-              setIsGeneratingNote(false);
-              setNoteGenerationStatus('');
-            }, 1500);
-          } else {
-            // Fallback to old behavior if API doesn't return complete data or callback unavailable
-            if (onBlockMetadataUpdate) {
-              onBlockMetadataUpdate();
-            }
-            setIsGeneratingNote(false);
-            setNoteGenerationStatus('');
-          }          
-        } catch (error) {
-          console.error('Error generating note:', error);
-          setNoteGenerationStatus('Failed to generate note');
-          setTimeout(() => {
-            setIsGeneratingNote(false);
-            setNoteGenerationStatus('');
-          }, 2000);
-        }
-      }
-    });
-  }, [conversationId, onRequestBlockSelection, onBlockMetadataUpdate, onUpdateBlockMetadata, onOpenBlockWithNote]);
-
   // Count total messages for pill visibility (exclude system messages)
   // Use activeThreadIds length instead of messageTree since tree building has issues
   const totalMessageCount = Math.max(0, activeThreadIds.length - 1); // -1 to exclude system message
@@ -243,18 +140,15 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   return (
     <div className="flex flex-col h-full bg-white text-gray-900">
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white" key={`chat-container-${conversationId || 'main'}`}>
-        {/* Message list */}
-        <MessageList 
-          messages={messageTree}
-          activeThreadIds={activeThreadIds}
-          onSwitchVersion={switchToVersion}
-          onEditMessage={handleEditMessage}
-          streamingMessageId={streamingMessageId}
-          streamingContent={streamingContent}
-          conversationId={conversationId || undefined}
-        />
-      </div>
+      <ChatMessages
+        messageTree={messageTree}
+        activeThreadIds={activeThreadIds}
+        streamingMessageId={streamingMessageId}
+        streamingContent={streamingContent}
+        conversationId={conversationId}
+        onSwitchVersion={switchToVersion}
+        onEditMessage={handleEditMessage}
+      />
       
       {/* Note generation pill - minimal clean design */}
       {shouldShowNotePill && (
@@ -296,15 +190,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         </div>
       )}
       
-      {/* Message input */}
-      <div className="border-t p-3 bg-white">
-        <MessageInput
-          onSendMessage={handleSendMessage}
-          isDisabled={isLoadingTree || !!streamingMessageId}
-          pendingText={pendingText}
-          onTextConsumed={onTextAdded}
-        />
-      </div>
+      <ChatInput
+        onSendMessage={handleSendMessage}
+        isDisabled={isLoadingTree || !!streamingMessageId}
+        pendingText={pendingText}
+        onTextConsumed={onTextAdded}
+      />
 
       {/* Note Generation Popup */}
       <NoteGenerationPopup
