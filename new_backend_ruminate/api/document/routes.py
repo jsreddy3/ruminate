@@ -13,7 +13,9 @@ from new_backend_ruminate.api.document.schemas import (
     BlockResponse,
     DefinitionRequest,
     DefinitionResponse,
-    AnnotationRequest
+    EnhancedDefinitionResponse,
+    AnnotationRequest,
+    AnnotationResponse
 )
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token
@@ -257,7 +259,7 @@ async def download_document_pdf(
         raise HTTPException(status_code=500, detail=f"Error downloading PDF: {str(e)}")
 
 
-@router.post("/{document_id}/define", response_model=DefinitionResponse)
+@router.post("/{document_id}/define", response_model=EnhancedDefinitionResponse)
 async def get_definition(
     document_id: str,
     request: DefinitionRequest,
@@ -270,7 +272,8 @@ async def get_definition(
     This endpoint:
     1. Retrieves the specified block and surrounding context
     2. Uses the document's content to generate a contextual definition
-    3. Returns the definition specific to this document's domain
+    3. Saves the definition to block metadata
+    4. Returns the complete definition data with positioning info
     """
     try:
         # Call the service method to get the definition
@@ -284,11 +287,14 @@ async def get_definition(
             user_id=current_user.id
         )
         
-        return DefinitionResponse(
+        return EnhancedDefinitionResponse(
             term=definition_result["term"],
             definition=definition_result["definition"],
+            text_start_offset=definition_result["text_start_offset"],
+            text_end_offset=definition_result["text_end_offset"],
+            created_at=definition_result["created_at"],
             context=definition_result.get("context"),
-            block_id=request.block_id
+            block_id=definition_result["block_id"]
         )
         
     except ValueError as e:
@@ -310,14 +316,14 @@ async def update_block_annotations(
     Create or update an annotation on a block.
     
     This endpoint handles all annotation operations:
-    - Create: Provide text, note, and offsets
-    - Update: Provide same offsets with new note
-    - Delete: Provide offsets with empty note ("")
+    - Create: Provide text, note, and offsets -> Returns annotation data
+    - Update: Provide same offsets with new note -> Returns updated annotation data
+    - Delete: Provide offsets with empty note ("") -> Returns None
     
-    Annotations are stored in block metadata and fetched with block data.
+    Annotations are stored in block metadata and immediately returned for UI updates.
     """
     try:
-        await svc.update_block_annotation(
+        annotation_data = await svc.update_block_annotation(
             document_id=document_id,
             block_id=block_id,
             text=request.text,
@@ -328,7 +334,20 @@ async def update_block_annotations(
             session=session
         )
         
-        return {"message": "Annotation updated successfully"}
+        if annotation_data is None:
+            # Annotation was deleted
+            return {"message": "Annotation deleted successfully"}
+        else:
+            # Return the complete annotation data
+            return AnnotationResponse(
+                id=annotation_data["id"],
+                text=annotation_data["text"],
+                note=annotation_data["note"],
+                text_start_offset=annotation_data["text_start_offset"],
+                text_end_offset=annotation_data["text_end_offset"],
+                created_at=annotation_data["created_at"],
+                updated_at=annotation_data["updated_at"]
+            )
         
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

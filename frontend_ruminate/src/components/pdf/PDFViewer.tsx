@@ -335,6 +335,28 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [documentId]); // Remove selectedBlock from the dependencies
   
+  // Function to update a specific block's metadata optimistically
+  const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
+    console.log("[DEBUG] Updating block metadata optimistically for block:", blockId);
+    
+    setBlocks(prevBlocks => 
+      prevBlocks.map(block => 
+        block.id === blockId 
+          ? { ...block, metadata: { ...block.metadata, ...newMetadata } }
+          : block
+      )
+    );
+    
+    // Also update selectedBlock if it's the same block
+    setSelectedBlock(prevSelected => 
+      prevSelected?.id === blockId 
+        ? { ...prevSelected, metadata: { ...prevSelected.metadata, ...newMetadata } }
+        : prevSelected
+    );
+    
+    console.log("[DEBUG] Block metadata updated optimistically");
+  }, []);
+  
   // Initialize the main document conversation
   useEffect(() => {
     if (!documentId) return;
@@ -519,6 +541,21 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setSelectedBlock(block);
     setIsBlockOverlayOpen(true);
   }, []);
+
+  // Programmatically open a block (for auto-navigation after note generation)
+  const handleOpenBlockWithNote = useCallback((blockId: string, noteId: string) => {
+    console.log('Opening block programmatically:', blockId, 'with note:', noteId);
+    
+    // Find the block in flattened blocks
+    const targetBlock = flattenedBlocks.find(block => block.id === blockId);
+    if (targetBlock) {
+      setSelectedBlock(targetBlock);
+      setIsBlockOverlayOpen(true);
+      console.log('Block opened successfully');
+    } else {
+      console.error('Block not found:', blockId);
+    }
+  }, [flattenedBlocks]);
   
   // Handle creation of rabbithole conversations
   const handleRabbitholeCreated = useCallback((
@@ -845,10 +882,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 refreshRabbitholesFnRef.current = refreshFn;
               }}
               onAddTextToChat={handleAddTextToChat}
-              onBlockMetadataUpdate={() => {
-                console.log("[DEBUG] Block metadata updated, fetching blocks");
-                fetchBlocks();
-              }}
+              onUpdateBlockMetadata={updateBlockMetadata}
               onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
                 console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
                 
@@ -890,17 +924,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     console.log("[DEBUG] Rabbithole created successfully with conversation ID:", conversation_id);
                     handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
                     
+                    // Update block metadata optimistically with new rabbithole conversation ID
+                    const currentRabbitholeIds = selectedBlock.metadata?.rabbithole_conversation_ids || [];
+                    const newMetadata = {
+                      rabbithole_conversation_ids: [...currentRabbitholeIds, conversation_id]
+                    };
+                    updateBlockMetadata(selectedBlock.id, newMetadata);
+                    console.log("[DEBUG] Updated block metadata optimistically with new rabbithole conversation ID");
+                    
                     if (refreshRabbitholesFnRef.current) {
                       console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
                       refreshRabbitholesFnRef.current();
-                      
-                      setTimeout(() => {
-                        console.log("[DEBUG] Delayed fetchBlocks to update PDF UI with new rabbithole");
-                        fetchBlocks();
-                      }, 500);
-                    } else {
-                      console.log("[DEBUG] No rabbithole refresh function available, calling fetchBlocks");
-                      fetchBlocks();
                     }
                   }).catch(error => {
                     console.error("Error creating rabbithole:", error);
@@ -970,18 +1004,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               {/* Chat container */}
               <div className="flex-1 overflow-hidden">
                 {activeConversationId === null ? (
-                  <ChatContainer 
-                    key={`main-chat-${mainConversationId || 'default'}`}
-                    documentId={documentId}
-                    selectedBlock={selectedBlock}
-                    conversationId={mainConversationId || undefined}
-                    pendingText={pendingChatText}
-                    onTextAdded={handleTextAdded}
-                    onConversationCreated={(id) => {
-                      setMainConversationId(id);
-                    }}
-                    onRequestBlockSelection={handleBlockSelectionRequest}
-                  />
+                  mainConversationId ? (
+                    <ChatContainer 
+                      key={`main-chat-${mainConversationId}`}
+                      documentId={documentId}
+                      selectedBlock={selectedBlock}
+                      conversationId={mainConversationId}
+                      pendingText={pendingChatText}
+                      onTextAdded={handleTextAdded}
+                      onRequestBlockSelection={handleBlockSelectionRequest}
+                      onUpdateBlockMetadata={updateBlockMetadata}
+                      onBlockMetadataUpdate={() => {
+                        console.log("[DEBUG] ChatContainer requested block metadata update, fetching blocks");
+                        fetchBlocks();
+                      }}
+                      onOpenBlockWithNote={handleOpenBlockWithNote}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      Initializing conversation...
+                    </div>
+                  )
                 ) : (
                   <ChatContainer 
                     key={`agent-chat-${activeConversationId}`}
@@ -991,6 +1034,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     pendingText={pendingChatText}
                     onTextAdded={handleTextAdded}
                     onRequestBlockSelection={handleBlockSelectionRequest}
+                    onUpdateBlockMetadata={updateBlockMetadata}
+                    onOpenBlockWithNote={handleOpenBlockWithNote}
                   />
                 )}
               </div>

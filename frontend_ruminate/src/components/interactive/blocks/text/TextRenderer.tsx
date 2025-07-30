@@ -18,9 +18,11 @@ interface TextRendererProps {
   documentId: string;
   metadata?: {
     definitions?: {
-      [term: string]: {
+      [key: string]: {
         term: string;
         definition: string;
+        text_start_offset: number;
+        text_end_offset: number;
         created_at: string;
       };
     };
@@ -51,7 +53,7 @@ interface TextRendererProps {
     phrase: string;
     insight: string;
   }>;
-  onBlockMetadataUpdate?: () => void;
+  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -60,16 +62,19 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   blockType,
   blockId,
   documentId,
-  metadata,
+  metadata: initialMetadata,
   onAddTextToChat,
   onCreateRabbithole,
   onRabbitholeClick,
   rabbitholeHighlights = [],
   getBlockClassName,
   highlights = [],
-  onBlockMetadataUpdate,
+  onUpdateBlockMetadata,
   customStyle
 }) => {
+  // Use metadata directly from props - no local state needed
+  const metadata = initialMetadata;
+  
   // Debug metadata
   useEffect(() => {
     console.log('TextRenderer metadata updated:', {
@@ -231,12 +236,26 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   }, []);
   
   // Handle when a new definition is saved
-  const handleDefinitionSaved = (term: string, definition: string, startOffset: number, endOffset: number) => {
+  const handleDefinitionSaved = (term: string, definition: string, startOffset: number, endOffset: number, fullResponse?: any) => {
     console.log('Definition saved for:', term, 'at offsets:', startOffset, '-', endOffset);
-    // The parent component should handle refreshing block data
-    // to get the updated metadata with the new definition
-    if (onBlockMetadataUpdate) {
-      onBlockMetadataUpdate();
+    
+    // Update block metadata optimistically using API response
+    if (fullResponse && fullResponse.text_start_offset !== undefined && onUpdateBlockMetadata) {
+      const definitionKey = `${startOffset}-${endOffset}`;
+      const newMetadata = {
+        definitions: {
+          ...metadata?.definitions,
+          [definitionKey]: {
+            term: fullResponse.term,
+            definition: fullResponse.definition,
+            text_start_offset: fullResponse.text_start_offset,
+            text_end_offset: fullResponse.text_end_offset,
+            created_at: fullResponse.created_at
+          }
+        }
+      };
+      onUpdateBlockMetadata(blockId, newMetadata);
+      console.log('Updated block metadata optimistically with new definition');
     }
   };
 
@@ -307,13 +326,26 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
       console.log('Annotation saved successfully:', result);
       
-      // Refresh block data to get updated annotations
-      if (onBlockMetadataUpdate) {
-        console.log('Calling onBlockMetadataUpdate to refresh block data');
-        // Small delay to ensure the annotation editor has closed before refreshing
-        setTimeout(() => {
-          onBlockMetadataUpdate();
-        }, 100);
+      // Update block metadata optimistically using API response
+      if (result && 'id' in result && onUpdateBlockMetadata) {
+        // API returned annotation data, update block metadata immediately
+        const annotationKey = `${selectedRange.startOffset}-${selectedRange.endOffset}`;
+        const newMetadata = {
+          annotations: {
+            ...metadata?.annotations,
+            [annotationKey]: {
+              id: result.id,
+              text: result.text,
+              note: result.note,
+              text_start_offset: result.text_start_offset,
+              text_end_offset: result.text_end_offset,
+              created_at: result.created_at,
+              updated_at: result.updated_at
+            }
+          }
+        };
+        onUpdateBlockMetadata(blockId, newMetadata);
+        console.log('Updated block metadata optimistically with new annotation');
       }
     } catch (error) {
       console.error('Failed to save annotation:', error);
@@ -339,12 +371,16 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
       console.log('Annotation deleted successfully');
       
-      // Refresh block data to get updated annotations
-      if (onBlockMetadataUpdate) {
-        // Small delay to ensure the annotation editor has closed before refreshing
-        setTimeout(() => {
-          onBlockMetadataUpdate();
-        }, 100);
+      // Update block metadata by removing the annotation
+      if (onUpdateBlockMetadata) {
+        const annotationKey = `${selectedRange.startOffset}-${selectedRange.endOffset}`;
+        const currentAnnotations = metadata?.annotations || {};
+        const { [annotationKey]: deleted, ...remainingAnnotations } = currentAnnotations;
+        const newMetadata = {
+          annotations: Object.keys(remainingAnnotations).length > 0 ? remainingAnnotations : undefined
+        };
+        onUpdateBlockMetadata(blockId, newMetadata);
+        console.log('Updated block metadata optimistically - removed annotation');
       }
     } catch (error) {
       console.error('Failed to delete annotation:', error);

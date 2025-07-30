@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, X, MessageSquare, Grip } from 'lucide-react';
+import { X, MessageSquare, Grip, Lightbulb } from 'lucide-react';
 
 interface GeneratedNote {
   id: string;
@@ -98,6 +98,9 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
   }, [isDragging, isResizing, dragStart, resizeStart, popupPosition, popupSize]);
 
   // Early return after all hooks are called
+  console.log('[GeneratedNoteBadges] Annotations received:', annotations);
+  console.log('[GeneratedNoteBadges] Generated notes found:', generatedNotes.length, generatedNotes.map(n => n.id));
+  
   if (generatedNotes.length === 0) {
     return null;
   }
@@ -128,7 +131,7 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
             zIndex: activeNoteId === note.id ? 60 : 50 + index
           }}
         >
-          <FileText className="w-5 h-5" />
+          <Lightbulb className="w-5 h-5" />
           
           {/* Note indicator badge */}
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
@@ -159,9 +162,9 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
           <div className="drag-handle px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-yellow-50 to-amber-50 rounded-t-lg cursor-grab active:cursor-grabbing">
             <div className="flex items-center gap-2">
               <Grip className="w-4 h-4 text-gray-400" />
-              <FileText className="w-4 h-4 text-yellow-600" />
+              <Lightbulb className="w-4 h-4 text-yellow-600" />
               <span className="text-sm font-medium text-gray-900 truncate">
-                {activeNote.topic || 'Conversation Note'}
+                {activeNote.topic || 'Conversation Summary'}
               </span>
             </div>
             <button

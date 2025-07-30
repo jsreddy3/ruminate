@@ -27,7 +27,7 @@ interface BlockContainerProps {
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
-  onBlockMetadataUpdate?: () => void;
+  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -47,7 +47,7 @@ export default function BlockContainer({
   onRabbitholeClick,
   onCreateRabbithole,
   onRefreshRabbitholes,
-  onBlockMetadataUpdate,
+  onUpdateBlockMetadata,
   customStyle
 }: BlockContainerProps) {
   // Add component lifecycle logging
@@ -99,7 +99,7 @@ export default function BlockContainer({
       onAddTextToChat={onAddTextToChat}
       onRabbitholeClick={onRabbitholeClick}
       onCreateRabbithole={onCreateRabbithole}
-      onBlockMetadataUpdate={onBlockMetadataUpdate}
+      onUpdateBlockMetadata={onUpdateBlockMetadata}
       customStyle={customStyle}
     />
   );

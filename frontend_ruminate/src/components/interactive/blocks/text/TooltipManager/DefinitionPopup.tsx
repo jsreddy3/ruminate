@@ -13,7 +13,7 @@ interface DefinitionPopupProps {
   blockId: string;
   savedDefinition?: string; // If provided, show this instead of fetching
   onClose: () => void;
-  onDefinitionSaved?: (term: string, definition: string, startOffset: number, endOffset: number) => void; // Callback when a new definition is saved
+  onDefinitionSaved?: (term: string, definition: string, startOffset: number, endOffset: number, fullResponse?: any) => void; // Callback when a new definition is saved
 }
 
 const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
@@ -74,7 +74,7 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
         
         // Notify parent that a new definition was saved
         if (onDefinitionSaved) {
-          onDefinitionSaved(term, result.definition, textStartOffset, textEndOffset);
+          onDefinitionSaved(term, result.definition, textStartOffset, textEndOffset, result);
         }
       } catch (err) {
         console.error('Failed to fetch definition:', err);

@@ -32,7 +32,7 @@ interface BlockRendererProps {
   onAddTextToChat?: (text: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
-  onBlockMetadataUpdate?: () => void;
+  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -52,7 +52,7 @@ export default function BlockRenderer({
   onAddTextToChat,
   onRabbitholeClick,
   onCreateRabbithole,
-  onBlockMetadataUpdate,
+  onUpdateBlockMetadata,
   customStyle
 }: BlockRendererProps) {
   // console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
@@ -131,7 +131,7 @@ export default function BlockRenderer({
             onAddTextToChat={onAddTextToChat}
             onRabbitholeClick={onRabbitholeClick}
             onCreateRabbithole={onCreateRabbithole}
-            onBlockMetadataUpdate={onBlockMetadataUpdate}
+            onUpdateBlockMetadata={onUpdateBlockMetadata}
             customStyle={customStyle}
           />
         );

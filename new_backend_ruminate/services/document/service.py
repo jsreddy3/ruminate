@@ -532,7 +532,8 @@ class DocumentService:
 
 {full_context}
 
-Provide a clear, contextual definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two."""
+Provide a clear, contextual definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two.
+DO NOT say things like "in this document" or anything - imagine you're just providing a short, concise note that, with no filler, has EVERY WORD be useful."""
         
         # Get LLM service and generate definition (this is async I/O, not DB)
         if not self._llm:
@@ -576,7 +577,11 @@ Provide a clear, contextual definition that explains what this term means in thi
         return {
             "term": term,
             "definition": definition,
-            "context": full_context[:500] + "..." if len(full_context) > 500 else full_context
+            "text_start_offset": text_start_offset,
+            "text_end_offset": text_end_offset,
+            "created_at": datetime.now().isoformat(),
+            "context": full_context[:500] + "..." if len(full_context) > 500 else full_context,
+            "block_id": block_id
         }
     
     async def update_block_annotation(
@@ -590,13 +595,16 @@ Provide a clear, contextual definition that explains what this term means in thi
         text_end_offset: int,
         user_id: str,
         session: AsyncSession
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Update block annotation - handles create, update, and delete.
         
         - If note is empty string, deletes the annotation
         - If annotation exists at given offsets, updates it
         - Otherwise creates a new annotation
+        
+        Returns:
+            Dictionary containing the annotation data or None if deleted
         """
         import uuid
         from datetime import datetime
@@ -627,6 +635,10 @@ Provide a clear, contextual definition that explains what this term means in thi
                 # Clean up empty annotations dict
                 if not block.metadata['annotations']:
                     del block.metadata['annotations']
+            # Update the block in database
+            block.updated_at = datetime.now()
+            await self._repo.update_block(block, session)
+            return None
         else:
             # Create or update annotation
             existing = block.metadata['annotations'].get(annotation_key)
@@ -642,10 +654,12 @@ Provide a clear, contextual definition that explains what this term means in thi
             }
             
             block.metadata['annotations'][annotation_key] = annotation_data
-        
-        # Update the block in database
-        block.updated_at = datetime.now()
-        await self._repo.update_block(block, session)
+            
+            # Update the block in database
+            block.updated_at = datetime.now()
+            await self._repo.update_block(block, session)
+            
+            return annotation_data
     
     async def generate_note_from_conversation(
         self,

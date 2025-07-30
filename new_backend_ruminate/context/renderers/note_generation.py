@@ -79,12 +79,9 @@ The note will be attached to this specific text from the document:
 {block_content}
 ```
 
-Your task is to create a clear, useful note that:
-1. Captures the main points discussed in the conversation
-2. Highlights key insights, conclusions, or questions raised
-3. Relates the discussion back to the document content when relevant
-4. Is concise but informative (2-3 paragraphs maximum)
-5. Is self-contained and valuable when read later without full conversation context"""
+Your task is to create an information-dense, concise, highly informative, useful note. There should
+be no generic humanities filler -- there should be precise, useful, and concise information. NEVER blab.
+Never use long paragraphs, diagrams, or tables."""
     
     def _build_user_prompt(
         self,

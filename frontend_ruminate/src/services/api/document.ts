@@ -74,7 +74,7 @@ export const documentApi = {
    * @param textStartOffset Start position of the term in the block
    * @param textEndOffset End position of the term in the block
    * @param surroundingText Optional surrounding text for better context
-   * @returns Definition response
+   * @returns Enhanced definition response with positioning data
    */
   getTermDefinition: async (
     documentId: string, 
@@ -83,7 +83,15 @@ export const documentApi = {
     textStartOffset: number,
     textEndOffset: number,
     surroundingText?: string
-  ): Promise<{ term: string; definition: string; context?: string }> => {
+  ): Promise<{ 
+    term: string; 
+    definition: string; 
+    text_start_offset: number;
+    text_end_offset: number;
+    created_at: string;
+    context?: string;
+    block_id: string;
+  }> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/define`, {
       method: 'POST',
       headers: {
@@ -113,7 +121,7 @@ export const documentApi = {
    * @param note The annotation content
    * @param textStartOffset Start position of the annotated text in the block
    * @param textEndOffset End position of the annotated text in the block
-   * @returns Success message
+   * @returns Complete annotation data or success message for deletion
    */
   createAnnotation: async (
     documentId: string,
@@ -122,7 +130,15 @@ export const documentApi = {
     note: string,
     textStartOffset: number,
     textEndOffset: number
-  ): Promise<{ message: string }> => {
+  ): Promise<{ 
+    id: string;
+    text: string;
+    note: string;
+    text_start_offset: number;
+    text_end_offset: number;
+    created_at: string;
+    updated_at: string;
+  } | { message: string }> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks/${blockId}/annotate`, {
       method: 'POST',
       headers: {

@@ -13,9 +13,11 @@ interface BlockOverlayProps {
   onBlockChange: (block: Block) => void;
   onRefreshRabbitholes: (refreshFn: () => void) => void;
   onAddTextToChat: (text: string) => void;
-  onBlockMetadataUpdate: () => void;
+  onUpdateBlockMetadata: (blockId: string, newMetadata: any) => void;
   onRabbitholeClick: (rabbitholeId: string, selectedText: string) => void;
   onCreateRabbithole: (text: string, startOffset: number, endOffset: number) => void;
+  onSwitchToMainChat?: () => void;
+  mainConversationId?: string;
 }
 
 export default function BlockOverlay({
@@ -28,9 +30,11 @@ export default function BlockOverlay({
   onBlockChange,
   onRefreshRabbitholes,
   onAddTextToChat,
-  onBlockMetadataUpdate,
+  onUpdateBlockMetadata,
   onRabbitholeClick,
-  onCreateRabbithole
+  onCreateRabbithole,
+  onSwitchToMainChat,
+  mainConversationId
 }: BlockOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -108,7 +112,7 @@ export default function BlockOverlay({
                     onBlockChange={onBlockChange}
                     onRefreshRabbitholes={onRefreshRabbitholes}
                     onAddTextToChat={onAddTextToChat}
-                    onBlockMetadataUpdate={onBlockMetadataUpdate}
+                    onUpdateBlockMetadata={onUpdateBlockMetadata}
                     onRabbitholeClick={onRabbitholeClick}
                     onCreateRabbithole={onCreateRabbithole}
                   />

@@ -13,15 +13,17 @@ import NoteGenerationPopup from './NoteGenerationPopup';
 interface ChatContainerProps {
   documentId: string;
   selectedBlock?: Block | null;
-  conversationId?: string;
+  conversationId: string; // Make required since PDFViewer always provides it
   onClose?: () => void;
-  onConversationCreated?: (id: string) => void;
   pendingText?: string;
   onTextAdded?: () => void;
   onRequestBlockSelection?: (config: {
     prompt: string;
     onComplete: (blockId: string) => void;
   }) => void;
+  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onBlockMetadataUpdate?: () => void;
+  onOpenBlockWithNote?: (blockId: string, noteId: string) => void;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -29,10 +31,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   selectedBlock = null,
   conversationId: initialConversationId,
   onClose,
-  onConversationCreated,
   pendingText,
   onTextAdded,
-  onRequestBlockSelection
+  onRequestBlockSelection,
+  onUpdateBlockMetadata,
+  onBlockMetadataUpdate,
+  onOpenBlockWithNote
 }) => {
   // Track conversation ID (may need to be created)
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
@@ -42,6 +46,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   // Note generation state
   const [showNotePopup, setShowNotePopup] = useState(false);
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const [noteGenerationStatus, setNoteGenerationStatus] = useState<string>('');
   
   // Ref for scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -69,36 +75,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     error: streamingError
   } = useMessageStream(conversationId, streamingMessageId);
   
-  // Fetch existing conversation or create a new one if needed
+  // Set conversation ID from parent immediately (no initialization logic)
   useEffect(() => {
-    const initializeConversation = async () => {
-      // If we already have a conversation ID, no need to fetch or create
-      if (conversationId) return;
-      
-      if (!documentId) return;
-      
-      try {
-        // For regular chats, first check if there's an existing conversation for this document
-        const existingConversations = await conversationApi.getDocumentConversations(documentId);
-        
-        if (existingConversations && existingConversations.length > 0) {
-          // Use the most recent conversation
-          const mostRecent = existingConversations[0];
-          setConversationId(mostRecent.id);
-          if (onConversationCreated) onConversationCreated(mostRecent.id);
-        } else {
-          // Create a new conversation if none exists
-          const { conversation_id } = await conversationApi.create(documentId);
-          setConversationId(conversation_id);
-          if (onConversationCreated) onConversationCreated(conversation_id);
-        }
-      } catch (error) {
-        console.error('Error initializing conversation:', error);
-      }
-    };
-    
-    initializeConversation();
-  }, [documentId, conversationId, selectedBlock, onConversationCreated]);
+    if (initialConversationId !== conversationId) {
+      setConversationId(initialConversationId);
+    }
+  }, [initialConversationId, conversationId]);
   
   // Handle sending a new message
   const handleSendMessage = useCallback(async (content: string) => {
@@ -171,6 +153,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       prompt: "Select a block to save your conversation note",
       onComplete: async (blockId: string) => {
         try {
+          console.log('Generating note for block:', blockId);
+          
+          // Set loading state
+          setIsGeneratingNote(true);
+          setNoteGenerationStatus('Generating note...');
+          
           // Call the backend API to generate note using existing API setup
           const { authenticatedFetch, API_BASE_URL } = await import('../../utils/api');
           const response = await authenticatedFetch(
@@ -194,48 +182,71 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
           const result = await response.json();
           console.log('Note generated successfully:', result);
+          console.log('Note details - ID:', result.note_id, 'Block ID:', result.block_id);
           
-          // TODO: Update block data to show new note (without full page reload)
+          setNoteGenerationStatus('Note created successfully!');
+          
+          // Update block metadata optimistically with generated note
+          if (result.note_id && result.block_id && result.note && onUpdateBlockMetadata) {
+            const annotationKey = '-1'; // Generated notes use special key with -1 offset
+            const newMetadata = {
+              annotations: {
+                // Preserve existing annotations, add the new generated note
+                [annotationKey]: {
+                  id: result.note_id,
+                  text: '', // Generated notes have empty text
+                  note: result.note,
+                  text_start_offset: -1, // Special value for generated notes
+                  text_end_offset: -1,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  is_generated: true, // Special flag for generated notes
+                  conversation_id: result.conversation_id,
+                  source_conversation_id: result.conversation_id,
+                  message_count: messageCount,
+                  topic: topic || undefined
+                }
+              }
+            };
+            onUpdateBlockMetadata(result.block_id, newMetadata);
+            console.log('Updated block metadata optimistically with generated note');
+            
+            // Auto-open the block with the new note after a short delay
+            setTimeout(() => {
+              if (onOpenBlockWithNote && result.note_id && result.block_id) {
+                onOpenBlockWithNote(result.block_id, result.note_id);
+              }
+              setIsGeneratingNote(false);
+              setNoteGenerationStatus('');
+            }, 1500);
+          } else {
+            // Fallback to old behavior if API doesn't return complete data or callback unavailable
+            if (onBlockMetadataUpdate) {
+              console.log('Calling onBlockMetadataUpdate to refresh block data...');
+              onBlockMetadataUpdate();
+            }
+            setIsGeneratingNote(false);
+            setNoteGenerationStatus('');
+          }
+          
+          console.log('Note should now be visible in the block view');
         } catch (error) {
           console.error('Error generating note:', error);
-          // TODO: Show error message
+          setNoteGenerationStatus('Failed to generate note');
+          setTimeout(() => {
+            setIsGeneratingNote(false);
+            setNoteGenerationStatus('');
+          }, 2000);
         }
       }
     });
-  }, [conversationId, onRequestBlockSelection]);
+  }, [conversationId, onRequestBlockSelection, onBlockMetadataUpdate, onUpdateBlockMetadata, onOpenBlockWithNote]);
 
   // Count total messages for pill visibility (exclude system messages)
   // Use activeThreadIds length instead of messageTree since tree building has issues
   const totalMessageCount = Math.max(0, activeThreadIds.length - 1); // -1 to exclude system message
   const shouldShowNotePill = totalMessageCount >= 5;
   
-  // Debug logging
-  console.log('[NOTE PILL DEBUG]', {
-    totalMessages: messageTree.length,
-    totalMessageCount,
-    shouldShowNotePill,
-    messageTree: messageTree.map(msg => ({ role: msg.role, content: msg.content?.substring(0, 50) + '...' })),
-    conversationId,
-    isLoadingTree,
-    treeError: treeError?.message,
-    activeThreadIds
-  });
-
-  // More detailed API debugging
-  useEffect(() => {
-    if (conversationId) {
-      console.log('[MESSAGE TREE DEBUG] Testing API call for conversation:', conversationId);
-      conversationApi.getMessageTree(conversationId)
-        .then(response => {
-          console.log('[MESSAGE TREE DEBUG] API Response:', response);
-          const messages = response.messages || response;
-          console.log('[MESSAGE TREE DEBUG] Parsed messages:', messages);
-        })
-        .catch(error => {
-          console.error('[MESSAGE TREE DEBUG] API Error:', error);
-        });
-    }
-  }, [conversationId]);
   
   
   return (
@@ -259,13 +270,37 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           <button
             onClick={() => setShowNotePopup(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs rounded-full transition-colors border border-gray-200"
-            disabled={isLoadingTree || !!streamingMessageId}
+            disabled={isLoadingTree || !!streamingMessageId || isGeneratingNote}
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Generate note
           </button>
+        </div>
+      )}
+
+      {/* Note generation status indicator */}
+      {isGeneratingNote && noteGenerationStatus && (
+        <div className="px-4 py-2 flex justify-center">
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-200">
+            {noteGenerationStatus.includes('Failed') ? (
+              <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : noteGenerationStatus.includes('successfully') ? (
+              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+            <span className={noteGenerationStatus.includes('Failed') ? 'text-red-700' : noteGenerationStatus.includes('successfully') ? 'text-green-700' : 'text-blue-700'}>
+              {noteGenerationStatus}
+            </span>
+          </div>
         </div>
       )}
       

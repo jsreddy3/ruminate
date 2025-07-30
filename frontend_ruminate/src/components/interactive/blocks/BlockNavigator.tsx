@@ -13,19 +13,23 @@ interface BlockNavigatorProps {
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
   onAddTextToChat?: (text: string) => void;
-  onBlockMetadataUpdate?: () => void;
+  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onSwitchToMainChat?: () => void;
+  mainConversationId?: string;
 }
 
 export default function BlockNavigator({
   blocks,
-  currentBlockId,
+  currentBlockId, 
   documentId,
   onBlockChange,
   onRabbitholeClick,
   onCreateRabbithole,
   onRefreshRabbitholes,
   onAddTextToChat,
-  onBlockMetadataUpdate
+  onUpdateBlockMetadata,
+  onSwitchToMainChat,
+  mainConversationId
 }: BlockNavigatorProps) {
   // Track current index
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -98,7 +102,7 @@ export default function BlockNavigator({
             onAddTextToChat={onAddTextToChat}
             onRabbitholeClick={onRabbitholeClick}
             onCreateRabbithole={onCreateRabbithole}
-            onBlockMetadataUpdate={onBlockMetadataUpdate}
+            onUpdateBlockMetadata={onUpdateBlockMetadata}
           />
         </div>
         
@@ -117,10 +121,16 @@ export default function BlockNavigator({
           {/* Generated note badges next to the progress bar */}
           <GeneratedNoteBadges
             annotations={currentBlock.metadata?.annotations}
-            onViewConversation={onRabbitholeClick ? (conversationId) => {
-              // Find the rabbithole with this conversation ID and trigger click
-              onRabbitholeClick(conversationId, '', 0, 0);
-            } : undefined}
+            onViewConversation={(conversationId) => {
+              // Check if this is the main conversation or a rabbithole
+              if (conversationId === mainConversationId && onSwitchToMainChat) {
+                // Switch to main chat tab
+                onSwitchToMainChat();
+              } else if (onRabbitholeClick) {
+                // Open as rabbithole conversation
+                onRabbitholeClick(conversationId, '', 0, 0);
+              }
+            }}
           />
         </div>
       </div>
