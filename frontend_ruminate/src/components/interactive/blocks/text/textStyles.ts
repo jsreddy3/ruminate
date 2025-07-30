@@ -65,7 +65,7 @@ export const getBlockTypeStyles = (blockType: string): React.CSSProperties => {
 };
 
 export const baseTextStyles: React.CSSProperties = {
-  fontFamily: '"Times New Roman", Times, serif',
+  fontFamily: '"Iowan Old Style", "Crimson Text", Georgia, "Times New Roman", serif',
   fontSize: '1.05rem',
   lineHeight: '1.65',
   color: '#1f2937',

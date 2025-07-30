@@ -54,7 +54,7 @@ const DefinitionTooltip: React.FC<DefinitionTooltipProps> = ({
         borderRadius: '0.5rem',
         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 5px 10px -5px rgba(0, 0, 0, 0.05)',
         border: '1px solid #e2e8f0',
-        fontFamily: "'Times New Roman', Times, serif",
+        fontFamily: '"Iowan Old Style", "Crimson Text", Georgia, "Times New Roman", serif',
         overflow: 'hidden'
       }}
     >
