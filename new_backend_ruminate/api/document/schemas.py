@@ -21,6 +21,10 @@ class DocumentResponse(BaseModel):
     chunk_index: Optional[int] = None
     total_chunks: Optional[int] = None
     is_auto_processed: bool = False
+    # Reading progress fields
+    furthest_read_block_id: Optional[str] = None
+    furthest_read_position: Optional[int] = None
+    furthest_read_updated_at: Optional[datetime] = None
     
     class Config:
         use_enum_values = True
@@ -127,6 +131,12 @@ class AnnotationResponse(BaseModel):
 class DocumentUpdateRequest(BaseModel):
     """Request schema for updating document metadata"""
     title: Optional[str] = Field(None, description="New title for the document", min_length=1, max_length=255)
+
+
+class ReadingProgressRequest(BaseModel):
+    """Request schema for updating reading progress"""
+    block_id: str = Field(..., description="ID of the furthest read block")
+    position: int = Field(..., description="Position of the block in reading order", ge=0)
 
 
 class EnhancedDefinitionResponse(BaseModel):

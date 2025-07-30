@@ -1061,6 +1061,59 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             print(f"[DocumentService] Error deleting document {document_id}: {type(e).__name__}: {str(e)}")
             raise ValueError(f"Failed to delete document: {str(e)}")
     
+    async def update_reading_progress(
+        self,
+        document_id: str,
+        user_id: str,
+        block_id: str,
+        position: int,
+        session: AsyncSession
+    ) -> Document:
+        """
+        Update reading progress for a document.
+        Only updates if the new position is further than the current position.
+        
+        Args:
+            document_id: ID of the document
+            user_id: User ID for permission checking
+            block_id: ID of the furthest read block
+            position: Position of the block in reading order
+            session: Database session
+            
+        Returns:
+            Updated document entity
+            
+        Raises:
+            ValueError: If document not found or user doesn't own it
+            PermissionError: If user doesn't have access to the document
+        """
+        # Get and validate document
+        document = await self.get_document(document_id, user_id, session)
+        if not document:
+            raise ValueError("Document not found")
+        
+        # Verify the block exists and belongs to this document
+        block = await self._repo.get_block(block_id, session)
+        if not block or block.document_id != document_id:
+            raise ValueError("Block not found or does not belong to document")
+        
+        # Only update if this position is further than current progress
+        current_position = document.furthest_read_position or -1
+        if position > current_position:
+            print(f"[DocumentService] Updating reading progress for document {document_id}: block {block_id}, position {position}")
+            
+            # Update reading progress
+            document.update_reading_progress(block_id, position)
+            
+            # Save to database
+            updated_document = await self._repo.update_document(document, session)
+            
+            print(f"[DocumentService] Reading progress updated successfully")
+            return updated_document
+        else:
+            print(f"[DocumentService] Reading progress not updated - position {position} is not ahead of current {current_position}")
+            return document
+    
     async def start_chunk_processing(
         self,
         document_id: str,

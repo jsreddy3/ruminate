@@ -58,34 +58,34 @@ export default function PDFBlockOverlay({
             width: `${w * scale}px`,
             height: `${h * scale}px`,
             cursor: 'pointer',
-            transition: 'all 0.3s ease-in-out',
-            zIndex: isSelected ? 2 : 1,
-            borderRadius: '2px',
+            transition: 'all 0.3s ease-out',
+            zIndex: isSelected ? 3 : 1,
+            borderRadius: '4px',
           };
 
-          // Selection mode styling
+          // Selection mode styling - warm highlight
           if (isSelectionMode) {
             return {
               ...baseStyle,
-              border: '2px dashed rgba(59, 130, 246, 0.8)',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              cursor: 'pointer',
+              backgroundColor: 'rgba(251, 146, 60, 0.1)',
+              border: '2px solid rgba(251, 146, 60, 0.3)',
             };
           }
 
-          // Normal mode styling
+          // Normal mode styling - focused state clean like hover
           if (isSelected) {
             return {
               ...baseStyle,
-              border: '2px solid rgba(59, 130, 246, 0.8)',
-              backgroundColor: 'rgba(59, 130, 246, 0.05)',
+              backgroundColor: 'rgba(251, 191, 36, 0.2)',
+              border: '2px solid rgba(245, 158, 11, 0.6)',
             };
           }
 
+          // Base state - completely invisible until hover
           return {
             ...baseStyle,
-            border: '1px solid rgba(59, 130, 246, 0.3)',
             backgroundColor: 'transparent',
+            border: 'none',
           };
         };
 
@@ -124,39 +124,61 @@ export default function PDFBlockOverlay({
           }
         };
 
-        // Dynamic hover classes based on mode
+        // Dynamic hover classes for proximity-based reveal
         const hoverClasses = isSelectionMode 
-          ? "hover:bg-blue-200/20 hover:border-blue-500 hover:shadow-lg"
-          : "hover:bg-primary-100/10 hover:border-primary-400 hover:shadow-block-hover";
+          ? "hover:!bg-orange-100/30 hover:!border hover:!border-orange-400/60 hover:!border-solid"
+          : "hover:!bg-amber-50/60 hover:!border hover:!border-amber-400/40 hover:!border-solid";
+
+        // Check if block has any interactive content to add breathing effect
+        const hasInteractiveContent = hasConversations || hasDefinitions || hasAnnotations || hasGeneratedNotes;
 
         return (
           <motion.div
             key={block.id}
             style={getBlockStyle()}
-            className={`${hoverClasses} group`}
+            className="group"
+            onMouseEnter={(e) => {
+              if (!isSelected && !isSelectionMode) {
+                e.currentTarget.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
+                e.currentTarget.style.border = '1px solid rgba(245, 158, 11, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isSelected && !isSelectionMode) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.border = 'none';
+              }
+            }}
             onClick={handleClick}
             title={
               isSelectionMode 
                 ? `Click to select this block for your note: ${block.html_content?.replace(/<[^>]*>/g, "").substring(0, 100)}...`
                 : block.html_content?.replace(/<[^>]*>/g, "") || ""
             }
+            animate={{}}
+            transition={{}}
           >
             {/* Selection mode indicator or normal selected indicator */}
             {isSelectionMode ? (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                <div className="bg-orange-500 text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-lg backdrop-blur-sm bg-opacity-90">
                   Select
                 </div>
               </div>
             ) : isSelected && (
-              <div className="absolute top-1/2 -translate-y-1/2 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-4 h-4 rounded-full bg-primary-100 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-primary-500" />
+              <motion.div 
+                className="absolute top-1/2 -translate-y-1/2 -left-8"
+                initial={{ scale: 0, x: 10 }}
+                animate={{ scale: 1, x: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <div className="w-5 h-5 rounded-full bg-white shadow-lg flex items-center justify-center border border-amber-200">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                 </div>
-              </div>
+              </motion.div>
             )}
             
-            {/* Metadata indicators */}
+            {/* Metadata indicators - always visible */}
             <BlockIndicators
               hasConversations={hasConversations}
               hasDefinitions={hasDefinitions}

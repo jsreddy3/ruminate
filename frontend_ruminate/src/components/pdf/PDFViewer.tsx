@@ -687,6 +687,91 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [loadingTimeout]);
 
+
+  // Calculate scroll position for a block
+  const calculateBlockScrollPosition = useCallback((block: Block) => {
+    if (!block.polygon || block.polygon.length === 0) return null;
+    
+    // Get block bounds from polygon
+    const x = Math.min(...block.polygon.map((p) => p[0]));
+    const y = Math.min(...block.polygon.map((p) => p[1]));
+    
+    return {
+      pageIndex: (block.page_number || 1) - 1, // Convert to 0-based index
+      leftOffset: x,
+      bottomOffset: y, // PDF coordinates
+    };
+  }, []);
+
+  // Scroll to specific block using page navigation plugin
+  const scrollToBlock = useCallback(async (block: Block) => {
+    if (!block.polygon || !block.page_number) return;
+    
+    try {
+      // Get the jumpToPage function from the page navigation plugin
+      const { jumpToPage } = pageNavigationPluginInstance;
+      
+      if (jumpToPage) {
+        // Try with 1-based indexing first (no conversion)
+        await jumpToPage(block.page_number);
+        console.log(`📍 Navigated to page ${block.page_number} for block search`);
+      } else {
+        // Fallback to setting current page
+        setCurrentPage(block.page_number);
+      }
+    } catch (error) {
+      console.error('Failed to scroll to block:', error);
+      // Fallback to setting current page
+      setCurrentPage(block.page_number);
+    }
+  }, [pageNavigationPluginInstance, setCurrentPage]);
+
+  // Enhanced search functionality with scroll-to-block
+  const handleSearch = useCallback((query: string) => {
+    if (!query.trim()) return;
+    
+    // Search through flattened blocks for text content
+    const searchTerm = query.toLowerCase();
+    const matchingBlock = flattenedBlocks.find(block => {
+      if (!block.html_content) return false;
+      // Strip HTML tags and search in the text content
+      const textContent = block.html_content.replace(/<[^>]*>/g, '').toLowerCase();
+      return textContent.includes(searchTerm);
+    });
+    
+    if (matchingBlock && matchingBlock.page_number) {
+      // Navigate to the page and scroll to the block
+      setCurrentPage(matchingBlock.page_number);
+      
+      // First scroll to the block position
+      scrollToBlock(matchingBlock);
+      
+      // Then open the block overlay after a longer delay to ensure navigation completes
+      setTimeout(() => {
+        blockOverlayManager.handleBlockClick(matchingBlock);
+      }, 800);
+    }
+  }, [flattenedBlocks, blockOverlayManager, setCurrentPage, scrollToBlock]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Command+F or Ctrl+F to focus search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        // Focus the search input in the toolbar
+        const searchInput = document.querySelector('input[placeholder="Search text..."]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   // Track when PDF starts loading (triggered by the first render with percentages === 0)
   useEffect(() => {
     if (pdfLoadingState === 'idle') {
@@ -824,6 +909,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           currentPage={currentPage}
           totalPages={totalPages}
           currentPanelSizes={currentPanelSizes}
+          onSearch={handleSearch}
         />
 
         <PanelGroup 

@@ -170,14 +170,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
             {canEdit && !isStreaming && (
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className="group flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-library-mahogany-100 to-library-mahogany-200 hover:from-library-mahogany-200 hover:to-library-mahogany-300 text-library-mahogany-700 hover:text-library-mahogany-800 rounded-book transition-all duration-300 shadow-paper hover:shadow-book border border-library-mahogany-200"
+                className="group flex items-center justify-center w-8 h-8 bg-gradient-to-r from-library-mahogany-100 to-library-mahogany-200 hover:from-library-mahogany-200 hover:to-library-mahogany-300 text-library-mahogany-700 hover:text-library-mahogany-800 rounded-book transition-all duration-300 shadow-paper hover:shadow-book border border-library-mahogany-200"
+                title={isEditing ? 'Cancel editing' : 'Edit message'}
               >
                 <svg className="w-3 h-3 transition-transform group-hover:scale-110" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
                 </svg>
-                <span className="text-xs font-serif font-medium">
-                  {isEditing ? 'Cancel' : 'Revise'}
-                </span>
               </button>
             )}
             

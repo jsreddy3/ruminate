@@ -9,6 +9,7 @@ interface PDFToolbarProps {
   currentPage: number;
   totalPages: number;
   currentPanelSizes: number[];
+  onSearch?: (query: string) => void;
 }
 
 const PDFToolbar: React.FC<PDFToolbarProps> = ({
@@ -19,8 +20,27 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
   currentPage,
   totalPages,
   currentPanelSizes,
+  onSearch,
 }) => {
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchFocused, setSearchFocused] = React.useState(false);
+  
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (searchQuery.trim() && onSearch) {
+        onSearch(searchQuery.trim());
+      }
+    }
+  };
+  
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim() && onSearch) {
+      onSearch(searchQuery.trim());
+    }
+  };
 
   return (
     <div 
@@ -31,18 +51,6 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
       }}
     >
       <div className="bg-gradient-to-r from-surface-paper/95 to-library-cream-100/95 backdrop-blur-paper shadow-shelf rounded-journal px-6 py-3 flex items-center gap-4 border border-library-sage-300/50">
-        {/* Elegant back button */}
-        <button
-          onClick={() => router.push('/home')}
-          className="group flex items-center gap-2 px-4 py-2 text-sm text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-300 shadow-paper hover:shadow-book"
-          title="Return to Library"
-        >
-          <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span className="font-serif font-medium">Library</span>
-        </button>
-
         {/* Elegant divider */}
         <div className="w-px h-6 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
 
@@ -65,6 +73,34 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             <ZoomOut />
             <ZoomIn />
           </div>
+
+          {/* Elegant divider */}
+          <div className="w-px h-6 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
+
+          {/* Search with scholarly styling */}
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <div className={`flex items-center transition-all duration-300 ${searchFocused ? 'w-48' : 'w-32'}`}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search text..."
+                className="w-full px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-xs font-serif text-reading-primary placeholder-reading-secondary/60 shadow-paper focus:outline-none focus:ring-1 focus:ring-library-sage-400 focus:border-library-sage-400 transition-all"
+              />
+              <button
+                type="submit"
+                className="ml-2 p-1.5 text-reading-secondary hover:text-reading-primary transition-colors rounded-book hover:bg-library-cream-100"
+                title="Search (⌘↩)"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ interface PDFDocumentViewerProps {
   renderLoader: (percentages: number) => React.ReactNode;
   renderPage: (props: any) => React.ReactNode;
   pdfLoadingState: 'idle' | 'loading' | 'loaded' | 'error' | 'stuck';
+  onViewerReady?: (viewer: any) => void;
 }
 
 const PDFDocumentViewer: React.FC<PDFDocumentViewerProps> = ({
@@ -22,6 +23,7 @@ const PDFDocumentViewer: React.FC<PDFDocumentViewerProps> = ({
   renderLoader,
   renderPage,
   pdfLoadingState,
+  onViewerReady,
 }) => {
   // Page layout customization
   const pageLayout = {
@@ -61,7 +63,13 @@ const PDFDocumentViewer: React.FC<PDFDocumentViewerProps> = ({
             scrollMode={ScrollMode.Vertical}
             theme="light"
             pageLayout={pageLayout}
-            onDocumentLoad={onDocumentLoad}
+            onDocumentLoad={(e) => {
+              onDocumentLoad(e);
+              // Pass viewer functions for scroll-to-block functionality
+              if (onViewerReady) {
+                onViewerReady(e);
+              }
+            }}
             onPageChange={onPageChange}
             renderLoader={renderLoader}
             renderPage={renderPage}

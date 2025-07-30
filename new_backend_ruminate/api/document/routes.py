@@ -19,7 +19,8 @@ from new_backend_ruminate.api.document.schemas import (
     AnnotationRequest,
     AnnotationResponse,
     S3UploadRequest,
-    DocumentUpdateRequest
+    DocumentUpdateRequest,
+    ReadingProgressRequest
 )
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token, get_storage_service
@@ -190,7 +191,10 @@ async def get_document(
         batch_id=document.batch_id,
         chunk_index=document.chunk_index,
         total_chunks=document.total_chunks,
-        is_auto_processed=document.is_auto_processed
+        is_auto_processed=document.is_auto_processed,
+        furthest_read_block_id=document.furthest_read_block_id,
+        furthest_read_position=document.furthest_read_position,
+        furthest_read_updated_at=document.furthest_read_updated_at
     )
 
 
@@ -241,7 +245,10 @@ async def list_documents(
                 batch_id=doc.batch_id,
                 chunk_index=doc.chunk_index,
                 total_chunks=doc.total_chunks,
-                is_auto_processed=doc.is_auto_processed
+                is_auto_processed=doc.is_auto_processed,
+                furthest_read_block_id=doc.furthest_read_block_id,
+                furthest_read_position=doc.furthest_read_position,
+                furthest_read_updated_at=doc.furthest_read_updated_at
             )
             for doc in documents
         ],
@@ -600,3 +607,59 @@ async def start_document_processing(
         import traceback
         print(f"[START_PROCESSING Route] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error starting document processing: {str(e)}")
+
+
+@router.patch("/{document_id}/reading-progress", response_model=DocumentResponse)
+async def update_reading_progress(
+    document_id: str,
+    request: ReadingProgressRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """
+    Update reading progress for a document.
+    
+    This endpoint tracks how far the user has read in the document by storing
+    the furthest block ID and its position in the reading order. Only updates
+    if the new position is further than the current progress.
+    
+    Returns the updated document with reading progress fields.
+    """
+    try:
+        updated_document = await svc.update_reading_progress(
+            document_id=document_id,
+            user_id=current_user.id,
+            block_id=request.block_id,
+            position=request.position,
+            session=session
+        )
+        
+        return DocumentResponse(
+            id=updated_document.id,
+            user_id=updated_document.user_id,
+            status=updated_document.status,
+            title=updated_document.title,
+            summary=updated_document.summary,
+            created_at=updated_document.created_at,
+            updated_at=updated_document.updated_at,
+            processing_error=updated_document.processing_error,
+            parent_document_id=updated_document.parent_document_id,
+            batch_id=updated_document.batch_id,
+            chunk_index=updated_document.chunk_index,
+            total_chunks=updated_document.total_chunks,
+            is_auto_processed=updated_document.is_auto_processed,
+            furthest_read_block_id=updated_document.furthest_read_block_id,
+            furthest_read_position=updated_document.furthest_read_position,
+            furthest_read_updated_at=updated_document.furthest_read_updated_at
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+    except Exception as e:
+        print(f"[READING_PROGRESS Route] Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[READING_PROGRESS Route] Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error updating reading progress: {str(e)}")

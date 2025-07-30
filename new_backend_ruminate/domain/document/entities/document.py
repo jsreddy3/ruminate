@@ -34,6 +34,10 @@ class Document:
     chunk_index: Optional[int] = None           # Position in batch (0-based)
     total_chunks: Optional[int] = None          # Total chunks in batch
     is_auto_processed: bool = False             # True for first chunk only
+    # Reading progress fields
+    furthest_read_block_id: Optional[str] = None
+    furthest_read_position: Optional[int] = None
+    furthest_read_updated_at: Optional[datetime] = None
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
@@ -57,6 +61,13 @@ class Document:
         """Set status to ready"""
         self.status = DocumentStatus.READY
         self.updated_at = datetime.now()
+    
+    def update_reading_progress(self, block_id: str, position: int) -> None:
+        """Update reading progress to furthest block"""
+        self.furthest_read_block_id = block_id
+        self.furthest_read_position = position
+        self.furthest_read_updated_at = datetime.now()
+        self.updated_at = datetime.now()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -77,6 +88,9 @@ class Document:
             "chunk_index": self.chunk_index,
             "total_chunks": self.total_chunks,
             "is_auto_processed": self.is_auto_processed,
+            "furthest_read_block_id": self.furthest_read_block_id,
+            "furthest_read_position": self.furthest_read_position,
+            "furthest_read_updated_at": self.furthest_read_updated_at.isoformat() if self.furthest_read_updated_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -90,4 +104,6 @@ class Document:
             data['created_at'] = datetime.fromisoformat(data['created_at'])
         if data.get('updated_at') and isinstance(data['updated_at'], str):
             data['updated_at'] = datetime.fromisoformat(data['updated_at'])
+        if data.get('furthest_read_updated_at') and isinstance(data['furthest_read_updated_at'], str):
+            data['furthest_read_updated_at'] = datetime.fromisoformat(data['furthest_read_updated_at'])
         return cls(**data)

@@ -74,8 +74,10 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
           </div>
         );
       } else {
-        // Regular paragraph - format bold text
-        const formattedParagraph = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-library-forest-700">$1</strong>');
+        // Regular paragraph - format bold and italic text
+        let formattedParagraph = paragraph
+          .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-library-forest-700">$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em class="italic text-library-forest-600">$1</em>');
         
         return (
           <p 
