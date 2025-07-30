@@ -232,8 +232,21 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   
+  // Add states for PDF loading management
+  const [pdfLoadingState, setPdfLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error' | 'stuck'>('idle');
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  
   // Debug PDF URL
   useEffect(() => {
+    console.log('🔍 PDF Viewer initializing with:', {
+      pdfType: pdfFile.startsWith('data:application/pdf;base64,') ? 'base64' : 'url',
+      pdfSize: pdfFile.startsWith('data:application/pdf;base64,') 
+        ? `${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB`
+        : `${pdfFile.length} chars`,
+      documentId
+    });
+    
     if (pdfFile.startsWith('data:application/pdf;base64,')) {
       const base64Length = pdfFile.length;
       const estimatedSizeMB = (base64Length * 0.75) / (1024 * 1024); // rough estimate
@@ -246,7 +259,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         console.error('❌ Invalid PDF URL: file:// URLs cannot be loaded in browsers');
       }
     }
-  }, [pdfFile]);
+  }, [pdfFile, documentId]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   // Add state for block overlay
@@ -641,6 +654,57 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [activeConversationId, rabbitholeConversations]);
 
+  // Add timeout mechanism for stuck PDF loading
+  useEffect(() => {
+    if (pdfLoadingState === 'loading') {
+      console.log('⏳ PDF loading started, setting 3s timeout...');
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ PDF loading timeout reached - marking as stuck');
+        setPdfLoadingState('stuck');
+      }, 5000); // 5 second timeout
+      
+      setLoadingTimeout(timeout);
+      
+      return () => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      };
+    } else if (pdfLoadingState === 'loaded') {
+      console.log('✅ PDF loaded successfully');
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
+    }
+  }, [pdfLoadingState, loadingTimeout]);
+
+  // Force refresh function
+  const handleForceRefresh = useCallback(() => {
+    console.log('🔄 Force refreshing PDF viewer...');
+    setPdfLoadingState('idle');
+    setForceRefreshKey(prev => prev + 1);
+    
+    // Clear any existing timeout
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+  }, [loadingTimeout]);
+
+  // Track when PDF starts loading (triggered by the first render with percentages === 0)
+  useEffect(() => {
+    if (pdfLoadingState === 'idle') {
+      // Set a small delay to allow the first render to happen, then check if we need to start loading state
+      const timer = setTimeout(() => {
+        console.log('🔄 PDF loading initiated...');
+        setPdfLoadingState('loading');
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [forceRefreshKey, pdfLoadingState]); // Re-trigger when force refresh happens
+
   return (
     <MathJaxProvider>
       <style jsx global>{`
@@ -747,6 +811,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   className="overflow-auto"
                 >
                   <Viewer
+                    key={forceRefreshKey}
                     fileUrl={pdfFile}
                     plugins={[
                       defaultLayoutPluginInstance,
@@ -758,19 +823,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     theme="light"
                     pageLayout={pageLayout}
                     onDocumentLoad={(e) => {
+                      console.log('📄 PDF document loaded successfully');
+                      setPdfLoadingState('loaded');
                       setTotalPages(e.doc.numPages);
                       setCurrentPage(1);
                     }}
                     onPageChange={(e) => {
                       setCurrentPage(e.currentPage + 1);
                     }}
-                    renderLoader={(percentages: number) => (
+                    renderLoader={(percentages: number) => {
+                      // Don't set state during render - let useEffect handle it
+                      return (
                       <div className="flex items-center justify-center p-4">
                         <div className="w-full max-w-sm">
                           <div className="bg-white p-4 rounded-lg shadow-sm">
-                            {percentages === 0 ? (
+                            {percentages === 0 || pdfLoadingState === 'stuck' ? (
                               <div>
-                                <div className="text-sm text-orange-600 mb-2">Initializing PDF...</div>
+                                <div className={`text-sm mb-2 ${pdfLoadingState === 'stuck' ? 'text-red-600' : 'text-orange-600'}`}>
+                                  {pdfLoadingState === 'stuck' ? 'PDF Loading Stuck - Click to Retry' : 'Initializing PDF...'}
+                                </div>
                                 <div className="text-xs text-gray-500">
                                   {pdfFile.startsWith('data:application/pdf;base64,') 
                                     ? `Base64 PDF (${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB)`
@@ -781,9 +852,18 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                                   {pdfFile.startsWith('file://') && '❌ file:// URLs are blocked by browsers'}
                                   {pdfFile.startsWith('data:application/pdf;base64,') && pdfFile.length > 10000000 && '⚠️ Large PDF may cause issues'}
                                 </div>
-                                <div className="text-xs text-blue-500 mt-2">
-                                  If stuck, try refreshing or check console for errors
-                                </div>
+                                {pdfLoadingState === 'stuck' ? (
+                                  <button 
+                                    onClick={handleForceRefresh}
+                                    className="mt-3 px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                                  >
+                                    🔄 Force Refresh PDF
+                                  </button>
+                                ) : (
+                                  <div className="text-xs text-blue-500 mt-2">
+                                    Loading will timeout in 3 seconds if stuck...
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <>
@@ -801,7 +881,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                           </div>
                         </div>
                       </div>
-                    )}
+                      );
+                    }}
                     renderPage={(props) => (
                       <>
                         {props.canvasLayer.children}
