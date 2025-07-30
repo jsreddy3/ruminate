@@ -96,7 +96,6 @@ export function useBlockMetadata(blockId: string | undefined) {
   
   const refetch = useCallback(() => {
     if (blockId) {
-      console.log(`[useBlockMetadata] Forcing refresh of metadata for block ${blockId}`);
       fetchBlockMetadata(blockId, true); // Pass true to force refresh and bypass cache
     }
   }, [blockId, fetchBlockMetadata]);

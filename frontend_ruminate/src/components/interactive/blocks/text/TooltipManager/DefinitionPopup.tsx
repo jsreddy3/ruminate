@@ -104,11 +104,8 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
   }, [isVisible, onClose]);
 
   if (!isVisible) {
-    console.log('[DefinitionPopup] Not visible, returning null');
     return null;
   }
-
-  console.log('[DefinitionPopup] Rendering with term:', term, 'at position:', position);
 
   // Calculate initial position - ensure it's visible within viewport
   const getInitialPosition = () => {

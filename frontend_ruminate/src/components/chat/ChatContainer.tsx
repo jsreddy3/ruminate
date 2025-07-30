@@ -152,9 +152,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     onRequestBlockSelection({
       prompt: "Select a block to save your conversation note",
       onComplete: async (blockId: string) => {
-        try {
-          console.log('Generating note for block:', blockId);
-          
+        try {          
           // Set loading state
           setIsGeneratingNote(true);
           setNoteGenerationStatus('Generating note...');
@@ -181,8 +179,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           }
 
           const result = await response.json();
-          console.log('Note generated successfully:', result);
-          console.log('Note details - ID:', result.note_id, 'Block ID:', result.block_id);
           
           setNoteGenerationStatus('Note created successfully!');
           
@@ -208,8 +204,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                 }
               }
             };
-            onUpdateBlockMetadata(result.block_id, newMetadata);
-            console.log('Updated block metadata optimistically with generated note');
+            onUpdateBlockMetadata(result.block_id, newMetadata);            
             
             // Auto-open the block with the new note after a short delay
             setTimeout(() => {
@@ -222,14 +217,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           } else {
             // Fallback to old behavior if API doesn't return complete data or callback unavailable
             if (onBlockMetadataUpdate) {
-              console.log('Calling onBlockMetadataUpdate to refresh block data...');
               onBlockMetadataUpdate();
             }
             setIsGeneratingNote(false);
             setNoteGenerationStatus('');
-          }
-          
-          console.log('Note should now be visible in the block view');
+          }          
         } catch (error) {
           console.error('Error generating note:', error);
           setNoteGenerationStatus('Failed to generate note');

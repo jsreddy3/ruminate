@@ -115,6 +115,8 @@ export default function BlockOverlay({
                     onUpdateBlockMetadata={onUpdateBlockMetadata}
                     onRabbitholeClick={onRabbitholeClick}
                     onCreateRabbithole={onCreateRabbithole}
+                    onSwitchToMainChat={onSwitchToMainChat}
+                    mainConversationId={mainConversationId}
                   />
                 </div>
               </div>

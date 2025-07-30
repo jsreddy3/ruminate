@@ -55,14 +55,6 @@ export default function BlockRenderer({
   onUpdateBlockMetadata,
   customStyle
 }: BlockRendererProps) {
-  // console.log(`BlockRenderer MOUNT - blockId: ${blockId}`);
-
-  // useEffect(() => {
-  //   return () => {
-  //     console.log(`BlockRenderer UNMOUNT - blockId: ${blockId}`);
-  //   };
-  // }, [blockId]);
-
   const type = blockType.toLowerCase();
   
   // Unsupported block types

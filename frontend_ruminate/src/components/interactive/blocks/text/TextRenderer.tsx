@@ -75,15 +75,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   // Use metadata directly from props - no local state needed
   const metadata = initialMetadata;
   
-  // Debug metadata
-  useEffect(() => {
-    console.log('TextRenderer metadata updated:', {
-      blockId,
-      metadata,
-      hasAnnotations: metadata?.annotations ? Object.keys(metadata.annotations).length : 0,
-      hasDefinitions: metadata?.definitions ? Object.keys(metadata.definitions).length : 0
-    });
-  }, [blockId, metadata]);
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -150,8 +141,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           startOffset,
           endOffset
         });
-        
-        console.log('Selection range:', { startOffset, endOffset, text });
       }
     }
   };
@@ -178,7 +167,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   // Handle define text action
   const handleDefineText = (text: string) => {
-    console.log('Looking up definition for:', text);
     
     // Ensure we have the offsets from selectedRange
     if (!selectedRange) {
@@ -195,7 +183,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
   // Handle creating a rabbithole conversation
   const handleCreateRabbithole = (text: string, startOffset: number, endOffset: number) => {
-    console.log('Creating rabbithole for:', { text, startOffset, endOffset });
     if (onCreateRabbithole) {
       // Use the actual selection range data if available, otherwise use provided offsets
       if (selectedRange) {
@@ -214,7 +201,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     startOffset: number, 
     endOffset: number
   ) => {
-    console.log('Rabbithole clicked:', { id, text, startOffset, endOffset });
     if (onRabbitholeClick) {
       onRabbitholeClick(id, text, startOffset, endOffset);
     }
@@ -222,22 +208,17 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   // Handle saved definition click (from highlight)
   const handleSavedDefinitionClick = useCallback((term: string, definition: string, startOffset: number, endOffset: number, event: React.MouseEvent) => {
-    console.log('Showing saved definition for:', term);
-    console.log('Setting states - term:', term, 'definition:', definition);
     setDefinitionWord(term);
     setSavedDefinition(definition);
     setDefinitionOffsets({ startOffset, endOffset });
     // Position at mouse position
     const mousePos = { x: event.clientX, y: event.clientY };
-    console.log('Mouse position:', mousePos);
     setDefinitionPosition(mousePos);
     setDefinitionVisible(true);
-    console.log('definitionVisible set to true');
   }, []);
   
   // Handle when a new definition is saved
   const handleDefinitionSaved = (term: string, definition: string, startOffset: number, endOffset: number, fullResponse?: any) => {
-    console.log('Definition saved for:', term, 'at offsets:', startOffset, '-', endOffset);
     
     // Update block metadata optimistically using API response
     if (fullResponse && fullResponse.text_start_offset !== undefined && onUpdateBlockMetadata) {
@@ -255,13 +236,11 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         }
       };
       onUpdateBlockMetadata(blockId, newMetadata);
-      console.log('Updated block metadata optimistically with new definition');
     }
   };
 
   // Handle annotation text action (from tooltip)
   const handleAnnotateText = (text: string) => {
-    console.log('Creating annotation for:', text);
     
     // Ensure we have the offsets from selectedRange
     if (!selectedRange) {
@@ -277,7 +256,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
   // Handle annotation click (from highlight)
   const handleAnnotationClick = useCallback((annotation: any, event: React.MouseEvent) => {
-    console.log('Showing annotation:', annotation);
     
     // Set up the selectedRange based on the annotation's stored offsets
     setSelectedRange({
@@ -305,15 +283,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       return;
     }
 
-    console.log('Saving annotation:', {
-      documentId,
-      blockId,
-      text: selectedRange.text,
-      note,
-      startOffset: selectedRange.startOffset,
-      endOffset: selectedRange.endOffset
-    });
-
     try {
       const result = await documentApi.createAnnotation(
         documentId,
@@ -323,8 +292,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         selectedRange.startOffset,
         selectedRange.endOffset
       );
-
-      console.log('Annotation saved successfully:', result);
       
       // Update block metadata optimistically using API response
       if (result && 'id' in result && onUpdateBlockMetadata) {
@@ -345,7 +312,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           }
         };
         onUpdateBlockMetadata(blockId, newMetadata);
-        console.log('Updated block metadata optimistically with new annotation');
       }
     } catch (error) {
       console.error('Failed to save annotation:', error);
@@ -368,8 +334,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         selectedRange.startOffset,
         selectedRange.endOffset
       );
-
-      console.log('Annotation deleted successfully');
       
       // Update block metadata by removing the annotation
       if (onUpdateBlockMetadata) {
@@ -380,7 +344,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           annotations: Object.keys(remainingAnnotations).length > 0 ? remainingAnnotations : undefined
         };
         onUpdateBlockMetadata(blockId, newMetadata);
-        console.log('Updated block metadata optimistically - removed annotation');
       }
     } catch (error) {
       console.error('Failed to delete annotation:', error);

@@ -167,21 +167,14 @@ export function useMessageTree({
         const response = await conversationApi.getMessageTree(conversationId);
         const messages = response.messages || response; // Handle both old and new format
         
-        console.log('[useMessageTree DEBUG] Raw API response:', response);
-        console.log('[useMessageTree DEBUG] Parsed messages:', messages);
-        console.log('[useMessageTree DEBUG] Messages length:', messages.length);
-        
         setFlatMessages(messages);
         
         // Build tree structure
         const tree = buildMessageTree(messages);
-        console.log('[useMessageTree DEBUG] Built tree:', tree);
-        console.log('[useMessageTree DEBUG] Tree length:', tree.length);
         setMessageTree(tree);
         
         // Determine active thread
         const activeThread = determineActiveThread(messages);
-        console.log('[useMessageTree DEBUG] Active thread:', activeThread);
         setActiveThreadIds(activeThread);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch message tree'));
@@ -260,17 +253,12 @@ export function useMessageTree({
     const targetMessage = flatMessages.find(msg => msg.id === messageId);
     if (!targetMessage || !targetMessage.parent_id) return;
     
-    // Log the current active thread before changes
-    console.log('BEFORE VERSION SWITCH - Active Thread IDs:', [...activeThreadIds]);
-    console.log('Switching to version:', messageId, 'Parent ID:', targetMessage.parent_id);
-    
     // For now, we'll just update our local state
     // The parent message stays the same, but we replace its child in the active thread
     const newActiveThreadIds = [...activeThreadIds];
     
     // Find the index of the parent in the active thread
     const parentIndex = newActiveThreadIds.indexOf(targetMessage.parent_id);
-    console.log('Parent index in active thread:', parentIndex);
     
     if (parentIndex !== -1 && parentIndex < newActiveThreadIds.length - 1) {
       // Replace the old child with the new version
@@ -281,13 +269,7 @@ export function useMessageTree({
       const removedChildren = newActiveThreadIds.slice(parentIndex + 2);
       newActiveThreadIds.length = parentIndex + 2;
       
-      // Log the changes
-      console.log('Replaced version:', oldVersion, 'with new version:', messageId);
-      if (removedChildren.length > 0) {
-        console.log('Removed subsequent messages:', removedChildren);
-      }
-      
-      // IMPORTANT ADDITION: Find children of the selected version and add them to the thread
+      // Find children of the selected version and add them to the thread
       // First we need to find which messages have this version as parent
       const childrenOfTarget = flatMessages.filter(msg => msg.parent_id === messageId);
       
@@ -302,8 +284,6 @@ export function useMessageTree({
         const mostRecentChild = childrenOfTarget[childrenOfTarget.length - 1];
         newActiveThreadIds.push(mostRecentChild.id);
         
-        console.log('Added child of selected version:', mostRecentChild.id);
-        
         // Recursively add children of this child if they exist
         let currentId = mostRecentChild.id;
         while (true) {
@@ -317,7 +297,6 @@ export function useMessageTree({
           const nextChild = nextChildren[nextChildren.length - 1];
           
           newActiveThreadIds.push(nextChild.id);
-          console.log('Added grandchild:', nextChild.id);
           
           currentId = nextChild.id;
         }
@@ -325,13 +304,10 @@ export function useMessageTree({
       
       // Update active thread
       setActiveThreadIds(newActiveThreadIds);
-      console.log('AFTER VERSION SWITCH - Active Thread IDs:', newActiveThreadIds);
       
       // Refresh to ensure we have the latest data
       refreshTree(true);
     } else {
-      console.log('Could not find valid position to switch versions - parentIndex:', parentIndex, 
-                  'threadLength:', newActiveThreadIds.length);
     }
   }, [flatMessages, activeThreadIds, refreshTree]);
 

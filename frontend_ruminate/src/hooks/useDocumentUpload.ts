@@ -170,9 +170,6 @@ export function useDocumentUpload(): UseDocumentUploadResult {
       // Enhanced SSE message handler
       es.onmessage = async (event) => {
         try {
-          console.log('Raw SSE event received:', event);
-          console.log('Event data:', event.data);
-          
           let eventData;
           
           // Handle case where event.data might contain full SSE format
@@ -190,8 +187,6 @@ export function useDocumentUpload(): UseDocumentUploadResult {
             // Standard case - event.data should be JSON
             eventData = JSON.parse(event.data);
           }
-          
-          console.log('Parsed SSE event data:', eventData);
           
           const status = eventData.status as DocumentStatus;
           const message = eventData.message || eventData.detail;

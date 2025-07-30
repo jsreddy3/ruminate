@@ -71,18 +71,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle auth callback from backend
   useEffect(() => {
-    console.log('AuthContext: Checking URL for auth callback');
     const urlParams = new URLSearchParams(window.location.search);
     const tokenParam = urlParams.get('token');
     const userParam = urlParams.get('user');
     const errorParam = urlParams.get('error');
-
-    console.log('AuthContext: URL params', { 
-      url: window.location.href,
-      hasToken: !!tokenParam, 
-      hasUser: !!userParam, 
-      hasError: !!errorParam 
-    });
 
     if (errorParam) {
       console.error('Auth error:', decodeURIComponent(errorParam));
@@ -92,23 +84,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (tokenParam && userParam) {
-      console.log('AuthContext: Processing auth callback with token');
       try {
         const userData = JSON.parse(decodeURIComponent(userParam));
-        console.log('AuthContext: Parsed user data:', userData);
         setToken(tokenParam);
         setUser(userData);
         localStorage.setItem('auth_token', tokenParam);
-        console.log('AuthContext: Token saved to localStorage');
         
         // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
-        console.log('AuthContext: URL cleaned up');
       } catch (error) {
         console.error('Error parsing auth callback:', error);
       }
-    } else {
-      console.log('AuthContext: No auth params in URL');
     }
   }, []);
 

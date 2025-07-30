@@ -72,7 +72,6 @@ export function useBlockData(blockId: string | undefined) {
   
   const refetch = useCallback(() => {
     if (blockId) {
-      console.log(`Forcing refresh of rabbithole data for block ${blockId}`);
       fetchBlockData(blockId, true); // Pass true to force refresh and bypass cache
     }
   }, [blockId, fetchBlockData]);

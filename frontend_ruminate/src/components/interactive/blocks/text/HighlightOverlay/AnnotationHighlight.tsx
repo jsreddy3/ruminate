@@ -121,14 +121,7 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
 
   // Calculate and render highlights when content or annotations change
   useEffect(() => {
-    console.log('AnnotationHighlight useEffect triggered:', { 
-      hasContentRef: !!contentRef.current, 
-      annotations, 
-      annotationCount: annotations ? Object.keys(annotations).length : 0 
-    });
-    
     if (!contentRef.current || !annotations || Object.keys(annotations).length === 0) {
-      console.log('Setting empty highlight elements');
       setHighlightElements([]);
       return;
     }
@@ -187,7 +180,6 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
         };
         
         const handleClick = (e: React.MouseEvent) => {
-          console.log('Annotation clicked:', annotation);
           e.stopPropagation();
           e.preventDefault();
           onAnnotationClick(annotation, e);

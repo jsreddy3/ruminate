@@ -237,14 +237,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     if (pdfFile.startsWith('data:application/pdf;base64,')) {
       const base64Length = pdfFile.length;
       const estimatedSizeMB = (base64Length * 0.75) / (1024 * 1024); // rough estimate
-      console.log('PDF: Base64 data URL detected');
-      console.log(`Base64 length: ${base64Length} chars (~${estimatedSizeMB.toFixed(1)}MB)`);
       
       if (base64Length > 10000000) { // ~7.5MB
         console.warn('⚠️ Very large base64 PDF - this might cause loading issues');
       }
     } else {
-      console.log('PDF URL being loaded:', pdfFile);
       if (pdfFile.startsWith('file://')) {
         console.error('❌ Invalid PDF URL: file:// URLs cannot be loaded in browsers');
       }
@@ -252,7 +249,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [pdfFile]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
-  const [loading, setLoading] = useState(false);
   // Add state for block overlay
   const [isBlockOverlayOpen, setIsBlockOverlayOpen] = useState(false);
   
@@ -297,33 +293,21 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     // Prevent multiple fetches within 2 seconds
     const now = Date.now();
     if (now - lastFetchTimeRef.current < 2000) {
-      console.log("[DEBUG] Skipping fetchBlocks - called too frequently");
       return;
     }
     lastFetchTimeRef.current = now;
     
-    console.log("[DEBUG] Beginning fetchBlocks for document:", documentId);
-    setLoading(true);
     try {
       const blocksResp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks`);
       const blocksData = await blocksResp.json();
-      console.log("[DEBUG] Fetched blocks data:", blocksData.length, "blocks");
-      
-      // Debug block ordering
-      console.log("[DEBUG] Block order received from API:");
-      blocksData.slice(0, 10).forEach((block, index) => {
-        console.log(`  ${index}: Page ${block.page_number} - ${block.block_type} - ${block.id.substring(0, 8)} - "${(block.html_content || '').substring(0, 50)}..."`);
-      });
       
       if (Array.isArray(blocksData)) {
         setBlocks(blocksData);
-        console.log("[DEBUG] Updated blocks state");
         
         // If we have a selected block, update it with the new data
         if (selectedBlock) {
           const updatedBlock = blocksData.find(b => b.id === selectedBlock.id);
           if (updatedBlock) {
-            console.log("[DEBUG] Updating selected block with fresh data", updatedBlock);
             setSelectedBlock(updatedBlock);
           }
         }
@@ -331,14 +315,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     } catch (error) {
       console.error("Error fetching document data:", error);
     } finally {
-      setLoading(false);
     }
   }, [documentId]); // Remove selectedBlock from the dependencies
   
   // Function to update a specific block's metadata optimistically
   const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
-    console.log("[DEBUG] Updating block metadata optimistically for block:", blockId);
-    
     setBlocks(prevBlocks => 
       prevBlocks.map(block => 
         block.id === blockId 
@@ -353,8 +334,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         ? { ...prevSelected, metadata: { ...prevSelected.metadata, ...newMetadata } }
         : prevSelected
     );
-    
-    console.log("[DEBUG] Block metadata updated optimistically");
   }, []);
   
   // Initialize the main document conversation
@@ -380,16 +359,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             const id = existingConvos[0].id;
             setMainConversationId(id);
             storeConversationId(documentId, id);
-            console.log("Using existing document conversation:", id);
             return id;
           } else {
-            console.log("No existing document conversation found, creating new one...");
             // Create a document-level conversation
             const newConv = await conversationApi.create(documentId);
             const id = newConv.conversation_id;
             setMainConversationId(id);
             storeConversationId(documentId, id);
-            console.log("Created new document conversation:", id);
             return id;
           }
         } catch (error) {
@@ -452,8 +428,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
         )
       );
-
-      console.log(`[Blocks Debug] Found ${filteredBlocks.length} content blocks to display`);
       
       // Use the blocks as they come from the API (already ordered correctly)
       setFlattenedBlocks(filteredBlocks);
@@ -530,13 +504,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Handle block click to select and view it
   const handleBlockClick = useCallback((block: Block) => {
-    console.log('Selected Block:', {
-      id: block.id,
-      type: block.block_type,
-      content: block.html_content,
-      fullBlock: block
-    });
-
     // Set the new selected block and open overlay
     setSelectedBlock(block);
     setIsBlockOverlayOpen(true);
@@ -544,14 +511,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Programmatically open a block (for auto-navigation after note generation)
   const handleOpenBlockWithNote = useCallback((blockId: string, noteId: string) => {
-    console.log('Opening block programmatically:', blockId, 'with note:', noteId);
-    
     // Find the block in flattened blocks
     const targetBlock = flattenedBlocks.find(block => block.id === blockId);
     if (targetBlock) {
       setSelectedBlock(targetBlock);
       setIsBlockOverlayOpen(true);
-      console.log('Block opened successfully');
     } else {
       console.error('Block not found:', blockId);
     }
@@ -563,7 +527,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     selectedText: string,
     blockId: string
   ) => {
-    console.log("[DEBUG] handleRabbitholeCreated called with:", { conversationId, selectedText, blockId });
     
     // Validate inputs to ensure we never try to add undefined/null values
     if (!conversationId) {
@@ -576,19 +539,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       ? `${selectedText.substring(0, 30)}...` 
       : selectedText || "New Rabbithole Chat";
     
-    console.log("[DEBUG] Created tab title:", title);
-    
     // Check if we already have this conversation to prevent duplicates
     const existingConversation = rabbitholeConversations.find(c => c.id === conversationId);
     if (existingConversation) {
-      console.log("[DEBUG] Found existing conversation, activating it:", existingConversation);
       // If it already exists, just activate it
       setActiveConversationId(conversationId);
       return;
     }
     
     // Add this conversation to our list
-    console.log("[DEBUG] Adding new conversation to state:", { id: conversationId, title, selectionText: selectedText });
     setRabbitholeConversations(prev => {
       const newState = [
         ...prev, 
@@ -599,12 +558,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           blockId
         }
       ];
-      console.log("[DEBUG] New rabbitholeConversations state:", newState);
       return newState;
     });
     
     // Set this as the active conversation
-    console.log("[DEBUG] Setting active conversation ID:", conversationId);
     setActiveConversationId(conversationId);
   }, [rabbitholeConversations]);
 
@@ -649,15 +606,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, []); // Run once on mount
 
   useEffect(() => {
-    console.log("[DEBUG] rabbitholeConversations updated:", rabbitholeConversations);
   }, [rabbitholeConversations]);
 
   useEffect(() => {
-    console.log("[DEBUG] activeConversationId updated:", activeConversationId);
   }, [activeConversationId]);
 
   useEffect(() => {
-    console.log("[DEBUG] blocks updated, count:", blocks.length);
   }, [blocks]);
 
   // Add handlers for pending text management
@@ -681,15 +635,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Add effect to log active conversation changes
   useEffect(() => {
-    console.log('[DEBUG] Active conversation updated:', { 
-      activeConversationId, 
-      rabbitholeConversationsCount: rabbitholeConversations.length 
-    });
-    
     // Check if we should see a tab for activeConversationId
     if (activeConversationId) {
       const activeConversation = rabbitholeConversations.find(c => c.id === activeConversationId);
-      console.log('[DEBUG] Active conversation:', activeConversation);
     }
   }, [activeConversationId, rabbitholeConversations]);
 
@@ -878,14 +826,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 setSelectedBlock(block);
               }}
               onRefreshRabbitholes={(refreshFn) => {
-                console.log("[DEBUG] BlockContainer provided refresh function");
                 refreshRabbitholesFnRef.current = refreshFn;
               }}
               onAddTextToChat={handleAddTextToChat}
               onUpdateBlockMetadata={updateBlockMetadata}
               onRabbitholeClick={(rabbitholeId: string, selectedText: string) => {
-                console.log("Opening rabbithole conversation:", rabbitholeId, "with text:", selectedText);
-                
                 const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
                 if (existingConversation) {
                   setActiveConversationId(rabbitholeId);
@@ -909,10 +854,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 setActiveConversationId(rabbitholeId);
               }}
               onCreateRabbithole={(text: string, startOffset: number, endOffset: number) => {
-                console.log("[DEBUG] onCreateRabbithole called with text:", text, "offsets:", startOffset, endOffset);
-                
                 if (documentId && selectedBlock) {
-                  console.log("[DEBUG] Creating rabbithole for document:", documentId, "block:", selectedBlock.id);
                   createRabbithole({
                     document_id: documentId,
                     block_id: selectedBlock.id,
@@ -921,7 +863,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                     end_offset: endOffset,
                     type: 'rabbithole'
                   }).then((conversation_id) => {
-                    console.log("[DEBUG] Rabbithole created successfully with conversation ID:", conversation_id);
                     handleRabbitholeCreated(conversation_id, text, selectedBlock.id);
                     
                     // Update block metadata optimistically with new rabbithole conversation ID
@@ -930,10 +871,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       rabbithole_conversation_ids: [...currentRabbitholeIds, conversation_id]
                     };
                     updateBlockMetadata(selectedBlock.id, newMetadata);
-                    console.log("[DEBUG] Updated block metadata optimistically with new rabbithole conversation ID");
                     
                     if (refreshRabbitholesFnRef.current) {
-                      console.log("[DEBUG] Calling rabbithole refresh function to update highlights");
                       refreshRabbitholesFnRef.current();
                     }
                   }).catch(error => {
@@ -941,6 +880,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   });
                 }
               }}
+              onSwitchToMainChat={() => setActiveConversationId(null)}
+              mainConversationId={mainConversationId}
             />
           </Panel>
           
@@ -1015,7 +956,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       onRequestBlockSelection={handleBlockSelectionRequest}
                       onUpdateBlockMetadata={updateBlockMetadata}
                       onBlockMetadataUpdate={() => {
-                        console.log("[DEBUG] ChatContainer requested block metadata update, fetching blocks");
                         fetchBlocks();
                       }}
                       onOpenBlockWithNote={handleOpenBlockWithNote}

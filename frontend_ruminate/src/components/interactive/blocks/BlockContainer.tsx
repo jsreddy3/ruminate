@@ -50,16 +50,6 @@ export default function BlockContainer({
   onUpdateBlockMetadata,
   customStyle
 }: BlockContainerProps) {
-  // Add component lifecycle logging
-  // console.log(`BlockContainer MOUNT - blockId: ${blockId}`);
-  
-  // Component unmount logging
-  // useEffect(() => {
-  //   return () => {
-  //     console.log(`BlockContainer UNMOUNT - blockId: ${blockId}`);
-  //   };
-  // }, [blockId]);
-
   // Use the hook to fetch rabbithole highlights
   const { rabbitholeHighlights, isLoading, error, refetch } = useBlockData(blockId);
   

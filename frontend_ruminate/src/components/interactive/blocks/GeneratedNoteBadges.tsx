@@ -98,8 +98,6 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
   }, [isDragging, isResizing, dragStart, resizeStart, popupPosition, popupSize]);
 
   // Early return after all hooks are called
-  console.log('[GeneratedNoteBadges] Annotations received:', annotations);
-  console.log('[GeneratedNoteBadges] Generated notes found:', generatedNotes.length, generatedNotes.map(n => n.id));
   
   if (generatedNotes.length === 0) {
     return null;
