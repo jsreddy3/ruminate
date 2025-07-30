@@ -8,7 +8,8 @@ import SelectionManager from './SelectionManager';
 import ReactRabbitholeHighlight from './HighlightOverlay/RabbitholeHighlight';
 import ReactDefinitionHighlight from './HighlightOverlay/DefinitionHighlight';
 import ReactAnnotationHighlight from './HighlightOverlay/AnnotationHighlight';
-import { documentApi } from '@/services/api/document';
+import { useAnnotations } from '../../../../hooks/useAnnotations';
+import { useDefinitions } from '../../../../hooks/useDefinitions';
 import { createPortal } from 'react-dom';
 
 interface TextRendererProps {
@@ -68,12 +69,24 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   onRabbitholeClick,
   rabbitholeHighlights = [],
   getBlockClassName,
-  highlights = [],
   onUpdateBlockMetadata,
   customStyle
 }) => {
   // Use metadata directly from props - no local state needed
   const metadata = initialMetadata;
+  
+  // CRUD hooks for annotations and definitions
+  const { saveAnnotation, deleteAnnotation } = useAnnotations({
+    documentId,
+    blockId,
+    onUpdateBlockMetadata
+  });
+  
+  const { saveDefinition } = useDefinitions({
+    documentId,
+    blockId,
+    onUpdateBlockMetadata
+  });
   
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -111,8 +124,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   // Handle text selection
   const handleTextSelected = (
     text: string, 
-    position: { x: number, y: number }, 
-    rects: DOMRect[]
+    position: { x: number, y: number }
   ) => {
     setSelectedText(text);
     setTooltipPosition(position);
@@ -145,15 +157,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     }
   };
   
-  // Clear selection
-  const clearSelection = () => {
-    // Don't clear selection if annotation editor is open
-    if (annotationVisible) {
-      return;
-    }
-    const selection = window.getSelection();
-    if (selection) selection.removeAllRanges();
-  };
   
   // Handle adding text to chat
   const handleAddToChat = (text: string) => {
@@ -166,7 +169,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   };
   
   // Handle define text action
-  const handleDefineText = (text: string) => {
+  const handleDefineText = (_text: string) => {
     
     // Ensure we have the offsets from selectedRange
     if (!selectedRange) {
@@ -218,24 +221,11 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   }, []);
   
   // Handle when a new definition is saved
-  const handleDefinitionSaved = (term: string, definition: string, startOffset: number, endOffset: number, fullResponse?: any) => {
-    
-    // Update block metadata optimistically using API response
-    if (fullResponse && fullResponse.text_start_offset !== undefined && onUpdateBlockMetadata) {
-      const definitionKey = `${startOffset}-${endOffset}`;
-      const newMetadata = {
-        definitions: {
-          ...metadata?.definitions,
-          [definitionKey]: {
-            term: fullResponse.term,
-            definition: fullResponse.definition,
-            text_start_offset: fullResponse.text_start_offset,
-            text_end_offset: fullResponse.text_end_offset,
-            created_at: fullResponse.created_at
-          }
-        }
-      };
-      onUpdateBlockMetadata(blockId, newMetadata);
+  const handleDefinitionSaved = async (term: string, _definition: string, startOffset: number, endOffset: number, _fullResponse?: any) => {
+    try {
+      await saveDefinition(term, startOffset, endOffset, metadata);
+    } catch (error) {
+      console.error('Error saving definition:', error);
     }
   };
 
@@ -284,35 +274,13 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     }
 
     try {
-      const result = await documentApi.createAnnotation(
-        documentId,
-        blockId,
+      await saveAnnotation(
         selectedRange.text,
         note,
         selectedRange.startOffset,
-        selectedRange.endOffset
+        selectedRange.endOffset,
+        metadata
       );
-      
-      // Update block metadata optimistically using API response
-      if (result && 'id' in result && onUpdateBlockMetadata) {
-        // API returned annotation data, update block metadata immediately
-        const annotationKey = `${selectedRange.startOffset}-${selectedRange.endOffset}`;
-        const newMetadata = {
-          annotations: {
-            ...metadata?.annotations,
-            [annotationKey]: {
-              id: result.id,
-              text: result.text,
-              note: result.note,
-              text_start_offset: result.text_start_offset,
-              text_end_offset: result.text_end_offset,
-              created_at: result.created_at,
-              updated_at: result.updated_at
-            }
-          }
-        };
-        onUpdateBlockMetadata(blockId, newMetadata);
-      }
     } catch (error) {
       console.error('Failed to save annotation:', error);
       throw error; // Let the component handle the error
@@ -327,24 +295,12 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     }
 
     try {
-      await documentApi.deleteAnnotation(
-        documentId,
-        blockId,
+      await deleteAnnotation(
         selectedRange.text,
         selectedRange.startOffset,
-        selectedRange.endOffset
+        selectedRange.endOffset,
+        metadata
       );
-      
-      // Update block metadata by removing the annotation
-      if (onUpdateBlockMetadata) {
-        const annotationKey = `${selectedRange.startOffset}-${selectedRange.endOffset}`;
-        const currentAnnotations = metadata?.annotations || {};
-        const { [annotationKey]: deleted, ...remainingAnnotations } = currentAnnotations;
-        const newMetadata = {
-          annotations: Object.keys(remainingAnnotations).length > 0 ? remainingAnnotations : undefined
-        };
-        onUpdateBlockMetadata(blockId, newMetadata);
-      }
     } catch (error) {
       console.error('Failed to delete annotation:', error);
       throw error; // Let the component handle the error
@@ -463,7 +419,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           textEndOffset={selectedRange.endOffset}
           documentId={documentId}
           blockId={blockId}
-          existingAnnotation={editingAnnotation}
+          existingAnnotation={editingAnnotation || undefined}
           onClose={() => {
             setAnnotationVisible(false);
             setEditingAnnotation(null);

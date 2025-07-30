@@ -23,6 +23,8 @@ import PDFBlockOverlay from "./PDFBlockOverlay";
 import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
+import PDFDocumentViewer from "./PDFDocumentViewer";
+import { ResizeHandle, HorizontalResizeHandle } from "../common/ResizeHandles";
 
 export interface Block {
   id: string;
@@ -56,40 +58,6 @@ export interface Block {
     rabbithole_conversation_ids?: string[];  // Just the conversation IDs
     [key: string]: any;
   };
-}
-
-// A minimal Block Info component (for the built-in sidebar tab, if you still want it)
-function BlockInformation({ block }: { block: Block | null }) {
-  if (!block) {
-    return (
-      <div className="p-4 text-gray-500">
-        Select a block to view its information
-      </div>
-    );
-  }
-  return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h3 className="font-semibold mb-2">Basic Information</h3>
-        <div className="space-y-1">
-          <p>
-            <span className="font-medium">ID:</span> {block.id}
-          </p>
-          <p>
-            <span className="font-medium">Type:</span> {block.block_type}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Add utility function for hash calculation
-async function calculateHash(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // A map to track conversation initialization promises by document ID
@@ -134,30 +102,7 @@ interface PDFViewerProps {
   initialDocumentId: string;
 }
 
-// Custom resize handle components with improved styling
-const ResizeHandle = () => (
-  <PanelResizeHandle
-    className="w-2 relative flex items-center justify-center hover:bg-gray-200 transition-colors"
-  >
-    <div className="absolute h-16 w-1 flex flex-col items-center justify-center space-y-1">
-      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
-      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
-      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
-    </div>
-  </PanelResizeHandle>
-);
-
-const HorizontalResizeHandle = () => (
-  <PanelResizeHandle
-    className="h-2 relative flex items-center justify-center hover:bg-gray-200 transition-colors"
-  >
-    <div className="absolute w-16 h-1 flex flex-row items-center justify-center space-x-1">
-      <div className="h-1 w-1 rounded-full bg-gray-300"></div>
-      <div className="h-1 w-1 rounded-full bg-gray-300"></div>
-      <div className="h-1 w-1 rounded-full bg-gray-300"></div>
-    </div>
-  </PanelResizeHandle>
-);
+// Resize handle components now imported from common components
 
 // Custom hook for persisting panel layouts
 const usePanelStorage = (id: string, defaultSizes: number[]) => {
@@ -514,18 +459,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     sidebarTabs: () => [],
   });
 
-  // Add page layout customization
-  const pageLayout = {
-    buildPageStyles: () => ({
-      boxShadow: '0 0 4px rgba(0, 0, 0, 0.15)',
-      margin: '16px auto',
-      borderRadius: '4px',
-    }),
-    transformSize: ({ size }: { size: { width: number; height: number } }) => ({
-      height: size.height,
-      width: size.width,
-    }),
-  };
+  // Page layout customization now handled by PDFDocumentViewer
 
   // Example flattening function
   const parseBlock = (block: Block, nextPageIndex: number, all: Block[]): number => {
@@ -817,44 +751,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             maxSize={85}
             className="bg-white shadow-lg overflow-hidden relative"
           >
-            <div className="h-full w-full overflow-hidden">
-              <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                <div 
-                  style={{
-                    border: 'none',
-                    height: '100%',
-                    width: '100%',
-                    backgroundColor: 'white',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    margin: 0,
-                    padding: 0
-                  }}
-                  className="overflow-auto"
-                >
-                  <Viewer
-                    key={forceRefreshKey}
-                    fileUrl={pdfFile}
-                    plugins={[
-                      defaultLayoutPluginInstance,
-                      zoomPluginInstance,
-                      pageNavigationPluginInstance
-                    ]}
-                    defaultScale={SpecialZoomLevel.PageFit}
-                    scrollMode={ScrollMode.Vertical}
-                    theme="light"
-                    pageLayout={pageLayout}
-                    onDocumentLoad={(e) => {
-                      console.log('📄 PDF document loaded successfully');
-                      setPdfLoadingState('loaded');
-                      setTotalPages(e.doc.numPages);
-                      setCurrentPage(1);
-                    }}
-                    onPageChange={(e) => {
-                      setCurrentPage(e.currentPage + 1);
-                    }}
-                    renderLoader={(percentages: number) => {
+            <PDFDocumentViewer
+              pdfFile={pdfFile}
+              forceRefreshKey={forceRefreshKey}
+              plugins={[
+                defaultLayoutPluginInstance,
+                zoomPluginInstance,
+                pageNavigationPluginInstance
+              ]}
+              pdfLoadingState={pdfLoadingState}
+              onDocumentLoad={(e) => {
+                console.log('📄 PDF document loaded successfully');
+                setPdfLoadingState('loaded');
+                setTotalPages(e.doc.numPages);
+                setCurrentPage(1);
+              }}
+              onPageChange={(e) => {
+                setCurrentPage(e.currentPage + 1);
+              }}
+              renderLoader={(percentages: number) => {
                       // Don't set state during render - let useEffect handle it
                       return (
                         <div className="flex items-center justify-center min-h-[400px] bg-gray-50">
@@ -931,19 +846,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                             )}
                           </div>
                         </div>
-                      );
-                    }}
-                    renderPage={(props) => (
-                      <>
-                        {props.canvasLayer.children}
-                        {props.textLayer.children}
-                        {renderOverlay(props)}
-                      </>
-                    )}
-                  />
-                </div>
-              </Worker>
-            </div>
+                );
+              }}
+              renderPage={(props) => (
+                <>
+                  {props.canvasLayer.children}
+                  {props.textLayer.children}
+                  {renderOverlay(props)}
+                </>
+              )}
+            />
 
             {/* Block Overlay */}
             {blockOverlayManager.blockOverlayComponent}
