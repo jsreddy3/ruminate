@@ -877,7 +877,7 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         # Filter to get user/assistant messages only (skip system/tool messages)
         conversation_messages = [
             msg for msg in messages 
-            if msg.role in [Role.USER, Role.ASSISTANT]
+            if msg.role in ["USER", "ASSISTANT"]  # Use uppercase string values to match database
         ]
         
         # Take the most recent messages based on message_count
@@ -926,6 +926,7 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             summary_ref = {
                 "note_id": note_metadata['id'],
                 "block_id": block_id,
+                "summary_content": generated_note,  # Store the actual summary content
                 "summary_range": {
                     "from_message_id": recent_messages[0].id,
                     "message_count": len(recent_messages),
@@ -937,13 +938,19 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             
             # Update message metadata - we need to inject the conversation service
             # For now, directly update through the repository to avoid circular dependencies
-            from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
-            conv_repo = RDSConversationRepository()
-            await conv_repo.update_message_metadata(
-                mid=most_recent_message.id,
-                meta_data=current_metadata,
-                session=session
-            )
+            try:
+                from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+                conv_repo = RDSConversationRepository()
+                await conv_repo.update_message_metadata(
+                    mid=most_recent_message.id,
+                    meta_data=current_metadata,
+                    session=session
+                )
+                    
+            except Exception as e:
+                pass
+                import traceback
+                traceback.print_exc()
         
         return {
             "note": generated_note,

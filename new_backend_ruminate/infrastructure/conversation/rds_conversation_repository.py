@@ -203,6 +203,7 @@ class RDSConversationRepository(ConversationRepository):
             .where(Message.id == mid)
             .values(meta_data=meta_data)
         )
+        await session.flush()  # Ensure the update is flushed to the database
 
     async def update_active_thread(
         self, cid: str, thread: list[str], session: AsyncSession

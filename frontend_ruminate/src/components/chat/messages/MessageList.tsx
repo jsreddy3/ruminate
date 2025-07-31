@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageNode, MessageRole } from '../../../types/chat';
+import { MessageNode, MessageRole, GeneratedSummary } from '../../../types/chat';
 import MessageItem from './MessageItem';
+import SummaryCard from './SummaryCard';
 
 interface MessageListProps {
   messages: MessageNode[];
@@ -10,6 +11,7 @@ interface MessageListProps {
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   conversationId?: string;
+  documentId?: string;
 }
 
 /**
@@ -22,7 +24,8 @@ const MessageList: React.FC<MessageListProps> = ({
   streamingContent,
   onSwitchVersion,
   onEditMessage,
-  conversationId
+  conversationId,
+  documentId
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -67,22 +70,38 @@ const MessageList: React.FC<MessageListProps> = ({
   
   return (
     <div className="p-4 space-y-4">
-      {displayMessages.map((message) => {
+      {displayMessages.map((message, index) => {
         // Determine if this message should be streaming
         const isMessageStreaming = message.id === streamingMessageId;
+        
+        // Check if this assistant message has generated summaries
+        const hasSummaries = message.role === MessageRole.ASSISTANT && 
+                            message.meta_data?.generated_summaries && 
+                            message.meta_data.generated_summaries.length > 0;
+        
+        const summaries = hasSummaries ? message.meta_data.generated_summaries : [];
           
         return (
-          <MessageItem
-            key={message.id}
-            message={message}
-            isActive={true}
-            isStreaming={isMessageStreaming}
-            streamingContent={isMessageStreaming ? streamingContent : null}
-            versions={getMessageVersions(message.id)}
-            onSwitchVersion={onSwitchVersion}
-            onEditMessage={onEditMessage}
-            conversationId={conversationId}
-          />
+          <React.Fragment key={message.id}>
+            <MessageItem
+              message={message}
+              isActive={true}
+              isStreaming={isMessageStreaming}
+              streamingContent={isMessageStreaming ? streamingContent : null}
+              versions={getMessageVersions(message.id)}
+              onSwitchVersion={onSwitchVersion}
+              onEditMessage={onEditMessage}
+              conversationId={conversationId}
+            />
+            
+            {/* Insert summary cards after assistant messages that have summaries */}
+            {hasSummaries && summaries.map((summary: GeneratedSummary) => (
+              <SummaryCard
+                key={summary.note_id}
+                summary={summary}
+              />
+            ))}
+          </React.Fragment>
         );
       })}
     </div>

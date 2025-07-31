@@ -10,6 +10,7 @@ interface ChatMessagesProps {
   conversationId: string | null;
   onSwitchVersion: (messageId: string, versionIndex: number) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
+  documentId?: string;
 }
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -19,7 +20,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   streamingContent,
   conversationId,
   onSwitchVersion,
-  onEditMessage
+  onEditMessage,
+  documentId
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +46,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
         streamingMessageId={streamingMessageId}
         streamingContent={streamingContent}
         conversationId={conversationId || undefined}
+        documentId={documentId}
       />
     </div>
   );

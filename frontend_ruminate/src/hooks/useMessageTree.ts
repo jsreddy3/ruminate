@@ -16,6 +16,7 @@ interface UseMessageTreeReturn {
   editMessage: (messageId: string, content: string) => Promise<[string, string]>;
   switchToVersion: (messageId: string) => void;
   refreshTree: () => Promise<void>;
+  addSummaryToMessage: (summary: any) => void; // NEW: Optimistically add summary to most recent assistant message
 }
 
 /**
@@ -361,6 +362,39 @@ export function useMessageTree({
   }, [flatMessages, activeThreadIds, refreshTree]);
 
 
+  // Function to optimistically add a summary to the most recent assistant message
+  const addSummaryToMessage = useCallback((summary: any) => {
+    // Find the most recent assistant message in the flat messages
+    const assistantMessages = flatMessages.filter(msg => msg.role === MessageRole.ASSISTANT);
+    if (assistantMessages.length === 0) return;
+    
+    const mostRecentAssistantMessage = assistantMessages[assistantMessages.length - 1];
+    
+    // Update the message with the new summary
+    const updatedMessages = flatMessages.map(msg => {
+      if (msg.id === mostRecentAssistantMessage.id) {
+        const currentMetadata = msg.meta_data || {};
+        const currentSummaries = currentMetadata.generated_summaries || [];
+        
+        return {
+          ...msg,
+          meta_data: {
+            ...currentMetadata,
+            generated_summaries: [...currentSummaries, summary]
+          }
+        };
+      }
+      return msg;
+    });
+    
+    // Update state
+    setFlatMessages(updatedMessages);
+    
+    // Rebuild tree structure
+    const newTree = buildMessageTree(updatedMessages);
+    setMessageTree(newTree);
+  }, [flatMessages, buildMessageTree]);
+
   return {
     messageTree,
     activeThreadIds, 
@@ -369,6 +403,7 @@ export function useMessageTree({
     sendMessage,
     editMessage,
     switchToVersion,
-    refreshTree
+    refreshTree,
+    addSummaryToMessage
   };
 }

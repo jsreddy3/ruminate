@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageNode, MessageRole } from '../../../types/chat';
+import { MessageNode, MessageRole, GeneratedSummary } from '../../../types/chat';
 import MessageContentRenderer from './MessageContentRenderer';
 
 interface MessageItemProps {
@@ -232,7 +232,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
               <div className="font-serif text-base leading-relaxed text-reading-primary">
                 <MessageContentRenderer
                   content={message.content}
-                  role={message.role}
+                  role={message.role as MessageRole}
                   isStreaming={isStreaming}
                   streamingContent={streamingContent}
                 />
@@ -304,6 +304,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
         </div>
         </div>
       </div>
+
     </div>
   );
 };

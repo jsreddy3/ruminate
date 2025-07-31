@@ -339,4 +339,40 @@ export const documentApi = {
     
     return response.json();
   },
+
+  /**
+   * Get a specific block by ID with its metadata
+   * @param documentId Document ID
+   * @param blockId Block ID
+   * @returns Block object with metadata including annotations
+   */
+  getBlock: async (documentId: string, blockId: string): Promise<{
+    id: string;
+    block_type?: string;
+    html_content?: string;
+    metadata?: {
+      annotations?: {
+        [key: string]: {
+          id: string;
+          text: string;
+          note: string;
+          text_start_offset: number;
+          text_end_offset: number;
+          created_at: string;
+          updated_at: string;
+          is_generated?: boolean;
+          source_conversation_id?: string;
+          message_count?: number;
+          topic?: string;
+        };
+      };
+    };
+    [key: string]: any;
+  }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks/${blockId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch block");
+    }
+    return response.json();
+  },
 };

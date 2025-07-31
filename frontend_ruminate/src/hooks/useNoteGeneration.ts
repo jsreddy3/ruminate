@@ -15,6 +15,7 @@ interface UseNoteGenerationProps {
   onBlockMetadataUpdate?: () => void;
   onOpenBlockWithNote?: (blockId: string, noteId: string) => void;
   getBlockMetadata?: (blockId: string) => any;
+  onSummaryGenerated?: (messageId: string, summary: any) => void; // NEW: Callback to optimistically update UI
 }
 
 export const useNoteGeneration = ({
@@ -25,7 +26,8 @@ export const useNoteGeneration = ({
   onUpdateBlockMetadata,
   onBlockMetadataUpdate,
   onOpenBlockWithNote,
-  getBlockMetadata
+  getBlockMetadata,
+  onSummaryGenerated
 }: UseNoteGenerationProps) => {
   const [showNotePopup, setShowNotePopup] = useState(false);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
@@ -61,6 +63,26 @@ export const useNoteGeneration = ({
       const result = await response.json();
       
       setNoteGenerationStatus('Note created successfully!');
+      
+      // Optimistically update the conversation UI with the new summary
+      if (onSummaryGenerated && result.note_id && result.note) {
+        // We need to determine which message to attach the summary to
+        // The backend attaches it to the most recent assistant message in the conversation
+        // For now, we'll let the parent component figure out which message
+        const summaryData = {
+          note_id: result.note_id,
+          block_id: result.block_id,
+          summary_content: result.note,
+          summary_range: {
+            from_message_id: '', // Parent will need to determine this
+            message_count: messageCount,
+            topic: topic || null
+          },
+          created_at: new Date().toISOString()
+        };
+        
+        onSummaryGenerated('', summaryData); // Empty messageId - parent will determine target message
+      }
       
       // Update block metadata optimistically with generated note
       if (result.note_id && result.block_id && result.note && onUpdateBlockMetadata) {

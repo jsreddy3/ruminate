@@ -6,6 +6,7 @@ interface MessageContentRendererProps {
   role: MessageRole;
   isStreaming?: boolean;
   streamingContent?: string | null;
+  disableDropCap?: boolean; // NEW: Option to disable drop cap
 }
 
 /**
@@ -16,7 +17,8 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
   content,
   role,
   isStreaming = false,
-  streamingContent = null
+  streamingContent = null,
+  disableDropCap = false
 }) => {
   // Handle streaming state for assistant messages
   if (role === MessageRole.ASSISTANT && isStreaming) {
@@ -91,7 +93,7 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
   };
 
   // Render regular message content
-  const shouldHaveDropCap = role === MessageRole.ASSISTANT && content.length > 50 && !content.match(/^\d+\.\s+/);
+  const shouldHaveDropCap = !disableDropCap && role === MessageRole.ASSISTANT && content.length > 50 && !content.match(/^\d+\.\s+/);
   
   return (
     <div className="relative">

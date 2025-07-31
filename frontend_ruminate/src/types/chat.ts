@@ -6,6 +6,23 @@ export enum MessageRole {
   SYSTEM = "system"
 }
 
+export interface GeneratedSummary {
+  note_id: string;
+  block_id: string;
+  summary_content?: string; // The actual summary text (optional for backwards compatibility)
+  summary_range: {
+    from_message_id: string;
+    message_count: number;
+    topic?: string;
+  };
+  created_at: string;
+}
+
+export interface MessageMetadata {
+  generated_summaries?: GeneratedSummary[];
+  [key: string]: any;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
@@ -14,6 +31,7 @@ export interface Message {
   children: Message[];
   active_child_id: string | null;
   created_at: string;
+  meta_data?: MessageMetadata;
 }
 
 export interface MessageNode extends Message {

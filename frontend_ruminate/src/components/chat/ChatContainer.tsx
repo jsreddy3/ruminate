@@ -58,7 +58,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     sendMessage,
     editMessage,
     switchToVersion,
-    refreshTree
+    refreshTree,
+    addSummaryToMessage
   } = useMessageTree({
     conversationId,
     selectedBlockId: selectedBlock?.id
@@ -89,7 +90,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     onUpdateBlockMetadata,
     onBlockMetadataUpdate,
     onOpenBlockWithNote,
-    getBlockMetadata
+    getBlockMetadata,
+    onSummaryGenerated: (_messageId, summary) => addSummaryToMessage(summary)
   });
   
   // Set conversation ID from parent immediately (no initialization logic)
@@ -160,6 +162,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         conversationId={conversationId}
         onSwitchVersion={switchToVersion}
         onEditMessage={handleEditMessage}
+        documentId={documentId}
       />
       
       {/* Scholarly note generation prompt */}
