@@ -63,10 +63,10 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
                   
                   {/* Content with scholarly styling */}
                   <div className="flex-1 space-y-2">
-                    <h4 className="font-serif font-bold text-library-forest-700 text-base leading-relaxed">
+                    <h4 className="font-serif font-bold text-library-forest-700 text-base leading-relaxed break-words overflow-wrap-anywhere">
                       {boldText}
                     </h4>
-                    <p className="font-serif text-reading-primary leading-relaxed text-base pl-1">
+                    <p className="font-serif text-reading-primary leading-relaxed text-base pl-1 break-words overflow-wrap-anywhere">
                       {description.trim()}
                     </p>
                   </div>
@@ -84,7 +84,7 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
         return (
           <p 
             key={paragraphIndex} 
-            className="font-serif leading-relaxed mb-4"
+            className="font-serif leading-relaxed mb-4 break-words overflow-wrap-anywhere"
             dangerouslySetInnerHTML={{ __html: formattedParagraph }}
           />
         );
