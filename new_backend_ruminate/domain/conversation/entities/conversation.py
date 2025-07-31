@@ -70,4 +70,4 @@ class Conversation(Base):
     
     # Relationships
     user = relationship("UserModel", back_populates="conversations")
-    document = relationship("DocumentModel", back_populates="conversations")
+    document = relationship("DocumentModel", back_populates="conversations", foreign_keys=[document_id])

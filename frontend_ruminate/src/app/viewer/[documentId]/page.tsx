@@ -7,7 +7,7 @@ import { Suspense } from 'react';
 import { documentApi } from '@/services/api/document';
 import { useAuth } from '@/contexts/AuthContext';
 
-const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
+const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer_working'), {
   ssr: false,
 });
 

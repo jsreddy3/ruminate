@@ -31,6 +31,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             chunk_index=document.chunk_index,
             total_chunks=document.total_chunks,
             is_auto_processed=document.is_auto_processed,
+            main_conversation_id=document.main_conversation_id,
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -91,6 +92,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         db_document.furthest_read_block_id = document.furthest_read_block_id
         db_document.furthest_read_position = document.furthest_read_position
         db_document.furthest_read_updated_at = document.furthest_read_updated_at
+        db_document.main_conversation_id = document.main_conversation_id
         db_document.updated_at = datetime.now()
         
         await session.commit()
@@ -334,6 +336,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             furthest_read_block_id=db_document.furthest_read_block_id,
             furthest_read_position=db_document.furthest_read_position,
             furthest_read_updated_at=db_document.furthest_read_updated_at,
+            main_conversation_id=db_document.main_conversation_id,
             created_at=db_document.created_at,
             updated_at=db_document.updated_at
         )

@@ -25,6 +25,8 @@ class DocumentResponse(BaseModel):
     furthest_read_block_id: Optional[str] = None
     furthest_read_position: Optional[int] = None
     furthest_read_updated_at: Optional[datetime] = None
+    # Main conversation field
+    main_conversation_id: Optional[str] = None
     
     class Config:
         use_enum_values = True

@@ -32,7 +32,8 @@ class DocumentService:
         llm: Optional[LLMService] = None,
         marker_client: Optional[MarkerClient] = None,
         analyzer: Optional[DocumentAnalyzer] = None,
-        note_context: Optional[NoteGenerationContext] = None
+        note_context: Optional[NoteGenerationContext] = None,
+        conversation_service = None  # Type hint avoided due to circular imports
     ) -> None:
         self._repo = repo
         self._hub = hub
@@ -41,6 +42,7 @@ class DocumentService:
         self._marker_client = marker_client or MarkerClient()
         self._analyzer = analyzer
         self._note_context = note_context
+        self._conversation_service = conversation_service
     
     # ─────────────────────────────── helpers ──────────────────────────────── #
     
@@ -333,6 +335,29 @@ class DocumentService:
         async with session_scope() as session:
             # Save document to database
             document = await self._repo.create_document(document, session)
+            
+            # Create main conversation for the document
+            if self._conversation_service:
+                try:
+                    print(f"[DocumentService] Creating main conversation for document {document.id}")
+                    main_conversation_id, _ = await self._conversation_service.create_conversation(
+                        user_id=user_id,
+                        conv_type="chat",
+                        document_id=document.id
+                    )
+                    print(f"[DocumentService] Created main conversation {main_conversation_id}")
+                    # Store the main conversation ID in document
+                    document.main_conversation_id = main_conversation_id
+                    print(f"[DocumentService] Set document.main_conversation_id = {main_conversation_id}")
+                    document = await self._repo.update_document(document, session)
+                    print(f"[DocumentService] Updated document, main_conversation_id = {document.main_conversation_id}")
+                except Exception as e:
+                    print(f"[DocumentService] Warning: Failed to create main conversation: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Don't fail document creation if conversation creation fails
+            else:
+                print(f"[DocumentService] No conversation service available")
         
         # Upload file to storage
         try:
@@ -403,6 +428,22 @@ class DocumentService:
                     
                     # Save to database
                     document = await self._repo.create_document(document, session)
+                    
+                    # Create main conversation for each chunk
+                    if self._conversation_service:
+                        try:
+                            main_conversation_id, _ = await self._conversation_service.create_conversation(
+                                user_id=user_id,
+                                conv_type="chat",
+                                document_id=document.id
+                            )
+                            # Store the main conversation ID in document
+                            document.main_conversation_id = main_conversation_id
+                            document = await self._repo.update_document(document, session)
+                        except Exception as e:
+                            print(f"[DocumentService] Warning: Failed to create main conversation: {e}")
+                            # Don't fail document creation if conversation creation fails
+                    
                     documents.append((document, chunk_content))
             
             # Upload all chunks to storage and start processing first chunk

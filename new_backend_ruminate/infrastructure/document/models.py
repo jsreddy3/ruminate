@@ -29,6 +29,8 @@ class DocumentModel(Base):
     furthest_read_block_id = Column(String, nullable=True)
     furthest_read_position = Column(Integer, nullable=True)
     furthest_read_updated_at = Column(DateTime, nullable=True)
+    # Main conversation field
+    main_conversation_id = Column(String, ForeignKey("conversations.id"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -36,8 +38,10 @@ class DocumentModel(Base):
     user = relationship("UserModel", back_populates="documents")
     pages = relationship("PageModel", back_populates="document", cascade="all, delete-orphan")
     blocks = relationship("BlockModel", back_populates="document", cascade="all, delete-orphan")
-    conversations = relationship("Conversation", back_populates="document")
+    conversations = relationship("Conversation", back_populates="document", foreign_keys="Conversation.document_id")
     messages = relationship("Message", back_populates="document")
+    # Main conversation relationship
+    main_conversation = relationship("Conversation", foreign_keys=[main_conversation_id])
     # Batch processing relationships
     parent_document = relationship("DocumentModel", remote_side=[id], backref="child_documents")
 

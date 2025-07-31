@@ -1,5 +1,5 @@
 import React from 'react';
-import { Block } from './PDFViewer';
+import { Block } from './PDFViewer_working';
 import ChatContainer from '../chat/ChatContainer';
 
 interface RabbitholeConversation {
@@ -25,6 +25,8 @@ interface ChatSidebarProps {
   onFetchBlocks: () => void;
   onOpenBlockWithNote: (blockId: string, noteId: string) => void;
   getBlockMetadata: (blockId: string) => any;
+  currentPage?: number;
+  blocks?: Block[];
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -43,6 +45,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onFetchBlocks,
   onOpenBlockWithNote,
   getBlockMetadata,
+  currentPage = 1,
+  blocks = []
 }) => {
   // Transform data for ConversationCodex
   const conversations = [
@@ -89,6 +93,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               }}
               onOpenBlockWithNote={onOpenBlockWithNote}
               getBlockMetadata={getBlockMetadata}
+              currentPage={currentPage}
+              blocks={blocks}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
@@ -118,6 +124,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               }}
               onOpenBlockWithNote={onOpenBlockWithNote}
               getBlockMetadata={getBlockMetadata}
+              currentPage={currentPage}
+              blocks={blocks}
             />
           );
         })()}

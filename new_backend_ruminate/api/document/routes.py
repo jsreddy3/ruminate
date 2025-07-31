@@ -151,7 +151,8 @@ async def upload_document(
                 batch_id=document.batch_id,
                 chunk_index=document.chunk_index,
                 total_chunks=document.total_chunks,
-                is_auto_processed=document.is_auto_processed
+                is_auto_processed=document.is_auto_processed,
+                main_conversation_id=document.main_conversation_id
             )
         )
         
@@ -179,6 +180,7 @@ async def get_document(
         raise HTTPException(status_code=404, detail="Document not found")
     
     print(f"[GET Document] Returning reading progress for {document_id}: block_id={document.furthest_read_block_id}, position={document.furthest_read_position}, updated_at={document.furthest_read_updated_at}")
+    print(f"[GET Document] main_conversation_id: {document.main_conversation_id}")
     
     return DocumentResponse(
         id=document.id,
@@ -196,7 +198,8 @@ async def get_document(
         is_auto_processed=document.is_auto_processed,
         furthest_read_block_id=document.furthest_read_block_id,
         furthest_read_position=document.furthest_read_position,
-        furthest_read_updated_at=document.furthest_read_updated_at
+        furthest_read_updated_at=document.furthest_read_updated_at,
+        main_conversation_id=document.main_conversation_id
     )
 
 
@@ -250,7 +253,8 @@ async def list_documents(
                 is_auto_processed=doc.is_auto_processed,
                 furthest_read_block_id=doc.furthest_read_block_id,
                 furthest_read_position=doc.furthest_read_position,
-                furthest_read_updated_at=doc.furthest_read_updated_at
+                furthest_read_updated_at=doc.furthest_read_updated_at,
+                main_conversation_id=doc.main_conversation_id
             )
             for doc in documents
         ],
@@ -550,7 +554,8 @@ async def update_document(
             batch_id=updated_document.batch_id,
             chunk_index=updated_document.chunk_index,
             total_chunks=updated_document.total_chunks,
-            is_auto_processed=updated_document.is_auto_processed
+            is_auto_processed=updated_document.is_auto_processed,
+            main_conversation_id=updated_document.main_conversation_id
         )
         
     except ValueError as e:
@@ -640,7 +645,8 @@ async def start_document_processing(
             batch_id=document.batch_id,
             chunk_index=document.chunk_index,
             total_chunks=document.total_chunks,
-            is_auto_processed=document.is_auto_processed
+            is_auto_processed=document.is_auto_processed,
+            main_conversation_id=document.main_conversation_id
         )
         
     except ValueError as e:
@@ -696,7 +702,8 @@ async def update_reading_progress(
             is_auto_processed=updated_document.is_auto_processed,
             furthest_read_block_id=updated_document.furthest_read_block_id,
             furthest_read_position=updated_document.furthest_read_position,
-            furthest_read_updated_at=updated_document.furthest_read_updated_at
+            furthest_read_updated_at=updated_document.furthest_read_updated_at,
+            main_conversation_id=updated_document.main_conversation_id
         )
         
     except ValueError as e:

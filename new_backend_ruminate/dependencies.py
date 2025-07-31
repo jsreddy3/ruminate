@@ -74,7 +74,8 @@ _document_service = DocumentService(
     _storage,
     llm=_llm,
     analyzer=_document_analyzer,
-    note_context=_note_generation_context
+    note_context=_note_generation_context,
+    conversation_service=_conversation_service
 )
 # ─────────────────────── DI provider helpers ───────────────────── #
 

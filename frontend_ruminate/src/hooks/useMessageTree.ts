@@ -6,7 +6,7 @@ interface UseMessageTreeProps {
   conversationId: string | null;
   selectedBlockId?: string | null;
   currentPage?: number;
-  blocks?: Array<{ id: string; page_number?: number; block_type: string }>;
+  blocks?: Array<{ id: string; page_number?: number; block_type: string; html_content?: string }>;
 }
 
 interface UseMessageTreeReturn {
@@ -38,15 +38,99 @@ export function useMessageTree({
 
   // Helper function to get fallback block ID from current page
   const getFallbackBlockId = useCallback((): string | undefined => {
-    if (!blocks || blocks.length === 0 || !currentPage) return undefined;
+    if (!blocks || blocks.length === 0 || !currentPage) {
+      console.log('[Block Fallback] No blocks or currentPage available', { blocks: blocks?.length, currentPage });
+      return undefined;
+    }
     
-    // Find first non-Page block on the current page
+    // Find all blocks on the current page (excluding Page type)
     const currentPageBlocks = blocks.filter(block => 
       block.page_number === currentPage && 
       block.block_type !== "Page"
     );
     
-    return currentPageBlocks[0]?.id;
+    console.log('[Block Fallback] Looking for blocks on page', currentPage);
+    console.log('[Block Fallback] All blocks:', blocks.map(b => ({ id: b.id, page: b.page_number, type: b.block_type })));
+    console.log('[Block Fallback] Found blocks on current page:', currentPageBlocks.length);
+    
+    if (currentPageBlocks.length === 0) {
+      return undefined;
+    }
+    
+    // Helper function to extract text from HTML content
+    const extractText = (htmlContent: string): string => {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent || '';
+      return (tempDiv.textContent || tempDiv.innerText || '').trim();
+    };
+    
+    // Priority order for block types (most useful content first)
+    const blockTypePriority = [
+      'Text',
+      'Paragraph', 
+      'Caption',
+      'FigureCaption',
+      'ListItem',
+      'List',
+      'Title',
+      'SectionHeader',
+      'Header',
+      'PageHeader',
+      'PageFooter',
+      'Footer'
+    ];
+    
+    // Score blocks based on type priority and content length
+    const scoredBlocks = currentPageBlocks.map(block => {
+      const text = extractText(block.html_content || '');
+      const textLength = text.length;
+      const typePriority = blockTypePriority.indexOf(block.block_type);
+      const typeScore = typePriority === -1 ? blockTypePriority.length : typePriority;
+      
+      // Prefer blocks with content, penalize empty blocks heavily
+      const contentScore = textLength > 0 ? textLength : -1000;
+      
+      // Final score: prioritize type (lower index = better), then content length
+      const finalScore = -typeScore * 1000 + contentScore;
+      
+      return {
+        block,
+        text,
+        textLength,
+        typeScore,
+        finalScore
+      };
+    });
+    
+    // Sort by score (highest first) and pick the best one
+    scoredBlocks.sort((a, b) => b.finalScore - a.finalScore);
+    const bestBlock = scoredBlocks[0];
+    
+    if (bestBlock) {
+      console.log('[Block Fallback] Block scoring results:', 
+        scoredBlocks.map(s => ({
+          id: s.block.id,
+          type: s.block.block_type,
+          textLength: s.textLength,
+          score: s.finalScore,
+          textPreview: s.text.substring(0, 50) + (s.text.length > 50 ? '...' : '')
+        }))
+      );
+      
+      console.log('[Block Fallback] Selected best block:', {
+        id: bestBlock.block.id,
+        page_number: bestBlock.block.page_number,
+        block_type: bestBlock.block.block_type,
+        text_length: bestBlock.textLength,
+        score: bestBlock.finalScore,
+        text_preview: bestBlock.text.substring(0, 200) + (bestBlock.text.length > 200 ? '...' : ''),
+        full_text: bestBlock.text
+      });
+      
+      return bestBlock.block.id;
+    }
+    
+    return undefined;
   }, [blocks, currentPage]);
 
   // Function to transform flat messages into a tree structure
@@ -251,6 +335,13 @@ export function useMessageTree({
       try {
         // 3. Determine block ID to send (selected block or fallback to current page)
         const blockIdToSend = selectedBlockId || getFallbackBlockId();
+        
+        console.log('[Message Send] Block ID decision:', {
+          selectedBlockId,
+          fallbackBlockId: getFallbackBlockId(),
+          finalBlockId: blockIdToSend,
+          currentPage
+        });
         
         // 4. Make API call to get real IDs
         const { user_id, ai_id } = await conversationApi.sendMessage(

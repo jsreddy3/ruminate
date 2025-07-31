@@ -20,7 +20,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import BlockNavigator from "../interactive/blocks/BlockNavigator";
 import BlockOverlay from "./BlockOverlay";
 import PDFBlockOverlay from "./PDFBlockOverlay";
-import PDFToolbar from "./PDFToolbar";
+import PDFToolbar from "./PDFToolbar_working";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
 import PDFDocumentViewer from "./PDFDocumentViewer";
@@ -64,42 +64,6 @@ export interface Block {
   };
 }
 
-// A map to track conversation initialization promises by document ID
-const ConversationInitPromises: Record<string, Promise<string>> = {};
-
-// Cache stored conversation IDs
-interface DocumentConversations {
-  mainConversationId?: string;
-  blockConversations: Record<string, string>;
-}
-
-// Storage helpers
-function storeConversationId(documentId: string, conversationId: string): void {
-  try {
-    const storageKey = `document_${documentId}_conversations`;
-    const existing = localStorage.getItem(storageKey);
-    const data: DocumentConversations = existing ? JSON.parse(existing) : { blockConversations: {} };
-    
-    data.mainConversationId = conversationId;
-    localStorage.setItem(storageKey, JSON.stringify(data));
-  } catch (error) {
-    console.error("Error storing conversation ID:", error);
-  }
-}
-
-function getStoredConversationId(documentId: string): string | undefined {
-  try {
-    const storageKey = `document_${documentId}_conversations`;
-    const existing = localStorage.getItem(storageKey);
-    if (existing) {
-      const data = JSON.parse(existing) as DocumentConversations;
-      return data.mainConversationId;
-    }
-  } catch (error) {
-    console.error("Error retrieving conversation ID:", error);
-  }
-  return undefined;
-}
 
 interface PDFViewerProps {
   initialPdfFile: string;
@@ -158,6 +122,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   const [documentTitle, setDocumentTitle] = useState<string>('');
+  const [documentData, setDocumentData] = useState<any>(null);
   
   // Add states for PDF loading management
   const [pdfLoadingState, setPdfLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error' | 'stuck'>('idle');
@@ -183,12 +148,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [blocks, setBlocks] = useState<Block[]>([]);
   // Block overlay state now managed by useBlockOverlayManager hook
   
-  // Add state for conversation management
-  const [mainConversationId, setMainConversationId] = useState<string | null>(null);
-  
   // Add state for all document conversations and rabbithole data
   const [documentConversations, setDocumentConversations] = useState<any[]>([]);
   const [rabbitholeData, setRabbitholeData] = useState<any[]>([]);
+  const [fallbackMainConversationId, setFallbackMainConversationId] = useState<string | null>(null);
   
   // Block selection mode state
   const [isBlockSelectionMode, setIsBlockSelectionMode] = useState(false);
@@ -334,62 +297,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setRabbitholeConversations(transformedConversations);
   }, [rabbitholeData]);
 
-  // Initialize the main document conversation
-  useEffect(() => {
-    if (!documentId) return;
-    
-    // Check if we have a stored conversation ID
-    const storedId = getStoredConversationId(documentId);
-    if (storedId) {
-      setMainConversationId(storedId);
-      return;
-    }
-    
-    // Otherwise, initialize conversation
-    if (!ConversationInitPromises[documentId]) {
-      ConversationInitPromises[documentId] = (async () => {
-        try {
-          // Try fetching existing conversations for the document
-          const existingConvos = await conversationApi.getDocumentConversations(documentId);
-          
-          // Store conversations in state
-          setDocumentConversations(existingConvos || []);
-
-          // Use the first one found, or create if none exist
-          if (existingConvos && existingConvos.length > 0) {
-            const id = existingConvos[0].id;
-            setMainConversationId(id);
-            storeConversationId(documentId, id);
-            return id;
-          } else {
-            // Create a document-level conversation
-            const newConv = await conversationApi.create(documentId);
-            const id = newConv.conversation_id;
-            setMainConversationId(id);
-            storeConversationId(documentId, id);
-            return id;
-          }
-        } catch (error) {
-          console.error("Error initializing document conversation:", error);
-          throw error; // Re-throw to properly handle promise rejection
-        } finally {
-          // Clean up the promise when done
-          delete ConversationInitPromises[documentId];
-        }
-      })();
-    }
-    
-    // Attach to the existing promise if one exists
-    ConversationInitPromises[documentId]
-      .then(id => {
-        if (!mainConversationId) {
-          setMainConversationId(id);
-        }
-      })
-      .catch(error => {
-        console.error("Failed to initialize conversation:", error);
-      });
-  }, [documentId, mainConversationId]);
   
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
@@ -446,12 +353,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   useEffect(() => {
     const fetchDocumentTitle = async () => {
       try {
-        const document = await documentApi.getDocument(documentId);
-        setDocumentTitle(document.title);
+        const docData = await documentApi.getDocument(documentId);
+        setDocumentData(docData);
+        setDocumentTitle(docData.title);
         
         // Initialize reading progress from document data
         if (initializeProgress) {
-          initializeProgress(document);
+          initializeProgress(docData);
         }
       } catch (error) {
         console.error('Error fetching document title:', error);
@@ -693,7 +601,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     flattenedBlocks,
     documentId,
     currentPanelSizes,
-    mainConversationId,
+    mainConversationId: documentData?.main_conversation_id,
     rabbitholeConversations,
     onSetRabbitholeConversations: setRabbitholeConversations,
     onSetActiveConversationId: setActiveConversationId,
@@ -1158,7 +1066,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             <ChatSidebar
               documentId={documentId}
               selectedBlock={blockOverlayManager.selectedBlock}
-              mainConversationId={mainConversationId}
+              mainConversationId={documentData?.main_conversation_id}
               activeConversationId={activeConversationId}
               rabbitholeConversations={rabbitholeConversations}
               rabbitholeData={rabbitholeData}
@@ -1174,6 +1082,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 const block = blocks.find(b => b.id === blockId);
                 return block?.metadata || {};
               }}
+              currentPage={currentPage}
+              blocks={blocks}
             />
             </div>
           </Panel>

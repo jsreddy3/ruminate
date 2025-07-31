@@ -38,6 +38,8 @@ class Document:
     furthest_read_block_id: Optional[str] = None
     furthest_read_position: Optional[int] = None
     furthest_read_updated_at: Optional[datetime] = None
+    # Main conversation field
+    main_conversation_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
@@ -91,6 +93,7 @@ class Document:
             "furthest_read_block_id": self.furthest_read_block_id,
             "furthest_read_position": self.furthest_read_position,
             "furthest_read_updated_at": self.furthest_read_updated_at.isoformat() if self.furthest_read_updated_at else None,
+            "main_conversation_id": self.main_conversation_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

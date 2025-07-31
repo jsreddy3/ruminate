@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Block } from '../pdf/PDFViewer';
+import { Block } from '../pdf/PDFViewer_working';
 import { useMessageTree } from '../../hooks/useMessageTree';
 import { useMessageStreamHandler } from '../../hooks/useMessageStreamHandler';
 import { useNoteGeneration } from '../../hooks/useNoteGeneration';
@@ -30,6 +30,8 @@ interface ChatContainerProps {
   onBlockMetadataUpdate?: () => void;
   onOpenBlockWithNote?: (blockId: string, noteId: string) => void;
   getBlockMetadata?: (blockId: string) => any;
+  currentPage?: number;
+  blocks?: Block[];
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -45,7 +47,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   onUpdateBlockMetadata,
   onBlockMetadataUpdate,
   onOpenBlockWithNote,
-  getBlockMetadata
+  getBlockMetadata,
+  currentPage = 1,
+  blocks = []
 }) => {
   // Track conversation ID (may need to be created)
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
@@ -72,7 +76,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     addSummaryToMessage
   } = useMessageTree({
     conversationId,
-    selectedBlockId: selectedBlock?.id
+    selectedBlockId: selectedBlock?.id,
+    currentPage,
+    blocks
   });
   
   // Message streaming handler

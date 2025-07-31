@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Block } from './PDFViewer';
+import { Block } from './PDFViewer_working';
 import { createRabbithole } from '../../services/rabbithole';
 import BlockOverlay from './BlockOverlay';
 
