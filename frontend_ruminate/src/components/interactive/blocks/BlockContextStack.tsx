@@ -1,5 +1,6 @@
 import React from 'react';
 import { Block } from '../../pdf/PDFViewer';
+import BlockContainer from './BlockContainer';
 
 interface BlockContextStackProps {
   blocks: Block[];
@@ -20,6 +21,12 @@ export default function BlockContextStack({
   currentBlockId,
   documentId,
   onBlockChange,
+  onAddTextToChat,
+  onRabbitholeClick,
+  onCreateRabbithole,
+  onRefreshRabbitholes,
+  onUpdateBlockMetadata,
+  getRabbitholeHighlightsForBlock,
   className = ''
 }: BlockContextStackProps) {
   
@@ -35,6 +42,12 @@ export default function BlockContextStack({
     );
   }
 
+  console.log('BlockContextStack render:', { 
+    blocksLength: blocks.length, 
+    currentIndex, 
+    currentBlockId 
+  });
+
   return (
     <div className={`h-full bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto ${className}`}>
       {/* Show 5 blocks: 2 before, current, 2 after - for natural reading flow */}
@@ -46,6 +59,8 @@ export default function BlockContextStack({
           const block = blocks[blockIndex];
           const isCurrent = offset === 0;
           const opacity = isCurrent ? 1.0 : offset === -1 || offset === 1 ? 0.7 : 0.5;
+          
+          console.log('Rendering block:', { offset, blockIndex, blockId: block.id, isCurrent });
           
           return (
             <div
@@ -79,20 +94,30 @@ export default function BlockContextStack({
                 </div>
               </div>
 
-              {/* Block content - fully readable */}
+              {/* Block content using the same renderer as linear view */}
               <div className="p-6">
-                <div 
-                  className="text-reading-primary font-serif leading-relaxed"
-                  style={{ 
+                <BlockContainer
+                  key={block.id}
+                  blockId={block.id}
+                  blockType={block.block_type}
+                  htmlContent={block.html_content || ''}
+                  documentId={documentId}
+                  images={block.images}
+                  metadata={block.metadata}
+                  rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(block.id) : []}
+                  customStyle={{ 
+                    backgroundColor: 'transparent',
                     fontSize: isCurrent 
-                      ? '1.25rem'  // Center block: much bigger for focus
+                      ? '1.4rem'   // Center block: significantly bigger for focus
                       : Math.abs(offset) === 1 
-                        ? '1rem'  // 1 away: normal size
-                        : '0.85rem' // 2 away: smaller
+                        ? '1.1rem' // 1 away: slightly bigger than normal
+                        : '1rem'   // 2 away: normal size (smallest)
                   }}
-                  dangerouslySetInnerHTML={{ 
-                    __html: block.html_content || `<p>No content available for this ${block.block_type} block.</p>`
-                  }}
+                  onRefreshRabbitholes={onRefreshRabbitholes}
+                  onAddTextToChat={onAddTextToChat}
+                  onRabbitholeClick={onRabbitholeClick}
+                  onCreateRabbithole={onCreateRabbithole}
+                  onUpdateBlockMetadata={onUpdateBlockMetadata}
                 />
                 
                 {/* Navigation hint for context blocks */}
