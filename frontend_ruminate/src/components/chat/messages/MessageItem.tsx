@@ -148,7 +148,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 message.role === MessageRole.ASSISTANT ? 'text-library-forest-700' : 'text-library-gold-700'
               }`}>
                 {message.role === MessageRole.USER ? 'Inquirer' : 
-                  message.role === MessageRole.ASSISTANT ? 'Reading Colleague' : 'Scribe'}
+                  message.role === MessageRole.ASSISTANT ? 'Co-Reader' : 'Scribe'}
               </div>
             </div>
           </div>
