@@ -47,7 +47,7 @@ const NoteGenerationPopup: React.FC<NoteGenerationPopupProps> = ({
             </svg>
           </div>
           <div>
-            <h3 className="font-serif font-semibold text-lg text-reading-primary">Distill Note</h3>
+            <h3 className="font-serif font-semibold text-lg text-reading-primary">Store Insights</h3>
             <p className="text-sm text-reading-muted font-sans">Create a summary from your conversation</p>
           </div>
         </div>
