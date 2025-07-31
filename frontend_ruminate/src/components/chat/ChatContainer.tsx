@@ -14,6 +14,11 @@ interface ChatContainerProps {
   documentId: string;
   selectedBlock?: Block | null;
   conversationId: string; // Make required since PDFViewer always provides it
+  conversationType?: 'main' | 'rabbithole';
+  rabbitholeMetadata?: {
+    source_block_id: string;
+    selected_text: string;
+  };
   onClose?: () => void;
   pendingText?: string;
   onTextAdded?: () => void;
@@ -31,6 +36,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   documentId,
   selectedBlock = null,
   conversationId: initialConversationId,
+  conversationType = 'main',
+  rabbitholeMetadata,
   onClose,
   pendingText,
   onTextAdded,
@@ -76,6 +83,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     handleGenerateNote
   } = useNoteGeneration({
     conversationId,
+    conversationType,
+    rabbitholeMetadata,
     onRequestBlockSelection,
     onUpdateBlockMetadata,
     onBlockMetadataUpdate,

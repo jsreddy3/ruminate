@@ -11,6 +11,7 @@ interface PDFBlockOverlayProps {
   onBlockClick: (block: Block) => void;
   isSelectionMode?: boolean;
   onBlockSelect?: (blockId: string) => void;
+  temporarilyHighlightedBlockId?: string | null;
 }
 
 export default function PDFBlockOverlay({
@@ -20,7 +21,8 @@ export default function PDFBlockOverlay({
   scale,
   onBlockClick,
   isSelectionMode = false,
-  onBlockSelect
+  onBlockSelect,
+  temporarilyHighlightedBlockId
 }: PDFBlockOverlayProps) {
   // Filter blocks for current page
   const filteredBlocks = blocks.filter((b) => {
@@ -48,6 +50,7 @@ export default function PDFBlockOverlay({
         const h = Math.max(...block.polygon.map((p) => p[1])) - y;
 
         const isSelected = selectedBlock?.id === block.id;
+        const isTemporarilyHighlighted = temporarilyHighlightedBlockId === block.id;
 
         // Get the appropriate styling based on status
         const getBlockStyle = () => {
@@ -81,10 +84,10 @@ export default function PDFBlockOverlay({
             };
           }
 
-          // Base state - completely invisible until hover
+          // Base state - invisible until hover or temporarily highlighted
           return {
             ...baseStyle,
-            backgroundColor: 'transparent',
+            backgroundColor: isTemporarilyHighlighted ? 'rgba(251, 191, 36, 0.15)' : 'transparent',
             border: 'none',
           };
         };
@@ -144,7 +147,7 @@ export default function PDFBlockOverlay({
               }
             }}
             onMouseLeave={(e) => {
-              if (!isSelected && !isSelectionMode) {
+              if (!isSelected && !isSelectionMode && !isTemporarilyHighlighted) {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }
             }}

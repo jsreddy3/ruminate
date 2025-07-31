@@ -32,7 +32,6 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
 
   const getIconStyles = (conversation: Conversation) => {
-    const isMain = conversation.type === 'main';
     const isActive = conversation.isActive;
     const isHovered = hoveredId === conversation.id;
     
@@ -40,8 +39,8 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
       container: `
         relative w-10 h-10 rounded-book cursor-pointer transition-all duration-300 ease-out
         ${isActive 
-          ? `${isMain ? 'bg-library-mahogany-500' : 'bg-library-forest-500'} shadow-book ring-2 ring-library-gold-400` 
-          : `${isMain ? 'bg-library-mahogany-400 hover:bg-library-mahogany-500' : 'bg-library-forest-400 hover:bg-library-forest-500'} hover:shadow-book`
+          ? 'bg-library-forest-500 shadow-book ring-2 ring-library-gold-400' 
+          : 'bg-library-forest-400 hover:bg-library-forest-500 hover:shadow-book'
         }
         ${isHovered ? 'scale-110 z-20' : 'scale-100'}
       `,
@@ -99,15 +98,9 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
                 title={conversation.title}
               >
                 <div className={styles.icon}>
-                  {conversation.type === 'main' ? (
-                    <div className="w-6 h-6 bg-library-mahogany-500 rounded-full flex items-center justify-center text-library-cream-50 text-xs font-bold">
-                      M
-                    </div>
-                  ) : (
-                    <div className="w-6 h-6 bg-library-forest-500 rounded-full flex items-center justify-center text-library-cream-50 text-xs font-bold">
-                      {conversation.title.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="w-6 h-6 bg-library-forest-500 rounded-full flex items-center justify-center text-library-cream-50 text-xs font-bold">
+                    {conversation.title.charAt(0).toUpperCase()}
+                  </div>
                 </div>
 
                 {/* Active indicator dot */}
@@ -181,15 +174,9 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
                 >
                   {/* Clean icon */}
                   <div className="flex-shrink-0">
-                    {conversation.type === 'main' ? (
-                      <div className="w-8 h-8 bg-library-mahogany-500 rounded-full flex items-center justify-center text-library-cream-50 font-bold text-sm">
-                        M
-                      </div>
-                    ) : (
-                      <div className="w-8 h-8 bg-library-forest-500 rounded-full flex items-center justify-center text-library-cream-50 font-bold text-sm">
-                        {conversation.title.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <div className="w-8 h-8 bg-library-forest-500 rounded-full flex items-center justify-center text-library-cream-50 font-bold text-sm">
+                      {conversation.title.charAt(0).toUpperCase()}
+                    </div>
                   </div>
 
                   {/* Content */}
@@ -198,7 +185,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
                       {conversation.title}
                     </div>
                     <div className="text-xs text-reading-muted">
-                      {conversation.type === 'main' ? 'Main Discussion' : 'Side Discussion'}
+                      Side Discussion
                       {conversation.selectionText && ` • "${conversation.selectionText.substring(0, 40)}${conversation.selectionText.length > 40 ? '...' : ''}"`}
                     </div>
                   </div>

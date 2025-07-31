@@ -15,6 +15,7 @@ interface ChatSidebarProps {
   mainConversationId: string | null;
   activeConversationId: string | null;
   rabbitholeConversations: RabbitholeConversation[];
+  rabbitholeData?: any[]; // Add rabbithole data to get source_block_id
   pendingChatText: string;
   onSetActiveConversationId: (id: string | null) => void;
   onSetRabbitholeConversations: (conversations: RabbitholeConversation[] | ((prev: RabbitholeConversation[]) => RabbitholeConversation[])) => void;
@@ -32,6 +33,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   mainConversationId,
   activeConversationId,
   rabbitholeConversations,
+  rabbitholeData = [],
   pendingChatText,
   onSetActiveConversationId,
   onSetRabbitholeConversations,
@@ -77,6 +79,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               documentId={documentId}
               selectedBlock={selectedBlock}
               conversationId={mainConversationId}
+              conversationType="main"
               pendingText={pendingChatText}
               onTextAdded={onTextAdded}
               onRequestBlockSelection={onBlockSelectionRequest}
@@ -92,20 +95,32 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               Initializing conversation...
             </div>
           )
-        ) : (
-          <ChatContainer 
-            key={`agent-chat-${activeConversationId}`}
-            documentId={documentId}
-            selectedBlock={selectedBlock}
-            conversationId={activeConversationId}
-            pendingText={pendingChatText}
-            onTextAdded={onTextAdded}
-            onRequestBlockSelection={onBlockSelectionRequest}
-            onUpdateBlockMetadata={onUpdateBlockMetadata}
-            onOpenBlockWithNote={onOpenBlockWithNote}
-            getBlockMetadata={getBlockMetadata}
-          />
-        )}
+        ) : (() => {
+          // Find rabbithole metadata for active conversation
+          const rabbitholeMetadata = rabbitholeData.find(r => r.id === activeConversationId);
+          return (
+            <ChatContainer 
+              key={`agent-chat-${activeConversationId}`}
+              documentId={documentId}
+              selectedBlock={selectedBlock}
+              conversationId={activeConversationId}
+              conversationType="rabbithole"
+              rabbitholeMetadata={rabbitholeMetadata ? {
+                source_block_id: rabbitholeMetadata.source_block_id,
+                selected_text: rabbitholeMetadata.selected_text
+              } : undefined}
+              pendingText={pendingChatText}
+              onTextAdded={onTextAdded}
+              onRequestBlockSelection={onBlockSelectionRequest}
+              onUpdateBlockMetadata={onUpdateBlockMetadata}
+              onBlockMetadataUpdate={() => {
+                onFetchBlocks();
+              }}
+              onOpenBlockWithNote={onOpenBlockWithNote}
+              getBlockMetadata={getBlockMetadata}
+            />
+          );
+        })()}
       </div>
     </div>
   );

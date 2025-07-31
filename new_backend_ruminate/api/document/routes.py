@@ -290,11 +290,19 @@ async def get_document_pages(
 async def get_document_blocks(
     document_id: str,
     page_number: Optional[int] = None,
+    include_images: bool = True,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     svc: DocumentService = Depends(get_document_service)
 ):
-    """Get all blocks for a document, optionally filtered by page"""
+    """
+    Get all blocks for a document, optionally filtered by page.
+    
+    Query parameters:
+    - page_number: Filter blocks by specific page number
+    - include_images: Whether to include base64 image data (default: true)
+                     Set to false for lazy loading images
+    """
     # Verify document exists and user has access
     document = await svc.get_document(document_id, current_user.id, session)
     if not document:
@@ -313,12 +321,47 @@ async def get_document_blocks(
             polygon=block.polygon,
             section_hierarchy=block.section_hierarchy,
             metadata=block.metadata,
-            images=block.images,
+            images=block.images if include_images else (
+                {key: "LAZY_LOAD" for key in (block.images or {}).keys()}
+                if block.images else None
+            ),
             is_critical=block.is_critical,
             critical_summary=block.critical_summary
         )
         for block in blocks
     ]
+
+
+@router.get("/{document_id}/blocks/{block_id}/images")
+async def get_block_images(
+    document_id: str,
+    block_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    svc: DocumentService = Depends(get_document_service)
+):
+    """
+    Get images for a specific block.
+    
+    This endpoint is used for lazy loading block images when include_images=false
+    was used in the blocks endpoint.
+    
+    Returns:
+        Dictionary of image keys to base64 encoded image data
+    """
+    # Verify document exists and user has access
+    document = await svc.get_document(document_id, current_user.id, session)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Get the specific block
+    blocks = await svc.get_document_blocks(document_id, None, current_user.id, session)
+    block = next((b for b in blocks if b.id == block_id), None)
+    
+    if not block:
+        raise HTTPException(status_code=404, detail="Block not found")
+    
+    return {"images": block.images or {}}
 
 
 @router.get("/{document_id}/pdf-url")

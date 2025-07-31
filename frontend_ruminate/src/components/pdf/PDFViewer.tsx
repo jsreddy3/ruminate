@@ -26,6 +26,7 @@ import { useBlockOverlayManager } from "./BlockOverlayManager";
 import PDFDocumentViewer from "./PDFDocumentViewer";
 import { ResizeHandle, HorizontalResizeHandle } from "../common/ResizeHandles";
 import ConversationLibrary from "../chat/ConversationLibrary";
+import MainConversationButton from "../chat/MainConversationButton";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
 import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
 
@@ -657,6 +658,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setOnBlockSelectionComplete(() => config.onComplete);
   }, [blockOverlayManager.selectedBlock, blockOverlayManager.isBlockOverlayOpen]);
 
+  // State for temporarily highlighted block
+  const [temporarilyHighlightedBlockId, setTemporarilyHighlightedBlockId] = useState<string | null>(null);
+
   // PDF overlay renderer - now has access to blockOverlayManager
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
@@ -669,19 +673,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           onBlockClick={blockOverlayManager.handleBlockClick}
           isSelectionMode={isBlockSelectionMode}
           onBlockSelect={blockOverlayManager.handleBlockSelect}
+          temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
         />
       );
     },
-    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect]
+    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId]
   );
 
-  // Add effect to log active conversation changes
-  useEffect(() => {
-    // Check if we should see a tab for activeConversationId
-    if (activeConversationId) {
-      const activeConversation = rabbitholeConversations.find(c => c.id === activeConversationId);
-    }
-  }, [activeConversationId, rabbitholeConversations]);
+  // Add effect to log active conversation changes and scroll to block
+  // Removed duplicate effect - scrolling is now handled by handleConversationChangeWithScroll
 
   // Add timeout mechanism for stuck PDF loading
   useEffect(() => {
@@ -791,6 +791,34 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [scrollToFurthestBlock, flattenedBlocks, scrollToBlock, blockOverlayManager]);
 
+  // Handle conversation change with scrolling to associated block
+  const handleConversationChangeWithScroll = useCallback(async (conversationId: string | null) => {
+    // First, change the active conversation
+    setActiveConversationId(conversationId);
+    
+    // If it's a rabbithole conversation, scroll to its block
+    if (conversationId) {
+      const rabbitholeConv = rabbitholeConversations.find(conv => conv.id === conversationId);
+      if (rabbitholeConv && rabbitholeConv.blockId) {
+        const block = flattenedBlocks.find(b => b.id === rabbitholeConv.blockId);
+        if (block) {
+          // Small delay to ensure conversation switch happens first
+          setTimeout(async () => {
+            await scrollToBlock(block);
+            
+            // Add temporary highlight effect
+            setTemporarilyHighlightedBlockId(block.id);
+            
+            // Remove highlight after 2 seconds
+            setTimeout(() => {
+              setTemporarilyHighlightedBlockId(null);
+            }, 2000);
+          }, 100);
+        }
+      }
+    }
+  }, [setActiveConversationId, rabbitholeConversations, flattenedBlocks, scrollToBlock]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -881,26 +909,26 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               </div>
             </div>
 
-            {/* Conversation Library in the header */}
+            {/* Main Conversation Button - standalone */}
+            <div className="flex-shrink-0">
+              <MainConversationButton
+                isActive={activeConversationId === null}
+                onConversationChange={setActiveConversationId}
+              />
+            </div>
+
+            {/* Conversation Library - only rabbitholes */}
             <div className="flex-shrink-0">
               <ConversationLibrary
-                conversations={[
-                  {
-                    id: null,
-                    title: 'Main Discussion',
-                    type: 'main' as const,
-                    isActive: activeConversationId === null
-                  },
-                  ...rabbitholeConversations.map(conv => ({
-                    id: conv.id,
-                    title: conv.title,
-                    type: 'rabbithole' as const,
-                    selectionText: conv.selectionText,
-                    isActive: activeConversationId === conv.id
-                  }))
-                ]}
+                conversations={rabbitholeConversations.map(conv => ({
+                  id: conv.id,
+                  title: conv.title,
+                  type: 'rabbithole' as const,
+                  selectionText: conv.selectionText,
+                  isActive: activeConversationId === conv.id
+                }))}
                 activeConversationId={activeConversationId}
-                onConversationChange={setActiveConversationId}
+                onConversationChange={handleConversationChangeWithScroll}
               />
             </div>
           </div>
@@ -1125,6 +1153,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               mainConversationId={mainConversationId}
               activeConversationId={activeConversationId}
               rabbitholeConversations={rabbitholeConversations}
+              rabbitholeData={rabbitholeData}
               pendingChatText={pendingChatText}
               onSetActiveConversationId={setActiveConversationId}
               onSetRabbitholeConversations={setRabbitholeConversations}
