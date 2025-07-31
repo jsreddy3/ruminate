@@ -8,6 +8,7 @@ interface GeneratedNote {
   id: string;
   note: string;
   source_conversation_id?: string;
+  from_message_id?: string; // NEW: ID of the message that generated this summary
   message_count?: number;
   topic?: string;
   created_at: string;
@@ -15,7 +16,7 @@ interface GeneratedNote {
 
 interface GeneratedNoteBadgesProps {
   annotations?: { [key: string]: any };
-  onViewConversation?: (conversationId: string) => void;
+  onViewConversation?: (conversationId: string, messageId?: string) => void;
 }
 
 const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
@@ -195,7 +196,7 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
               
               {activeNote.source_conversation_id && onViewConversation && (
                 <button
-                  onClick={() => onViewConversation(activeNote.source_conversation_id!)}
+                  onClick={() => onViewConversation(activeNote.source_conversation_id!, activeNote.from_message_id)}
                   className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-library-forest-100 to-library-forest-200 hover:from-library-forest-200 hover:to-library-forest-300 text-library-forest-700 hover:text-library-forest-800 rounded-book transition-all duration-300 shadow-paper hover:shadow-book border border-library-forest-300 font-serif"
                 >
                   <MessageSquare className="w-3 h-3 transition-transform group-hover:scale-110" />

@@ -102,7 +102,7 @@ const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
         </div>
         
         {/* Count badge - Forest Minimal Style */}
-        {count > 0 && (
+        {count > 1 && (
           <div 
             style={{
               position: 'absolute',

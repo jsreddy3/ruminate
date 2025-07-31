@@ -990,6 +990,7 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             'text_end_offset': -1,
             'is_generated': True,
             'source_conversation_id': conversation_id,
+            'from_message_id': recent_messages[0].id if recent_messages else None,  # NEW: Link to source message
             'message_count': message_count,
             'topic': topic,
             'created_at': datetime.now().isoformat(),
