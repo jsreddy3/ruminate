@@ -20,7 +20,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import BlockNavigator from "../interactive/blocks/BlockNavigator";
 import BlockOverlay from "./BlockOverlay";
 import PDFBlockOverlay from "./PDFBlockOverlay";
-import PDFToolbar from "./PDFToolbar_working";
+import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
 import PDFDocumentViewer from "./PDFDocumentViewer";
@@ -575,15 +575,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Scroll to specific block using page navigation plugin
   const scrollToBlock = useCallback(async (block: Block) => {
-    if (!block.polygon || !block.page_number) return;
+    if (!block.polygon || typeof block.page_number !== 'number') return;
     
     try {
       // Get the jumpToPage function from the page navigation plugin
       const { jumpToPage } = pageNavigationPluginInstance;
       
       if (jumpToPage) {
-        // Try with 1-based indexing first (no conversion)
-        await jumpToPage(block.page_number);
+        // Use direct 0-based indexing for PDF viewer
+        jumpToPage(block.page_number);
       } else {
         // Fallback to setting current page
         setCurrentPage(block.page_number);
@@ -668,6 +668,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Enhanced search functionality with scroll-to-block
   const handleSearch = useCallback((query: string) => {
+    console.log('🔍 Search called with:', query);
+    console.log('🔍 flattenedBlocks.length:', flattenedBlocks.length);
+    
     if (!query.trim()) return;
     
     // Search through flattened blocks for text content
@@ -679,17 +682,20 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       return textContent.includes(searchTerm);
     });
     
-    if (matchingBlock && matchingBlock.page_number) {
-      // Navigate to the page and scroll to the block
-      setCurrentPage(matchingBlock.page_number);
-      
-      // First scroll to the block position
+    console.log('🔍 Found block:', matchingBlock);
+    
+    if (matchingBlock && typeof matchingBlock.page_number === 'number' && matchingBlock.page_number >= 0) {
+      console.log('🔍 Navigating to page:', matchingBlock.page_number);
+      // First scroll to the block position (this handles the page navigation)
       scrollToBlock(matchingBlock);
       
       // Then open the block overlay after a longer delay to ensure navigation completes
       setTimeout(() => {
+        console.log('🔍 Opening block overlay');
         blockOverlayManager.handleBlockClick(matchingBlock);
       }, 800);
+    } else {
+      console.log('🔍 No matching block found or no page number');
     }
   }, [flattenedBlocks, blockOverlayManager, setCurrentPage, scrollToBlock]);
 

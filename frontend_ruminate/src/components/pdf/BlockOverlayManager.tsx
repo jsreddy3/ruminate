@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Block } from './PDFViewer_working';
+import { Block } from './PDFViewer';
 import { createRabbithole } from '../../services/rabbithole';
 import BlockOverlay from './BlockOverlay';
 
@@ -88,16 +88,21 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   const [isBlockOverlayOpen, setIsBlockOverlayOpen] = useState(false);
 
-  // Handle block click to select and view it
-  const handleBlockClick = useCallback((block: Block) => {
+  // Reusable function for block selection with lazy loading
+  const handleBlockSelection = useCallback((block: Block) => {
     // Lazy load images if needed
     if (block.images && Object.values(block.images).includes("LAZY_LOAD")) {
       onFetchBlockImages(block.id);
     }
     
     setSelectedBlock(block);
-    setIsBlockOverlayOpen(true);
   }, [onFetchBlockImages]);
+
+  // Handle block click to select and view it
+  const handleBlockClick = useCallback((block: Block) => {
+    handleBlockSelection(block);
+    setIsBlockOverlayOpen(true);
+  }, [handleBlockSelection]);
 
   // Programmatically open a block (for auto-navigation after note generation)
   const handleOpenBlockWithNote = useCallback((blockId: string, noteId: string) => {
@@ -194,7 +199,7 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
         setSelectedBlock(null);
       }}
       onBlockChange={(block) => {
-        setSelectedBlock(block);
+        handleBlockSelection(block);
         // Auto-scroll PDF to follow block navigation
         if (onScrollToBlock) {
           onScrollToBlock(block);

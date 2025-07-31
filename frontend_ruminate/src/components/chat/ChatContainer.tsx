@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Block } from '../pdf/PDFViewer_working';
+import { Block } from '../pdf/PDFViewer';
 import { useMessageTree } from '../../hooks/useMessageTree';
 import { useMessageStreamHandler } from '../../hooks/useMessageStreamHandler';
 import { useNoteGeneration } from '../../hooks/useNoteGeneration';

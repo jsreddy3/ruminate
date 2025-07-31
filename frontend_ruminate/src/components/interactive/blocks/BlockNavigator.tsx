@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import BlockContainer from './BlockContainer';
 import BlockNavigatorPill from './BlockNavigatorPill';
 import GeneratedNoteBadges from './GeneratedNoteBadges';
-import { Block } from '../../pdf/PDFViewer_working';
+import { Block } from '../../pdf/PDFViewer';
 
 interface BlockNavigatorProps {
   blocks: Block[];

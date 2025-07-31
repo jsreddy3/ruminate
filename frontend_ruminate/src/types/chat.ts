@@ -1,4 +1,4 @@
-import type { Block } from "../components/pdf/PDFViewer_working";
+import type { Block } from "../components/pdf/PDFViewer";
 
 export enum MessageRole {
   USER = "user",

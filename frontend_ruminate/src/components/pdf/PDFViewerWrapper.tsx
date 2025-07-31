@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const PDFViewer = dynamic(() => import('./PDFViewer_working'), {
+const PDFViewer = dynamic(() => import('./PDFViewer'), {
   ssr: false,
 });
 

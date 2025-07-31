@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import MessageList from './messages/MessageList';
-import { Block } from '../pdf/PDFViewer_working';
+import { Block } from '../pdf/PDFViewer';
 
 interface ChatMessagesProps {
   messageTree: any[];

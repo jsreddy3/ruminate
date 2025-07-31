@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Block } from './PDFViewer_working';
+import { Block } from './PDFViewer';
 import BlockIndicators, { BlockDotIndicators } from './BlockIndicators';
 
 interface PDFBlockOverlayProps {

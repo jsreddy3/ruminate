@@ -1,6 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Block } from './PDFViewer_working';
+import { Block } from './PDFViewer';
 import BlockNavigator from '../interactive/blocks/BlockNavigator';
 
 interface BlockOverlayProps {

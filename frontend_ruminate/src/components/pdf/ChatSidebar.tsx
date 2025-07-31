@@ -1,5 +1,5 @@
 import React from 'react';
-import { Block } from './PDFViewer_working';
+import { Block } from './PDFViewer';
 import ChatContainer from '../chat/ChatContainer';
 
 interface RabbitholeConversation {
