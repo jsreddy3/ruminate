@@ -30,6 +30,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchFocused, setSearchFocused] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
   
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -78,7 +79,28 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
       </button>
 
       {/* Main toolbar */}
-      <div className={`bg-gradient-to-r from-surface-paper/95 to-library-cream-100/95 backdrop-blur-paper shadow-shelf rounded-journal border border-library-sage-300/50 transition-all duration-300 ${isCollapsed ? 'opacity-0 transform scale-95 pointer-events-none' : 'opacity-100 transform scale-100'} px-6 py-3 flex items-center gap-4`}>
+      <div 
+        className={`bg-gradient-to-r from-surface-paper/95 to-library-cream-100/95 backdrop-blur-paper shadow-shelf rounded-journal border border-library-sage-300/50 transition-all duration-300 px-6 py-3 flex items-center gap-4 ${
+          isCollapsed 
+            ? 'opacity-0 pointer-events-none' 
+            : 'opacity-100'
+        }`}
+        style={{
+          transform: isCollapsed 
+            ? 'scale(0.95)' 
+            : isHovered 
+              ? 'scale(1.15)' 
+              : 'scale(1.0)'
+        }}
+        onMouseEnter={() => {
+          console.log('🐭 PDFToolbar hover ENTER');
+          setIsHovered(true);
+        }}
+        onMouseLeave={() => {
+          console.log('🐭 PDFToolbar hover LEAVE');
+          setIsHovered(false);
+        }}
+      >
         {/* Elegant divider */}
         <div className="w-px h-6 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
 

@@ -64,7 +64,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Compose your scholarly discourse..."
+            placeholder="Compose your message..."
             disabled={isDisabled}
             className={`
               w-full font-serif text-reading-primary resize-none 
@@ -78,9 +78,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
               }
             `}
             style={{
-              padding: '1.25rem 1.5rem',
-              lineHeight: '1.8',
-              minHeight: '100px',
+              padding: '0.75rem 1rem',
+              lineHeight: '1.6',
+              minHeight: '60px',
               background: isDisabled ? undefined : `
                 linear-gradient(135deg, #fefcf7 0%, #fcf0d2 50%, #fef9ed 100%),
                 repeating-linear-gradient(0deg, transparent 0px, transparent 24px, rgba(175, 95, 55, 0.02) 24px, rgba(175, 95, 55, 0.02) 26px)
@@ -91,7 +91,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 0 4px 8px rgba(0, 0, 0, 0.05)
               `
             }}
-            rows={4}
+            rows={2}
           />
           
         </div>
@@ -135,7 +135,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                   <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
                   </svg>
-                  <span>Send Discourse</span>
+                  <span>Send</span>
                 </>
               )}
             </div>

@@ -178,6 +178,8 @@ async def get_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
+    print(f"[GET Document] Returning reading progress for {document_id}: block_id={document.furthest_read_block_id}, position={document.furthest_read_position}, updated_at={document.furthest_read_updated_at}")
+    
     return DocumentResponse(
         id=document.id,
         user_id=document.user_id,

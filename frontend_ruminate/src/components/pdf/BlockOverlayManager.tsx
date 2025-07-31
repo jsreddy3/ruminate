@@ -172,7 +172,10 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       documentId={documentId}
       pdfPanelWidth={currentPanelSizes[0]}
       getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
-      onClose={() => setIsBlockOverlayOpen(false)}
+      onClose={() => {
+        setIsBlockOverlayOpen(false);
+        setSelectedBlock(null);
+      }}
       onBlockChange={(block) => {
         setSelectedBlock(block);
       }}

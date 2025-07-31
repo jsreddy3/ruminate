@@ -135,18 +135,17 @@ export default function PDFBlockOverlay({
         return (
           <motion.div
             key={block.id}
+            data-block-id={block.id}
             style={getBlockStyle()}
             className="group"
             onMouseEnter={(e) => {
               if (!isSelected && !isSelectionMode) {
                 e.currentTarget.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
-                e.currentTarget.style.border = '1px solid rgba(245, 158, 11, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isSelected && !isSelectionMode) {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.border = 'none';
               }
             }}
             onClick={handleClick}

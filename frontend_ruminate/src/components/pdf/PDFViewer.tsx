@@ -27,6 +27,7 @@ import PDFDocumentViewer from "./PDFDocumentViewer";
 import { ResizeHandle, HorizontalResizeHandle } from "../common/ResizeHandles";
 import ConversationLibrary from "../chat/ConversationLibrary";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
+import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
 
 export interface Block {
   id: string;
@@ -423,10 +424,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [blocks]);
 
   // Reading Progress Hook - initialized after flattenedBlocks are set
-  const { updateProgress, scrollToFurthestBlock, initializeProgress } = useReadingProgress({
+  const { updateProgress, scrollToFurthestBlock, initializeProgress, getFurthestProgress } = useReadingProgress({
     documentId,
     flattenedBlocks
   });
+
 
   // Fetch document title and initialize reading progress
   useEffect(() => {
@@ -435,9 +437,18 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         const document = await documentApi.getDocument(documentId);
         setDocumentTitle(document.title);
         
+        console.log('📖 Document loaded with reading progress:', {
+          documentId: document.id,
+          title: document.title,
+          furthest_read_block_id: document.furthest_read_block_id,
+          furthest_read_position: document.furthest_read_position,
+          furthest_read_updated_at: document.furthest_read_updated_at,
+        });
+        
         // Initialize reading progress from document data
         if (initializeProgress) {
           initializeProgress(document);
+          console.log('📖 Reading progress initialized from document data');
         }
       } catch (error) {
         console.error('Error fetching document title:', error);
@@ -611,7 +622,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setPendingChatText('');
   }, []);
 
-  // Block overlay manager hook - declare before callbacks that use it
+  // Block Overlay Manager - handles block selection and interactions
   const blockOverlayManager = useBlockOverlayManager({
     blocks,
     flattenedBlocks,
@@ -633,6 +644,18 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onAddRabbitholeConversation: addRabbitholeConversation,
     refreshRabbitholesFnRef,
   });
+
+  // Viewport Reading Tracker - for timer-based progress tracking (only when block is selected)
+  const furthestProgress = getFurthestProgress();
+  useViewportReadingTracker({
+    blocks,
+    flattenedBlocks,
+    onProgressUpdate: updateProgress,
+    lastInteractionBlockId: furthestProgress.furthestBlockId,
+    lastInteractionPosition: furthestProgress.furthestPosition,
+    selectedBlockId: blockOverlayManager.selectedBlock?.id || null
+  });
+
 
   // Handle block selection requests from chat - now has access to blockOverlayManager
   const handleBlockSelectionRequest = useCallback((config: {

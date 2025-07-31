@@ -25,6 +25,10 @@ class DocumentModel(Base):
     chunk_index = Column(Integer, nullable=True)
     total_chunks = Column(Integer, nullable=True)
     is_auto_processed = Column(Boolean, nullable=False, default=False)
+    # Reading progress fields
+    furthest_read_block_id = Column(String, nullable=True)
+    furthest_read_position = Column(Integer, nullable=True)
+    furthest_read_updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     

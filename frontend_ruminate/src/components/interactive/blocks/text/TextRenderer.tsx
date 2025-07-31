@@ -109,6 +109,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   const [definitionPosition, setDefinitionPosition] = useState({ x: 0, y: 0 });
   const [savedDefinition, setSavedDefinition] = useState<string | null>(null);
   const [definitionOffsets, setDefinitionOffsets] = useState<{startOffset: number, endOffset: number} | null>(null);
+  const [isDefining, setIsDefining] = useState(false);
   
   // State for annotation editor
   const [annotationVisible, setAnnotationVisible] = useState(false);
@@ -178,7 +179,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     }
     
     setDefinitionWord(text);
-    setTooltipVisible(false);
+    setIsDefining(true);
+    // Keep tooltip visible during loading
     
     try {
       // Make API call first, get result
@@ -188,9 +190,12 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       setSavedDefinition(result.definition);
       setDefinitionPosition(tooltipPosition);
       setDefinitionVisible(true);
+      setTooltipVisible(false);
     } catch (error) {
       console.error('Error fetching definition:', error);
       // Could show error state here
+    } finally {
+      setIsDefining(false);
     }
   };
 
@@ -392,6 +397,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           } }
           documentId={documentId} 
           blockId={blockId}
+          isDefining={isDefining}
         />,
         document.body
       )}

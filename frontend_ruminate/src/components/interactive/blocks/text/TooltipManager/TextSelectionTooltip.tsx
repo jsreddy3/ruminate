@@ -12,6 +12,7 @@ interface TextSelectionTooltipProps {
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onAnnotate?: (text: string) => void;
   onClose: () => void;
+  isDefining?: boolean;
 }
 
 const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
@@ -25,6 +26,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   onCreateRabbithole,
   onAnnotate,
   onClose,
+  isDefining = false,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +68,13 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
 
   if (!isVisible) return null;
 
+  // Debug logging
+  console.log('🎯 TextSelectionTooltip rendering:', { 
+    isVisible, 
+    position, 
+    selectedText: selectedText.substring(0, 20) + '...' 
+  });
+
   // Create a safe wrapper for action click handlers
   const safeExecute = (callback?: (text: string) => void) => {
     return () => {
@@ -93,9 +102,14 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       },
     }] : []),
     ...( onDefine ? [{
-      label: 'Define',
-      icon: <BookOpen size={16} />,
-      onClick: safeExecute(onDefine),
+      label: isDefining ? 'Defining...' : 'Define',
+      icon: isDefining ? (
+        <div className="animate-spin w-4 h-4 border-2 border-library-gold-600 border-t-transparent rounded-full" />
+      ) : (
+        <BookOpen size={16} />
+      ),
+      onClick: isDefining ? undefined : safeExecute(onDefine),
+      disabled: isDefining,
     }] : []),
     ...( onAnnotate ? [{
       label: 'Annotate',
@@ -131,19 +145,28 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   return (
     <div 
       ref={tooltipRef}
-      className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1"
+      className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1 transition-transform duration-200 ease-out hover:scale-125 group"
       style={tooltipStyle}
+      onMouseEnter={() => console.log('🐭 Tooltip hover ENTER')}
+      onMouseLeave={() => console.log('🐭 Tooltip hover LEAVE')}
     >
-      <div className="animate-fadeIn w-full h-full">
+      <div className="animate-fadeIn">
         <div className="flex">
           {defaultActions.map((action, index) => (
             <button
               key={index}
-              className="px-3 py-1.5 hover:bg-indigo-50 rounded flex items-center gap-1.5 text-indigo-700 whitespace-nowrap transition-colors duration-150"
+              className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150 ${
+                action.disabled 
+                  ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                  : 'hover:bg-indigo-50 text-indigo-700'
+              }`}
               onClick={action.onClick}
-              title={`${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
+              disabled={action.disabled}
+              title={action.disabled ? 'Generating definition...' : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
+              onMouseEnter={() => console.log(`🔘 Button hover ENTER: ${action.label}`)}
+              onMouseLeave={() => console.log(`🔘 Button hover LEAVE: ${action.label}`)}
             >
-              {action.icon && <span className="text-indigo-500">{action.icon}</span>}
+              {action.icon && <span className={action.disabled ? "text-gray-400" : "text-indigo-500"}>{action.icon}</span>}
               <span>{action.label}</span>
             </button>
           ))}
