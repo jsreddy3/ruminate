@@ -144,13 +144,11 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                // Restore DRAMATIC original styling
+                // Restore original yellow styling
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.backgroundColor = 'rgba(152, 164, 152, 0.2)'; // Back to original
-                  visual.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
-                  visual.style.transform = 'scale(1)';
-                  visual.style.transition = 'all 0.3s ease-out';
+                  visual.style.backgroundColor = 'rgba(255, 235, 59, 0.3)'; // Back to original yellow
+                  visual.style.transition = 'background-color 0.2s ease';
                 }
               }}
             />

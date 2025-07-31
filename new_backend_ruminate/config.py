@@ -64,6 +64,11 @@ class _Settings(BaseSettings):
     jwt_expire_hours: int = 24
 
     # ------------------------------------------------------------------ #
+    # Template Documents (for new user onboarding)                      #
+    # ------------------------------------------------------------------ #
+    template_document_ids: Optional[str] = None  # Comma-separated list of document IDs to clone for new users
+
+    # ------------------------------------------------------------------ #
     # Misc                                                                #
     # ------------------------------------------------------------------ #
     env: str = "dev"                            # dev | staging | prod

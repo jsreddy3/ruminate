@@ -1,9 +1,11 @@
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.domain.user.repositories.user_repository_interface import UserRepositoryInterface
 from new_backend_ruminate.infrastructure.auth.google_oauth_client import GoogleOAuthClient
 from new_backend_ruminate.infrastructure.auth.jwt_manager import JWTManager
+from new_backend_ruminate.config import settings
 
 
 class AuthService:
@@ -54,6 +56,9 @@ class AuthService:
                 avatar_url=avatar_url
             )
             user = await self._user_repo.create_user(user, session)
+            
+            # Clone template documents for new user
+            await self._clone_template_documents(user.id, session)
         
         # Generate JWT token
         jwt_token = self._jwt_manager.create_token(user)

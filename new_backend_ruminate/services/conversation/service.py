@@ -98,6 +98,7 @@ class ConversationService:
                 role=Role.SYSTEM,
                 content=sys_text,
                 version=0,
+                document_id=document_id,  # Fix: Add document_id to system messages
             )
             await self._repo.add_message(root, session)
 
@@ -124,6 +125,9 @@ class ConversationService:
         """
 
         async with session_scope() as session:
+            # Get conversation to access document_id
+            convo = await self._repo.get(conv_id, session)
+            
             # -------- 1  write user turn --------
             user = Message(
                 id=str(uuid4()),
@@ -134,6 +138,7 @@ class ConversationService:
                 content=user_content,
                 user_id=user_id,
                 block_id=selected_block_id,
+                document_id=convo.document_id,  # Fix: Add document_id from conversation
             )
             await self._repo.add_message(user, session)
             if parent_id:
@@ -149,6 +154,7 @@ class ConversationService:
                 role=Role.ASSISTANT,
                 content="",
                 user_id=user_id,
+                document_id=convo.document_id,  # Fix: Add document_id from conversation
             )
             await self._repo.add_message(placeholder, session)
             if parent_id:

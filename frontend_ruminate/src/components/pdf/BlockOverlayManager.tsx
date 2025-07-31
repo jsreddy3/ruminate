@@ -42,6 +42,7 @@ interface BlockOverlayManagerProps {
   
   // PDF Integration
   refreshRabbitholesFnRef: React.MutableRefObject<(() => void) | null>;
+  onScrollToBlock?: (block: Block) => void;
 }
 
 interface BlockOverlayManagerReturn {
@@ -80,6 +81,7 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     onHandleRabbitholeCreated,
     onAddRabbitholeConversation,
     refreshRabbitholesFnRef,
+    onScrollToBlock,
   } = props;
 
   // Block overlay state
@@ -193,6 +195,10 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       }}
       onBlockChange={(block) => {
         setSelectedBlock(block);
+        // Auto-scroll PDF to follow block navigation
+        if (onScrollToBlock) {
+          onScrollToBlock(block);
+        }
       }}
       onRefreshRabbitholes={(refreshFn) => {
         refreshRabbitholesFnRef.current = refreshFn;

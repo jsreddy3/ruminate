@@ -625,80 +625,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setPendingChatText('');
   }, []);
 
-  // Block Overlay Manager - handles block selection and interactions
-  const blockOverlayManager = useBlockOverlayManager({
-    blocks,
-    flattenedBlocks,
-    documentId,
-    currentPanelSizes,
-    mainConversationId,
-    rabbitholeConversations,
-    onSetRabbitholeConversations: setRabbitholeConversations,
-    onSetActiveConversationId: setActiveConversationId,
-    onAddTextToChat: handleAddTextToChat,
-    onUpdateBlockMetadata: updateBlockMetadata,
-    onFetchBlocks: fetchBlocks,
-    onFetchBlockImages: fetchBlockImages,
-    getRabbitholeHighlightsForBlock,
-    isBlockSelectionMode,
-    onBlockSelectionComplete,
-    onSetBlockSelectionMode: setIsBlockSelectionMode,
-    onSetBlockSelectionComplete: setOnBlockSelectionComplete,
-    onHandleRabbitholeCreated: handleRabbitholeCreated,
-    onAddRabbitholeConversation: addRabbitholeConversation,
-    refreshRabbitholesFnRef,
-  });
-
-  // Viewport Reading Tracker - for timer-based progress tracking (only when block is selected)
+  // Get furthest progress for later use
   const furthestProgress = getFurthestProgress();
-  useViewportReadingTracker({
-    blocks,
-    flattenedBlocks,
-    onProgressUpdate: updateProgress,
-    lastInteractionBlockId: furthestProgress.furthestBlockId,
-    lastInteractionPosition: furthestProgress.furthestPosition,
-    selectedBlockId: blockOverlayManager.selectedBlock?.id || null
-  });
 
-
-  // Handle block selection requests from chat - now has access to blockOverlayManager
-  const handleBlockSelectionRequest = useCallback((config: {
-    prompt: string;
-    onComplete: (blockId: string) => void;
-  }) => {
-    // Auto-select if block overlay is open with a selected block
-    if (blockOverlayManager.selectedBlock && blockOverlayManager.isBlockOverlayOpen) {
-      config.onComplete(blockOverlayManager.selectedBlock.id);
-      return;
-    }
-    
-    // Otherwise use manual selection
-    setIsBlockSelectionMode(true);
-    setBlockSelectionPrompt(config.prompt);
-    setOnBlockSelectionComplete(() => config.onComplete);
-  }, [blockOverlayManager.selectedBlock, blockOverlayManager.isBlockOverlayOpen]);
 
   // State for temporarily highlighted block
   const [temporarilyHighlightedBlockId, setTemporarilyHighlightedBlockId] = useState<string | null>(null);
-
-  // PDF overlay renderer - now has access to blockOverlayManager
-  const renderOverlay = useCallback(
-    (props: { pageIndex: number; scale: number; rotation: number }) => {
-      return (
-        <PDFBlockOverlay
-          blocks={blocks}
-          selectedBlock={blockOverlayManager.selectedBlock}
-          pageIndex={props.pageIndex}
-          scale={props.scale}
-          onBlockClick={blockOverlayManager.handleBlockClick}
-          isSelectionMode={isBlockSelectionMode}
-          onBlockSelect={blockOverlayManager.handleBlockSelect}
-          temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
-        />
-      );
-    },
-    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId]
-  );
 
   // Add effect to log active conversation changes and scroll to block
   // Removed duplicate effect - scrolling is now handled by handleConversationChangeWithScroll
@@ -733,21 +665,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [loadingTimeout]);
 
 
-  // Calculate scroll position for a block
-  const calculateBlockScrollPosition = useCallback((block: Block) => {
-    if (!block.polygon || block.polygon.length === 0) return null;
-    
-    // Get block bounds from polygon
-    const x = Math.min(...block.polygon.map((p) => p[0]));
-    const y = Math.min(...block.polygon.map((p) => p[1]));
-    
-    return {
-      pageIndex: (block.page_number || 1) - 1, // Convert to 0-based index
-      leftOffset: x,
-      bottomOffset: y, // PDF coordinates
-    };
-  }, []);
-
   // Scroll to specific block using page navigation plugin
   const scrollToBlock = useCallback(async (block: Block) => {
     if (!block.polygon || !block.page_number) return;
@@ -769,6 +686,77 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       setCurrentPage(block.page_number);
     }
   }, [pageNavigationPluginInstance, setCurrentPage]);
+
+  // Block Overlay Manager - handles block selection and interactions
+  const blockOverlayManager = useBlockOverlayManager({
+    blocks,
+    flattenedBlocks,
+    documentId,
+    currentPanelSizes,
+    mainConversationId,
+    rabbitholeConversations,
+    onSetRabbitholeConversations: setRabbitholeConversations,
+    onSetActiveConversationId: setActiveConversationId,
+    onAddTextToChat: handleAddTextToChat,
+    onUpdateBlockMetadata: updateBlockMetadata,
+    onFetchBlocks: fetchBlocks,
+    onFetchBlockImages: fetchBlockImages,
+    getRabbitholeHighlightsForBlock,
+    isBlockSelectionMode,
+    onBlockSelectionComplete,
+    onSetBlockSelectionMode: setIsBlockSelectionMode,
+    onSetBlockSelectionComplete: setOnBlockSelectionComplete,
+    onHandleRabbitholeCreated: handleRabbitholeCreated,
+    onAddRabbitholeConversation: addRabbitholeConversation,
+    refreshRabbitholesFnRef,
+    onScrollToBlock: scrollToBlock,
+  });
+
+  // Viewport Reading Tracker - for timer-based progress tracking (only when block is selected)
+  useViewportReadingTracker({
+    blocks,
+    flattenedBlocks,
+    onProgressUpdate: updateProgress,
+    lastInteractionBlockId: furthestProgress.furthestBlockId,
+    lastInteractionPosition: furthestProgress.furthestPosition,
+    selectedBlockId: blockOverlayManager.selectedBlock?.id || null
+  });
+
+  // Handle block selection requests from chat - now has access to blockOverlayManager
+  const handleBlockSelectionRequest = useCallback((config: {
+    prompt: string;
+    onComplete: (blockId: string) => void;
+  }) => {
+    // Auto-select if block overlay is open with a selected block
+    if (blockOverlayManager.selectedBlock && blockOverlayManager.isBlockOverlayOpen) {
+      config.onComplete(blockOverlayManager.selectedBlock.id);
+      return;
+    }
+    
+    // Otherwise use manual selection
+    setIsBlockSelectionMode(true);
+    setBlockSelectionPrompt(config.prompt);
+    setOnBlockSelectionComplete(() => config.onComplete);
+  }, [blockOverlayManager.selectedBlock, blockOverlayManager.isBlockOverlayOpen]);
+
+  // PDF overlay renderer - now has access to blockOverlayManager
+  const renderOverlay = useCallback(
+    (props: { pageIndex: number; scale: number; rotation: number }) => {
+      return (
+        <PDFBlockOverlay
+          blocks={blocks}
+          selectedBlock={blockOverlayManager.selectedBlock}
+          pageIndex={props.pageIndex}
+          scale={props.scale}
+          onBlockClick={blockOverlayManager.handleBlockClick}
+          isSelectionMode={isBlockSelectionMode}
+          onBlockSelect={blockOverlayManager.handleBlockSelect}
+          temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+        />
+      );
+    },
+    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId]
+  );
 
   // Enhanced search functionality with scroll-to-block
   const handleSearch = useCallback((query: string) => {

@@ -22,12 +22,6 @@ const FontTester: React.FC = () => {
         
         setFontStatus(`Computed: ${computedFont}`);
         
-        // Also check document.fonts
-        const fonts = Array.from(document.fonts);
-        const iowanFonts = fonts.filter(font => font.family.includes('Iowan'));
-        console.log('Available Iowan fonts:', iowanFonts);
-        console.log('All fonts:', fonts.map(f => f.family));
-        
       } catch (error) {
         setFontStatus(`Error: ${error}`);
       }

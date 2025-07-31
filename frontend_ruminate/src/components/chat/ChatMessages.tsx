@@ -11,6 +11,7 @@ interface ChatMessagesProps {
   onSwitchVersion: (messageId: string, versionIndex: number) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   documentId?: string;
+  zoomLevel?: number;
 }
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -21,7 +22,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   conversationId,
   onSwitchVersion,
   onEditMessage,
-  documentId
+  documentId,
+  zoomLevel = 100
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,17 +39,23 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       ref={scrollContainerRef} 
       className="flex-1 overflow-auto bg-white" 
       key={`chat-container-${conversationId || 'main'}`}
+      style={{
+        '--zoom-scale': zoomLevel,
+        fontSize: `calc(1rem * var(--zoom-scale))`,
+      } as React.CSSProperties}
     >
-      <MessageList 
-        messages={messageTree}
-        activeThreadIds={activeThreadIds}
-        onSwitchVersion={onSwitchVersion}
-        onEditMessage={onEditMessage}
-        streamingMessageId={streamingMessageId}
-        streamingContent={streamingContent}
-        conversationId={conversationId || undefined}
-        documentId={documentId}
-      />
+      <div style={{ zoom: zoomLevel }}>
+        <MessageList 
+          messages={messageTree}
+          activeThreadIds={activeThreadIds}
+          onSwitchVersion={onSwitchVersion}
+          onEditMessage={onEditMessage}
+          streamingMessageId={streamingMessageId}
+          streamingContent={streamingContent}
+          conversationId={conversationId || undefined}
+          documentId={documentId}
+        />
+      </div>
     </div>
   );
 };

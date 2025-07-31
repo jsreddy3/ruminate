@@ -5,6 +5,8 @@ import { conversationApi } from '../services/api/conversation';
 interface UseMessageTreeProps {
   conversationId: string | null;
   selectedBlockId?: string | null;
+  currentPage?: number;
+  blocks?: Array<{ id: string; page_number?: number; block_type: string }>;
 }
 
 interface UseMessageTreeReturn {
@@ -24,13 +26,28 @@ interface UseMessageTreeReturn {
  */
 export function useMessageTree({
   conversationId,
-  selectedBlockId = null
+  selectedBlockId = null,
+  currentPage = 1,
+  blocks = []
 }: UseMessageTreeProps): UseMessageTreeReturn {
   const [messageTree, setMessageTree] = useState<MessageNode[]>([]);
   const [flatMessages, setFlatMessages] = useState<Message[]>([]);
   const [activeThreadIds, setActiveThreadIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Helper function to get fallback block ID from current page
+  const getFallbackBlockId = useCallback((): string | undefined => {
+    if (!blocks || blocks.length === 0 || !currentPage) return undefined;
+    
+    // Find first non-Page block on the current page
+    const currentPageBlocks = blocks.filter(block => 
+      block.page_number === currentPage && 
+      block.block_type !== "Page"
+    );
+    
+    return currentPageBlocks[0]?.id;
+  }, [blocks, currentPage]);
 
   // Function to transform flat messages into a tree structure
   const buildMessageTree = useCallback((messages: Message[]): MessageNode[] => {
@@ -232,13 +249,16 @@ export function useMessageTree({
       setActiveThreadIds(prev => [...prev, tempUserMessageId, tempAiMessageId]);
       
       try {
-        // 3. Make API call to get real IDs
+        // 3. Determine block ID to send (selected block or fallback to current page)
+        const blockIdToSend = selectedBlockId || getFallbackBlockId();
+        
+        // 4. Make API call to get real IDs
         const { user_id, ai_id } = await conversationApi.sendMessage(
           conversationId, 
           content, 
           parentId, 
           activeThreadIds,
-          selectedBlockId || undefined
+          blockIdToSend
         );
         
         // 4. Refresh tree - this will replace optimistic messages with real ones
@@ -252,7 +272,7 @@ export function useMessageTree({
         throw err;
       }
     },
-    [conversationId, activeThreadIds, selectedBlockId, refreshTree, flatMessages, buildMessageTree]
+    [conversationId, activeThreadIds, selectedBlockId, getFallbackBlockId, refreshTree, flatMessages, buildMessageTree]
   );
 
   // Function to edit an existing message with streaming
@@ -273,13 +293,16 @@ export function useMessageTree({
       setMessageTree(newTree);
       
       try {
-        // 2. Make API call to edit message
+        // 2. Determine block ID to send (selected block or fallback to current page)
+        const blockIdToSend = selectedBlockId || getFallbackBlockId();
+        
+        // 3. Make API call to edit message
         const { user_id: userMessageId, ai_id: assistantMessageId } = await conversationApi.editMessageStreaming(
           conversationId,
           messageId,
           content,
           activeThreadIds,
-          selectedBlockId || undefined
+          blockIdToSend
         );
         
         // 3. Refresh to get real data and new AI message
@@ -293,7 +316,7 @@ export function useMessageTree({
         throw err;
       }
     },
-    [conversationId, activeThreadIds, selectedBlockId, refreshTree, flatMessages, buildMessageTree]
+    [conversationId, activeThreadIds, selectedBlockId, getFallbackBlockId, refreshTree, flatMessages, buildMessageTree]
   );
 
 
