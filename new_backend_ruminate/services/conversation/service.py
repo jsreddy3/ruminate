@@ -240,3 +240,24 @@ class ConversationService:
         # Add user_id to criteria to only return user's conversations
         criteria["user_id"] = user_id
         return await self._repo.get_conversations_by_criteria(criteria, session)
+
+    async def update_message_metadata(self, conv_id: str, msg_id: str, metadata: dict, user_id: str, session: AsyncSession) -> Message:
+        """
+        Update metadata for a specific message.
+        Validates that the message exists and the user has permission to modify it.
+        """
+        # Verify user owns the conversation
+        conv = await self._repo.get(conv_id, session) 
+        if not conv or conv.user_id != user_id:
+            raise PermissionError("Access denied: You don't own this conversation")
+        
+        # Verify message exists and belongs to this conversation
+        message = await self._repo.get_message(msg_id, session)
+        if not message or message.conversation_id != conv_id:
+            raise ValueError("Message not found in this conversation")
+        
+        # Update metadata
+        await self._repo.update_message_metadata(msg_id, metadata, session)
+        
+        # Return updated message
+        return await self._repo.get_message(msg_id, session)

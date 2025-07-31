@@ -194,6 +194,15 @@ class RDSConversationRepository(ConversationRepository):
             .where(Message.id == mid)
             .values(content=new)
         )
+    
+    async def update_message_metadata(
+        self, mid: str, meta_data: dict, session: AsyncSession
+    ) -> None:
+        await session.execute(
+            update(Message)
+            .where(Message.id == mid)
+            .values(meta_data=meta_data)
+        )
 
     async def update_active_thread(
         self, cid: str, thread: list[str], session: AsyncSession

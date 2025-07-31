@@ -13,7 +13,8 @@ from new_backend_ruminate.api.conversation.schemas import (
     ConversationInitResponse,
     CreateConversationRequest,
     GenerateNoteRequest,
-    GenerateNoteResponse
+    GenerateNoteResponse,
+    MessageMetadataUpdateRequest
 )
 from pydantic import BaseModel, Field
 from new_backend_ruminate.dependencies import (
@@ -102,6 +103,29 @@ async def edit_message(
         selected_block_id=req.selected_block_id,
     )
     return {"user_id": edited_id, "ai_id": ai_id}
+
+
+@router.patch("/{cid}/messages/{mid}/metadata", response_model=MessageOut)
+async def update_message_metadata(
+    cid: str,
+    mid: str,
+    req: MessageMetadataUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    svc: ConversationService = Depends(get_conversation_service),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Update metadata for a specific message.
+    Used to store references to generated summaries and other metadata.
+    """
+    updated_message = await svc.update_message_metadata(
+        conv_id=cid,
+        msg_id=mid,
+        metadata=req.meta_data,
+        user_id=current_user.id,
+        session=session
+    )
+    return updated_message
 
 
 @router.get("/streams/{msg_id}")

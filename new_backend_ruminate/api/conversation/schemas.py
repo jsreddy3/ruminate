@@ -109,6 +109,7 @@ class MessageOut(BaseModel):
     version: int
     role: Role
     content: str
+    meta_data: Optional[dict] = None
     created_at: datetime
 
 
@@ -128,6 +129,11 @@ class ConversationOut(BaseModel):
     text_start_offset: Optional[int] = None
     text_end_offset: Optional[int] = None
     
+
+
+class MessageMetadataUpdateRequest(BaseModel):
+    """Request body for updating message metadata"""
+    meta_data: dict = Field(..., description="Updated metadata for the message")
 
 
 class ConversationInitResponse(BaseModel):

@@ -911,6 +911,40 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             session=session
         )
         
+        # Add reverse reference to the most recent message that was summarized
+        # This creates a bidirectional link between conversation and generated summary
+        if recent_messages:
+            most_recent_message = recent_messages[-1]  # Last message in the summarized range
+            
+            # Get current metadata or initialize empty dict
+            current_metadata = most_recent_message.meta_data or {}
+            
+            # Add reference to generated summary
+            if "generated_summaries" not in current_metadata:
+                current_metadata["generated_summaries"] = []
+            
+            summary_ref = {
+                "note_id": note_metadata['id'],
+                "block_id": block_id,
+                "summary_range": {
+                    "from_message_id": recent_messages[0].id,
+                    "message_count": len(recent_messages),
+                    "topic": topic
+                },
+                "created_at": datetime.now().isoformat()
+            }
+            current_metadata["generated_summaries"].append(summary_ref)
+            
+            # Update message metadata - we need to inject the conversation service
+            # For now, directly update through the repository to avoid circular dependencies
+            from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
+            conv_repo = RDSConversationRepository()
+            await conv_repo.update_message_metadata(
+                mid=most_recent_message.id,
+                meta_data=current_metadata,
+                session=session
+            )
+        
         return {
             "note": generated_note,
             "note_id": note_metadata['id'],
