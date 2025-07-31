@@ -34,7 +34,7 @@ const TooltipManager: React.FC<TooltipManagerProps> = ({
     // Position tooltip at center-top of the selection
     // These are viewport coordinates (for position:fixed)
     const x = lastRect.left + (lastRect.width / 2);
-    const y = lastRect.top - 5; // Position above the selection
+    const y = lastRect.top - 10; // Position above the selection with more space for the ornate design
     
     setTooltipPosition({ x, y });
   }, [selectionInfo, containerRef]);

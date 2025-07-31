@@ -138,7 +138,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   return (
     <div 
       ref={tooltipRef}
-      className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1 transition-transform duration-200 ease-out hover:scale-125 group"
+      className="selection-tooltip bg-gradient-to-br from-surface-paper to-library-cream-50 rounded-lg shadow-shelf border border-library-sage-300 text-sm py-1 px-1 transition-transform duration-200 ease-out hover:scale-105 group"
       style={tooltipStyle}
     >
       <div className="animate-fadeIn">
@@ -146,23 +146,23 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           {defaultActions.map((action, index) => (
             <button
               key={index}
-              className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150 ${
+              className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150 font-serif ${
                 action.disabled 
-                  ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
-                  : 'hover:bg-indigo-50 text-indigo-700'
+                  ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50' 
+                  : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
               }`}
               onClick={action.onClick}
               disabled={action.disabled}
               title={action.disabled ? 'Generating definition...' : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
             >
-              {action.icon && <span className={action.disabled ? "text-gray-400" : "text-indigo-500"}>{action.icon}</span>}
+              {action.icon && <span className={action.disabled ? "text-library-sage-300" : "text-library-mahogany-500"}>{action.icon}</span>}
               <span>{action.label}</span>
             </button>
           ))}
         </div>
         {/* Triangle pointer */}
         <div 
-          className="absolute w-3 h-3 bg-white border-b border-r border-indigo-200 transform rotate-45"
+          className="absolute w-3 h-3 bg-gradient-to-br from-surface-paper to-library-cream-100 border-b border-r border-library-sage-300 transform rotate-45"
           style={{ 
             left: '50%', 
             bottom: '-6px', 

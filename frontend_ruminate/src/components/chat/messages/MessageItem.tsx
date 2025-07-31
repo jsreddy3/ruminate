@@ -114,8 +114,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
           }}
         >
         {/* ORNATE message header with illuminated manuscript styling */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-library-sage-200/50">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-library-sage-200/50 min-h-[3rem]">
+          <div className="flex items-center gap-3 flex-shrink-0">
             {/* Role icon with dramatic styling */}
             <div className={`
               w-10 h-10 rounded-full flex items-center justify-center
@@ -143,7 +143,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             
             {/* Ornate role title */}
             <div className="flex flex-col">
-              <div className={`font-serif font-bold text-base ${
+              <div className={`font-serif font-bold text-base whitespace-nowrap ${
                 message.role === MessageRole.USER ? 'text-library-mahogany-700' :
                 message.role === MessageRole.ASSISTANT ? 'text-library-forest-700' : 'text-library-gold-700'
               }`}>
@@ -153,7 +153,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
             {/* ORNATE streaming indicator */}
             {isStreaming && message.role === MessageRole.ASSISTANT && (
               <div className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-library-forest-100 to-library-sage-100 rounded-book border border-library-forest-200">

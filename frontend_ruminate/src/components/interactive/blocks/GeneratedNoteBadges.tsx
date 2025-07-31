@@ -110,7 +110,7 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
             </motion.div>
             
             {/* Note indicator badge */}
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
               {index + 1}
             </div>
             

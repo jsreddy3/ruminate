@@ -30,7 +30,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, [messageTree.length, streamingContent]);
+  }, [messageTree, streamingContent]);
 
   return (
     <div 
