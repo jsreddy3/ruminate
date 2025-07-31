@@ -520,4 +520,58 @@
   .animate-manuscript-breathe {
     animation: manuscript-breathe 4s ease-in-out infinite;
   }
+
+  /* Block Context Wheel specific utilities */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Enhanced hover transitions for wheel items */
+  .wheel-item-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Subtle rotation for wheel navigation */
+  @keyframes wheel-rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-wheel-rotate {
+    animation: wheel-rotate 0.6s ease-in-out;
+  }
+
+  /* Gentle glow for active wheel center */
+  @keyframes wheel-center-glow {
+    0%, 100% {
+      box-shadow: 
+        0 4px 12px rgba(175, 95, 55, 0.15),
+        0 0 24px rgba(249, 207, 95, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    50% {
+      box-shadow: 
+        0 6px 16px rgba(175, 95, 55, 0.2),
+        0 0 32px rgba(249, 207, 95, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  .animate-wheel-center-glow {
+    animation: wheel-center-glow 2s ease-in-out infinite;
+  }
 }

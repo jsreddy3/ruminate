@@ -261,6 +261,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           onEditMessage={handleEditMessage}
           documentId={documentId}
           zoomLevel={zoomLevel}
+          conversationType={conversationType}
+          selectedText={rabbitholeMetadata?.selected_text}
         />
         
         {/* Scholarly note generation prompt */}

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import MessageList from './messages/MessageList';
+import EmptyConversationState from './EmptyConversationState';
 import { Block } from '../pdf/PDFViewer';
 
 interface ChatMessagesProps {
@@ -12,6 +13,8 @@ interface ChatMessagesProps {
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   documentId?: string;
   zoomLevel?: number;
+  conversationType?: 'main' | 'rabbithole';
+  selectedText?: string;
 }
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -23,7 +26,9 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   onSwitchVersion,
   onEditMessage,
   documentId,
-  zoomLevel = 100
+  zoomLevel = 100,
+  conversationType = 'main',
+  selectedText
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +38,9 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [messageTree, streamingContent]);
+
+  // Check if conversation is empty (no user/assistant messages, only system message)
+  const isEmpty = activeThreadIds.length <= 1; // Only system message or no messages at all
 
   return (
     <div 
@@ -45,16 +53,23 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       } as React.CSSProperties}
     >
       <div style={{ zoom: zoomLevel }}>
-        <MessageList 
-          messages={messageTree}
-          activeThreadIds={activeThreadIds}
-          onSwitchVersion={onSwitchVersion}
-          onEditMessage={onEditMessage}
-          streamingMessageId={streamingMessageId}
-          streamingContent={streamingContent}
-          conversationId={conversationId || undefined}
-          documentId={documentId}
-        />
+        {isEmpty ? (
+          <EmptyConversationState 
+            conversationType={conversationType}
+            selectedText={selectedText}
+          />
+        ) : (
+          <MessageList 
+            messages={messageTree}
+            activeThreadIds={activeThreadIds}
+            onSwitchVersion={(messageId) => onSwitchVersion(messageId, 0)}
+            onEditMessage={onEditMessage}
+            streamingMessageId={streamingMessageId}
+            streamingContent={streamingContent}
+            conversationId={conversationId || undefined}
+            documentId={documentId}
+          />
+        )}
       </div>
     </div>
   );
