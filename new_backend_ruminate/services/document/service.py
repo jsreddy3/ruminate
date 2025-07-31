@@ -83,11 +83,8 @@ class DocumentService:
                 await self._save_marker_results(document_id, marker_response, session)
                 
                 # Generate document summary if analyzer is available
-                print(f"[DocumentService] Analyzer available: {self._analyzer is not None}")
                 if self._analyzer:
                     await self._generate_document_summary(document_id, session)
-                else:
-                    print("[DocumentService] No analyzer configured, skipping summary generation")
                 
                 # Update document status
                 document = await self._repo.get_document(document_id, session)
@@ -171,12 +168,10 @@ class DocumentService:
         session: AsyncSession
     ) -> None:
         """Generate and save document summary using the analyzer"""
-        print(f"[DocumentService] Starting summary generation for document {document_id}")
         try:
             # Get document and blocks
             document = await self._repo.get_document(document_id, session)
             blocks = await self._repo.get_blocks_by_document(document_id, session)
-            print(f"[DocumentService] Found {len(blocks)} blocks for document {document_id}")
             
             if not blocks:
                 return
@@ -193,17 +188,14 @@ class DocumentService:
             )
             
             # Generate summary
-            print(f"[DocumentService] Calling analyzer to generate summary...")
             summary = await self._analyzer.generate_document_summary(
                 blocks, 
                 document.title
             )
-            print(f"[DocumentService] Generated summary: {summary[:100]}...")
             
             # Update document with summary
             document.summary = summary
             await self._repo.update_document(document, session)
-            print(f"[DocumentService] Summary saved to document {document_id}")
             
             # Emit completion
             event_data = json.dumps({
@@ -238,10 +230,8 @@ class DocumentService:
             import PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(file_content))
             page_count = len(reader.pages)
-            print(f"[DocumentService] PDF has {page_count} pages")
             return page_count
         except Exception as e:
-            print(f"[DocumentService] Error getting PDF page count: {type(e).__name__}: {str(e)}")
             import traceback
             print(f"[DocumentService] Traceback: {traceback.format_exc()}")
             # Default to assuming it's a large document if we can't read it
@@ -255,11 +245,8 @@ class DocumentService:
             total_pages = len(reader.pages)
             chunks = []
             
-            print(f"[DocumentService] Splitting PDF with {total_pages} pages into chunks of {pages_per_chunk} pages")
-            
             for start_page in range(0, total_pages, pages_per_chunk):
                 end_page = min(start_page + pages_per_chunk, total_pages)
-                print(f"[DocumentService] Creating chunk: pages {start_page+1} to {end_page}")
                 
                 # Create a new PDF with the chunk pages
                 writer = PyPDF2.PdfWriter()
@@ -272,10 +259,8 @@ class DocumentService:
                 chunk_buffer.seek(0)
                 chunks.append(chunk_buffer.getvalue())
             
-            print(f"[DocumentService] Successfully created {len(chunks)} chunks")
             return chunks
         except Exception as e:
-            print(f"[DocumentService] Error splitting PDF: {type(e).__name__}: {str(e)}")
             import traceback
             print(f"[DocumentService] Traceback: {traceback.format_exc()}")
             # If splitting fails, return the original file as a single chunk
@@ -303,9 +288,7 @@ class DocumentService:
         except Exception as e:
             print(f"[DocumentService] Error reading file: {type(e).__name__}: {str(e)}")
             raise ValueError(f"Failed to read file: {str(e)}")
-        
-        print(f"[DocumentService] Processing upload for file: {filename}, size: {len(file_content)} bytes")
-        
+                
         # Check PDF page count to determine if we need batch processing
         page_count = self._get_pdf_page_count(file_content)
         
@@ -427,8 +410,6 @@ class DocumentService:
             for idx, (document, chunk_content) in enumerate(documents):
                 storage_key = f"documents/{batch_id}/chunk-{document.chunk_index}.pdf"
                 
-                print(f"[DocumentService] Uploading chunk {document.chunk_index} for batch {batch_id}")
-                
                 await self._storage.upload_file(
                     file=io.BytesIO(chunk_content),
                     key=storage_key,
@@ -443,7 +424,6 @@ class DocumentService:
                 # Keep reference to first chunk and start processing it
                 if idx == 0:  # First document in the list
                     first_document = updated_document
-                    print(f"[DocumentService] Starting processing for first chunk: {first_document.id}")
                     background.add_task(
                         self._process_document_background,
                         first_document.id,
@@ -453,7 +433,6 @@ class DocumentService:
             if not first_document:
                 raise ValueError("Failed to create batch documents - no first document found")
             
-            print(f"[DocumentService] Batch upload complete, returning first document: {first_document.id}")
             return first_document
             
         except Exception as e:
@@ -529,17 +508,11 @@ class DocumentService:
         Get presigned URL for PDF access, with user ownership validation
         Returns presigned URL
         """
-        print(f"[DocumentService] Getting PDF URL for document {document_id}")
-        
         document = await self.get_document(document_id, user_id, session)
         if not document:
-            print(f"[DocumentService] Document {document_id} not found")
             raise ValueError("Document not found")
         
-        print(f"[DocumentService] Document found: {document.title}, s3_pdf_path: {document.s3_pdf_path}")
-        
         if not document.s3_pdf_path:
-            print(f"[DocumentService] No s3_pdf_path for document {document_id}")
             raise ValueError("PDF not found for this document")
         
         try:
@@ -548,17 +521,13 @@ class DocumentService:
             if storage_path.startswith('s3://'):
                 # Extract key from full S3 URI: s3://bucket-name/key -> key
                 storage_key = '/'.join(storage_path.split('/')[3:])
-                print(f"[DocumentService] Converting S3 URI to key: {storage_path} -> {storage_key}")
             else:
                 # Already just the key
                 storage_key = storage_path
             
-            print(f"[DocumentService] Generating presigned URL for key: {storage_key}")
             presigned_url = await self._storage.get_presigned_url(storage_key, expiration)
-            print(f"[DocumentService] Successfully generated presigned URL")
             return presigned_url
         except Exception as e:
-            print(f"[DocumentService] Error generating presigned URL: {type(e).__name__}: {str(e)}")
             raise ValueError(f"Failed to generate PDF URL: {str(e)}")
 
     async def get_document_pdf(self, document_id: str, user_id: str, session: AsyncSession) -> tuple[bytes, str]:
@@ -566,17 +535,11 @@ class DocumentService:
         Download the original PDF for a document, with user ownership validation
         Returns (file_content, filename)
         """
-        print(f"[DocumentService] Getting PDF for document {document_id}")
-        
         document = await self.get_document(document_id, user_id, session)
         if not document:
-            print(f"[DocumentService] Document {document_id} not found")
             raise ValueError("Document not found")
         
-        print(f"[DocumentService] Document found: {document.title}, s3_pdf_path: {document.s3_pdf_path}")
-        
         if not document.s3_pdf_path:
-            print(f"[DocumentService] No s3_pdf_path for document {document_id}")
             raise ValueError("PDF not found for this document")
         
         try:
@@ -585,17 +548,13 @@ class DocumentService:
             if storage_path.startswith('s3://'):
                 # Extract key from full S3 URI: s3://bucket-name/key -> key
                 storage_key = '/'.join(storage_path.split('/')[3:])
-                print(f"[DocumentService] Converting S3 URI to key: {storage_path} -> {storage_key}")
             else:
                 # Already just the key
                 storage_key = storage_path
             
-            print(f"[DocumentService] Attempting to download file from storage with key: {storage_key}")
             file_content = await self._storage.download_file(storage_key)
-            print(f"[DocumentService] Successfully downloaded {len(file_content)} bytes")
             return file_content, document.title
         except Exception as e:
-            print(f"[DocumentService] Error downloading file from storage: {type(e).__name__}: {str(e)}")
             raise ValueError(f"Failed to download PDF: {str(e)}")
     
     async def get_processing_stream(self, document_id: str):
@@ -1068,7 +1027,6 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         try:
             # Delete PDF file from object storage if it exists
             if document.s3_pdf_path:
-                print(f"[DocumentService] Deleting PDF from storage: {document.s3_pdf_path}")
                 try:
                     # Handle both old format (full S3 URI) and new format (just the key)
                     storage_path = document.s3_pdf_path
@@ -1089,12 +1047,9 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
                     print(f"[DocumentService] Warning: Failed to delete PDF from storage: {storage_error}")
             
             # Delete document from database (this will cascade to pages and blocks)
-            print(f"[DocumentService] Deleting document from database: {document_id}")
             deleted = await self._repo.delete_document(document_id, session)
             
             if deleted:
-                print(f"[DocumentService] Successfully deleted document: {document_id}")
-            else:
                 print(f"[DocumentService] Document not found in database: {document_id}")
             
             return deleted
@@ -1142,18 +1097,14 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         # Only update if this position is further than current progress
         current_position = document.furthest_read_position or -1
         if position > current_position:
-            print(f"[DocumentService] Updating reading progress for document {document_id}: block {block_id}, position {position}")
-            
             # Update reading progress
             document.update_reading_progress(block_id, position)
             
             # Save to database
             updated_document = await self._repo.update_document(document, session)
             
-            print(f"[DocumentService] Reading progress updated successfully")
             return updated_document
         else:
-            print(f"[DocumentService] Reading progress not updated - position {position} is not ahead of current {current_position}")
             return document
     
     async def start_chunk_processing(
@@ -1204,7 +1155,6 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
                 document.s3_pdf_path
             )
             
-            print(f"[DocumentService] Started processing for chunk document {document_id}")
             return document
             
         except Exception as e:

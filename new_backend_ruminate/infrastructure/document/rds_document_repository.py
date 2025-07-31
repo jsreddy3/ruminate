@@ -93,12 +93,8 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         db_document.furthest_read_updated_at = document.furthest_read_updated_at
         db_document.updated_at = datetime.now()
         
-        print(f"[Repository] Before commit - updating document {document.id} with reading progress: block_id={document.furthest_read_block_id}, position={document.furthest_read_position}")
-        
         await session.commit()
         await session.refresh(db_document)
-        
-        print(f"[Repository] After commit and refresh - db values: block_id={db_document.furthest_read_block_id}, position={db_document.furthest_read_position}")
         
         return self._to_domain_document(db_document)
     
