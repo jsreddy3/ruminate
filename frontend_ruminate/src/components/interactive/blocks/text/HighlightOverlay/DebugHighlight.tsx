@@ -10,13 +10,9 @@ export const debugTextSelection = (
   endOffset: number,
   description: string = ''
 ) => {
-  console.log(`\n=== DEBUG: ${description} ===`);
-  console.log(`Target range: ${startOffset}-${endOffset}`);
   
   // Get full text
   const fullText = root.textContent || '';
-  console.log(`Full text: "${fullText}"`);
-  console.log(`Target text should be: "${fullText.substring(startOffset, endOffset)}"`);
   
   // Walk through text nodes
   const textNodes: Node[] = [];
@@ -31,8 +27,6 @@ export const debugTextSelection = (
     textNodes.push(node);
   }
   
-  console.log(`Found ${textNodes.length} text nodes`);
-  
   let currentOffset = 0;
   let startNode: Node | null = null;
   let startNodeOffset = 0;
@@ -44,21 +38,17 @@ export const debugTextSelection = (
     const nodeLength = textNode.textContent?.length || 0;
     const nodeText = textNode.textContent || '';
     
-    console.log(`Node ${i}: "${nodeText}" (offset ${currentOffset}-${currentOffset + nodeLength - 1}, length ${nodeLength})`);
     
     // Check start node logic
     if (startNode === null && currentOffset + nodeLength > startOffset) {
       startNode = textNode;
       startNodeOffset = startOffset - currentOffset;
-      console.log(`  ✓ START NODE FOUND: offset ${startNodeOffset} in node "${nodeText}"`);
-      console.log(`    Character at start: "${nodeText.charAt(startNodeOffset)}"`);
     }
     
     // Check end node logic  
     if (endNode === null && currentOffset + nodeLength >= endOffset) {
       endNode = textNode;
       endNodeOffset = endOffset - currentOffset;
-      console.log(`  ✓ END NODE FOUND: offset ${endNodeOffset} in node "${nodeText}"`);
       break;
     }
     
@@ -73,9 +63,6 @@ export const debugTextSelection = (
       range.setEnd(endNode, endNodeOffset);
       
       const rangeText = range.toString();
-      console.log(`Final range text: "${rangeText}"`);
-      console.log(`Expected text: "${fullText.substring(startOffset, endOffset)}"`);
-      console.log(`Match: ${rangeText === fullText.substring(startOffset, endOffset) ? '✓' : '✗'}`);
       
       if (rangeText !== fullText.substring(startOffset, endOffset)) {
         console.error('MISMATCH! This is the bug.');
@@ -87,8 +74,6 @@ export const debugTextSelection = (
   } else {
     console.error('Could not find start or end node');
   }
-  
-  console.log('=== END DEBUG ===\n');
 };
 
 // React component for debugging in the UI

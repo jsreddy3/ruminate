@@ -165,14 +165,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   
   // Debug PDF URL
   useEffect(() => {
-    console.log('🔍 PDF Viewer initializing with:', {
-      pdfType: pdfFile.startsWith('data:application/pdf;base64,') ? 'base64' : 'url',
-      pdfSize: pdfFile.startsWith('data:application/pdf;base64,') 
-        ? `${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB`
-        : `${pdfFile.length} chars`,
-      documentId
-    });
-    
     if (pdfFile.startsWith('data:application/pdf;base64,')) {
       const base64Length = pdfFile.length;
       const estimatedSizeMB = (base64Length * 0.75) / (1024 * 1024); // rough estimate
@@ -437,18 +429,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         const document = await documentApi.getDocument(documentId);
         setDocumentTitle(document.title);
         
-        console.log('📖 Document loaded with reading progress:', {
-          documentId: document.id,
-          title: document.title,
-          furthest_read_block_id: document.furthest_read_block_id,
-          furthest_read_position: document.furthest_read_position,
-          furthest_read_updated_at: document.furthest_read_updated_at,
-        });
-        
         // Initialize reading progress from document data
         if (initializeProgress) {
           initializeProgress(document);
-          console.log('📖 Reading progress initialized from document data');
         }
       } catch (error) {
         console.error('Error fetching document title:', error);
@@ -703,7 +686,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add timeout mechanism for stuck PDF loading
   useEffect(() => {
     if (pdfLoadingState === 'loading') {
-      console.log('⏳ PDF loading started, setting 5s timeout...');
       const timeout = setTimeout(() => {
         console.warn('⚠️ PDF loading timeout reached - marking as stuck');
         setPdfLoadingState('stuck');
@@ -720,7 +702,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Force refresh function
   const handleForceRefresh = useCallback(() => {
-    console.log('🔄 Force refreshing PDF viewer...');
     setPdfLoadingState('idle');
     setForceRefreshKey(prev => prev + 1);
     
@@ -758,7 +739,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       if (jumpToPage) {
         // Try with 1-based indexing first (no conversion)
         await jumpToPage(block.page_number);
-        console.log(`📍 Navigated to page ${block.page_number} for block search`);
       } else {
         // Fallback to setting current page
         setCurrentPage(block.page_number);
@@ -801,7 +781,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const handleResumeReading = useCallback(async () => {
     const furthestBlockId = scrollToFurthestBlock();
     if (furthestBlockId) {
-      console.log('📖 Resuming reading at block:', furthestBlockId);
       const block = flattenedBlocks.find(b => b.id === furthestBlockId);
       if (block) {
         await scrollToBlock(block);

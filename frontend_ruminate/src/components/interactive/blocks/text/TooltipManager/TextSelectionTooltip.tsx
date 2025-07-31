@@ -67,14 +67,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   }, [isVisible, onClose]);
 
   if (!isVisible) return null;
-
-  // Debug logging
-  console.log('🎯 TextSelectionTooltip rendering:', { 
-    isVisible, 
-    position, 
-    selectedText: selectedText.substring(0, 20) + '...' 
-  });
-
+  
   // Create a safe wrapper for action click handlers
   const safeExecute = (callback?: (text: string) => void) => {
     return () => {
@@ -147,8 +140,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       ref={tooltipRef}
       className="selection-tooltip bg-white rounded-lg shadow-lg border border-indigo-200 text-sm py-1 px-1 transition-transform duration-200 ease-out hover:scale-125 group"
       style={tooltipStyle}
-      onMouseEnter={() => console.log('🐭 Tooltip hover ENTER')}
-      onMouseLeave={() => console.log('🐭 Tooltip hover LEAVE')}
     >
       <div className="animate-fadeIn">
         <div className="flex">
@@ -163,8 +154,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
               onClick={action.onClick}
               disabled={action.disabled}
               title={action.disabled ? 'Generating definition...' : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
-              onMouseEnter={() => console.log(`🔘 Button hover ENTER: ${action.label}`)}
-              onMouseLeave={() => console.log(`🔘 Button hover LEAVE: ${action.label}`)}
             >
               {action.icon && <span className={action.disabled ? "text-gray-400" : "text-indigo-500"}>{action.icon}</span>}
               <span>{action.label}</span>

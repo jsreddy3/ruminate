@@ -101,7 +101,6 @@ export function useViewportReadingTracker({
     
     // Only track if within page range
     if (!isWithinPageRange(pageNumber)) {
-      console.log(`⏱️ Skipping viewport timer for selected block ${blockId} - outside page range (page ${pageNumber})`);
       return;
     }
     
@@ -112,8 +111,6 @@ export function useViewportReadingTracker({
       wordCount,
       pageNumber
     });
-    
-    console.log(`⏱️ Started viewport timer for SELECTED block ${blockId} (${wordCount} words, page ${pageNumber})`);
   }, [blocks, getWordCount, isWithinPageRange, selectedBlockId]);
   
   // Handle when a block becomes invisible
@@ -124,11 +121,8 @@ export function useViewportReadingTracker({
     const viewingTime = Date.now() - viewInfo.startTime;
     const expectedReadingTime = getExpectedReadingTime(viewInfo.wordCount);
     
-    console.log(`⏱️ Block ${blockId} viewed for ${Math.round(viewingTime / 1000)}s (expected: ${Math.round(expectedReadingTime / 1000)}s)`);
-    
     // Check if viewed long enough to count as "read"
     if (viewingTime >= expectedReadingTime) {
-      console.log(`📖 Viewport timer: Block ${blockId} read (${Math.round(viewingTime / 1000)}s >= ${Math.round(expectedReadingTime / 1000)}s)`);
       onProgressUpdate(blockId);
     }
     
@@ -145,7 +139,6 @@ export function useViewportReadingTracker({
       const expectedReadingTime = getExpectedReadingTime(viewInfo.wordCount);
       
       if (viewingTime >= expectedReadingTime) {
-        console.log(`📖 Viewport timer: Block ${blockId} auto-read after ${Math.round(viewingTime / 1000)}s`);
         onProgressUpdate(blockId);
         viewingBlocksRef.current.delete(blockId);
       }
@@ -160,8 +153,6 @@ export function useViewportReadingTracker({
       viewingBlocksRef.current.clear();
       return;
     }
-    
-    console.log(`⏱️ Setting up viewport reading tracker for selected block: ${selectedBlockId}`);
     
     observerRef.current = new IntersectionObserver(
       (entries) => {

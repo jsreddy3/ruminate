@@ -93,11 +93,9 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               : 'scale(1.0)'
         }}
         onMouseEnter={() => {
-          console.log('🐭 PDFToolbar hover ENTER');
           setIsHovered(true);
         }}
         onMouseLeave={() => {
-          console.log('🐭 PDFToolbar hover LEAVE');
           setIsHovered(false);
         }}
       >

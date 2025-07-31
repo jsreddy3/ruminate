@@ -54,12 +54,6 @@ export function useReadingProgress({
     furthest_read_position?: number | null; 
     furthest_read_updated_at?: string | null;
   }) => {
-    console.log('🔄 useReadingProgress: initializeProgress called with:', {
-      furthest_read_block_id: document.furthest_read_block_id,
-      furthest_read_position: document.furthest_read_position,
-      furthest_read_updated_at: document.furthest_read_updated_at,
-    });
-
     if (document.furthest_read_block_id && document.furthest_read_position !== undefined) {
       const newProgress = {
         furthestBlockId: document.furthest_read_block_id,
@@ -67,20 +61,15 @@ export function useReadingProgress({
         lastUpdated: document.furthest_read_updated_at ? new Date(document.furthest_read_updated_at) : null
       };
       
-      console.log('✅ useReadingProgress: Setting local progress to:', newProgress);
       setLocalProgress(newProgress);
-    } else {
-      console.log('❌ useReadingProgress: No valid reading progress found, keeping default state');
     }
   }, []);
   
   // Throttled API update function
   const performApiUpdate = useCallback(async (blockId: string, position: number) => {
     try {
-      console.log(`🚀 API: Attempting to update reading progress for doc ${documentId}, block ${blockId}, position ${position}`);
       const result = await documentApi.updateReadingProgress(documentId, blockId, position);
       lastUpdateTimeRef.current = Date.now();
-      console.log(`✅ API: Reading progress updated successfully:`, result);
     } catch (error) {
       console.error('❌ API: Failed to update reading progress:', error);
       console.error('❌ API: Error details:', {

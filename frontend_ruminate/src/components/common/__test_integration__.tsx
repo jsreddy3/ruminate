@@ -44,7 +44,6 @@ const IntegrationTest: React.FC = () => {
           conversations={conversations}
           activeConversationId={activeConversationId}
           onConversationChange={setActiveConversationId}
-          onConversationClose={(id) => console.log('Close conversation:', id)}
         />
       </div>
 
