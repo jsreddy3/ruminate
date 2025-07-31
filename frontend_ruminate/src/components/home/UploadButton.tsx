@@ -68,7 +68,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
     <>
       <motion.button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-primary-700 transition-colors whitespace-nowrap"
+        className="inline-flex items-center px-3 py-1.5 bg-library-mahogany-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-library-mahogany-600 transition-colors whitespace-nowrap"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
@@ -141,7 +141,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                       onClick={() => setUploadMode('file')}
                       className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
                         uploadMode === 'file'
-                          ? 'bg-primary-600 text-white'
+                          ? 'bg-library-mahogany-500 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -151,7 +151,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                       onClick={() => setUploadMode('url')}
                       className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
                         uploadMode === 'url'
-                          ? 'bg-primary-600 text-white'
+                          ? 'bg-library-mahogany-500 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -171,7 +171,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                       />
                       <div
                         onClick={() => !isProcessing && fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition-all hover:border-primary-400 hover:bg-gray-50"
+                        className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition-all hover:border-library-mahogany-400 hover:bg-gray-50"
                       >
                         <svg
                           className="mx-auto h-12 w-12 text-gray-400"
@@ -204,7 +204,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                           value={urlInput}
                           onChange={(e) => setUrlInput(e.target.value)}
                           placeholder="https://example.com/article"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 placeholder-gray-400 bg-white"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-library-mahogany-500 focus:border-library-mahogany-500 text-gray-900 placeholder-gray-400 bg-white"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && urlInput.trim()) {
                               handleUrlUpload();
@@ -216,7 +216,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                         <button
                           onClick={handleUrlUpload}
                           disabled={!urlInput.trim()}
-                          className="w-full py-3 px-4 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          className="w-full py-3 px-4 bg-library-mahogany-500 text-white rounded-lg font-medium hover:bg-library-mahogany-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                           Generate
                         </button>
