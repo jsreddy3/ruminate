@@ -15,7 +15,7 @@ export default function ParticlesBackground({ dimensions }: ParticlesBackgroundP
       {[...Array(20)].map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-2 h-2 rounded-full bg-primary-400/20"
+          className="absolute w-2 h-2 rounded-full bg-library-gold-400/20"
           initial={{
             x: Math.random() * dimensions.width,
             y: Math.random() * dimensions.height,

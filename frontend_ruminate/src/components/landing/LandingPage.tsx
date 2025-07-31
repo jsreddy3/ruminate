@@ -33,18 +33,10 @@ export default function LandingPage() {
   }, [user, isLoading, router]);
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-neutral-50 to-indigo-100 p-8 overflow-hidden">
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-surface-paper to-surface-parchment px-8 py-16 overflow-hidden">
       <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-12 w-full">
         {/* Logo and Tagline */}
         <Header />
-
-        {/* Welcome message for non-authenticated users */}
-        {!user && !isLoading && (
-          <div className="max-w-md mx-auto p-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg border border-white border-opacity-20">
-            <p className="text-lg text-neutral-700 mb-2">Welcome to Ruminate!</p>
-            <p className="text-neutral-600">Sign in with Google to start analyzing your documents with AI.</p>
-          </div>
-        )}
       </div>
 
       {/* Floating particles effect */}

@@ -138,8 +138,8 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
                 if (visual) {
                   visual.style.borderBottomWidth = '2px';
                   visual.style.borderBottomColor = hasOverlappingRabbithole 
-                    ? 'rgba(121, 135, 121, 0.6)' // Original sage dotted
-                    : 'rgba(121, 135, 121, 0.5)'; // Original sage
+                    ? 'rgba(139, 92, 246, 0.8)' // Original purple dotted
+                    : 'rgba(139, 92, 246, 0.7)'; // Original purple
                   visual.style.filter = 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1))';
                 }
               }}

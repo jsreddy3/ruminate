@@ -8,9 +8,9 @@ export default function AuthButton() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center space-x-2 px-4 py-2 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg border border-white border-opacity-20">
-        <div className="w-4 h-4 border-2 border-white border-opacity-30 border-t-white rounded-full animate-spin"></div>
-        <span className="text-white text-sm">Loading...</span>
+      <div className="flex items-center space-x-2 px-4 py-2 bg-surface-paper bg-opacity-90 backdrop-blur-sm rounded-book border border-library-cream-300">
+        <div className="w-4 h-4 border-2 border-library-sage-400 border-t-library-mahogany-500 rounded-full animate-spin"></div>
+        <span className="text-reading-primary text-sm font-serif">Loading...</span>
       </div>
     );
   }
@@ -18,7 +18,7 @@ export default function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center space-x-3">
-        <div className="flex items-center space-x-2 px-3 py-2 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg border border-white border-opacity-20">
+        <div className="flex items-center space-x-2 px-3 py-2 bg-surface-paper bg-opacity-90 backdrop-blur-sm rounded-book border border-library-cream-300">
           {user.avatar_url && (
             <img
               src={user.avatar_url}
@@ -26,11 +26,11 @@ export default function AuthButton() {
               className="w-6 h-6 rounded-full"
             />
           )}
-          <span className="text-white text-sm font-medium">{user.name}</span>
+          <span className="text-reading-primary text-sm font-serif font-medium">{user.name}</span>
         </div>
         <button
           onClick={logout}
-          className="px-3 py-2 text-sm text-white bg-red-500 bg-opacity-80 hover:bg-opacity-100 rounded-lg transition-all duration-200 backdrop-blur-sm border border-red-400 border-opacity-30"
+          className="px-3 py-2 text-sm text-white bg-library-mahogany-500 hover:bg-library-mahogany-600 rounded-book transition-all duration-200 shadow-paper"
         >
           Sign Out
         </button>
@@ -41,7 +41,7 @@ export default function AuthButton() {
   return (
     <button
       onClick={login}
-      className="flex items-center space-x-3 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200"
+      className="flex items-center space-x-3 px-8 py-4 bg-surface-paper hover:bg-surface-parchment text-reading-primary font-serif font-medium text-lg rounded-journal border border-library-cream-300 shadow-book hover:shadow-shelf transition-all duration-200"
     >
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path

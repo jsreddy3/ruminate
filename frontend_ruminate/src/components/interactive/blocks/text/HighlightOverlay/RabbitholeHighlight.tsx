@@ -68,10 +68,10 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           width: `${rect.width}px`,
           height: `${rect.height}px`, // Keep original height
           backgroundColor: 'transparent',
-          // Forest green underline for scholarly discourse
+          // Bold forest green underline for discourse threads
           borderBottom: hasOverlappingDefinition 
-            ? '2px solid rgba(90, 115, 95, 0.9)' // Enhanced forest when overlapping
-            : '2px solid rgba(90, 115, 95, 0.7)', // Standard forest
+            ? '3px solid rgba(34, 139, 34, 0.9)' // Thicker forest green when overlapping
+            : '2px solid rgba(34, 139, 34, 0.8)', // Forest green primary
           borderRadius: '0px',
           cursor: 'pointer',
           zIndex: 7,
@@ -125,8 +125,8 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
                 if (visual) {
                   visual.style.borderBottomWidth = '3px';
                   visual.style.borderBottomColor = hasOverlappingDefinition 
-                    ? 'rgba(90, 115, 95, 1)' // Enhanced forest
-                    : 'rgba(90, 115, 95, 0.9)'; // Enhanced forest
+                    ? 'rgba(34, 139, 34, 1)' // Full forest green
+                    : 'rgba(34, 139, 34, 1)'; // Full forest green
                   visual.style.filter = 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.12))';
                 }
               }}
@@ -136,8 +136,8 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
                 if (visual) {
                   visual.style.borderBottomWidth = '2px';
                   visual.style.borderBottomColor = hasOverlappingDefinition 
-                    ? 'rgba(90, 115, 95, 0.9)' // Original enhanced forest
-                    : 'rgba(90, 115, 95, 0.7)'; // Original standard forest
+                    ? 'rgba(34, 139, 34, 0.9)' // Original forest green thick
+                    : 'rgba(34, 139, 34, 0.8)'; // Original forest green
                   visual.style.filter = 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08))';
                 }
               }}
