@@ -32,24 +32,24 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
     switch (document.status) {
       case 'READY':
         return (
-          <div className="w-2 h-2 bg-green-500 rounded-full" />
+          <div className="w-2 h-2 bg-library-forest-500 rounded-full" />
         );
       case 'PROCESSING':
       case 'PROCESSING_MARKER':
         return (
-          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+          <div className="w-2 h-2 bg-library-gold-500 rounded-full animate-pulse" />
         );
       case 'AWAITING_PROCESSING':
         return (
-          <div className="w-2 h-2 bg-blue-500 rounded-full" />
+          <div className="w-2 h-2 bg-library-sage-500 rounded-full" />
         );
       case 'ERROR':
         return (
-          <div className="w-2 h-2 bg-red-500 rounded-full" />
+          <div className="w-2 h-2 bg-library-mahogany-500 rounded-full" />
         );
       default:
         return (
-          <div className="w-2 h-2 bg-gray-400 rounded-full" />
+          <div className="w-2 h-2 bg-library-sage-400 rounded-full" />
         );
     }
   };
@@ -111,7 +111,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
 
   return (
     <tr 
-      className="hover:bg-gray-50 cursor-pointer transition-colors group"
+      className="hover:bg-surface-vellum cursor-pointer transition-colors group"
       onClick={onClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -120,9 +120,9 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
         <div className="flex items-center gap-3">
           {/* PDF Icon */}
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-library-cream-200 rounded-book flex items-center justify-center">
               <svg
-                className="w-6 h-6 text-red-600"
+                className="w-6 h-6 text-library-mahogany-600"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -142,19 +142,19 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
                 onClick={(e) => e.stopPropagation()}
                 onBlur={handleSaveTitle}
                 disabled={isSaving}
-                className="text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 flex-1"
+                className="text-sm font-serif font-medium text-reading-primary bg-surface-paper border border-library-cream-300 rounded-book px-2 py-1 focus:outline-none focus:ring-2 focus:ring-library-mahogany-500 focus:border-library-mahogany-500 flex-1"
                 autoFocus
               />
             ) : (
               <>
-                <h3 className="text-sm font-medium text-gray-900 truncate">
+                <h3 className="text-sm font-serif font-medium text-reading-primary truncate">
                   {document.title}
                 </h3>
                 {/* Edit Button - right next to title */}
                 {isHovering && (
                   <button
                     onClick={handleEditClick}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50 flex-shrink-0"
+                    className="p-1 text-library-sage-400 hover:text-library-sage-600 transition-colors rounded-full hover:bg-library-sage-50 flex-shrink-0"
                     title="Edit document name"
                   >
                     <PencilIcon className="w-3 h-3" />
@@ -167,11 +167,11 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
         </div>
       </td>
       
-      <td className="px-6 py-4 text-sm text-gray-500">
+      <td className="px-6 py-4 text-sm text-reading-secondary font-serif">
         {formatDate(document.created_at)}
       </td>
       
-      <td className="px-6 py-4 text-sm text-gray-500">
+      <td className="px-6 py-4 text-sm text-reading-secondary font-serif">
         {formatDate(document.updated_at)}
       </td>
       
@@ -181,7 +181,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           {document.status === 'AWAITING_PROCESSING' && (
             <button
               onClick={handleProcessClick}
-              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              className="px-3 py-1 text-xs font-medium text-white bg-library-sage-600 hover:bg-library-sage-700 rounded-book transition-colors"
               title="Start processing this chunk"
             >
               Process
@@ -192,7 +192,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           {onDelete && isHovering && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && (
             <button
               onClick={handleDeleteClick}
-              className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
+              className="p-1 text-library-sage-400 hover:text-library-mahogany-600 transition-colors rounded-full hover:bg-library-mahogany-50"
               title="Delete document"
             >
               <TrashIcon className="w-4 h-4" />
@@ -201,7 +201,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           
           {/* Arrow Icon */}
           <svg
-            className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+            className="w-5 h-5 text-library-sage-400 group-hover:text-library-sage-600 transition-colors"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

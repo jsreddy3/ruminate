@@ -96,44 +96,12 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
           top: `${rect.top - contentRect.top}px`,
           width: `${rect.width}px`,
           height: `${rect.height}px`,
-          // SUBTLE scholarly sage annotation background
-          background: `
-            radial-gradient(ellipse at top left, rgba(121, 135, 121, 0.08) 0%, transparent 70%),
-            radial-gradient(ellipse at bottom right, rgba(90, 115, 95, 0.06) 0%, transparent 70%),
-            linear-gradient(135deg, 
-              rgba(121, 135, 121, 0.15) 0%, 
-              rgba(152, 164, 152, 0.18) 25%,
-              rgba(254, 252, 247, 0.2) 50%,
-              rgba(152, 164, 152, 0.18) 75%,
-              rgba(121, 135, 121, 0.15) 100%
-            )
-          `,
-          border: '2px solid transparent',
-          backgroundClip: 'padding-box',
-          borderRadius: '4px',
+          // Simple, functional annotation highlight
+          backgroundColor: 'rgba(255, 235, 59, 0.3)', // Classic yellow highlight, 30% opacity
+          borderRadius: '2px',
           cursor: 'pointer',
           zIndex: 5,
           pointerEvents: 'none',
-          // SUBTLE scholarly shadows and effects
-          boxShadow: `
-            inset 0 1px 2px rgba(121, 135, 121, 0.05),
-            inset 0 -1px 2px rgba(90, 115, 95, 0.05),
-            0 0 6px rgba(121, 135, 121, 0.1),
-            0 1px 3px rgba(0, 0, 0, 0.03)
-          `,
-          // Add subtle border gradient
-          backgroundImage: `
-            linear-gradient(135deg, 
-              rgba(121, 135, 121, 0.15) 0%, 
-              rgba(152, 164, 152, 0.18) 25%,
-              rgba(254, 252, 247, 0.2) 50%,
-              rgba(152, 164, 152, 0.18) 75%,
-              rgba(121, 135, 121, 0.15) 100%
-            ),
-            linear-gradient(0deg, rgba(121, 135, 121, 0.15), rgba(121, 135, 121, 0.15))
-          `,
-          backgroundOrigin: 'border-box',
-          animation: 'ink-spread 0.5s ease-out',
         };
         
         // Create a clickable area covering the entire highlight
@@ -171,49 +139,16 @@ const ReactAnnotationHighlight: React.FC<ReactAnnotationHighlightProps> = ({
                 // DRAMATIC manuscript hover effects with ornate flourishes
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.background = `
-                    radial-gradient(ellipse at top left, rgba(249, 207, 95, 0.25) 0%, transparent 60%),
-                    radial-gradient(ellipse at bottom right, rgba(175, 95, 55, 0.2) 0%, transparent 60%),
-                    linear-gradient(135deg, 
-                      rgba(252, 240, 210, 0.45) 0%, 
-                      rgba(249, 230, 183, 0.5) 25%,
-                      rgba(254, 252, 247, 0.55) 50%,
-                      rgba(249, 230, 183, 0.5) 75%,
-                      rgba(252, 240, 210, 0.45) 100%
-                    )
-                  `;
-                  visual.style.boxShadow = `
-                    inset 0 1px 4px rgba(175, 95, 55, 0.12),
-                    inset 0 -1px 3px rgba(249, 207, 95, 0.15),
-                    0 0 15px rgba(175, 95, 55, 0.25),
-                    0 3px 8px rgba(0, 0, 0, 0.1),
-                    0 0 25px rgba(249, 207, 95, 0.2)
-                  `;
-                  visual.style.transform = 'scale(1.02)';
-                  visual.style.transition = 'all 0.3s ease-out';
+                  visual.style.backgroundColor = 'rgba(255, 235, 59, 0.5)'; // More opaque on hover
+                  visual.style.transition = 'background-color 0.2s ease';
                 }
               }}
               onMouseLeave={(e) => {
                 // Restore DRAMATIC original styling
                 const visual = e.currentTarget.previousSibling as HTMLElement;
                 if (visual) {
-                  visual.style.background = `
-                    radial-gradient(ellipse at top left, rgba(249, 207, 95, 0.15) 0%, transparent 70%),
-                    radial-gradient(ellipse at bottom right, rgba(175, 95, 55, 0.1) 0%, transparent 70%),
-                    linear-gradient(135deg, 
-                      rgba(252, 240, 210, 0.3) 0%, 
-                      rgba(249, 230, 183, 0.35) 25%,
-                      rgba(254, 252, 247, 0.4) 50%,
-                      rgba(249, 230, 183, 0.35) 75%,
-                      rgba(252, 240, 210, 0.3) 100%
-                    )
-                  `;
-                  visual.style.boxShadow = `
-                    inset 0 1px 3px rgba(175, 95, 55, 0.08),
-                    inset 0 -1px 2px rgba(249, 207, 95, 0.1),
-                    0 0 8px rgba(175, 95, 55, 0.15),
-                    0 2px 4px rgba(0, 0, 0, 0.05)
-                  `;
+                  visual.style.backgroundColor = 'rgba(152, 164, 152, 0.2)'; // Back to original
+                  visual.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
                   visual.style.transform = 'scale(1)';
                   visual.style.transition = 'all 0.3s ease-out';
                 }

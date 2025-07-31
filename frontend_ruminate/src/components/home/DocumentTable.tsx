@@ -63,17 +63,17 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
       return (
-        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-library-sage-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
         </svg>
       );
     }
     return sortDirection === 'asc' ? (
-      <svg className="w-4 h-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-4 h-4 text-reading-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
       </svg>
     ) : (
-      <svg className="w-4 h-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-4 h-4 text-reading-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
       </svg>
     );
@@ -83,31 +83,31 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
     <>
       <div className="overflow-x-auto">
         <table className="w-full">
-        <thead className="bg-gray-50">
+        <thead className="bg-surface-vellum">
           <tr>
             <th 
-              className="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+              className="px-6 py-3 text-left cursor-pointer hover:bg-surface-aged transition-colors"
               onClick={() => handleSort('title')}
             >
-              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-medium text-reading-muted uppercase tracking-wider">
                 Name
                 <SortIcon field="title" />
               </div>
             </th>
             <th 
-              className="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+              className="px-6 py-3 text-left cursor-pointer hover:bg-surface-aged transition-colors"
               onClick={() => handleSort('created_at')}
             >
-              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-medium text-reading-muted uppercase tracking-wider">
                 Created
                 <SortIcon field="created_at" />
               </div>
             </th>
             <th 
-              className="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+              className="px-6 py-3 text-left cursor-pointer hover:bg-surface-aged transition-colors"
               onClick={() => handleSort('updated_at')}
             >
-              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-medium text-reading-muted uppercase tracking-wider">
                 Updated
                 <SortIcon field="updated_at" />
               </div>
@@ -115,7 +115,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
             <th className="w-12"></th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-surface-parchment divide-y divide-library-cream-300">
           {sortedDocuments.map((document) => (
             <DocumentRow
               key={document.id}

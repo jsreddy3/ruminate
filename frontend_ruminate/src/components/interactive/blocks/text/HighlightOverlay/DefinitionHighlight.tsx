@@ -74,10 +74,10 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
           width: `${rect.width}px`,
           height: `${rect.height}px`,
           backgroundColor: 'transparent',
-          // Elegant scholarly underline with subtle gold accent
+          // Distinguished definition underline - purple/lavender for knowledge
           borderBottom: hasOverlappingRabbithole 
-            ? '2px solid rgba(175, 95, 55, 0.7)' // Mahogany when overlapping
-            : '2px solid rgba(249, 207, 95, 0.8)', // Gold primary
+            ? '2px dotted rgba(139, 92, 246, 0.8)' // Dotted purple when overlapping
+            : '2px solid rgba(139, 92, 246, 0.7)', // Purple primary
           borderRadius: '0px',
           cursor: 'help',
           zIndex: hasOverlappingRabbithole ? 9 : 8,
@@ -127,8 +127,8 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
                 if (visual) {
                   visual.style.borderBottomWidth = '3px';
                   visual.style.borderBottomColor = hasOverlappingRabbithole 
-                    ? 'rgba(175, 95, 55, 0.9)' // Enhanced mahogany
-                    : 'rgba(249, 207, 95, 1)'; // Enhanced gold
+                    ? 'rgba(139, 92, 246, 1)' // Full purple on hover
+                    : 'rgba(139, 92, 246, 0.9)'; // Enhanced purple
                   visual.style.filter = 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15))';
                 }
               }}
@@ -138,8 +138,8 @@ const ReactDefinitionHighlight: React.FC<ReactDefinitionHighlightProps> = ({
                 if (visual) {
                   visual.style.borderBottomWidth = '2px';
                   visual.style.borderBottomColor = hasOverlappingRabbithole 
-                    ? 'rgba(175, 95, 55, 0.7)' // Original mahogany
-                    : 'rgba(249, 207, 95, 0.8)'; // Original gold
+                    ? 'rgba(121, 135, 121, 0.6)' // Original sage dotted
+                    : 'rgba(121, 135, 121, 0.5)'; // Original sage
                   visual.style.filter = 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1))';
                 }
               }}
