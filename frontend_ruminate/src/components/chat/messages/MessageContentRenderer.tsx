@@ -28,7 +28,7 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
           </svg>
         </div>
         <span className="font-serif italic text-library-forest-600">
-          {streamingContent || 'The learned colleague contemplates your inquiry...'}
+          {streamingContent || 'Considering...'}
         </span>
       </div>
     );

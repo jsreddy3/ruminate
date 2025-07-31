@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import IndicatorBadge from './IndicatorBadge';
 import IndicatorLayout from './IndicatorLayout';
 import { INDICATOR_CONFIGS } from './indicatorConfig';
@@ -22,6 +22,8 @@ export default function BlockIndicators({
   hasGeneratedNotes = false,
   position = 'top-right'
 }: BlockIndicatorsProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // Map props to indicator state
   const indicatorState = {
     generatedNotes: hasGeneratedNotes,
@@ -36,12 +38,16 @@ export default function BlockIndicators({
   if (visibleIndicators.length === 0) return null;
 
   const offsetPixels = 6; // Clean spacing for visual clarity
+  const expandedOffsetPixels = 28; // Expanded spacing for clear separation
 
   return (
     <IndicatorLayout 
       position={position} 
       type="icon" 
       visibleCount={visibleIndicators.length}
+      isExpanded={isExpanded}
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
     >
       {visibleIndicators.map((config, index) => (
         <IndicatorBadge
@@ -54,9 +60,10 @@ export default function BlockIndicators({
           title={config.title}
           delay={config.delay}
           position={{
-            left: `${index * offsetPixels}px`,
+            left: `${index * (isExpanded ? expandedOffsetPixels : offsetPixels)}px`,
             zIndex: config.zIndex
           }}
+          isExpanded={isExpanded}
         />
       ))}
     </IndicatorLayout>

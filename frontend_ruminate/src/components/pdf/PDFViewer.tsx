@@ -233,7 +233,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     lastFetchTimeRef.current = now;
     
     try {
-      const blocksResp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks`);
+      const blocksResp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks?include_images=false`);
       const blocksData = await blocksResp.json();
       
       if (Array.isArray(blocksData)) {
@@ -246,6 +246,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     } finally {
     }
   }, [documentId]); // Remove selectedBlock from the dependencies
+  
+  // Fetch images for a specific block (lazy loading)
+  const fetchBlockImages = useCallback(async (blockId: string) => {
+    if (!documentId) return;
+    
+    try {
+      const resp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks/${blockId}/images`);
+      const data = await resp.json();
+      
+      // Update the specific block with real images
+      setBlocks(prev => prev.map(block => 
+        block.id === blockId 
+          ? { ...block, images: data.images }
+          : block
+      ));
+    } catch (error) {
+      console.error("Error fetching block images:", error);
+    }
+  }, [documentId]);
   
   // Function to convert rabbithole conversations to highlights grouped by block
   const getRabbitholeHighlightsForBlock = useCallback((blockId: string) => {
@@ -619,6 +638,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onAddTextToChat: handleAddTextToChat,
     onUpdateBlockMetadata: updateBlockMetadata,
     onFetchBlocks: fetchBlocks,
+    onFetchBlockImages: fetchBlockImages,
     getRabbitholeHighlightsForBlock,
     isBlockSelectionMode,
     onBlockSelectionComplete,

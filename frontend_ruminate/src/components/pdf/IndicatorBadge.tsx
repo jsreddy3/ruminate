@@ -11,6 +11,7 @@ interface IndicatorBadgeProps {
   delay?: number;
   position: { left: string; zIndex: number };
   isJustAdded?: boolean;
+  isExpanded?: boolean;
 }
 
 const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
@@ -21,7 +22,8 @@ const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
   icon,
   title,
   delay = 0,
-  position
+  position,
+  isExpanded = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   if (type === 'dot') {
@@ -46,14 +48,16 @@ const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
       initial={{ scale: 0, rotate: -180 }}
       animate={{ 
         scale: isHovered ? 1.15 : 1,
-        rotate: 0
+        rotate: 0,
+        x: 0
       }}
       transition={{ 
         type: "spring", 
         stiffness: 400, 
         damping: 25, 
-        delay,
-        scale: { duration: 0.2 }
+        delay: isExpanded ? 0 : delay,
+        scale: { duration: 0.2 },
+        x: { type: "spring", stiffness: 300, damping: 30, duration: 0.4 }
       }}
       className="absolute cursor-pointer"
       style={{ 

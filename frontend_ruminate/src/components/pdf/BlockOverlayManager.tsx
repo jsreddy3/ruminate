@@ -27,6 +27,7 @@ interface BlockOverlayManagerProps {
   onAddTextToChat: (text: string) => void;
   onUpdateBlockMetadata: (blockId: string, metadata: any) => void;
   onFetchBlocks: () => void;
+  onFetchBlockImages: (blockId: string) => void;
   getRabbitholeHighlightsForBlock: (blockId: string) => any[];
   
   // Block selection mode
@@ -70,6 +71,7 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     onAddTextToChat,
     onUpdateBlockMetadata,
     onFetchBlocks,
+    onFetchBlockImages,
     getRabbitholeHighlightsForBlock,
     isBlockSelectionMode,
     onBlockSelectionComplete,
@@ -86,9 +88,14 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
 
   // Handle block click to select and view it
   const handleBlockClick = useCallback((block: Block) => {
+    // Lazy load images if needed
+    if (block.images && Object.values(block.images).includes("LAZY_LOAD")) {
+      onFetchBlockImages(block.id);
+    }
+    
     setSelectedBlock(block);
     setIsBlockOverlayOpen(true);
-  }, []);
+  }, [onFetchBlockImages]);
 
   // Programmatically open a block (for auto-navigation after note generation)
   const handleOpenBlockWithNote = useCallback((blockId: string, noteId: string) => {
