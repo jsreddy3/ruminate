@@ -3,6 +3,7 @@ import { MessageSquare, Lightbulb } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BasePopover from '../../common/BasePopover';
 import MessageContentRenderer from '../../chat/messages/MessageContentRenderer';
+import { MessageRole } from '@/types/chat';
 
 interface GeneratedNote {
   id: string;
@@ -177,7 +178,7 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
               <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-gradient-to-b from-transparent via-library-forest-500 to-transparent"></div>
               
               <div className="pl-4">
-                <MessageContentRenderer content={activeNote.note} />
+                <MessageContentRenderer content={activeNote.note} role={MessageRole.ASSISTANT} />
               </div>
             </div>
 
