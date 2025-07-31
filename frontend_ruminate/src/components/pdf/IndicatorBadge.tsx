@@ -12,6 +12,8 @@ interface IndicatorBadgeProps {
   position: { left: string; zIndex: number };
   isJustAdded?: boolean;
   isExpanded?: boolean;
+  onClick?: () => void;
+  count?: number;
 }
 
 const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
@@ -23,7 +25,9 @@ const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
   title,
   delay = 0,
   position,
-  isExpanded = false
+  isExpanded = false,
+  onClick,
+  count = 0
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   if (type === 'dot') {
@@ -66,6 +70,7 @@ const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
     >
       <div 
         style={{
@@ -81,16 +86,46 @@ const IndicatorBadge: React.FC<IndicatorBadgeProps> = ({
           boxShadow: isHovered 
             ? `0 2px 8px rgba(0, 0, 0, 0.25), 0 0 12px ${glowColor || 'rgba(0, 0, 0, 0.1)'}`
             : `0 2px 4px rgba(0, 0, 0, 0.15)`,
-          transition: 'all 0.2s ease-out'
+          transition: 'all 0.2s ease-out',
+          position: 'relative'
         }}
         title={title}
       >
         <div style={{
-          filter: isHovered ? 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4))' : 'none',
-          transition: 'filter 0.2s ease-out'
+          filter: isHovered 
+            ? 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) brightness(1.05)' 
+            : 'brightness(0.98)',
+          transition: 'filter 0.2s ease-out, transform 0.2s ease-out',
+          transform: isHovered ? 'scale(1.02)' : 'scale(1)',
         }}>
           {icon}
         </div>
+        
+        {/* Count badge - Forest Minimal Style */}
+        {count > 0 && (
+          <div 
+            style={{
+              position: 'absolute',
+              top: '-5px',
+              right: '-5px',
+              background: '#5a735f', // forest green
+              color: 'white',
+              borderRadius: '8px',
+              minWidth: '14px',
+              height: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '8px',
+              fontWeight: '500',
+              border: 'none',
+              boxShadow: '0 1px 3px rgba(90, 115, 95, 0.4)',
+              zIndex: 1
+            }}
+          >
+            {count > 99 ? '99+' : count}
+          </div>
+        )}
       </div>
     </motion.div>
   );

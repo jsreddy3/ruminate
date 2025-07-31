@@ -85,7 +85,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       onClick: safeExecute(onAddToChat),
     },
     ...( onCreateRabbithole ? [{
-      label: 'Dive deeper',
+      label: 'Create chat',
       icon: <Search size={16} />,
       onClick: () => {
         if (onCreateRabbithole) {

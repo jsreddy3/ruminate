@@ -186,10 +186,54 @@ export default function PDFBlockOverlay({
               hasDefinitions={hasDefinitions}
               hasAnnotations={hasAnnotations}
               hasGeneratedNotes={hasGeneratedNotes}
-              conversationCount={conversationCount}
-              definitionCount={definitionCount}
-              annotationCount={annotationCount}
-              generatedNoteCount={generatedNoteCount}
+              conversationsData={block.metadata?.rabbithole_conversation_ids}
+              definitionsData={block.metadata?.definitions}
+              annotationsData={userAnnotations}
+              generatedNotesData={generatedNotes}
+              onConversationClick={(conversationId) => {
+                // First open the block
+                onBlockClick(block);
+                // Then simulate clicking the first rabbithole highlight after a delay
+                setTimeout(() => {
+                  const rabbitholeElement = document.querySelector('.rabbithole-highlight-clickable');
+                  if (rabbitholeElement) {
+                    (rabbitholeElement as HTMLElement).click();
+                  }
+                }, 500);
+              }}
+              onDefinitionClick={(key, definition) => {
+                // First open the block
+                onBlockClick(block);
+                // Then simulate clicking the first definition highlight after a delay
+                setTimeout(() => {
+                  const definitionElement = document.querySelector('.definition-highlight-clickable');
+                  if (definitionElement) {
+                    (definitionElement as HTMLElement).click();
+                  }
+                }, 500);
+              }}
+              onAnnotationClick={(annotation) => {
+                // First open the block
+                onBlockClick(block);
+                // Then simulate clicking the first annotation highlight after a delay
+                setTimeout(() => {
+                  const annotationElement = document.querySelector('.annotation-highlight-clickable');
+                  if (annotationElement) {
+                    (annotationElement as HTMLElement).click();
+                  }
+                }, 500);
+              }}
+              onGeneratedNoteClick={(note) => {
+                // First open the block
+                onBlockClick(block);
+                // Then simulate clicking the first generated note badge after a delay
+                setTimeout(() => {
+                  const generatedNoteElement = document.querySelector('button[title*="Generated note"], button svg[class*="lucide-lightbulb"]')?.closest('button');
+                  if (generatedNoteElement) {
+                    (generatedNoteElement as HTMLElement).click();
+                  }
+                }, 500);
+              }}
               position="top-right"
             />
           </motion.div>

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { documentApi } from '@/services/api/document';
 import { useAuth } from '@/contexts/AuthContext';
+import IconTestDialog from '@/components/pdf/IconTestDialog';
 
 const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
   ssr: false,
@@ -81,10 +82,13 @@ function ViewerContent() {
   }
 
   return (
-    <PDFViewer
-      initialPdfFile={pdfUrl}
-      initialDocumentId={documentId}
-    />
+    <>
+      <PDFViewer
+        initialPdfFile={pdfUrl}
+        initialDocumentId={documentId}
+      />
+      <IconTestDialog />
+    </>
   );
 }
 
