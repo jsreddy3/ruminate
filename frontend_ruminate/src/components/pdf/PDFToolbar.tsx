@@ -88,8 +88,8 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
         style={{
           transform: isCollapsed 
             ? 'scale(0.95)' 
-            : isHovered 
-              ? 'scale(1.15)' 
+            : isHovered || searchFocused
+              ? 'scale(1.2)' 
               : 'scale(1.0)'
         }}
         onMouseEnter={() => {

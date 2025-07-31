@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MessageSquare, Lightbulb } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BasePopover from '../../common/BasePopover';
+import MessageContentRenderer from '../../chat/messages/MessageContentRenderer';
 
 interface GeneratedNote {
   id: string;
@@ -126,45 +127,79 @@ const GeneratedNoteBadges: React.FC<GeneratedNoteBadgesProps> = ({
           onClose={() => setActiveNoteId(null)}
           draggable={true}
           resizable={true}
-          initialWidth={480}
-          initialHeight={360}
-          minWidth={320}
-          minHeight={240}
+          initialWidth={700}
+          initialHeight={500}
+          minWidth={500}
+          minHeight={350}
           title={
             <div className="flex items-center gap-2">
               <Lightbulb className="w-4 h-4 text-yellow-600" />
               <span className="text-yellow-900 truncate">
-                {activeNote.topic || 'Conversation Summary'}
+                {activeNote.topic || 'Conversation Insight'}
               </span>
             </div>
           }
           className="border-gray-200 shadow-2xl backdrop-blur-sm"
         >
           <div className="flex flex-col h-full">
-            {/* Content */}
-            <div className="p-4 flex-1 overflow-y-auto">
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {activeNote.note}
-              </p>
+            {/* Assistant Message Style Header */}
+            <div className="p-4 border-b border-library-sage-200/50">
+              <div className="flex items-center gap-3">
+                {/* Role icon with dramatic styling - matching assistant messages */}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-library-forest-400 to-library-forest-600 shadow-[0_0_15px_rgba(90,115,95,0.4)]">
+                  <Lightbulb className="w-5 h-5 text-library-cream-50" />
+                </div>
+                
+                {/* Ornate role title */}
+                <div className="flex flex-col">
+                  <div className="font-serif font-bold text-base text-library-forest-700">
+                    AI Reading Colleague
+                  </div>
+                  <div className="text-xs text-library-forest-600 font-serif italic">
+                    Generated Insight
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-b-lg">
-              <div className="flex items-center gap-3 text-xs">
+            {/* Content with Assistant Message Styling - Lightened Background */}
+            <div className="p-6 flex-1 overflow-y-auto relative"
+              style={{
+                background: `
+                  linear-gradient(135deg, rgba(90, 115, 95, 0.02) 0%, rgba(121, 135, 121, 0.01) 50%, rgba(254, 252, 247, 1) 100%),
+                  radial-gradient(circle at top left, rgba(249, 207, 95, 0.02) 0%, transparent 60%),
+                  radial-gradient(circle at bottom right, rgba(175, 95, 55, 0.02) 0%, transparent 60%)
+                `
+              }}
+            >
+              {/* Elegant border accent - matching assistant messages */}
+              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-gradient-to-b from-transparent via-library-forest-500 to-transparent"></div>
+              
+              <div className="pl-4">
+                <MessageContentRenderer content={activeNote.note} />
+              </div>
+            </div>
+
+            {/* Elegant Footer with Manuscript Styling */}
+            <div className="px-6 py-3 border-t border-library-sage-200/50 flex items-center justify-between bg-gradient-to-r from-surface-paper to-library-cream-100 rounded-b-lg">
+              <div className="flex items-center gap-4 text-xs">
                 {activeNote.message_count && (
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  <span className="bg-gradient-to-r from-library-forest-100 to-library-sage-100 text-library-forest-700 px-3 py-1.5 rounded-book border border-library-forest-200 font-serif">
                     {activeNote.message_count} messages
                   </span>
                 )}
-                <span>{new Date(activeNote.created_at).toLocaleDateString()}</span>
+                <span className="text-library-sage-600 font-serif italic">
+                  {new Date(activeNote.created_at).toLocaleDateString()}
+                </span>
               </div>
+              
               {activeNote.source_conversation_id && onViewConversation && (
                 <button
                   onClick={() => onViewConversation(activeNote.source_conversation_id!)}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs px-2 py-1 rounded hover:bg-blue-50"
+                  className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-library-forest-100 to-library-forest-200 hover:from-library-forest-200 hover:to-library-forest-300 text-library-forest-700 hover:text-library-forest-800 rounded-book transition-all duration-300 shadow-paper hover:shadow-book border border-library-forest-300 font-serif"
                 >
-                  <MessageSquare className="w-3 h-3" />
-                  View Chat
+                  <MessageSquare className="w-3 h-3 transition-transform group-hover:scale-110" />
+                  <span className="text-xs font-medium">View Conversation</span>
                 </button>
               )}
             </div>

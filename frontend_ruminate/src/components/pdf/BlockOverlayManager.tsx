@@ -103,6 +103,14 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     if (targetBlock) {
       setSelectedBlock(targetBlock);
       setIsBlockOverlayOpen(true);
+      
+      // After block opens, automatically click the generated note to show it
+      setTimeout(() => {
+        const generatedNoteElement = document.querySelector('button[title*="Generated note"], button svg[class*="lucide-lightbulb"]')?.closest('button');
+        if (generatedNoteElement) {
+          (generatedNoteElement as HTMLElement).click();
+        }
+      }, 800); // Slightly longer delay to ensure block overlay is fully rendered
     } else {
       console.error('Block not found:', blockId);
     }
