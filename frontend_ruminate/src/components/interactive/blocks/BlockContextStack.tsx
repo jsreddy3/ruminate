@@ -52,7 +52,7 @@ export default function BlockContextStack({
   
   
 
-  // Update transform when focused block changes
+  // Update scroll position when focused block changes
   useEffect(() => {
     const timer = setTimeout(() => {
       if (focusedBlockRef.current && containerRef.current) {
@@ -61,14 +61,17 @@ export default function BlockContextStack({
         
         // Get container height and focused block position
         const containerHeight = container.clientHeight;
-        const containerRect = container.getBoundingClientRect();
-        const blockRect = focusedBlock.getBoundingClientRect();
-        
-        // Calculate the block's position relative to the container's content
         const blockOffsetTop = focusedBlock.offsetTop;
         
-        // Calculate where we want the block to be (40% from top of viewport)
-        const targetPosition = containerHeight * 0.4;
+        // Calculate where we want the block to be
+        let targetPosition;
+        if (isFirstShowableTextBlock) {
+          // For first text block, position at top with small padding
+          targetPosition = 40;
+        } else {
+          // For other blocks, center at 40% from top
+          targetPosition = containerHeight * 0.4;
+        }
         
         // Scroll the container so the block appears at target position
         const scrollTarget = blockOffsetTop - targetPosition;
@@ -81,7 +84,7 @@ export default function BlockContextStack({
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [currentIndex, currentBlockId]);
+  }, [currentIndex, currentBlockId, isFirstShowableTextBlock]);
 
 
   if (blocks.length === 0) {
