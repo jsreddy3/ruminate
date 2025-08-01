@@ -112,7 +112,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
                 <SortIcon field="updated_at" />
               </div>
             </th>
-            <th className="w-12"></th>
+            <th className="w-20"></th>
           </tr>
         </thead>
         <tbody className="bg-surface-parchment divide-y divide-library-cream-300">

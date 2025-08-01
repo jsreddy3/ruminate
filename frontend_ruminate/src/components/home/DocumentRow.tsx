@@ -111,7 +111,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
 
   return (
     <tr 
-      className="hover:bg-surface-vellum cursor-pointer transition-colors group"
+      className="hover:bg-surface-vellum cursor-pointer transition-colors group relative"
       onClick={onClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -150,16 +150,6 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
                 <h3 className="text-lg font-serif font-medium text-reading-primary truncate">
                   {document.title}
                 </h3>
-                {/* Edit Button - right next to title */}
-                {isHovering && (
-                  <button
-                    onClick={handleEditClick}
-                    className="p-1 text-library-sage-400 hover:text-library-sage-600 transition-colors rounded-full hover:bg-library-sage-50 flex-shrink-0"
-                    title="Edit document name"
-                  >
-                    <PencilIcon className="w-3 h-3" />
-                  </button>
-                )}
                 {getStatusIcon()}
               </>
             )}
@@ -175,8 +165,8 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
         {formatDate(document.updated_at)}
       </td>
       
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-2">
+      <td className="px-6 py-4 relative">
+        <div className="flex items-center justify-end gap-2">
           {/* Process Button - shown for AWAITING_PROCESSING status */}
           {document.status === 'AWAITING_PROCESSING' && (
             <button
@@ -188,16 +178,38 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
             </button>
           )}
           
-          {/* Delete Button - shown on hover */}
-          {onDelete && isHovering && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && (
-            <button
-              onClick={handleDeleteClick}
-              className="p-1 text-library-sage-400 hover:text-library-mahogany-600 transition-colors rounded-full hover:bg-library-mahogany-50"
-              title="Delete document"
-            >
-              <TrashIcon className="w-4 h-4" />
-            </button>
-          )}
+          {/* Action buttons - positioned absolutely to prevent layout shift */}
+          <div className="absolute right-12 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+            {/* Edit Button */}
+            {!isEditing && (
+              <button
+                onClick={handleEditClick}
+                className={`p-1 transition-all rounded-full hover:bg-library-sage-50 ${
+                  isHovering 
+                    ? 'text-library-sage-400 hover:text-library-sage-600 opacity-100' 
+                    : 'text-transparent opacity-0 pointer-events-none'
+                }`}
+                title="Edit document name"
+              >
+                <PencilIcon className="w-3 h-3" />
+              </button>
+            )}
+            
+            {/* Delete Button */}
+            {onDelete && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && (
+              <button
+                onClick={handleDeleteClick}
+                className={`p-1 transition-all rounded-full hover:bg-library-mahogany-50 ${
+                  isHovering 
+                    ? 'text-library-sage-400 hover:text-library-mahogany-600 opacity-100' 
+                    : 'text-transparent opacity-0 pointer-events-none'
+                }`}
+                title="Delete document"
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           
           {/* Arrow Icon */}
           <svg
