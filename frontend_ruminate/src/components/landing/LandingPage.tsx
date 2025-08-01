@@ -15,6 +15,9 @@ export default function LandingPage() {
   const router = useRouter();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [currentSection, setCurrentSection] = useState(0);
+  const [viewedSections, setViewedSections] = useState<Set<number>>(new Set([0]));
+  const [sectionLocked, setSectionLocked] = useState(true);
+  const [scrollAttempted, setScrollAttempted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Update dimensions on mount and window resize
@@ -38,40 +41,104 @@ export default function LandingPage() {
     }
   }, [user, isLoading, router]);
 
+  // Lock section for 2 seconds on first view
+  useEffect(() => {
+    setSectionLocked(true);
+    setScrollAttempted(false); // Reset scroll attempt state
+    const timer = setTimeout(() => {
+      setSectionLocked(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [currentSection]);
+
   const scrollToSection = (index: number) => {
     const container = containerRef.current;
-    if (container) {
-      container.children[index].scrollIntoView({ behavior: 'smooth' });
+    if (container && !sectionLocked && index >= 0 && index <= 2) {
+      // Mark section as viewed
+      setViewedSections(prev => new Set([...prev, index]));
+      setCurrentSection(index);
+      
+      // Custom smooth scroll with controlled speed
+      const targetElement = container.children[index] as HTMLElement;
+      const targetPosition = targetElement.offsetTop;
+      const startPosition = container.scrollTop;
+      const distance = targetPosition - startPosition;
+      const duration = 1200; // 1.2 seconds for smooth scroll
+      let start: number | null = null;
+      
+      const animateScroll = (timestamp: number) => {
+        if (!start) start = timestamp;
+        const progress = timestamp - start;
+        const percentage = Math.min(progress / duration, 1);
+        
+        // Easing function for smooth deceleration
+        const easeInOutCubic = (t: number) => {
+          return t < 0.5 
+            ? 4 * t * t * t 
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        };
+        
+        container.scrollTop = startPosition + (distance * easeInOutCubic(percentage));
+        
+        if (percentage < 1) {
+          requestAnimationFrame(animateScroll);
+        }
+      };
+      
+      requestAnimationFrame(animateScroll);
     }
   };
 
-  // Track which section is in view
+  // Prevent all native scrolling - we handle everything manually
   useEffect(() => {
-    const handleScroll = () => {
-      const container = containerRef.current;
-      if (!container) return;
-      
-      const scrollPosition = container.scrollTop;
-      const sectionHeight = window.innerHeight;
-      const newSection = Math.round(scrollPosition / sectionHeight);
-      setCurrentSection(newSection);
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (!sectionLocked) {
+        if (e.deltaY > 0 && currentSection < 2) {
+          scrollToSection(currentSection + 1);
+        } else if (e.deltaY < 0 && currentSection > 0) {
+          scrollToSection(currentSection - 1);
+        }
+      } else if (currentSection === 1) {
+        // User tried to scroll on section 2 while locked
+        setScrollAttempted(true);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!sectionLocked) {
+        if ((e.key === 'ArrowDown' || e.key === 'PageDown') && currentSection < 2) {
+          e.preventDefault();
+          scrollToSection(currentSection + 1);
+        } else if ((e.key === 'ArrowUp' || e.key === 'PageUp') && currentSection > 0) {
+          e.preventDefault();
+          scrollToSection(currentSection - 1);
+        }
+      } else if (currentSection === 1 && (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'ArrowUp' || e.key === 'PageUp')) {
+        e.preventDefault();
+        setScrollAttempted(true);
+      }
     };
 
     const container = containerRef.current;
     if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        container.removeEventListener('wheel', handleWheel);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
     }
-  }, []);
+  }, [currentSection, sectionLocked]);
 
   return (
     <div 
       ref={containerRef}
-      className="relative h-screen overflow-y-auto snap-y snap-mandatory"
+      className="relative h-screen overflow-y-auto"
       style={{ 
-        scrollBehavior: 'smooth',
-        scrollSnapType: 'y mandatory',
-        overscrollBehavior: 'none'
+        overflow: 'hidden',
+        position: 'relative'
       }}
     >
       {/* Hero section - full screen */}
@@ -85,11 +152,11 @@ export default function LandingPage() {
         <ParticlesBackground dimensions={dimensions} />
 
         {/* Down arrow */}
-        {currentSection === 0 && (
+        {currentSection === 0 && !sectionLocked && (
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 3 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
             onClick={() => scrollToSection(1)}
             className="absolute bottom-8 left-1/2 -translate-x-1/2 text-reading-muted hover:text-reading-primary transition-colors"
           >
@@ -110,16 +177,16 @@ export default function LandingPage() {
       </section>
 
       {/* Word jumble section - full screen */}
-      <section className="relative h-screen snap-start flex items-center justify-center">
-        <WordJumble />
+      <section className="relative h-screen flex items-center justify-center">
+        <WordJumble speedUp={scrollAttempted && currentSection === 1} />
         
         {/* Navigation arrows */}
-        {currentSection === 1 && (
+        {currentSection === 1 && !sectionLocked && (
           <>
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.8 }}
+              transition={{ duration: 0.5 }}
               onClick={() => scrollToSection(0)}
               className="absolute top-8 left-1/2 -translate-x-1/2 text-reading-muted hover:text-reading-primary transition-colors z-20"
             >
@@ -140,7 +207,7 @@ export default function LandingPage() {
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.8 }}
+              transition={{ duration: 0.5 }}
               onClick={() => scrollToSection(2)}
               className="absolute bottom-8 left-1/2 -translate-x-1/2 text-reading-muted hover:text-reading-primary transition-colors z-20"
             >
@@ -162,15 +229,15 @@ export default function LandingPage() {
       </section>
 
       {/* App previews section - full screen */}
-      <section className="relative h-screen snap-start flex items-center justify-center">
+      <section className="relative h-screen flex items-center justify-center">
         <AppPreviews />
         
         {/* Up arrow only */}
-        {currentSection === 2 && (
+        {currentSection === 2 && !sectionLocked && (
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 1 }}
+            transition={{ duration: 0.5 }}
             onClick={() => scrollToSection(1)}
             className="absolute top-8 left-1/2 -translate-x-1/2 text-reading-muted hover:text-reading-primary transition-colors z-20"
           >

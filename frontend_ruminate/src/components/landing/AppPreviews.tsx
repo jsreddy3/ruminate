@@ -106,7 +106,7 @@ export default function AppPreviews() {
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.6, delay: 2.0 }}
+              transition={{ duration: 0.6, delay: 3.0 }}
             >
               <div className="transform scale-[1.5]">
                 <AuthButton />

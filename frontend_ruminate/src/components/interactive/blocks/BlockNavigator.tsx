@@ -113,9 +113,9 @@ export default function BlockNavigator({
   const currentBlock = blocks[currentIndex];
   
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Enhanced header with progress bar */}
-      <div className="border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 p-6">
+      <div className="border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 p-6 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="w-3 h-3 rounded-full bg-library-gold-400 shadow-sm"></div>
@@ -182,8 +182,8 @@ export default function BlockNavigator({
       <div className="flex-1 overflow-hidden relative flex flex-col">
         {viewMode === 'traditional' ? (
           // Traditional linear view
-          <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-auto p-4 min-h-0">
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
               <div className="border border-gray-100 rounded-md p-2 bg-white">
                 <BlockContainer
                   key={currentBlock.id}
@@ -205,7 +205,7 @@ export default function BlockNavigator({
             </div>
             
             {/* Traditional navigation controls */}
-            <div className="relative h-20 border-t border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50">
+            <div className="relative h-20 border-t border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 flex-shrink-0">
               <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center gap-3">
                 <BlockNavigatorPill
                   currentIndex={currentIndex}

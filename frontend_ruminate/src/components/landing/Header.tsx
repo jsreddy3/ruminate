@@ -7,8 +7,7 @@ export default function Header() {
   
   const words = [
     { text: 'students', className: 'font-iowan' },
-    { text: 'lawyers', className: 'font-iowan' },
-    { text: 'professors', className: 'font-iowan' },
+    { text: 'teachers', className: 'font-iowan' },
     { text: 'writers', className: 'font-iowan' },
     { text: 'readers', className: 'font-iowan italic' }, // Special font for 'readers'
   ];
@@ -25,7 +24,7 @@ export default function Header() {
         }
         return nextIndex;
       });
-    }, 2000); // Change word every 2 seconds
+    }, 1300); // Change word every 2 seconds
 
     return () => clearInterval(interval);
   }, [hasReachedEnd]);

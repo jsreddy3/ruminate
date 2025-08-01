@@ -3,7 +3,11 @@
 import { motion, useInView } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 
-export default function WordJumble() {
+interface WordJumbleProps {
+  speedUp?: boolean;
+}
+
+export default function WordJumble({ speedUp = false }: WordJumbleProps) {
   const [spotlightX, setSpotlightX] = useState(50);
   const containerRef = useRef(null);
   const isInView = useInView(containerRef, { once: true, amount: 0.3 });
@@ -77,7 +81,7 @@ export default function WordJumble() {
           x: ["0%", "10%", "-10%", "0%"],
         }}
         transition={{
-          duration: 8,
+          duration: speedUp ? 2 : 8,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -124,11 +128,11 @@ export default function WordJumble() {
                   y: Math.cos(index * 0.7) * 100,
                 } : { opacity: 0, scale: 0.8 }}
                 transition={{
-                  duration: 10 + index * 2,
+                  duration: speedUp ? 2 + index * 0.5 : 10 + index * 2,
                   repeat: Infinity,
                   repeatType: "reverse",
                   ease: "easeInOut",
-                  delay: 0.8 + index * 0.1,
+                  delay: speedUp ? 0.1 : 0.8 + index * 0.1,
                 }}
                 className={`absolute ${word.size} ${word.color} font-iowan italic opacity-70`}
                 style={{
@@ -144,6 +148,21 @@ export default function WordJumble() {
             
             {/* Central blur effect */}
             <div className="absolute inset-0 bg-gradient-radial from-transparent via-surface-paper/50 to-transparent pointer-events-none" />
+            
+            {/* Speed up indicator */}
+            {speedUp && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-16 h-16 border-4 border-library-gold-400/40 border-t-library-gold-400 rounded-full"
+                />
+              </motion.div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -152,7 +171,7 @@ export default function WordJumble() {
         <motion.h3
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.8, delay: 1.6 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
           className="text-3xl md:text-4xl font-sans font-light text-center text-library-cream-100 mt-12"
         >
           but can't finish this page?
