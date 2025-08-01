@@ -142,12 +142,12 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
                 onClick={(e) => e.stopPropagation()}
                 onBlur={handleSaveTitle}
                 disabled={isSaving}
-                className="text-sm font-serif font-medium text-reading-primary bg-surface-paper border border-library-cream-300 rounded-book px-2 py-1 focus:outline-none focus:ring-2 focus:ring-library-mahogany-500 focus:border-library-mahogany-500 flex-1"
+                className="text-lg font-serif font-medium text-reading-primary bg-surface-paper border border-library-cream-300 rounded-book px-2 py-1 focus:outline-none focus:ring-2 focus:ring-library-mahogany-500 focus:border-library-mahogany-500 flex-1"
                 autoFocus
               />
             ) : (
               <>
-                <h3 className="text-sm font-serif font-medium text-reading-primary truncate">
+                <h3 className="text-lg font-serif font-medium text-reading-primary truncate">
                   {document.title}
                 </h3>
                 {/* Edit Button - right next to title */}
@@ -167,11 +167,11 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
         </div>
       </td>
       
-      <td className="px-6 py-4 text-sm text-reading-secondary font-serif">
+      <td className="px-6 py-4 text-lg text-reading-secondary font-serif">
         {formatDate(document.created_at)}
       </td>
       
-      <td className="px-6 py-4 text-sm text-reading-secondary font-serif">
+      <td className="px-6 py-4 text-lg text-reading-secondary font-serif">
         {formatDate(document.updated_at)}
       </td>
       
@@ -181,7 +181,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           {document.status === 'AWAITING_PROCESSING' && (
             <button
               onClick={handleProcessClick}
-              className="px-3 py-1 text-xs font-medium text-white bg-library-sage-600 hover:bg-library-sage-700 rounded-book transition-colors"
+              className="px-3 py-1 text-base font-medium text-white bg-library-sage-600 hover:bg-library-sage-700 rounded-book transition-colors"
               title="Start processing this chunk"
             >
               Process

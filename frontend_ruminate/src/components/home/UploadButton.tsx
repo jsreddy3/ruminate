@@ -68,7 +68,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
     <>
       <motion.button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center px-3 py-1.5 bg-library-mahogany-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-library-mahogany-600 transition-colors whitespace-nowrap"
+        className="inline-flex items-center px-3 py-1.5 bg-library-mahogany-500 text-white text-lg font-medium rounded-md shadow-sm hover:bg-library-mahogany-600 transition-colors whitespace-nowrap"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
@@ -186,16 +186,16 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                           />
                         </svg>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-lg text-gray-600">
                           Click to upload or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500">PDF files only</p>
+                        <p className="text-base text-gray-500">PDF files only</p>
                       </div>
                     </>
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <label htmlFor="url-input" className="block text-sm font-medium text-gray-700 mb-2">
+                        <label htmlFor="url-input" className="block text-lg font-medium text-gray-700 mb-2">
                           Enter URL to convert
                         </label>
                         <input
@@ -221,7 +221,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                           Generate
                         </button>
                         <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-blue-100 border border-blue-300">
-                          <span className="text-sm font-semibold text-blue-700">
+                          <span className="text-lg font-semibold text-blue-700">
                             BETA FEATURE
                           </span>
                         </div>

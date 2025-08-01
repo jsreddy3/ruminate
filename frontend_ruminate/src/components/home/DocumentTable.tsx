@@ -89,7 +89,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               className="px-6 py-3 text-left cursor-pointer hover:bg-surface-aged transition-colors"
               onClick={() => handleSort('title')}
             >
-              <div className="flex items-center gap-2 text-sm font-medium text-reading-muted uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-lg font-medium text-reading-muted uppercase tracking-wider">
                 Name
                 <SortIcon field="title" />
               </div>
@@ -98,7 +98,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               className="px-6 py-3 text-left cursor-pointer hover:bg-surface-aged transition-colors"
               onClick={() => handleSort('created_at')}
             >
-              <div className="flex items-center gap-2 text-sm font-medium text-reading-muted uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-lg font-medium text-reading-muted uppercase tracking-wider">
                 Created
                 <SortIcon field="created_at" />
               </div>
@@ -107,7 +107,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               className="px-6 py-3 text-left cursor-pointer hover:bg-surface-aged transition-colors"
               onClick={() => handleSort('updated_at')}
             >
-              <div className="flex items-center gap-2 text-sm font-medium text-reading-muted uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-lg font-medium text-reading-muted uppercase tracking-wider">
                 Updated
                 <SortIcon field="updated_at" />
               </div>
