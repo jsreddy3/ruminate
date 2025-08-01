@@ -33,6 +33,7 @@ interface BlockRendererProps {
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onTextSelectionForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -53,6 +54,7 @@ export default function BlockRenderer({
   onRabbitholeClick,
   onCreateRabbithole,
   onUpdateBlockMetadata,
+  onTextSelectionForOnboarding,
   customStyle
 }: BlockRendererProps) {
   const type = blockType.toLowerCase();
@@ -124,6 +126,7 @@ export default function BlockRenderer({
             onRabbitholeClick={onRabbitholeClick}
             onCreateRabbithole={onCreateRabbithole}
             onUpdateBlockMetadata={onUpdateBlockMetadata}
+            onTextSelectionForOnboarding={onTextSelectionForOnboarding}
             customStyle={customStyle}
           />
         );

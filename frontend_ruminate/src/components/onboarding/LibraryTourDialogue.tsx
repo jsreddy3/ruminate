@@ -85,7 +85,7 @@ export const LibraryTourDialogue: React.FC<LibraryTourDialogueProps> = ({
                     <div className="flex-1">
                       <p className="text-library-mahogany/90 font-iowan font-medium leading-relaxed text-[16px] tracking-wide"
                          style={{ fontFamily: '"Iowan Old Style", Georgia, serif' }}>
-                        Click here to enter the document viewer!
+                        Click your document to enter a focused view.
                       </p>
                     </div>
                   </div>

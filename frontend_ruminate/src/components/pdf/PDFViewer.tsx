@@ -33,6 +33,7 @@ import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker
 import GlossaryView from "../interactive/blocks/GlossaryView";
 import AnnotationsView from "../interactive/blocks/AnnotationsView";
 import BasePopover from "../common/BasePopover";
+import { TextSelectionTourDialogue } from "../onboarding/TextSelectionTourDialogue";
 
 export interface Block {
   id: string;
@@ -123,7 +124,7 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const router = useRouter();
-  const { state: onboardingState, nextStep, markWelcomeComplete } = useOnboarding();
+  const { state: onboardingState, nextStep, markWelcomeComplete, markTextSelectionComplete } = useOnboarding();
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   const [documentTitle, setDocumentTitle] = useState<string>('');
@@ -632,6 +633,15 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [onboardingState.isActive, onboardingState.currentStep, flattenedBlocks, onboardingTargetBlockId, scrollToBlock]);
 
+  // Handle text selection during onboarding step 4
+  const handleTextSelectionForOnboarding = useCallback(() => {
+    if (onboardingState.isActive && onboardingState.currentStep === 4) {
+      // User has successfully selected text - complete onboarding after a short delay
+      setTimeout(() => {
+        markTextSelectionComplete();
+      }, 1500); // Give them time to see the tooltip appear
+    }
+  }, [onboardingState.isActive, onboardingState.currentStep, markTextSelectionComplete]);
 
   // Block Overlay Manager - handles block selection and interactions
   const blockOverlayManager = useBlockOverlayManager({
@@ -654,6 +664,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onSetBlockSelectionComplete: setOnBlockSelectionComplete,
     onHandleRabbitholeCreated: handleRabbitholeCreated,
     onAddRabbitholeConversation: addRabbitholeConversation,
+    onTextSelectionForOnboarding: onboardingState.isActive && onboardingState.currentStep === 4 ? handleTextSelectionForOnboarding : undefined,
     refreshRabbitholesFnRef,
     onScrollToBlock: scrollToBlock,
   });
@@ -1077,7 +1088,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                                       <p className="text-reading-secondary text-sm leading-relaxed">
                                         {pdfFile.startsWith('data:application/pdf;base64,') 
                                           ? `Processing ${((pdfFile.length * 0.75) / (1024 * 1024)).toFixed(1)}MB manuscript for scholarly review...`
-                                          : 'Retrieving manuscript from the archives...'
+                                          : 'Retrieving manuscript from the library...'
                                         }
                                       </p>
                                     </div>
@@ -1286,6 +1297,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </button>
         </div>
       </BasePopover>
+
+      {/* Text Selection Onboarding Tour - Step 4 */}
+      <TextSelectionTourDialogue
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 4}
+        onComplete={() => markTextSelectionComplete()}
+        position={{ top: '25%', left: '25%' }}
+      />
     </MathJaxProvider>
   );
 }

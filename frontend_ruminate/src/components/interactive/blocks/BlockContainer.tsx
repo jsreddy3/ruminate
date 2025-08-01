@@ -28,6 +28,7 @@ interface BlockContainerProps {
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onTextSelectionForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -49,6 +50,7 @@ export default function BlockContainer({
   onCreateRabbithole,
   onRefreshRabbitholes,
   onUpdateBlockMetadata,
+  onTextSelectionForOnboarding,
   customStyle
 }: BlockContainerProps) {
   // No-op refetch function for backwards compatibility
@@ -79,6 +81,7 @@ export default function BlockContainer({
       onRabbitholeClick={onRabbitholeClick}
       onCreateRabbithole={onCreateRabbithole}
       onUpdateBlockMetadata={onUpdateBlockMetadata}
+      onTextSelectionForOnboarding={onTextSelectionForOnboarding}
       customStyle={customStyle}
     />
   );

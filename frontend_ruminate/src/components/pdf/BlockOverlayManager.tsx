@@ -40,6 +40,9 @@ interface BlockOverlayManagerProps {
   onHandleRabbitholeCreated: (conversationId: string, selectedText: string, blockId: string) => void;
   onAddRabbitholeConversation: (blockId: string, conversationId: string, selectedText: string, startOffset: number, endOffset: number) => void;
   
+  // Onboarding
+  onTextSelectionForOnboarding?: () => void;
+  
   // PDF Integration
   refreshRabbitholesFnRef: React.MutableRefObject<(() => void) | null>;
   onScrollToBlock?: (block: Block) => void;
@@ -80,6 +83,7 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     onSetBlockSelectionComplete,
     onHandleRabbitholeCreated,
     onAddRabbitholeConversation,
+    onTextSelectionForOnboarding,
     refreshRabbitholesFnRef,
     onScrollToBlock,
   } = props;
@@ -213,6 +217,7 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       onRabbitholeClick={handleRabbitholeClick}
       onCreateRabbithole={handleCreateRabbithole}
       onSwitchToMainChat={() => onSetActiveConversationId(null)}
+      onTextSelectionForOnboarding={onTextSelectionForOnboarding}
       mainConversationId={mainConversationId ?? undefined}
     />
   );

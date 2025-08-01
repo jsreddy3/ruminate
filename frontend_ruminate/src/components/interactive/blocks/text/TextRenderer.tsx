@@ -55,6 +55,7 @@ interface TextRendererProps {
     insight: string;
   }>;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onTextSelectionForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -70,6 +71,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   rabbitholeHighlights = [],
   getBlockClassName,
   onUpdateBlockMetadata,
+  onTextSelectionForOnboarding,
   customStyle
 }) => {
   // Use metadata directly from props - no local state needed
@@ -130,6 +132,11 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setSelectedText(text);
     setTooltipPosition(position);
     setTooltipVisible(true);
+    
+    // Trigger onboarding callback if provided (for step 4)
+    if (onTextSelectionForOnboarding) {
+      onTextSelectionForOnboarding();
+    }
     
     // Calculate text offsets for the selected text
     if (contentRef.current) {

@@ -17,6 +17,7 @@ interface BlockNavigatorProps {
   onAddTextToChat?: (text: string) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onSwitchToMainChat?: () => void;
+  onTextSelectionForOnboarding?: () => void;
   mainConversationId?: string;
 }
 
@@ -32,6 +33,7 @@ export default function BlockNavigator({
   onAddTextToChat,
   onUpdateBlockMetadata,
   onSwitchToMainChat,
+  onTextSelectionForOnboarding,
   mainConversationId
 }: BlockNavigatorProps) {
   // Track current index
@@ -200,6 +202,7 @@ export default function BlockNavigator({
                   onRabbitholeClick={onRabbitholeClick}
                   onCreateRabbithole={onCreateRabbithole}
                   onUpdateBlockMetadata={onUpdateBlockMetadata}
+                  onTextSelectionForOnboarding={onTextSelectionForOnboarding}
                 />
               </div>
             </div>

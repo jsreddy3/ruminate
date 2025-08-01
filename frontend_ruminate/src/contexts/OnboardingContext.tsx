@@ -7,6 +7,7 @@ interface OnboardingState {
   currentStep: number;
   hasSeenWelcome: boolean;
   hasSeenPDFTour: boolean;
+  hasSeenTextSelection: boolean;
   isWelcomeModalOpen: boolean;
   showLibraryInstructions: boolean;
 }
@@ -17,6 +18,7 @@ interface OnboardingContextType {
   nextStep: () => void;
   skipOnboarding: () => void;
   markWelcomeComplete: () => void;
+  markTextSelectionComplete: () => void;
   openWelcomeModal: () => void;
   closeWelcomeModal: () => void;
   setStep: (step: number) => void;
@@ -32,6 +34,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     currentStep: 0,
     hasSeenWelcome: false,
     hasSeenPDFTour: false,
+    hasSeenTextSelection: false,
     isWelcomeModalOpen: false,
     showLibraryInstructions: false,
   });
@@ -46,6 +49,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           ...prev,
           hasSeenWelcome: parsedState.hasSeenWelcome || false,
           hasSeenPDFTour: parsedState.hasSeenPDFTour || false,
+          hasSeenTextSelection: parsedState.hasSeenTextSelection || false,
         }));
       }
     } catch (error) {
@@ -99,6 +103,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     saveState({ hasSeenWelcome: true });
   }, []);
 
+  const markTextSelectionComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      hasSeenTextSelection: true,
+      isActive: false, // Complete onboarding
+    }));
+    saveState({ hasSeenTextSelection: true });
+  }, []);
+
   const openWelcomeModal = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -128,6 +141,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         nextStep,
         skipOnboarding,
         markWelcomeComplete,
+        markTextSelectionComplete,
         openWelcomeModal,
         closeWelcomeModal,
         setStep,

@@ -18,6 +18,7 @@ interface BlockOverlayProps {
   onRabbitholeClick: (rabbitholeId: string, selectedText: string) => void;
   onCreateRabbithole: (text: string, startOffset: number, endOffset: number) => void;
   onSwitchToMainChat?: () => void;
+  onTextSelectionForOnboarding?: () => void;
   mainConversationId?: string | undefined;
 }
 
@@ -36,6 +37,7 @@ export default function BlockOverlay({
   onRabbitholeClick,
   onCreateRabbithole,
   onSwitchToMainChat,
+  onTextSelectionForOnboarding,
   mainConversationId
 }: BlockOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -119,6 +121,7 @@ export default function BlockOverlay({
                     onRabbitholeClick={onRabbitholeClick}
                     onCreateRabbithole={onCreateRabbithole}
                     onSwitchToMainChat={onSwitchToMainChat}
+                    onTextSelectionForOnboarding={onTextSelectionForOnboarding}
                     mainConversationId={mainConversationId}
                   />
                 </div>
