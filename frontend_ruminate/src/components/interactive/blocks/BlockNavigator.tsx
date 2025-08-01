@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import BlockContainer from './BlockContainer';
 import BlockNavigatorPill from './BlockNavigatorPill';
 import GeneratedNoteBadges from './GeneratedNoteBadges';
@@ -58,7 +58,7 @@ export default function BlockNavigator({
   }, [blocks, currentIndex]);
   
   // Handle navigation
-  const goToNextBlock = () => {
+  const goToNextBlock = useCallback(() => {
     if (currentIndex < blocks.length - 1) {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
@@ -66,9 +66,9 @@ export default function BlockNavigator({
         onBlockChange(blocks[newIndex]);
       }
     }
-  };
+  }, [currentIndex, blocks.length, blocks, onBlockChange]);
   
-  const goToPrevBlock = () => {
+  const goToPrevBlock = useCallback(() => {
     if (currentIndex > 0) {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
@@ -76,7 +76,7 @@ export default function BlockNavigator({
         onBlockChange(blocks[newIndex]);
       }
     }
-  };
+  }, [currentIndex, blocks, onBlockChange]);
 
   // Add keyboard navigation
   useEffect(() => {
@@ -98,7 +98,7 @@ export default function BlockNavigator({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentIndex, blocks.length]); // Re-bind when currentIndex or blocks change
+  }, [goToPrevBlock, goToNextBlock]); // Include the functions in dependencies
   
   // If no blocks available, show empty state
   if (blocks.length === 0) {
