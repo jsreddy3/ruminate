@@ -119,7 +119,7 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
     <div className={`h-full bg-gradient-to-b from-surface-paper to-library-cream-50 ${className}`}>
       {/* Glossary Header */}
       <div className="sticky top-0 z-10 bg-surface-paper/95 backdrop-blur-sm border-b border-library-gold-200 p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full max-w-none px-4">
           <div className="flex items-center gap-3 mb-4">
             <Book className="text-library-gold-600" size={28} />
             <h1 className="text-2xl font-serif text-reading-primary">Document Glossary</h1>
@@ -132,13 +132,18 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search Bar */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-reading-muted" size={16} />
+              <Search 
+                className="absolute top-1/2 transform -translate-y-1/2 text-reading-muted" 
+                style={{ left: '12px' }}
+                size={16} 
+              />
               <input
                 type="text"
                 placeholder="Search terms and definitions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-library-sage-200 rounded-paper focus:outline-none focus:ring-2 focus:ring-library-gold-400 focus:border-transparent bg-white text-reading-primary font-serif"
+                className="w-full pr-4 py-2 border border-library-sage-200 rounded-paper focus:outline-none focus:ring-2 focus:ring-library-gold-400 focus:border-transparent bg-white text-reading-primary font-serif"
+                style={{ paddingLeft: '40px' }}
               />
             </div>
 
@@ -174,7 +179,7 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
 
       {/* Glossary Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full max-w-none px-4">
           {filteredAndSortedEntries.length === 0 ? (
             <div className="text-center py-12">
               <Book className="mx-auto text-library-sage-400 mb-4" size={48} />

@@ -12,6 +12,8 @@ interface PDFToolbarProps {
   onSearch?: (query: string) => void;
   onResumeReading?: () => void;
   hasReadingProgress?: boolean;
+  viewMode?: 'pdf' | 'glossary' | 'annotations';
+  onViewModeChange?: (mode: 'pdf' | 'glossary' | 'annotations') => void;
 }
 
 const PDFToolbar: React.FC<PDFToolbarProps> = ({
@@ -25,12 +27,15 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
   onSearch,
   onResumeReading,
   hasReadingProgress,
+  viewMode = 'pdf',
+  onViewModeChange,
 }) => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchFocused, setSearchFocused] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = React.useState(false);
   
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

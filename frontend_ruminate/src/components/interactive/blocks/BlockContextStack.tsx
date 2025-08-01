@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
 
@@ -32,6 +32,114 @@ export default function BlockContextStack({
   
   // Find current block index
   const currentIndex = blocks.findIndex(block => block.id === currentBlockId);
+  
+  // Refs for container and focused block
+  const containerRef = useRef<HTMLDivElement>(null);
+  const focusedBlockRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate transform to keep focused block at consistent position
+  const [contentTransform, setContentTransform] = useState<string>('translateY(0px)');
+  
+  // Dynamic block range based on container height
+  const [visibleBlockRange, setVisibleBlockRange] = useState(2); // Default to showing 2 blocks before/after
+  
+  // Calculate optimal block range based on container height
+  const calculateOptimalBlockRange = useMemo(() => {
+    if (!containerRef.current) return 2;
+    
+    const containerHeight = containerRef.current.clientHeight;
+    const minHeight = 400; // Minimum height threshold
+    const maxHeight = 800; // Maximum height threshold
+    
+    // Calculate range based on available height
+    if (containerHeight < minHeight) {
+      return 1; // Show fewer blocks when space is limited
+    } else if (containerHeight > maxHeight) {
+      return 3; // Show more blocks when we have lots of space
+    } else {
+      return 2; // Default range
+    }
+  }, [containerRef.current?.clientHeight]);
+  
+  // Update block range based on container height
+  useEffect(() => {
+    const updateBlockRange = () => {
+      const newRange = calculateOptimalBlockRange;
+      setVisibleBlockRange(newRange);
+    };
+    
+    // Initial calculation
+    updateBlockRange();
+    
+    // Recalculate on resize
+    const resizeObserver = new ResizeObserver(updateBlockRange);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    
+    return () => resizeObserver.disconnect();
+  }, [calculateOptimalBlockRange]);
+
+  // Update transform when focused block changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (focusedBlockRef.current && containerRef.current) {
+        const container = containerRef.current;
+        const focusedBlock = focusedBlockRef.current;
+        
+        // Target position: 30% from top of viewport
+        const containerHeight = container.clientHeight;
+        const targetPosition = containerHeight * 0.3;
+        
+        // Get focused block's current position
+        const blockTop = focusedBlock.offsetTop;
+        
+        // Calculate how much to translate content to put focused block at target position
+        const translateY = targetPosition - blockTop;
+        
+        console.log('Transform calculation:', {
+          containerHeight,
+          targetPosition,
+          blockTop,
+          translateY,
+          visibleBlockRange
+        });
+        
+        setContentTransform(`translateY(${translateY}px)`);
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [currentIndex, currentBlockId, visibleBlockRange]);
+
+  // Add keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return; // Don't interfere with form inputs
+      }
+      
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const direction = e.key === 'ArrowUp' ? -1 : 1;
+        const nextIndex = currentIndex + direction;
+        
+        if (nextIndex >= 0 && nextIndex < blocks.length) {
+          onBlockChange(blocks[nextIndex]);
+        }
+      }
+    };
+
+    // Only add listener when container is focused or contains focused element
+    if (containerRef.current) {
+      containerRef.current.addEventListener('keydown', handleKeyDown);
+      return () => {
+        if (containerRef.current) {
+          containerRef.current.removeEventListener('keydown', handleKeyDown);
+        }
+      };
+    }
+  }, [currentIndex, blocks, onBlockChange]);
 
   if (blocks.length === 0) {
     return (
@@ -47,55 +155,52 @@ export default function BlockContextStack({
     currentIndex, 
     currentBlockId 
   });
+  
 
   return (
-    <div className={`h-full bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto ${className}`}>
-      {/* Show 5 blocks: 2 before, current, 2 after - for natural reading flow */}
-      <div className="py-8 px-6 space-y-6 max-w-4xl mx-auto">
-        {[-2, -1, 0, 1, 2].map(offset => {
+    <div 
+      ref={containerRef}
+      tabIndex={0}
+      className={`bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden focus:outline-none ${className}`}
+      style={{ 
+        height: '100%',
+        minHeight: '300px',  // Ensure minimum space for at least current block
+        maxHeight: '90vh'    // Limit maximum height to 90% of viewport
+      }}>
+      {/* Content area that gets transformed to keep focused block at consistent position */}
+      <div 
+        className="py-6 px-4 space-y-4 w-full transition-transform duration-500 ease-out min-h-full"
+        style={{ 
+          transform: contentTransform,
+          overflowX: 'hidden'
+        }}
+      >
+        {Array.from({ length: visibleBlockRange * 2 + 1 }, (_, i) => i - visibleBlockRange).map(offset => {
           const blockIndex = currentIndex + offset;
           if (blockIndex < 0 || blockIndex >= blocks.length) return null;
           
           const block = blocks[blockIndex];
           const isCurrent = offset === 0;
-          const opacity = isCurrent ? 1.0 : offset === -1 || offset === 1 ? 0.7 : 0.5;
+          const opacity = isCurrent ? 1.0 : Math.abs(offset) === 1 ? 0.7 : 0.5;
           
           console.log('Rendering block:', { offset, blockIndex, blockId: block.id, isCurrent });
           
           return (
             <div
               key={block.id}
+              ref={isCurrent ? focusedBlockRef : undefined}
               className={`transition-all duration-300 cursor-pointer rounded-journal border ${
                 isCurrent 
                   ? 'bg-surface-paper border-library-gold-300 shadow-book' 
                   : 'bg-surface-parchment border-library-sage-200 hover:border-library-gold-200 hover:shadow-paper'
-              }`}
-              style={{ opacity }}
+              } w-full overflow-hidden`}
+              style={{ 
+                opacity
+              }}
               onClick={() => onBlockChange(block)}
             >
-              {/* Block header */}
-              <div className="flex items-center justify-between p-4 border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    isCurrent ? 'bg-library-gold-400' : 'bg-library-sage-400'
-                  }`} />
-                  <span className="text-sm font-serif text-reading-secondary">
-                    {block.block_type}
-                  </span>
-                  {isCurrent && (
-                    <span className="text-xs bg-library-gold-100 text-reading-accent px-2 py-1 rounded-paper font-serif">
-                      Currently Reading
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-reading-muted font-serif">
-                  Block {blockIndex + 1} of {blocks.length}
-                  {block.page_number && ` • Page ${block.page_number}`}
-                </div>
-              </div>
-
               {/* Block content using the same renderer as linear view */}
-              <div className="p-6">
+              <div className="p-4">
                 <BlockContainer
                   key={block.id}
                   blockId={block.id}
@@ -119,25 +224,13 @@ export default function BlockContextStack({
                   onCreateRabbithole={onCreateRabbithole}
                   onUpdateBlockMetadata={onUpdateBlockMetadata}
                 />
-                
-                {/* Navigation hint for context blocks */}
-                {!isCurrent && (
-                  <div className="mt-4 pt-3 border-t border-library-sage-200 flex items-center justify-between">
-                    <span className="text-xs text-reading-muted font-serif">
-                      Click to focus this block
-                    </span>
-                    <span className="text-xs text-reading-muted font-serif">
-                      {offset > 0 ? '↓ Next' : '↑ Previous'}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Reading position indicator */}
+      {/* Reading position indicator with scroll hint */}
       <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-surface-parchment/95 backdrop-blur-sm px-4 py-2 rounded-book shadow-paper border border-library-gold-200">
         <div className="flex items-center gap-4 text-sm text-reading-secondary">
           <div className="flex items-center gap-1">

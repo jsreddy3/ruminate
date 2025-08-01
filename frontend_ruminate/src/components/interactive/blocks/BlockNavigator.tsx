@@ -138,7 +138,7 @@ export default function BlockNavigator({
               }`}
               title="Traditional linear view"
             >
-              📄 Linear
+              📄 Single
             </button>
             <button
               onClick={() => {
@@ -213,7 +213,7 @@ export default function BlockNavigator({
           </>
         ) : (
           // Contextual stack view
-          <div className="h-full bg-red-200">
+          <div className="h-full">
             <BlockContextStack
               blocks={blocks}
               currentBlockId={currentBlock.id}

@@ -30,6 +30,8 @@ import MainConversationButton from "../chat/MainConversationButton";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
 import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
 import GlossaryView from "../interactive/blocks/GlossaryView";
+import AnnotationsView from "../interactive/blocks/AnnotationsView";
+import BasePopover from "../common/BasePopover";
 
 export interface Block {
   id: string;
@@ -175,8 +177,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(0);
   
-  // Add state for view mode (PDF or Glossary)
-  const [viewMode, setViewMode] = useState<'pdf' | 'glossary'>('pdf');
+  // Add state for view mode (PDF, Glossary, or Annotations)
+  const [viewMode, setViewMode] = useState<'pdf' | 'glossary' | 'annotations'>('pdf');
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
+  const [viewDropdownPosition, setViewDropdownPosition] = useState({ x: 0, y: 0 });
   
   // Add state for pending text to be added to chat
   const [pendingChatText, setPendingChatText] = useState<string>('');
@@ -819,18 +823,47 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             {/* Elegant divider */}
             <div className="w-px h-5 bg-gradient-to-b from-transparent via-library-sage-300 to-transparent opacity-60"></div>
             
-            {/* Document title with scholarly styling */}
-            <div className="flex-1 min-w-0">
-              <h1 className="font-serif text-lg font-semibold text-reading-primary truncate tracking-wide">
-                {documentTitle || (
-                  <span className="animate-pulse text-reading-muted">Loading manuscript...</span>
-                )}
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-2 h-2 rounded-full bg-library-gold-400 opacity-60"></div>
-                <span className="text-xs font-sans text-reading-muted uppercase tracking-wider">
-                  Research Document
-                </span>
+            {/* Document title with view mode dropdown */}
+            <div className="flex-1 min-w-0 flex items-center gap-6">
+              <div className="min-w-0">
+                <h1 className="font-serif text-lg font-semibold text-reading-primary truncate tracking-wide">
+                  {documentTitle || (
+                    <span className="animate-pulse text-reading-muted">Loading manuscript...</span>
+                  )}
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-2 h-2 rounded-full bg-library-gold-400 opacity-60"></div>
+                  <span className="text-xs font-sans text-reading-muted uppercase tracking-wider">
+                    Research Document
+                  </span>
+                </div>
+              </div>
+              
+              {/* View Mode Dropdown - mahogany styled, positioned to the right of title */}
+              <div className="flex-shrink-0">
+                <button 
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setViewDropdownPosition({
+                      x: rect.left,
+                      y: rect.bottom + 8
+                    });
+                    setIsViewDropdownOpen(!isViewDropdownOpen);
+                  }}
+                  className="w-32 h-12 flex items-center justify-center rounded-book border shadow-book hover:shadow-shelf transition-all font-serif font-medium"
+                  style={{ 
+                    fontSize: '14px',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)',
+                    color: '#FDF6E3',
+                    borderColor: '#654321'
+                  }}
+                >
+                  <span>{viewMode === 'pdf' ? 'PDF View' : viewMode === 'glossary' ? 'Glossary' : 'Annotations'}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isViewDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -840,38 +873,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 isActive={activeConversationId === null}
                 onConversationChange={setActiveConversationId}
               />
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex-shrink-0">
-              <div className="flex items-center bg-surface-parchment/80 rounded-book p-1 border border-library-sage-200 shadow-paper">
-                <button
-                  onClick={() => setViewMode('pdf')}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-book font-serif text-sm transition-all duration-200 ${
-                    viewMode === 'pdf'
-                      ? 'bg-library-gold-100 text-reading-accent shadow-paper border border-library-gold-200'
-                      : 'text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  PDF
-                </button>
-                <button
-                  onClick={() => setViewMode('glossary')}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-book font-serif text-sm transition-all duration-200 ${
-                    viewMode === 'glossary'
-                      ? 'bg-library-gold-100 text-reading-accent shadow-paper border border-library-gold-200'
-                      : 'text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  Glossary
-                </button>
-              </div>
             </div>
 
             {/* Conversation Library - only rabbitholes */}
@@ -945,7 +946,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           }}
           className="w-full"
         >
-          {/* PDF viewer - left panel with library aesthetic */}
+          {/* Content viewer - left panel (PDF or Glossary) */}
           <Panel 
             defaultSize={mainPanelSizes[0]} 
             minSize={20}
@@ -961,10 +962,12 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               }}></div>
             </div>
             
-            {/* PDF content with enhanced shadow */}
-            <div className="relative h-full shadow-inner"
-                 style={{ boxShadow: 'inset 0 0 20px rgba(175, 95, 55, 0.03)' }}>
-            <PDFDocumentViewer
+            {/* Conditional content based on view mode */}
+            {viewMode === 'pdf' ? (
+              /* PDF content with enhanced shadow */
+              <div className="relative h-full shadow-inner"
+                   style={{ boxShadow: 'inset 0 0 20px rgba(175, 95, 55, 0.03)' }}>
+              <PDFDocumentViewer
               pdfFile={pdfFile}
               forceRefreshKey={forceRefreshKey}
               plugins={[
@@ -1076,6 +1079,41 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             {/* Block Overlay */}
             {blockOverlayManager.blockOverlayComponent}
             </div>
+            ) : viewMode === 'glossary' ? (
+              /* Glossary view */
+              <div className="relative h-full">
+                <GlossaryView
+                  blocks={blocks}
+                  onTermClick={(blockId, startOffset, endOffset) => {
+                    // Switch back to PDF view and navigate to the block
+                    setViewMode('pdf');
+                    // Find the block and navigate to it
+                    const targetBlock = blocks.find(b => b.id === blockId);
+                    if (targetBlock) {
+                      // Open the block overlay - we'll use a generic note ID since we're just navigating
+                      blockOverlayManager.handleOpenBlockWithNote(blockId, `definition-${startOffset}-${endOffset}`);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              /* Annotations view */
+              <div className="relative h-full">
+                <AnnotationsView
+                  blocks={blocks}
+                  onAnnotationClick={(blockId, startOffset, endOffset) => {
+                    // Switch back to PDF view and navigate to the block
+                    setViewMode('pdf');
+                    // Find the block and navigate to it
+                    const targetBlock = blocks.find(b => b.id === blockId);
+                    if (targetBlock) {
+                      // Open the block overlay - we'll use a generic note ID since we're just navigating
+                      blockOverlayManager.handleOpenBlockWithNote(blockId, `annotation-${startOffset}-${endOffset}`);
+                    }
+                  }}
+                />
+              </div>
+            )}
           </Panel>
           
           {/* Elegant resize handle between PDF and chat */}
@@ -1131,6 +1169,70 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         </PanelGroup>
         </div>
       </div>
+
+      {/* View Mode Selector Popover */}
+      <BasePopover
+        isVisible={isViewDropdownOpen}
+        position={viewDropdownPosition}
+        onClose={() => setIsViewDropdownOpen(false)}
+        title="📄 View Mode"
+        initialWidth={240}
+        initialHeight="auto"
+        minWidth={200}
+        preventOverflow={true}
+        offsetY={0}
+      >
+        <div className="p-3 space-y-2">
+          <button
+            onClick={() => {
+              setViewMode('pdf');
+              setIsViewDropdownOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors ${
+              viewMode === 'pdf'
+                ? 'bg-library-gold-100 text-reading-accent'
+                : 'text-reading-secondary hover:bg-library-cream-100 hover:text-reading-primary'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            PDF Document
+          </button>
+          <button
+            onClick={() => {
+              setViewMode('glossary');
+              setIsViewDropdownOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors ${
+              viewMode === 'glossary'
+                ? 'bg-library-gold-100 text-reading-accent'
+                : 'text-reading-secondary hover:bg-library-cream-100 hover:text-reading-primary'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            Glossary
+          </button>
+          <button
+            onClick={() => {
+              setViewMode('annotations');
+              setIsViewDropdownOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors ${
+              viewMode === 'annotations'
+                ? 'bg-library-gold-100 text-reading-accent'
+                : 'text-reading-secondary hover:bg-library-cream-100 hover:text-reading-primary'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Annotations & Notes
+          </button>
+        </div>
+      </BasePopover>
     </MathJaxProvider>
   );
 }

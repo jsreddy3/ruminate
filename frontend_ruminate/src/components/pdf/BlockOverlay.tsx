@@ -79,8 +79,8 @@ export default function BlockOverlay({
           className="fixed inset-0 z-50 flex pointer-events-none"
           onClick={handleBackdropClick}
         >
-          {/* Left side - Modal content over PDF area */}
-          <div className="relative pointer-events-auto" style={{ width: `${pdfPanelWidth}%` }}>
+          {/* Left side - Modal content over PDF area - strictly constrained to panel */}
+          <div className="relative pointer-events-auto overflow-hidden" style={{ width: `${pdfPanelWidth}%` }}>
             {/* Backdrop with dimmed PDF visibility */}
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             
@@ -90,9 +90,9 @@ export default function BlockOverlay({
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -100, opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="relative h-full flex items-center justify-center p-8"
+              className="relative h-full flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col relative">
+              <div className="bg-white rounded-lg shadow-2xl max-h-[95vh] flex flex-col relative" style={{ width: '85%' }}>
                 {/* Close button - positioned absolutely in top right corner */}
                 <button
                   onClick={onClose}
