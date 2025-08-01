@@ -10,12 +10,13 @@ interface DocumentTableProps {
   onDocumentClick: (document: Document) => void;
   onDocumentDelete?: (documentId: string) => void;
   onDocumentUpdate?: (document: Document) => void;
+  isOnboardingActive?: boolean; // Whether onboarding mode is active
 }
 
 type SortField = 'title' | 'created_at' | 'updated_at' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate }: DocumentTableProps) {
+export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate, isOnboardingActive }: DocumentTableProps) {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [processingDocumentId, setProcessingDocumentId] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto relative">
         <table className="w-full">
         <thead className="bg-surface-vellum">
           <tr>
@@ -115,8 +116,8 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
             <th className="w-20"></th>
           </tr>
         </thead>
-        <tbody className="bg-surface-parchment divide-y divide-library-cream-300">
-          {sortedDocuments.map((document) => (
+        <tbody className="bg-surface-parchment divide-y divide-library-cream-300 relative">
+          {sortedDocuments.map((document, index) => (
             <DocumentRow
               key={document.id}
               document={document}
@@ -124,6 +125,8 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               onDelete={onDocumentDelete}
               onStartProcessing={handleStartProcessing}
               onUpdate={onDocumentUpdate}
+              isOnboardingActive={isOnboardingActive}
+              isOnboardingTarget={isOnboardingActive && index === 0}
             />
           ))}
         </tbody>

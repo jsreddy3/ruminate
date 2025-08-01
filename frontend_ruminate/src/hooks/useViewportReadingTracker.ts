@@ -51,7 +51,7 @@ export function useViewportReadingTracker({
   
   // Configuration
   const MIN_VIEWING_TIME = 4000; // 4 seconds minimum
-  const READING_SPEED_WPM = 250; // Average reading speed
+  const READING_SPEED_WPM = 400; // Average reading speed
   const MAX_PAGE_DISTANCE = 2; // Only track within 2 pages of last interaction
   
   // Calculate word count from HTML content

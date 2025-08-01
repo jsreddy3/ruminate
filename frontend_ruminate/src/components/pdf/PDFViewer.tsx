@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
 import ChatContainer from "../chat/ChatContainer";
+import { useOnboarding } from "../../contexts/OnboardingContext";
 import { conversationApi } from "../../services/api/conversation";
 import { documentApi } from "../../services/api/document";
 import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
@@ -122,6 +123,7 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const router = useRouter();
+  const { state: onboardingState, nextStep, markWelcomeComplete } = useOnboarding();
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   const [documentTitle, setDocumentTitle] = useState<string>('');
@@ -307,6 +309,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   
   // State to track all blocks in flattened form for navigation
   const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
+  
+  // Onboarding state for target block
+  const [onboardingTargetBlockId, setOnboardingTargetBlockId] = useState<string | null>(null);
 
   // Flatten blocks for easy navigation
   useEffect(() => {
@@ -350,6 +355,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       setFlattenedBlocks(filteredBlocks);
     }
   }, [blocks]);
+
 
   // Reading Progress Hook - initialized after flattenedBlocks are set
   const { updateProgress, scrollToFurthestBlock, initializeProgress, getFurthestProgress } = useReadingProgress({
@@ -604,6 +610,29 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [pageNavigationPluginInstance, setCurrentPage]);
 
+  // Effect to handle onboarding step 3 - find and highlight first meaningful block
+  useEffect(() => {
+    if (onboardingState.isActive && onboardingState.currentStep === 3 && flattenedBlocks.length > 0 && !onboardingTargetBlockId) {
+      // Find first block with more than 10 words
+      const targetBlock = flattenedBlocks.find(block => {
+        if (!block.html_content) return false;
+        const textContent = block.html_content.replace(/<[^>]*>/g, '').trim();
+        const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
+        return wordCount > 10;
+      });
+      
+      if (targetBlock) {
+        setOnboardingTargetBlockId(targetBlock.id);
+        
+        // Scroll to the target block after a short delay to ensure PDF is loaded
+        setTimeout(() => {
+          scrollToBlock(targetBlock);
+        }, 1000);
+      }
+    }
+  }, [onboardingState.isActive, onboardingState.currentStep, flattenedBlocks, onboardingTargetBlockId, scrollToBlock]);
+
+
   // Block Overlay Manager - handles block selection and interactions
   const blockOverlayManager = useBlockOverlayManager({
     blocks,
@@ -628,6 +657,20 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     refreshRabbitholesFnRef,
     onScrollToBlock: scrollToBlock,
   });
+
+  // Handle onboarding block click
+  const handleOnboardingBlockClick = useCallback((block: Block) => {
+    if (onboardingState.isActive && onboardingState.currentStep === 3 && block.id === onboardingTargetBlockId) {
+      // First open the block overlay as normal
+      blockOverlayManager.handleBlockClick(block);
+      
+      // Then progress to next step after a short delay to let user see the block open
+      setTimeout(() => {
+        nextStep();
+        setOnboardingTargetBlockId(null);
+      }, 500);
+    }
+  }, [onboardingState.isActive, onboardingState.currentStep, onboardingTargetBlockId, nextStep, blockOverlayManager]);
 
   // Viewport Reading Tracker - for timer-based progress tracking (only when block is selected)
   useViewportReadingTracker({
@@ -665,14 +708,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           selectedBlock={blockOverlayManager.selectedBlock}
           pageIndex={props.pageIndex}
           scale={props.scale}
-          onBlockClick={blockOverlayManager.handleBlockClick}
+          onBlockClick={(block: Block) => {
+            if (onboardingState.isActive && onboardingState.currentStep === 3 && block.id === onboardingTargetBlockId) {
+              handleOnboardingBlockClick(block);
+            } else {
+              blockOverlayManager.handleBlockClick(block);
+            }
+          }}
           isSelectionMode={isBlockSelectionMode}
           onBlockSelect={blockOverlayManager.handleBlockSelect}
           temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+          onboardingTargetBlockId={onboardingTargetBlockId}
+          isOnboardingActive={onboardingState.isActive && onboardingState.currentStep === 3}
         />
       );
     },
-    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId]
+    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId, onboardingTargetBlockId, onboardingState.isActive, onboardingState.currentStep, handleOnboardingBlockClick]
   );
 
   // Enhanced search functionality with scroll-to-block
@@ -803,7 +854,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           <div className="absolute inset-0 bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50"></div>
           
           {/* Content */}
-          <div className="relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm">
+          <div className={`relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm transition-all duration-300 ${
+            onboardingState.isActive && onboardingState.currentStep === 3 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+          }`}>
             <button
               onClick={() => router.push('/home')}
               className="group flex items-center gap-2 px-3 py-2 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-300 shadow-paper hover:shadow-book"
@@ -920,18 +973,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             </div>
           )}
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
-        <PDFToolbar
-          GoToPreviousPage={GoToPreviousPage}
-          GoToNextPage={GoToNextPage}
-          ZoomOut={ZoomOut}
-          ZoomIn={ZoomIn}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          currentPanelSizes={currentPanelSizes}
-          onSearch={handleSearch}
-          onResumeReading={handleResumeReading}
-          hasReadingProgress={!!scrollToFurthestBlock()}
-        />
+        <div className={`transition-all duration-300 ${
+          onboardingState.isActive && onboardingState.currentStep === 3 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+        }`}>
+          <PDFToolbar
+            GoToPreviousPage={GoToPreviousPage}
+            GoToNextPage={GoToNextPage}
+            ZoomOut={ZoomOut}
+            ZoomIn={ZoomIn}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            currentPanelSizes={currentPanelSizes}
+            onSearch={handleSearch}
+            onResumeReading={handleResumeReading}
+            hasReadingProgress={!!scrollToFurthestBlock()}
+          />
+        </div>
 
         <PanelGroup 
           direction="horizontal" 
@@ -1133,7 +1190,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             </div>
             
             {/* Content with enhanced border */}
-            <div className="relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent">
+            <div className={`relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent transition-all duration-300 ${
+              onboardingState.isActive && onboardingState.currentStep === 3 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+            }`}>
               {/* Decorative book spine edge */}
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-library-mahogany-400 via-library-mahogany-500 to-library-mahogany-600 shadow-sm"></div>
             <ChatSidebar

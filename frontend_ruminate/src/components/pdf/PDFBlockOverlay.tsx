@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Block } from './PDFViewer';
 import BlockIndicators, { BlockDotIndicators } from './BlockIndicators';
+import { PDFTourDialogue } from '../onboarding/PDFTourDialogue';
 
 interface PDFBlockOverlayProps {
   blocks: Block[];
@@ -12,6 +13,8 @@ interface PDFBlockOverlayProps {
   isSelectionMode?: boolean;
   onBlockSelect?: (blockId: string) => void;
   temporarilyHighlightedBlockId?: string | null;
+  onboardingTargetBlockId?: string | null;
+  isOnboardingActive?: boolean;
 }
 
 export default function PDFBlockOverlay({
@@ -22,24 +25,67 @@ export default function PDFBlockOverlay({
   onBlockClick,
   isSelectionMode = false,
   onBlockSelect,
-  temporarilyHighlightedBlockId
+  temporarilyHighlightedBlockId,
+  onboardingTargetBlockId,
+  isOnboardingActive = false
 }: PDFBlockOverlayProps) {
-  // Filter blocks for current page
-  const filteredBlocks = blocks.filter((b) => {
-    const blockPageNumber = b.page_number ?? 0;
-    return b.block_type !== "Page" && blockPageNumber === pageIndex;
-  });
+  // Filter blocks for current page - memoized to prevent re-renders
+  const filteredBlocks = useMemo(() => {
+    return blocks.filter((b) => {
+      const blockPageNumber = b.page_number ?? 0;
+      return b.block_type !== "Page" && blockPageNumber === pageIndex;
+    });
+  }, [blocks, pageIndex]);
+
+  // State to track onboarding target block rectangle
+  const [targetBlockRect, setTargetBlockRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  // Update target block rect when onboarding target changes
+  useEffect(() => {
+    if (onboardingTargetBlockId && isOnboardingActive) {
+      const targetBlock = filteredBlocks.find(b => b.id === onboardingTargetBlockId);
+      if (targetBlock && targetBlock.polygon && targetBlock.polygon.length >= 4) {
+        const x = Math.min(...targetBlock.polygon.map((p) => p[0]));
+        const y = Math.min(...targetBlock.polygon.map((p) => p[1]));
+        const w = Math.max(...targetBlock.polygon.map((p) => p[0])) - x;
+        const h = Math.max(...targetBlock.polygon.map((p) => p[1])) - y;
+        
+        setTargetBlockRect({
+          x: x * scale,
+          y: y * scale,
+          width: w * scale,
+          height: h * scale
+        });
+      }
+    } else {
+      setTargetBlockRect(null);
+    }
+  }, [onboardingTargetBlockId, isOnboardingActive, filteredBlocks, scale]);
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-      }}
-    >
+    <>
+      <style jsx global>{`
+        @keyframes onboardingGoldenPulse {
+          0% {
+            background-color: rgba(251, 191, 36, 0.15);
+          }
+          50% {
+            background-color: rgba(251, 191, 36, 0.35);
+          }
+          100% {
+            background-color: rgba(251, 191, 36, 0.15);
+          }
+        }
+      `}</style>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+        }}
+      >
       {filteredBlocks.map((block) => {
         if (!block.polygon || block.polygon.length < 4) return null;
         
@@ -51,6 +97,7 @@ export default function PDFBlockOverlay({
 
         const isSelected = selectedBlock?.id === block.id;
         const isTemporarilyHighlighted = temporarilyHighlightedBlockId === block.id;
+        const isOnboardingTarget = onboardingTargetBlockId === block.id;
 
         // Get the appropriate styling based on status
         const getBlockStyle = () => {
@@ -60,11 +107,32 @@ export default function PDFBlockOverlay({
             top: `${y * scale}px`,
             width: `${w * scale}px`,
             height: `${h * scale}px`,
-            cursor: 'pointer',
+            cursor: isOnboardingActive && !isOnboardingTarget ? 'not-allowed' : 'pointer',
             transition: 'all 0.3s ease-out',
-            zIndex: isSelected ? 3 : 1,
+            zIndex: isOnboardingTarget ? 10 : isSelected ? 3 : 1,
             borderRadius: '4px',
+            pointerEvents: (isOnboardingActive && !isOnboardingTarget) ? 'none' as const : 'auto' as const,
           };
+
+          // Onboarding target styling - pulsing golden highlight
+          if (isOnboardingTarget) {
+            return {
+              ...baseStyle,
+              backgroundColor: 'rgba(251, 191, 36, 0.15)',
+              border: 'none',
+              animation: 'onboardingGoldenPulse 3s ease-in-out infinite',
+            };
+          }
+
+          // During onboarding, non-target blocks are dimmed
+          if (isOnboardingActive && !isOnboardingTarget) {
+            return {
+              ...baseStyle,
+              opacity: 0.3,
+              backgroundColor: 'transparent',
+              border: 'none',
+            };
+          }
 
           // Selection mode styling - warm highlight
           if (isSelectionMode) {
@@ -142,12 +210,12 @@ export default function PDFBlockOverlay({
             style={getBlockStyle()}
             className="group"
             onMouseEnter={(e) => {
-              if (!isSelected && !isSelectionMode) {
+              if (!isSelected && !isSelectionMode && !isOnboardingTarget) {
                 e.currentTarget.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
               }
             }}
             onMouseLeave={(e) => {
-              if (!isSelected && !isSelectionMode && !isTemporarilyHighlighted) {
+              if (!isSelected && !isSelectionMode && !isTemporarilyHighlighted && !isOnboardingTarget) {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }
             }}
@@ -239,7 +307,15 @@ export default function PDFBlockOverlay({
           </motion.div>
         );
       })}
-    </div>
+      </div>
+      
+      {/* Onboarding dialogue */}
+      <PDFTourDialogue
+        isVisible={isOnboardingActive && !!onboardingTargetBlockId}
+        targetRect={targetBlockRect}
+        scale={scale}
+      />
+    </>
   );
 }
 

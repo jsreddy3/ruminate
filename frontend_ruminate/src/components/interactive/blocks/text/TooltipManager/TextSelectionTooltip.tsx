@@ -95,7 +95,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       },
     }] : []),
     ...( onDefine ? [{
-      label: isDefining ? 'Defining...' : 'Define',
+      label: isDefining ? 'Defining...' : 'Key Term',
       icon: isDefining ? (
         <div className="animate-spin w-4 h-4 border-2 border-library-gold-600 border-t-transparent rounded-full" />
       ) : (

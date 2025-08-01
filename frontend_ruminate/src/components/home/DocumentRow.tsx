@@ -11,9 +11,11 @@ interface DocumentRowProps {
   onDelete?: (documentId: string) => void;
   onStartProcessing?: (documentId: string) => void;
   onUpdate?: (document: Document) => void;
+  isOnboardingActive?: boolean;
+  isOnboardingTarget?: boolean;
 }
 
-export default function DocumentRow({ document, onClick, onDelete, onStartProcessing, onUpdate }: DocumentRowProps) {
+export default function DocumentRow({ document, onClick, onDelete, onStartProcessing, onUpdate, isOnboardingActive, isOnboardingTarget }: DocumentRowProps) {
   const [isHovering, setIsHovering] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(document.title);
@@ -72,7 +74,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
     setEditedTitle(document.title);
   };
 
-  const handleSaveTitle = async (e: React.MouseEvent | React.KeyboardEvent) => {
+  const handleSaveTitle = async (e: React.MouseEvent | React.KeyboardEvent | React.FocusEvent) => {
     e.stopPropagation();
     
     if (editedTitle.trim() === '' || editedTitle === document.title) {
@@ -109,13 +111,42 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
     }
   };
 
+  // Handle onboarding click
+  const handleRowClick = () => {
+    if (isOnboardingActive && !isOnboardingTarget) {
+      return; // Prevent clicks on non-target documents during onboarding
+    }
+    onClick();
+  };
+
+  // Dynamic classes for onboarding
+  const getRowClasses = () => {
+    let classes = "transition-all duration-300 group relative";
+    
+    if (isOnboardingActive && !isOnboardingTarget) {
+      classes += " opacity-30 blur-[1px] cursor-not-allowed pointer-events-none";
+    } else if (isOnboardingTarget) {
+      classes += " bg-gradient-to-r from-library-cream-50 to-transparent cursor-pointer z-10";
+    } else {
+      classes += " hover:bg-surface-vellum cursor-pointer";
+    }
+    
+    return classes;
+  };
+
   return (
-    <tr 
-      className="hover:bg-surface-vellum cursor-pointer transition-colors group relative"
-      onClick={onClick}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
+    <>
+      
+      <tr 
+        className={getRowClasses()}
+        onClick={handleRowClick}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        style={isOnboardingTarget ? {
+          boxShadow: '0 0 0 2px rgb(158 86 50), 0 0 0 4px rgb(158 86 50 / 0.3), 0 0 20px rgb(158 86 50 / 0.4)',
+          animation: 'pulse 2s ease-in-out infinite'
+        } : {}}
+      >
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
           {/* PDF Icon */}
@@ -181,7 +212,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           {/* Action buttons - positioned absolutely to prevent layout shift */}
           <div className="absolute right-12 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
             {/* Edit Button */}
-            {!isEditing && (
+            {!isEditing && !isOnboardingActive && (
               <button
                 onClick={handleEditClick}
                 className={`p-1 transition-all rounded-full hover:bg-library-sage-50 ${
@@ -196,7 +227,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
             )}
             
             {/* Delete Button */}
-            {onDelete && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && (
+            {onDelete && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && !isOnboardingActive && (
               <button
                 onClick={handleDeleteClick}
                 className={`p-1 transition-all rounded-full hover:bg-library-mahogany-50 ${
@@ -227,6 +258,8 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           </svg>
         </div>
       </td>
-    </tr>
+      
+      </tr>
+    </>
   );
 }

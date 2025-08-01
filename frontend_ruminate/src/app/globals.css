@@ -60,6 +60,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom scroll behavior for landing page */
+@layer utilities {
+  .scroll-smooth-slow {
+    scroll-behavior: smooth;
+    scroll-snap-type: y mandatory;
+  }
+  
+  /* Slow down scroll speed */
+  .scroll-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 :root {
   /* Library-inspired CSS variables */
   --surface-paper: #fefcf7;
@@ -121,6 +135,31 @@
   ::-moz-selection {
     background-color: rgba(249, 207, 95, 0.3);
     color: var(--reading-primary);
+  }
+}
+
+/* Keyframe animations */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 2px rgb(158 86 50), 0 0 0 4px rgb(158 86 50 / 0.3), 0 0 20px rgb(158 86 50 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgb(158 86 50), 0 0 0 6px rgb(158 86 50 / 0.2), 0 0 30px rgb(158 86 50 / 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgb(158 86 50), 0 0 0 4px rgb(158 86 50 / 0.3), 0 0 20px rgb(158 86 50 / 0.4);
+  }
+}
+
+@keyframes onboardingGoldenPulse {
+  0% {
+    background-color: rgba(251, 191, 36, 0.15);
+  }
+  50% {
+    background-color: rgba(251, 191, 36, 0.35);
+  }
+  100% {
+    background-color: rgba(251, 191, 36, 0.15);
   }
 }
 

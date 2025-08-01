@@ -1,15 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { CachedDocument, ProcessingProgress, DocumentProcessingEvent, DocumentStatus } from '@/types';
+import { ProcessingProgress, DocumentProcessingEvent, DocumentStatus } from '@/types';
 import { authenticatedFetch, API_BASE_URL } from '@/utils/api';
 import { documentApi } from '@/services/api/document';
-
-// Utility function (can be moved to a separate utils file if preferred)
-async function calculateHash(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 export type UploadMethod = 'auto' | 'backend' | 's3';
 
@@ -176,43 +168,7 @@ export function useDocumentUpload(): UseDocumentUploadResult {
     addProcessingEvent('upload_start', 'INITIALIZING', 'Preparing your document for upload...');
 
     try {
-      const fileHash = await calculateHash(file);
-      const cachedDocuments = JSON.parse(localStorage.getItem('pdfDocuments') || '{}') as { [hash: string]: CachedDocument };
-      const cachedData = cachedDocuments[fileHash];
-
-      if (cachedData) {
-        addProcessingEvent('cache_check', 'CACHE_CHECK', 'Checking if this document was processed before...');
-        try {
-          const docResponse = await authenticatedFetch(`${API_BASE_URL}/documents/${cachedData.documentId}`);
-          if (docResponse.ok) {
-            const docData = await docResponse.json();
-            if (docData.status === "READY") {
-              addProcessingEvent('cache_hit', 'CACHE_HIT', 'Great! Found your previously processed document.');
-              const pdfUrl = await fetchPdfUrl(cachedData.documentId);
-              if (pdfUrl) {
-                setDocumentId(cachedData.documentId);
-                setPdfFile(pdfUrl);
-                setHasUploadedFile(true);
-                setIsProcessing(false);
-                addProcessingEvent('ready', 'READY', 'Your document is ready to explore!');
-                return;
-              }
-            } else {
-              addProcessingEvent('cache_info', 'CACHE_INFO', 'Previous processing incomplete. Starting fresh...');
-            }
-          } else {
-            // Clear cache for any non-ok response (404, 500, etc.)
-            addProcessingEvent('cache_miss', 'CACHE_MISS', 'Document not found on server. Uploading...');
-            delete cachedDocuments[fileHash];
-            localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
-          }
-        } catch (fetchError) {
-          console.error("Error checking cached document:", fetchError);
-          addProcessingEvent('cache_error', 'CACHE_ERROR', 'Cache check failed. Proceeding with upload...');
-        }
-      }
-
-      // ---- Proceed with upload ----
+      // Start upload immediately - no caching
       addProcessingEvent('upload_start', 'UPLOADING', 'Securely uploading your document...');
       const formData = new FormData();
       formData.append('file', file);
@@ -302,12 +258,6 @@ export function useDocumentUpload(): UseDocumentUploadResult {
             if (pdfUrl) {
               setPdfFile(pdfUrl);
               setHasUploadedFile(true);
-              cachedDocuments[fileHash] = { 
-                documentId: newDocumentId, 
-                title: file.name, 
-                blockConversations: {} 
-              };
-              localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
             }
             setIsProcessing(false);
           } else if (status === 'ERROR') {
@@ -485,11 +435,6 @@ export function useDocumentUpload(): UseDocumentUploadResult {
               setPdfFile(pdfUrl);
               setHasUploadedFile(true);
               setIsProcessing(false);
-              
-              // Cache the document
-              const cachedDocuments = JSON.parse(localStorage.getItem('pdfDocuments') || '{}');
-              cachedDocuments[filename] = { documentId: newDocumentId, pdfUrl };
-              localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));
             }
             es.close();
           } else if (status === 'ERROR') {

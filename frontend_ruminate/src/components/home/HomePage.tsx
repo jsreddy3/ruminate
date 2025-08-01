@@ -4,15 +4,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 import { documentApi } from '@/services/api/document';
 import { Document } from '@/services/api/document';
 import DocumentTable from './DocumentTable';
 import UploadButton from './UploadButton';
 import UserMenu from './UserMenu';
 import ConfirmationDialog from '../common/ConfirmationDialog';
+import WelcomeModal from '../onboarding/WelcomeModal';
+import { LibraryTourDialogue } from '../onboarding/LibraryTourDialogue';
 
 export default function HomePage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { openWelcomeModal, state, markWelcomeComplete, nextStep } = useOnboarding();
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +30,13 @@ export default function HomePage() {
       router.push('/');
     }
   }, [user, authLoading, router]);
+
+  // Open welcome modal for testing (always on for now)
+  useEffect(() => {
+    if (user && !authLoading) {
+      openWelcomeModal(); // TEMPORARILY DISABLED FOR UPLOADING
+    }
+  }, [user, authLoading]); // Removed openWelcomeModal from dependencies
 
   // Fetch documents
   useEffect(() => {
@@ -52,6 +63,12 @@ export default function HomePage() {
     if (document.status !== 'READY') {
       alert('This document is still processing. Please wait until it\'s ready.');
       return;
+    }
+
+    // Handle onboarding progression
+    if (state.isActive && state.currentStep === 2) {
+      // Move to step 3 (PDF viewer onboarding)
+      nextStep();
     }
 
     // Navigate to the viewer - it will fetch the PDF URL securely
@@ -111,6 +128,23 @@ export default function HomePage() {
     }
   };
 
+  const handleStartTour = () => {
+    // For now, just close the modal
+    // Later we'll navigate to the first document or start the next onboarding step
+    console.log('Starting tour!');
+  };
+  
+  // Debug the dialogue visibility condition
+  const dialogueVisible = state.isActive && state.currentStep === 2 && !state.isWelcomeModalOpen && documents.length > 0;
+  useEffect(() => {
+    console.log('Dialogue visibility:', dialogueVisible, {
+      isActive: state.isActive,
+      currentStep: state.currentStep,
+      isWelcomeModalOpen: state.isWelcomeModalOpen,
+      documentsLength: documents.length
+    });
+  }, [dialogueVisible, state.isActive, state.currentStep, state.isWelcomeModalOpen, documents.length]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -122,7 +156,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-surface-paper">
       {/* Header */}
-      <header className="bg-surface-parchment shadow-paper border-b border-library-cream-300">
+      <header className={`bg-surface-parchment shadow-paper border-b border-library-cream-300 transition-all duration-300 ${
+        state.isActive && state.currentStep === 2 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -180,12 +216,32 @@ export default function HomePage() {
                 <p className="text-xl text-reading-muted mt-2">Upload a document to begin your journey</p>
               </div>
             ) : (
-              <DocumentTable 
-                documents={documents} 
-                onDocumentClick={handleDocumentClick}
-                onDocumentDelete={handleDeleteRequest}
-                onDocumentUpdate={handleDocumentUpdate}
-              />
+              <>
+                {/* Debug info */}
+                <div style={{padding: '10px', background: 'yellow', fontSize: '12px'}}>
+                  DEBUG: hasSeenWelcome={state.hasSeenWelcome.toString()}, 
+                  isWelcomeModalOpen={state.isWelcomeModalOpen.toString()}, 
+                  isActive={state.isActive.toString()},
+                  currentStep={state.currentStep},
+                  shouldHighlight={(state.isActive && state.currentStep === 2).toString()},
+                  targetId={state.isActive && state.currentStep === 2 ? documents[0]?.id : 'none'}, 
+                  documentsCount={documents.length}, 
+                  firstDocTitle={documents[0]?.title || 'none'}
+                  <button 
+                    onClick={() => {localStorage.removeItem('ruminate-onboarding'); window.location.reload();}}
+                    style={{marginLeft: '10px', padding: '2px 6px', background: 'red', color: 'white'}}
+                  >
+                    Reset Onboarding
+                  </button>
+                </div>
+                <DocumentTable 
+                  documents={documents} 
+                  onDocumentClick={handleDocumentClick}
+                  onDocumentDelete={handleDeleteRequest}
+                  onDocumentUpdate={handleDocumentUpdate}
+                  isOnboardingActive={state.isActive && state.currentStep === 2}
+                />
+              </>
             )}
           </div>
         </motion.div>
@@ -202,6 +258,16 @@ export default function HomePage() {
         cancelText="Keep Document"
         isDestructive={true}
         isLoading={isDeleting}
+      />
+
+      {/* Welcome Modal */}
+      <WelcomeModal onStartTour={handleStartTour} />
+      
+      {/* Library Tour Dialogue */}
+      <LibraryTourDialogue 
+        isVisible={dialogueVisible}
+        onNext={() => nextStep()}
+        position={{ top: '38%', left: '50%' }}
       />
     </div>
   );
