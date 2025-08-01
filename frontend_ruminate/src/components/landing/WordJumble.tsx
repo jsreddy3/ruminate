@@ -99,7 +99,7 @@ export default function WordJumble() {
           initial={{ opacity: 0, y: -20 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
           transition={{ duration: 0.8, delay: 0 }}
-          className="text-3xl md:text-4xl font-iowan text-center text-library-cream-100 mb-12"
+          className="text-3xl md:text-4xl font-sans font-light text-center text-library-cream-100 mb-12"
         >
           Need to master the chapter
         </motion.h3>
@@ -153,7 +153,7 @@ export default function WordJumble() {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.8, delay: 1.6 }}
-          className="text-3xl md:text-4xl font-iowan text-center text-library-cream-100 mt-12"
+          className="text-3xl md:text-4xl font-sans font-light text-center text-library-cream-100 mt-12"
         >
           but can't finish this page?
         </motion.h3>

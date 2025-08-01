@@ -92,7 +92,7 @@ export default function BlockOverlay({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="relative h-full flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative" style={{ width: '75%' }}>
+              <div className="bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden" style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}
                 <button
                   onClick={onClose}
@@ -106,7 +106,7 @@ export default function BlockOverlay({
                 </button>
 
                 {/* Content - full height */}
-                <div className="flex-1 overflow-hidden rounded-lg">
+                <div className="flex-1 flex flex-col min-h-0">
                   <BlockNavigator
                     blocks={flattenedBlocks}
                     currentBlockId={selectedBlock.id}

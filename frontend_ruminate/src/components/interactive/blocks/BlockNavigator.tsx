@@ -179,11 +179,11 @@ export default function BlockNavigator({
       </div>
 
       {/* Content area - switches between views */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative flex flex-col">
         {viewMode === 'traditional' ? (
           // Traditional linear view
-          <>
-            <div className="flex-1 overflow-auto p-4 h-full">
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-auto p-4 min-h-0">
               <div className="border border-gray-100 rounded-md p-2 bg-white">
                 <BlockContainer
                   key={currentBlock.id}
@@ -230,7 +230,7 @@ export default function BlockNavigator({
                 />
               </div>
             </div>
-          </>
+          </div>
         ) : (
           // Contextual stack view
           <div className="h-full">

@@ -38,10 +38,10 @@ export default function Header() {
       className="space-y-16 text-center"
     >
       <div>
-        <h1 className="text-7xl md:text-8xl font-serif font-bold text-reading-primary tracking-tight mb-16">
+        <h1 className="text-7xl md:text-8xl font-iowan text-reading-primary tracking-tight mb-16">
           Ruminate
         </h1>
-        <div className="text-5xl md:text-6xl lg:text-7xl font-medium text-reading-secondary text-center">
+        <div className="text-5xl md:text-6xl lg:text-6xl font-medium text-reading-secondary text-center">
           <div className="inline-block relative">
             <span className="font-iowan">Built for </span>
             <span className="inline-block relative">

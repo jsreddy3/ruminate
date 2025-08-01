@@ -118,18 +118,18 @@ export default function BlockContextStack({
   return (
     <div 
       ref={containerRef}
-      className={`bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden ${className}`}
+      className={`h-full bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden ${className}`}
       style={{ 
-        height: 'auto',
-        minHeight: '300px',  // Ensure minimum space for at least current block
-        maxHeight: 'calc(90vh - 200px)'  // Account for the larger header space
+        minHeight: '300px'  // Ensure minimum space for at least current block
       }}>
       {/* Content area that gets transformed to keep focused block at consistent position */}
       <div 
-        className="py-6 px-4 space-y-4 w-full transition-transform duration-500 ease-out min-h-full"
+        className="py-6 px-4 space-y-4 w-full transition-transform duration-500 ease-out"
         style={{ 
           transform: contentTransform,
-          overflowX: 'hidden'
+          overflowX: 'hidden',
+          paddingTop: '30vh', // Add padding to ensure content can be scrolled to top
+          paddingBottom: '50vh' // Add padding to ensure content can be scrolled to bottom
         }}
       >
         {Array.from({ length: visibleBlockRange * 2 + 1 }, (_, i) => i - visibleBlockRange).map(offset => {

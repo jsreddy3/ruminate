@@ -22,7 +22,7 @@ export default function AppPreviews() {
             className="relative z-10 text-4xl md:text-5xl font-sans font-light text-center text-reading-primary mb-20 tracking-wide"
             style={{ marginTop: '4rem' }}
           >
-            Meet the future of reading
+            Try a better way to read.
           </motion.h2>
           
           <div className="relative h-[600px] z-10">
