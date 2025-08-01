@@ -40,23 +40,6 @@ export default function BlockNavigatorPill({
         <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
       </button>
 
-      {/* Compact progress bar */}
-      <div className="flex items-center gap-2">
-        <ScholarlyProgressBar
-          progress={progress}
-          variant="reading"
-          size="sm"
-          animated={true}
-          showPercentage={false}
-          className="flex-shrink-0"
-        />
-        
-        {/* Page counter */}
-        <span className="text-xs font-serif font-medium text-reading-primary whitespace-nowrap min-w-[3rem] text-center">
-          {currentIndex + 1}/{totalBlocks}
-        </span>
-      </div>
-
       {/* Forward button with scholarly styling */}
       <button
         onClick={onNext}

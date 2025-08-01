@@ -38,7 +38,7 @@ export default function BlockNavigator({
   const [currentIndex, setCurrentIndex] = useState(0);
   
   // View mode state - toggles between traditional view and contextual stack
-  const [viewMode, setViewMode] = useState<'traditional' | 'stack'>('traditional');
+  const [viewMode, setViewMode] = useState<'traditional' | 'stack'>('stack');
   
   // Update index when currentBlockId changes from outside (e.g., when user clicks in PDF)
   useEffect(() => {
@@ -114,47 +114,69 @@ export default function BlockNavigator({
   
   return (
     <div className="h-full flex flex-col">
-      {/* View mode toggle */}
-      <div className="flex items-center justify-between p-4 border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-library-gold-400"></div>
-          <span className="text-sm font-serif text-reading-secondary">
-            Block {currentIndex + 1} of {blocks.length}
-          </span>
+      {/* Enhanced header with progress bar */}
+      <div className="border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-3 h-3 rounded-full bg-library-gold-400 shadow-sm"></div>
+            <div>
+              <h2 className="text-2xl font-serif text-reading-primary font-semibold">
+                Block {currentIndex + 1} of {blocks.length}
+              </h2>
+              <p className="text-sm font-serif text-reading-muted mt-1">
+                Reading Progress • {Math.round(((currentIndex + 1) / blocks.length) * 100)}% Complete
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-serif text-reading-muted">View Mode:</span>
+            <div className="bg-surface-paper rounded-book p-1.5 shadow-paper border border-library-sage-200">
+              <button
+                onClick={() => {
+                  console.log('Switching to stack view');
+                  setViewMode('stack');
+                }}
+                className={`px-4 py-2 text-sm font-serif rounded-paper transition-all ${
+                  viewMode === 'stack'
+                    ? 'bg-library-gold-100 text-reading-accent shadow-sm'
+                    : 'text-reading-muted hover:text-reading-secondary'
+                }`}
+                title="Contextual stack view"
+              >
+                📚 Stack
+              </button>
+              <button
+                onClick={() => {
+                  console.log('Switching to traditional view');
+                  setViewMode('traditional');
+                }}
+                className={`px-4 py-2 text-sm font-serif rounded-paper transition-all ${
+                  viewMode === 'traditional'
+                    ? 'bg-library-gold-100 text-reading-accent shadow-sm'
+                    : 'text-reading-muted hover:text-reading-secondary'
+                }`}
+                title="Traditional linear view"
+              >
+                📄 Single
+              </button>
+            </div>
+          </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-serif text-reading-muted">View:</span>
-          <div className="bg-surface-paper rounded-book p-1 shadow-paper border border-library-sage-200">
-            <button
-              onClick={() => {
-                console.log('Switching to traditional view');
-                setViewMode('traditional');
-              }}
-              className={`px-3 py-1.5 text-xs font-serif rounded-paper transition-all ${
-                viewMode === 'traditional'
-                  ? 'bg-library-gold-100 text-reading-accent shadow-sm'
-                  : 'text-reading-muted hover:text-reading-secondary'
-              }`}
-              title="Traditional linear view"
-            >
-              📄 Single
-            </button>
-            <button
-              onClick={() => {
-                console.log('Switching to stack view');
-                setViewMode('stack');
-              }}
-              className={`px-3 py-1.5 text-xs font-serif rounded-paper transition-all ${
-                viewMode === 'stack'
-                  ? 'bg-library-gold-100 text-reading-accent shadow-sm'
-                  : 'text-reading-muted hover:text-reading-secondary'
-              }`}
-              title="Contextual stack view"
-            >
-              📚 Stack
-            </button>
-          </div>
+        {/* Visual Progress Bar */}
+        <div className="w-full bg-library-sage-200 rounded-full h-3 shadow-inner">
+          <div 
+            className="bg-gradient-to-r from-library-gold-400 to-library-mahogany-400 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
+            style={{ width: `${((currentIndex + 1) / blocks.length) * 100}%` }}
+          />
+        </div>
+        
+        {/* Progress milestones */}
+        <div className="flex justify-between mt-2 text-xs font-serif text-reading-muted">
+          <span>Start</span>
+          <span>{Math.round(((currentIndex + 1) / blocks.length) * 100)}%</span>
+          <span>Complete</span>
         </div>
       </div>
 

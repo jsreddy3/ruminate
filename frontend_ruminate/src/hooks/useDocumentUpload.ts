@@ -201,6 +201,7 @@ export function useDocumentUpload(): UseDocumentUploadResult {
               addProcessingEvent('cache_info', 'CACHE_INFO', 'Previous processing incomplete. Starting fresh...');
             }
           } else {
+            // Clear cache for any non-ok response (404, 500, etc.)
             addProcessingEvent('cache_miss', 'CACHE_MISS', 'Document not found on server. Uploading...');
             delete cachedDocuments[fileHash];
             localStorage.setItem('pdfDocuments', JSON.stringify(cachedDocuments));

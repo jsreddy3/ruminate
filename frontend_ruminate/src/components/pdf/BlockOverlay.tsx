@@ -92,7 +92,7 @@ export default function BlockOverlay({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="relative h-full flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-lg shadow-2xl max-h-[95vh] flex flex-col relative" style={{ width: '85%' }}>
+              <div className="bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative" style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}
                 <button
                   onClick={onClose}

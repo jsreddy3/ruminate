@@ -97,14 +97,6 @@ export default function BlockContextStack({
         // Calculate how much to translate content to put focused block at target position
         const translateY = targetPosition - blockTop;
         
-        console.log('Transform calculation:', {
-          containerHeight,
-          targetPosition,
-          blockTop,
-          translateY,
-          visibleBlockRange
-        });
-        
         setContentTransform(`translateY(${translateY}px)`);
       }
     }, 50);
@@ -112,34 +104,6 @@ export default function BlockContextStack({
     return () => clearTimeout(timer);
   }, [currentIndex, currentBlockId, visibleBlockRange]);
 
-  // Add keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return; // Don't interfere with form inputs
-      }
-      
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        const direction = e.key === 'ArrowUp' ? -1 : 1;
-        const nextIndex = currentIndex + direction;
-        
-        if (nextIndex >= 0 && nextIndex < blocks.length) {
-          onBlockChange(blocks[nextIndex]);
-        }
-      }
-    };
-
-    // Only add listener when container is focused or contains focused element
-    if (containerRef.current) {
-      containerRef.current.addEventListener('keydown', handleKeyDown);
-      return () => {
-        if (containerRef.current) {
-          containerRef.current.removeEventListener('keydown', handleKeyDown);
-        }
-      };
-    }
-  }, [currentIndex, blocks, onBlockChange]);
 
   if (blocks.length === 0) {
     return (
@@ -149,23 +113,16 @@ export default function BlockContextStack({
       </div>
     );
   }
-
-  console.log('BlockContextStack render:', { 
-    blocksLength: blocks.length, 
-    currentIndex, 
-    currentBlockId 
-  });
   
 
   return (
     <div 
       ref={containerRef}
-      tabIndex={0}
-      className={`bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden focus:outline-none ${className}`}
+      className={`bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden ${className}`}
       style={{ 
-        height: '100%',
+        height: 'auto',
         minHeight: '300px',  // Ensure minimum space for at least current block
-        maxHeight: '90vh'    // Limit maximum height to 90% of viewport
+        maxHeight: 'calc(90vh - 200px)'  // Account for the larger header space
       }}>
       {/* Content area that gets transformed to keep focused block at consistent position */}
       <div 
@@ -182,9 +139,7 @@ export default function BlockContextStack({
           const block = blocks[blockIndex];
           const isCurrent = offset === 0;
           const opacity = isCurrent ? 1.0 : Math.abs(offset) === 1 ? 0.7 : 0.5;
-          
-          console.log('Rendering block:', { offset, blockIndex, blockId: block.id, isCurrent });
-          
+                    
           return (
             <div
               key={block.id}
@@ -228,25 +183,6 @@ export default function BlockContextStack({
             </div>
           );
         })}
-      </div>
-
-      {/* Reading position indicator with scroll hint */}
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-surface-parchment/95 backdrop-blur-sm px-4 py-2 rounded-book shadow-paper border border-library-gold-200">
-        <div className="flex items-center gap-4 text-sm text-reading-secondary">
-          <div className="flex items-center gap-1">
-            <kbd className="px-2 py-1 bg-library-cream-100 rounded text-xs font-mono">↑</kbd>
-            <span className="font-serif text-xs">Previous</span>
-          </div>
-          <div className="w-px h-4 bg-library-sage-300"></div>
-          <span className="font-serif text-xs font-medium">
-            Reading {currentIndex + 1} of {blocks.length}
-          </span>
-          <div className="w-px h-4 bg-library-sage-300"></div>
-          <div className="flex items-center gap-1">
-            <span className="font-serif text-xs">Next</span>
-            <kbd className="px-2 py-1 bg-library-cream-100 rounded text-xs font-mono">↓</kbd>
-          </div>
-        </div>
       </div>
     </div>
   );
