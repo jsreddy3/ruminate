@@ -84,7 +84,6 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       minWidth={280}
       minHeight={150}
       maxWidth={600}
-      maxHeight={500}
       title={
         <div className="flex items-center gap-2">
           <Book size={16} className="text-library-mahogany-600" />

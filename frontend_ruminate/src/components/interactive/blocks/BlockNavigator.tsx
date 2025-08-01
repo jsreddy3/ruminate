@@ -134,7 +134,6 @@ export default function BlockNavigator({
             <div className="bg-surface-paper rounded-book p-1.5 shadow-paper border border-library-sage-200">
               <button
                 onClick={() => {
-                  console.log('Switching to stack view');
                   setViewMode('stack');
                 }}
                 className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
@@ -148,7 +147,6 @@ export default function BlockNavigator({
               </button>
               <button
                 onClick={() => {
-                  console.log('Switching to traditional view');
                   setViewMode('traditional');
                 }}
                 className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
@@ -241,7 +239,6 @@ export default function BlockNavigator({
               currentBlockId={currentBlock.id}
               documentId={documentId}
               onBlockChange={(block) => {
-                console.log('BlockContextStack onBlockChange called:', block);
                 const newIndex = blocks.findIndex(b => b.id === block.id);
                 if (newIndex !== -1) {
                   setCurrentIndex(newIndex);

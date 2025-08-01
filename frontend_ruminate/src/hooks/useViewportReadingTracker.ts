@@ -88,11 +88,9 @@ export function useViewportReadingTracker({
   
   // Handle when a block becomes visible
   const handleBlockVisible = useCallback((blockId: string) => {
-    console.log('👀 Block became visible:', blockId, 'selectedBlockId:', selectedBlockId);
     
     // Only track if this is the currently selected block
     if (!selectedBlockId || blockId !== selectedBlockId) {
-      console.log('⏭️ Skipping - not selected block');
       return;
     }
     
@@ -115,41 +113,27 @@ export function useViewportReadingTracker({
       pageNumber
     };
     
-    console.log('⏱️ Started tracking block:', viewInfo);
     viewingBlocksRef.current.set(blockId, viewInfo);
   }, [blocks, getWordCount, isWithinPageRange, selectedBlockId]);
   
   // Handle when a block becomes invisible
   const handleBlockInvisible = useCallback((blockId: string) => {
-    console.log('👻 Block became invisible:', blockId);
     
     const viewInfo = viewingBlocksRef.current.get(blockId);
     if (!viewInfo) {
-      console.log('⚠️ No view info found for invisible block:', blockId);
       return;
     }
     
     const viewingTime = Date.now() - viewInfo.startTime;
     const expectedReadingTime = getExpectedReadingTime(viewInfo.wordCount);
     
-    console.log('📊 Block viewing stats:', { 
-      blockId, 
-      viewingTime: Math.round(viewingTime/1000) + 's', 
-      expectedReadingTime: Math.round(expectedReadingTime/1000) + 's',
-      wordCount: viewInfo.wordCount 
-    });
-    
     // Check if viewed long enough to count as "read"
     if (viewingTime >= expectedReadingTime) {
-      console.log('✅ Block viewed long enough - updating progress:', blockId);
       onProgressUpdate(blockId);
-    } else {
-      console.log('⏳ Block not viewed long enough yet - removing from tracking');
     }
     
     // Remove from tracking
     viewingBlocksRef.current.delete(blockId);
-    console.log('🗑️ Removed block from tracking, remaining blocks:', viewingBlocksRef.current.size);
   }, [getExpectedReadingTime, onProgressUpdate]);
   
   // Periodic check for blocks that have been visible long enough
@@ -157,16 +141,11 @@ export function useViewportReadingTracker({
     const now = Date.now();
     const trackingCount = viewingBlocksRef.current.size;
     
-    console.log(`🔄 Timer check - tracking ${trackingCount} blocks`);
-    
     viewingBlocksRef.current.forEach((viewInfo, blockId) => {
       const viewingTime = now - viewInfo.startTime;
       const expectedReadingTime = getExpectedReadingTime(viewInfo.wordCount);
-      
-      console.log(`⏰ Block ${blockId}: ${Math.round(viewingTime/1000)}s viewed, needs ${Math.round(expectedReadingTime/1000)}s`);
-      
+            
       if (viewingTime >= expectedReadingTime) {
-        console.log(`✅ Block viewed long enough - updating progress: ${blockId}`);
         onProgressUpdate(blockId);
         viewingBlocksRef.current.delete(blockId);
       }
@@ -175,11 +154,9 @@ export function useViewportReadingTracker({
   
   // Set up intersection observer
   useEffect(() => {
-    console.log('🔍 useViewportReadingTracker setup:', { blocksCount: blocks.length, selectedBlockId });
     
     // Don't track if no blocks or no selected block
     if (blocks.length === 0 || !selectedBlockId) {
-      console.log('❌ Not tracking - no blocks or no selected block');
       // Clear any existing tracking
       viewingBlocksRef.current.clear();
       return;
@@ -189,35 +166,20 @@ export function useViewportReadingTracker({
     const selectedBlockElement = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
     const scrollContainer = selectedBlockElement?.closest('.overflow-auto, .overflow-y-auto, .overflow-scroll') || null;
     
-    console.log('📦 Found scroll container:', scrollContainer);
-    
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const blockId = entry.target.getAttribute('data-block-id');
           if (!blockId) return;
           
-          console.log('👁️ Intersection change:', { 
-            blockId, 
-            isIntersecting: entry.isIntersecting,
-            intersectionRatio: entry.intersectionRatio,
-            boundingRect: entry.boundingClientRect,
-            rootBounds: entry.rootBounds
-          });
-          
           if (entry.isIntersecting) {
-            console.log('✅ Block is intersecting - calling handleBlockVisible');
             handleBlockVisible(blockId);
           } else {
             // Only handle invisible if we were already tracking this block
             const wasTracking = viewingBlocksRef.current.has(blockId);
-            console.log('❌ Block is NOT intersecting', { blockId, wasTracking });
             
             if (wasTracking) {
-              console.log('📤 Block was being tracked - calling handleBlockInvisible');
               handleBlockInvisible(blockId);
-            } else {
-              console.log('🚫 Block was not being tracked - ignoring invisible event');
             }
           }
         });
@@ -229,19 +191,12 @@ export function useViewportReadingTracker({
       }
     );
     
-    // Only observe the selected block element
-    const selectedBlockElement = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
-    console.log('🎯 Looking for block element:', selectedBlockId, selectedBlockElement);
-    
+    // Observe the selected block element (already found above)
     if (selectedBlockElement) {
-      console.log('✅ Observing block element:', selectedBlockId);
       observerRef.current.observe(selectedBlockElement);
-    } else {
-      console.log('❌ Block element not found in DOM:', selectedBlockId);
     }
     
     // Set up periodic timer for long-viewing blocks
-    console.log('⏰ Setting up timer to check every 2 seconds');
     timerRef.current = setInterval(checkLongViewingBlocks, 2000); // Check every 2 seconds
     
     return () => {

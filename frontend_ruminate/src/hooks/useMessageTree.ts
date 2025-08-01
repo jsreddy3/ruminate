@@ -39,7 +39,6 @@ export function useMessageTree({
   // Helper function to get fallback block ID from current page
   const getFallbackBlockId = useCallback((): string | undefined => {
     if (!blocks || blocks.length === 0 || !currentPage) {
-      console.log('[Block Fallback] No blocks or currentPage available', { blocks: blocks?.length, currentPage });
       return undefined;
     }
     
@@ -48,10 +47,6 @@ export function useMessageTree({
       block.page_number === currentPage && 
       block.block_type !== "Page"
     );
-    
-    console.log('[Block Fallback] Looking for blocks on page', currentPage);
-    console.log('[Block Fallback] All blocks:', blocks.map(b => ({ id: b.id, page: b.page_number, type: b.block_type })));
-    console.log('[Block Fallback] Found blocks on current page:', currentPageBlocks.length);
     
     if (currentPageBlocks.length === 0) {
       return undefined;
@@ -107,26 +102,6 @@ export function useMessageTree({
     const bestBlock = scoredBlocks[0];
     
     if (bestBlock) {
-      console.log('[Block Fallback] Block scoring results:', 
-        scoredBlocks.map(s => ({
-          id: s.block.id,
-          type: s.block.block_type,
-          textLength: s.textLength,
-          score: s.finalScore,
-          textPreview: s.text.substring(0, 50) + (s.text.length > 50 ? '...' : '')
-        }))
-      );
-      
-      console.log('[Block Fallback] Selected best block:', {
-        id: bestBlock.block.id,
-        page_number: bestBlock.block.page_number,
-        block_type: bestBlock.block.block_type,
-        text_length: bestBlock.textLength,
-        score: bestBlock.finalScore,
-        text_preview: bestBlock.text.substring(0, 200) + (bestBlock.text.length > 200 ? '...' : ''),
-        full_text: bestBlock.text
-      });
-      
       return bestBlock.block.id;
     }
     
@@ -335,14 +310,6 @@ export function useMessageTree({
       try {
         // 3. Determine block ID to send (selected block or fallback to current page)
         const blockIdToSend = selectedBlockId || getFallbackBlockId();
-        
-        console.log('[Message Send] Block ID decision:', {
-          selectedBlockId,
-          fallbackBlockId: getFallbackBlockId(),
-          finalBlockId: blockIdToSend,
-          currentPage
-        });
-        
         // 4. Make API call to get real IDs
         const { user_id, ai_id } = await conversationApi.sendMessage(
           conversationId, 

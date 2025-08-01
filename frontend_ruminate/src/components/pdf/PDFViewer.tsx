@@ -341,7 +341,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           block.html_content ||
           (block.images && Object.keys(block.images).length > 0) ||
           ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
-        )
+        ) &&
+        // If HTML content, must have four or more words
+        (block.html_content ? block.html_content.split(' ').length >= 4 : true)
       );
       
       // Use the blocks as they come from the API (already ordered correctly)
@@ -675,9 +677,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Enhanced search functionality with scroll-to-block
   const handleSearch = useCallback((query: string) => {
-    console.log('🔍 Search called with:', query);
-    console.log('🔍 flattenedBlocks.length:', flattenedBlocks.length);
-    
     if (!query.trim()) return;
     
     // Search through flattened blocks for text content
@@ -689,20 +688,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       return textContent.includes(searchTerm);
     });
     
-    console.log('🔍 Found block:', matchingBlock);
+    
     
     if (matchingBlock && typeof matchingBlock.page_number === 'number' && matchingBlock.page_number >= 0) {
-      console.log('🔍 Navigating to page:', matchingBlock.page_number);
       // First scroll to the block position (this handles the page navigation)
       scrollToBlock(matchingBlock);
       
       // Then open the block overlay after a longer delay to ensure navigation completes
       setTimeout(() => {
-        console.log('🔍 Opening block overlay');
         blockOverlayManager.handleBlockClick(matchingBlock);
       }, 800);
     } else {
-      console.log('🔍 No matching block found or no page number');
     }
   }, [flattenedBlocks, blockOverlayManager, setCurrentPage, scrollToBlock]);
 
@@ -772,7 +768,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     if (pdfLoadingState === 'idle') {
       // Set a small delay to allow the first render to happen, then check if we need to start loading state
       const timer = setTimeout(() => {
-        console.log('🔄 PDF loading initiated...');
         setPdfLoadingState('loading');
       }, 100);
       
@@ -977,7 +972,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               ]}
               pdfLoadingState={pdfLoadingState}
               onDocumentLoad={(e) => {
-                console.log('📄 PDF document loaded successfully');
                 setPdfLoadingState('loaded');
                 setTotalPages(e.doc.numPages);
                 setCurrentPage(1);
