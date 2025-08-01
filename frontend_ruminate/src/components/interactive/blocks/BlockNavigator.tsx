@@ -38,7 +38,7 @@ export default function BlockNavigator({
   const [currentIndex, setCurrentIndex] = useState(0);
   
   // View mode state - toggles between traditional view and contextual stack
-  const [viewMode, setViewMode] = useState<'traditional' | 'stack'>('stack');
+  const [viewMode, setViewMode] = useState<'traditional' | 'stack'>('traditional');
   
   // Update index when currentBlockId changes from outside (e.g., when user clicks in PDF)
   useEffect(() => {
@@ -134,19 +134,6 @@ export default function BlockNavigator({
             <div className="bg-surface-paper rounded-book p-1.5 shadow-paper border border-library-sage-200">
               <button
                 onClick={() => {
-                  setViewMode('stack');
-                }}
-                className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
-                  viewMode === 'stack'
-                    ? 'bg-library-gold-100 text-reading-accent shadow-sm'
-                    : 'text-reading-muted hover:text-reading-secondary'
-                }`}
-                title="Contextual stack view"
-              >
-                📚 Stack
-              </button>
-              <button
-                onClick={() => {
                   setViewMode('traditional');
                 }}
                 className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
@@ -157,6 +144,19 @@ export default function BlockNavigator({
                 title="Traditional linear view"
               >
                 📄 Single
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('stack');
+                }}
+                className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
+                  viewMode === 'stack'
+                    ? 'bg-library-gold-100 text-reading-accent shadow-sm'
+                    : 'text-reading-muted hover:text-reading-secondary'
+                }`}
+                title="Contextual stack view"
+              >
+                📚 Stack
               </button>
             </div>
           </div>
