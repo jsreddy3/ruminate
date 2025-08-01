@@ -233,7 +233,7 @@ export default function BlockNavigator({
           </div>
         ) : (
           // Contextual stack view
-          <div className="h-full">
+          <div className="h-full overflow-hidden">
             <BlockContextStack
               blocks={blocks}
               currentBlockId={currentBlock.id}

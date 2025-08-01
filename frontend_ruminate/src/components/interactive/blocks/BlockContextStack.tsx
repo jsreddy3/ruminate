@@ -37,48 +37,20 @@ export default function BlockContextStack({
   const containerRef = useRef<HTMLDivElement>(null);
   const focusedBlockRef = useRef<HTMLDivElement>(null);
   
-  // Calculate transform to keep focused block at consistent position
-  const [contentTransform, setContentTransform] = useState<string>('translateY(0px)');
-  
-  // Dynamic block range based on container height
-  const [visibleBlockRange, setVisibleBlockRange] = useState(2); // Default to showing 2 blocks before/after
-  
-  // Calculate optimal block range based on container height
-  const calculateOptimalBlockRange = useMemo(() => {
-    if (!containerRef.current) return 2;
-    
-    const containerHeight = containerRef.current.clientHeight;
-    const minHeight = 400; // Minimum height threshold
-    const maxHeight = 800; // Maximum height threshold
-    
-    // Calculate range based on available height
-    if (containerHeight < minHeight) {
-      return 1; // Show fewer blocks when space is limited
-    } else if (containerHeight > maxHeight) {
-      return 3; // Show more blocks when we have lots of space
-    } else {
-      return 2; // Default range
+  // Check if this is the first showable text block
+  const isFirstShowableTextBlock = useMemo(() => {
+    // Find all text-based blocks before current
+    const textBlockTypes = ['text', 'paragraph', 'section_header', 'title', 'subtitle', 'caption'];
+    for (let i = 0; i < currentIndex; i++) {
+      const blockType = blocks[i].block_type.toLowerCase();
+      if (textBlockTypes.some(type => blockType.includes(type))) {
+        return false; // Found a text block before current
+      }
     }
-  }, [containerRef.current?.clientHeight]);
+    return true; // No text blocks before current
+  }, [blocks, currentIndex]);
   
-  // Update block range based on container height
-  useEffect(() => {
-    const updateBlockRange = () => {
-      const newRange = calculateOptimalBlockRange;
-      setVisibleBlockRange(newRange);
-    };
-    
-    // Initial calculation
-    updateBlockRange();
-    
-    // Recalculate on resize
-    const resizeObserver = new ResizeObserver(updateBlockRange);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-    
-    return () => resizeObserver.disconnect();
-  }, [calculateOptimalBlockRange]);
+  
 
   // Update transform when focused block changes
   useEffect(() => {
@@ -87,22 +59,29 @@ export default function BlockContextStack({
         const container = containerRef.current;
         const focusedBlock = focusedBlockRef.current;
         
-        // Target position: 30% from top of viewport
+        // Get container height and focused block position
         const containerHeight = container.clientHeight;
-        const targetPosition = containerHeight * 0.3;
+        const containerRect = container.getBoundingClientRect();
+        const blockRect = focusedBlock.getBoundingClientRect();
         
-        // Get focused block's current position
-        const blockTop = focusedBlock.offsetTop;
+        // Calculate the block's position relative to the container's content
+        const blockOffsetTop = focusedBlock.offsetTop;
         
-        // Calculate how much to translate content to put focused block at target position
-        const translateY = targetPosition - blockTop;
+        // Calculate where we want the block to be (40% from top of viewport)
+        const targetPosition = containerHeight * 0.4;
         
-        setContentTransform(`translateY(${translateY}px)`);
+        // Scroll the container so the block appears at target position
+        const scrollTarget = blockOffsetTop - targetPosition;
+        
+        container.scrollTo({
+          top: scrollTarget,
+          behavior: 'smooth'
+        });
       }
-    }, 50);
+    }, 100);
     
     return () => clearTimeout(timer);
-  }, [currentIndex, currentBlockId, visibleBlockRange]);
+  }, [currentIndex, currentBlockId]);
 
 
   if (blocks.length === 0) {
@@ -122,24 +101,27 @@ export default function BlockContextStack({
       style={{ 
         minHeight: '300px'  // Ensure minimum space for at least current block
       }}>
-      {/* Content area that gets transformed to keep focused block at consistent position */}
+      {/* Content area with padding for scrolling */}
       <div 
-        className="py-6 px-4 space-y-4 w-full transition-transform duration-500 ease-out"
+        className="px-4 space-y-4 w-full"
         style={{ 
-          transform: contentTransform,
           overflowX: 'hidden',
-          paddingTop: '30vh', // Add padding to ensure content can be scrolled to top
-          paddingBottom: '50vh' // Add padding to ensure content can be scrolled to bottom
+          paddingTop: '40vh',  // Space to allow scrolling above first block
+          paddingBottom: '60vh' // Space to allow scrolling below last block
         }}
       >
-        {Array.from({ length: visibleBlockRange * 2 + 1 }, (_, i) => i - visibleBlockRange).map(offset => {
-          const blockIndex = currentIndex + offset;
-          if (blockIndex < 0 || blockIndex >= blocks.length) return null;
-          
-          const block = blocks[blockIndex];
+        {blocks.map((block, blockIndex) => {
+          const offset = blockIndex - currentIndex;
           const isCurrent = offset === 0;
-          const opacity = isCurrent ? 1.0 : Math.abs(offset) === 1 ? 0.7 : 0.5;
-                    
+          const isAboveCurrent = offset < 0;
+          const isBelowCurrent = offset > 0;
+          
+          // Calculate opacity based on distance from current
+          const distance = Math.abs(offset);
+          const opacity = isCurrent ? 1.0 : 
+                         distance === 1 ? 0.7 : 
+                         distance === 2 ? 0.5 : 0.3;
+          
           return (
             <div
               key={block.id}
@@ -148,37 +130,68 @@ export default function BlockContextStack({
                 isCurrent 
                   ? 'bg-surface-paper border-library-gold-300 shadow-book' 
                   : 'bg-surface-parchment border-library-sage-200 hover:border-library-gold-200 hover:shadow-paper'
-              } w-full overflow-hidden`}
+              } w-full overflow-hidden flex flex-col`}
               style={{ 
-                opacity
+                opacity,
+                maxHeight: isCurrent ? '50vh' : '25vh'
               }}
               onClick={() => onBlockChange(block)}
             >
               {/* Block content using the same renderer as linear view */}
-              <div className="p-4">
-                <BlockContainer
-                  key={block.id}
-                  blockId={block.id}
-                  blockType={block.block_type}
-                  htmlContent={block.html_content || ''}
-                  documentId={documentId}
-                  images={block.images}
-                  metadata={block.metadata}
-                  rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(block.id) : []}
-                  customStyle={{ 
-                    backgroundColor: 'transparent',
-                    fontSize: isCurrent 
-                      ? '1.4rem'   // Center block: significantly bigger for focus
-                      : Math.abs(offset) === 1 
-                        ? '1.1rem' // 1 away: slightly bigger than normal
-                        : '1rem'   // 2 away: normal size (smallest)
-                  }}
-                  onRefreshRabbitholes={onRefreshRabbitholes}
-                  onAddTextToChat={onAddTextToChat}
-                  onRabbitholeClick={onRabbitholeClick}
-                  onCreateRabbithole={onCreateRabbithole}
-                  onUpdateBlockMetadata={onUpdateBlockMetadata}
-                />
+              <div className={`p-4 ${
+                isCurrent ? 'overflow-y-auto flex-1' : 
+                isAboveCurrent ? 'overflow-y-hidden flex-1 flex flex-col justify-end' : 
+                'overflow-y-hidden flex-shrink-0'
+              }`}>
+                {isAboveCurrent && !isCurrent ? (
+                  // For blocks above current, wrap in a div to allow bottom alignment
+                  <div className="overflow-y-auto max-h-full">
+                    <BlockContainer
+                      key={block.id}
+                      blockId={block.id}
+                      blockType={block.block_type}
+                      htmlContent={block.html_content || ''}
+                      documentId={documentId}
+                      images={block.images}
+                      metadata={block.metadata}
+                      rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(block.id) : []}
+                      customStyle={{ 
+                        backgroundColor: 'transparent',
+                        fontSize: Math.abs(offset) === 1 ? '1.1rem' : '1rem'
+                      }}
+                      onRefreshRabbitholes={onRefreshRabbitholes}
+                      onAddTextToChat={onAddTextToChat}
+                      onRabbitholeClick={onRabbitholeClick}
+                      onCreateRabbithole={onCreateRabbithole}
+                      onUpdateBlockMetadata={onUpdateBlockMetadata}
+                    />
+                  </div>
+                ) : (
+                  // For current and below blocks, render normally
+                  <BlockContainer
+                    key={block.id}
+                    blockId={block.id}
+                    blockType={block.block_type}
+                    htmlContent={block.html_content || ''}
+                    documentId={documentId}
+                    images={block.images}
+                    metadata={block.metadata}
+                    rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(block.id) : []}
+                    customStyle={{ 
+                      backgroundColor: 'transparent',
+                      fontSize: isCurrent 
+                        ? '1.4rem'   // Center block: significantly bigger for focus
+                        : Math.abs(offset) === 1 
+                          ? '1.1rem' // 1 away: slightly bigger than normal
+                          : '1rem'   // 2 away: normal size (smallest)
+                    }}
+                    onRefreshRabbitholes={onRefreshRabbitholes}
+                    onAddTextToChat={onAddTextToChat}
+                    onRabbitholeClick={onRabbitholeClick}
+                    onCreateRabbithole={onCreateRabbithole}
+                    onUpdateBlockMetadata={onUpdateBlockMetadata}
+                  />
+                )}
               </div>
             </div>
           );

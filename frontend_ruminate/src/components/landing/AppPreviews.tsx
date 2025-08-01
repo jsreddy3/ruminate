@@ -104,13 +104,40 @@ export default function AppPreviews() {
           {/* Get Started Button */}
           <div className="absolute inset-0 flex items-center justify-center z-20">
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.6, delay: 3.0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { 
+                opacity: 1, 
+                y: 0,
+                transition: {
+                  duration: 0.8,
+                  delay: 1.5,
+                  ease: [0.21, 0.47, 0.32, 0.98]
+                }
+              } : { opacity: 0, y: 20 }}
             >
-              <div className="transform scale-[1.5]">
-                <AuthButton />
-              </div>
+              <motion.div
+                initial={{ scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative"
+              >
+                {/* Glow effect */}
+                <motion.div
+                  className="absolute inset-0 bg-library-mahogany-400/20 blur-2xl rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 0.8, 0.5],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+                <div className="transform scale-[1.5] relative">
+                  <AuthButton />
+                </div>
+              </motion.div>
             </motion.div>
           </div>
         </div>

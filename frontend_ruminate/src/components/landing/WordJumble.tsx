@@ -74,28 +74,6 @@ export default function WordJumble({ speedUp = false }: WordJumbleProps) {
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-amber-200/20 to-transparent" />
           
           <div className="relative py-32 px-16">
-      {/* Reading spotlight effect - like a flashlight on the page */}
-      <motion.div 
-        className="absolute inset-0 pointer-events-none"
-        animate={{
-          x: ["0%", "10%", "-10%", "0%"],
-        }}
-        transition={{
-          duration: speedUp ? 2 : 8,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      >
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{
-            width: '350px',
-            height: '350px',
-            background: 'radial-gradient(circle, rgba(255,253,235,0.2) 0%, rgba(255,248,220,0.1) 40%, transparent 70%)',
-            filter: 'blur(20px)',
-          }}
-        />
-      </motion.div>
       
       <div className="relative z-10 w-full px-8">
         {/* Top text */}
@@ -113,7 +91,7 @@ export default function WordJumble({ speedUp = false }: WordJumbleProps) {
         className="relative w-full h-96 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-        transition={{ duration: 1, delay: 0.8 }}
+        transition={{ duration: 0.6, delay: 0 }}
       >
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-full h-full">
@@ -128,11 +106,11 @@ export default function WordJumble({ speedUp = false }: WordJumbleProps) {
                   y: Math.cos(index * 0.7) * 100,
                 } : { opacity: 0, scale: 0.8 }}
                 transition={{
-                  duration: speedUp ? 2 + index * 0.5 : 10 + index * 2,
+                  duration: speedUp ? 5 + index * 1 : 10 + index * 2,
                   repeat: Infinity,
                   repeatType: "reverse",
                   ease: "easeInOut",
-                  delay: speedUp ? 0.1 : 0.8 + index * 0.1,
+                  delay: speedUp ? 0.1 : 0 + index * 0.03,
                 }}
                 className={`absolute ${word.size} ${word.color} font-iowan italic opacity-70`}
                 style={{
@@ -148,21 +126,6 @@ export default function WordJumble({ speedUp = false }: WordJumbleProps) {
             
             {/* Central blur effect */}
             <div className="absolute inset-0 bg-gradient-radial from-transparent via-surface-paper/50 to-transparent pointer-events-none" />
-            
-            {/* Speed up indicator */}
-            {speedUp && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-16 h-16 border-4 border-library-gold-400/40 border-t-library-gold-400 rounded-full"
-                />
-              </motion.div>
-            )}
           </div>
         </div>
       </motion.div>
