@@ -126,7 +126,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-serif font-bold text-reading-primary">Ruminate</h1>
+              <h1 className="text-4xl font-serif font-bold text-reading-primary">Ruminate</h1>
             </div>
             <div className="flex items-center gap-4">
               <UploadButton onUploadComplete={handleUploadComplete} />
@@ -146,8 +146,8 @@ export default function HomePage() {
           {/* Documents Section */}
           <div className="bg-surface-parchment rounded-journal shadow-book border border-library-cream-300">
             <div className="px-6 py-4 border-b border-library-cream-300">
-              <h2 className="text-lg font-serif font-semibold text-reading-primary">Your Library</h2>
-              <p className="text-sm text-reading-muted mt-1">
+              <h2 className="text-2xl font-serif font-semibold text-reading-primary">Your Library</h2>
+              <p className="text-lg text-reading-muted mt-1">
                 {documents.length} {documents.length === 1 ? 'document' : 'documents'}
               </p>
             </div>
@@ -176,8 +176,8 @@ export default function HomePage() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <p className="mt-4 text-reading-secondary font-serif">Your library is empty</p>
-                <p className="text-sm text-reading-muted mt-2">Upload a document to begin your journey</p>
+                <p className="mt-4 text-xl text-reading-secondary font-serif">Your library is empty</p>
+                <p className="text-lg text-reading-muted mt-2">Upload a document to begin your journey</p>
               </div>
             ) : (
               <DocumentTable 
