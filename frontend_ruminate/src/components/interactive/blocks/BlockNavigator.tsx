@@ -194,7 +194,7 @@ export default function BlockNavigator({
                   images={currentBlock.images}
                   metadata={currentBlock.metadata}
                   rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(currentBlock.id) : []}
-                  customStyle={{ backgroundColor: 'white' }}
+                  customStyle={{ backgroundColor: 'white', fontSize: '1.4rem' }}
                   onRefreshRabbitholes={onRefreshRabbitholes}
                   onAddTextToChat={onAddTextToChat}
                   onRabbitholeClick={onRabbitholeClick}
