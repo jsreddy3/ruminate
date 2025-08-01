@@ -97,10 +97,7 @@ export default function BlockContextStack({
   return (
     <div 
       ref={containerRef}
-      className={`h-full bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden ${className}`}
-      style={{ 
-        minHeight: '300px'  // Ensure minimum space for at least current block
-      }}>
+      className={`flex-1 bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>
       {/* Content area with padding for scrolling */}
       <div 
         className="px-4 space-y-4 w-full"
