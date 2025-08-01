@@ -54,6 +54,9 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
   const maxPreviewIcons = 3;
   const previewConversations = conversations.slice(0, maxPreviewIcons);
   const hasMore = conversations.length > maxPreviewIcons;
+  
+  // Check if there are any discussions (non-main conversations)
+  const hasDiscussions = conversations.some(conv => conv.type === 'rabbithole');
 
   const handleExpandClick = () => {
     if (containerRef.current) {
@@ -70,12 +73,14 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
     <div className="relative flex items-center">
       {/* Main conversation strip */}
       <div ref={containerRef} className="flex items-center gap-2 bg-gradient-to-r from-surface-parchment to-library-cream-100 border-2 border-library-sage-300 rounded-journal shadow-book px-4 py-2 backdrop-blur-sm">
-        {/* Library label - non-clickable */}
-        <div className="flex items-center gap-2 px-2 py-1">
-          <span className="font-serif text-sm font-semibold text-reading-primary">
-            Discussions
-          </span>
-        </div>
+        {/* Library label - only show if there are discussions */}
+        {hasDiscussions && (
+          <div className="flex items-center gap-2 px-2 py-1">
+            <span className="font-serif text-sm font-semibold text-reading-primary">
+              Discussions
+            </span>
+          </div>
+        )}
 
         {/* Preview Icons - only 2-3 shown */}
         <div className="flex items-center gap-2">
