@@ -908,6 +908,7 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             conversation_id=conversation_id,
             message_count=len(recent_messages),
             topic=topic,
+            recent_messages=recent_messages,
             session=session
         )
         
@@ -966,6 +967,7 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         conversation_id: str,
         message_count: int,
         topic: Optional[str],
+        recent_messages: List,
         session: AsyncSession
     ) -> Dict[str, Any]:
         """Save generated note to block metadata"""
