@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import BasePopover from '../common/BasePopover';
 
 interface Conversation {
@@ -22,27 +21,22 @@ interface ConversationLibraryProps {
  */
 const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
   conversations,
-  activeConversationId,
   onConversationChange
 }) => {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
 
   const getIconStyles = (conversation: Conversation) => {
     const isActive = conversation.isActive;
-    const isHovered = hoveredId === conversation.id;
     
     return {
       container: `
-        relative w-10 h-10 rounded-book cursor-pointer transition-all duration-300 ease-out
+        relative w-10 h-10 rounded-book cursor-pointer transition-colors duration-300 ease-out
         ${isActive 
           ? 'bg-library-forest-500 shadow-book ring-2 ring-library-gold-400' 
-          : 'bg-library-forest-400 hover:bg-library-forest-500 hover:shadow-book'
+          : 'bg-library-forest-400 hover:bg-library-forest-500'
         }
-        ${isHovered ? 'scale-110 z-20' : 'scale-100'}
       `,
       icon: `
         w-full h-full flex items-center justify-center text-library-cream-50 text-base
@@ -57,6 +51,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
   
   // Check if there are any discussions (non-main conversations)
   const hasDiscussions = conversations.some(conv => conv.type === 'rabbithole');
+  
 
   const handleExpandClick = () => {
     if (containerRef.current) {
@@ -72,7 +67,10 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
   return (
     <div className="relative flex items-center">
       {/* Main conversation strip */}
-      <div ref={containerRef} className="flex items-center gap-2 bg-gradient-to-r from-surface-parchment to-library-cream-100 border-2 border-library-sage-300 rounded-journal shadow-book px-4 py-2 backdrop-blur-sm">
+      <div 
+        ref={containerRef} 
+        className="flex items-center gap-2 bg-gradient-to-r from-surface-parchment to-library-cream-100 border-2 border-library-sage-300 rounded-journal shadow-book px-4 py-2 backdrop-blur-sm w-fit min-w-fit"
+      >
         {/* Library label - only show if there are discussions */}
         {hasDiscussions && (
           <div className="flex items-center gap-2 px-2 py-1">
@@ -84,22 +82,15 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
 
         {/* Preview Icons - only 2-3 shown */}
         <div className="flex items-center gap-2">
-          {previewConversations.map((conversation, index) => {
+          {previewConversations.map((conversation) => {
             const styles = getIconStyles(conversation);
             const conversationKey = conversation.id || 'main';
             
             return (
-              <motion.div
+              <div
                 key={conversationKey}
                 className={styles.container}
-                onMouseEnter={() => setHoveredId(conversation.id)}
-                onMouseLeave={() => setHoveredId(null)}
                 onClick={() => onConversationChange(conversation.id)}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.9 }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.05 }}
                 title={conversation.title}
               >
                 <div className={styles.icon}>
@@ -110,14 +101,12 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
 
                 {/* Active indicator dot */}
                 {conversation.isActive && (
-                  <motion.div
+                  <div
                     className="absolute -top-1 -right-1 w-3 h-3 bg-library-gold-400 rounded-full border-2 border-library-cream-50 shadow-lg"
-                    layoutId="activeIndicator"
-                    transition={{ duration: 0.3 }}
                   />
                 )}
 
-              </motion.div>
+              </div>
             );
           })}
 
@@ -125,7 +114,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
           {hasMore && (
             <button
               onClick={handleExpandClick}
-              className="flex items-center justify-center w-10 h-10 bg-library-sage-300 hover:bg-library-sage-400 text-library-cream-50 rounded-book font-serif text-sm font-bold transition-all duration-200 shadow-paper hover:shadow-book"
+              className="flex items-center justify-center w-10 h-10 bg-library-sage-300 hover:bg-library-sage-400 text-library-cream-50 rounded-book font-serif text-sm font-bold transition-colors duration-200"
               title={`Show ${conversations.length - maxPreviewIcons} more conversations`}
             >
               +{conversations.length - maxPreviewIcons}
@@ -153,15 +142,15 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
         <div className="p-4 h-full overflow-y-auto">
           {/* Clean list layout instead of cramped grid */}
           <div className="space-y-2">
-            {conversations.map((conversation, index) => {
+            {conversations.map((conversation) => {
               const isActive = conversation.isActive;
               
               return (
-                <motion.button
+                <button
                   key={conversation.id || 'main'}
                   className={`
                     w-full flex items-center gap-3 p-3 rounded-book text-left
-                    transition-all duration-200 hover:shadow-paper
+                    transition-colors duration-200
                     ${isActive 
                       ? 'bg-gradient-to-r from-library-gold-50 to-library-gold-100 border-2 border-library-gold-300 shadow-paper' 
                       : 'bg-gradient-to-r from-surface-parchment to-library-cream-50 border border-library-sage-200 hover:border-library-sage-300 hover:bg-library-cream-100'
@@ -171,11 +160,6 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
                     onConversationChange(conversation.id);
                     setIsExpanded(false);
                   }}
-                  whileHover={{ x: 2 }}
-                  whileTap={{ scale: 0.98 }}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
                 >
                   {/* Clean icon */}
                   <div className="flex-shrink-0">
@@ -199,7 +183,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
                   {isActive && (
                     <div className="flex-shrink-0 w-2 h-2 bg-library-gold-500 rounded-full"></div>
                   )}
-                </motion.button>
+                </button>
               );
             })}
           </div>
