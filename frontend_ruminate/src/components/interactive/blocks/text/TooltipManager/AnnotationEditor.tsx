@@ -101,7 +101,7 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
           <button
             onClick={handleDelete}
             disabled={isSaving}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 font-medium"
+            className="flex items-center gap-1 px-3 py-1.5 text-base text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 font-medium"
           >
             <Trash2 size={14} />
             Delete
@@ -113,14 +113,14 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
         <button
           onClick={onClose}
           disabled={isSaving}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-white/80 rounded-lg transition-colors disabled:opacity-50 font-medium"
+          className="px-4 py-2 text-base text-gray-600 hover:text-gray-700 hover:bg-white/80 rounded-lg transition-colors disabled:opacity-50 font-medium"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={isSaving || !note.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md hover:shadow-lg"
+          className="flex items-center gap-1.5 px-4 py-2 text-base bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md hover:shadow-lg"
         >
           <Save size={14} />
           {isSaving ? 'Saving...' : 'Save'}
@@ -142,8 +142,8 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
       minHeight={180}
       title={
         <div className="flex items-center gap-2">
-          <FileText size={16} className="text-yellow-600" />
-          <span className="text-yellow-900">"{truncatedText}"</span>
+          <FileText size={20} className="text-yellow-600" />
+          <span className="text-yellow-900 text-xl">"{truncatedText}"</span>
         </div>
       }
       className="border-yellow-200 shadow-2xl backdrop-blur-sm"
@@ -159,7 +159,7 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add your annotation here..."
-          className="w-full flex-1 px-3 py-3 border border-yellow-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-gray-800 text-sm leading-relaxed bg-yellow-25/30"
+          className="w-full flex-1 px-3 py-3 border border-yellow-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-gray-800 text-lg leading-relaxed bg-yellow-25/30"
           style={{ minHeight: '80px' }}
           disabled={isSaving}
         />

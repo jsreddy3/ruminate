@@ -852,7 +852,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   }}
                   className="w-32 h-12 flex items-center justify-center rounded-book border shadow-book hover:shadow-shelf transition-all font-serif font-medium"
                   style={{ 
-                    fontSize: '14px',
+                    fontSize: '16px',
                     gap: '8px',
                     background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)',
                     color: '#FDF6E3',

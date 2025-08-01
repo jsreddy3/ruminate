@@ -69,7 +69,7 @@ const DefinitionTooltip: React.FC<DefinitionTooltipProps> = ({
           cursor: 'pointer',
           background: 'none',
           border: 'none',
-          fontSize: '14px',
+          fontSize: '24px',
           padding: '2px',
           zIndex: 2
         }}
@@ -88,7 +88,7 @@ const DefinitionTooltip: React.FC<DefinitionTooltipProps> = ({
           <span style={{ 
             display: 'inline-block',
             padding: '1px 4px',
-            fontSize: '1rem',
+            fontSize: '1.2rem',
             fontWeight: 'bold',
             fontStyle: 'italic',
             backgroundColor: '#fef9c3',
@@ -103,7 +103,7 @@ const DefinitionTooltip: React.FC<DefinitionTooltipProps> = ({
         
         {/* Definition content - full width */}
         <div style={{ 
-          fontSize: '0.8125rem', 
+          fontSize: '1.2rem', 
           color: '#334155', 
           lineHeight: '1.3', 
           padding: '0 2px' 

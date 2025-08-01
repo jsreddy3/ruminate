@@ -56,6 +56,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   
   // Zoom state - scholarly zoom levels
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isZoomCollapsed, setIsZoomCollapsed] = useState(true); // Start collapsed
   const containerRef = useRef<HTMLDivElement>(null);
   
   const zoomPresets = [
@@ -197,56 +198,84 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       {/* Subtle notebook margin line */}
       <div className="absolute left-8 top-0 bottom-0 w-px bg-library-mahogany-200 opacity-30"></div>
       
-      {/* Elegant zoom controls - like a magnifying glass over ancient texts */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 px-3 py-2 bg-surface-parchment/95 backdrop-blur-sm border border-library-gold-200 rounded-book shadow-paper">
-        <button
-          onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.1))}
-          className="p-1.5 hover:bg-library-cream-100 rounded transition-colors"
-          title="Zoom out (Cmd/Ctrl -)"
-        >
-          <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 12H4" />
-          </svg>
-        </button>
-        
-        <div className="flex items-center gap-1">
-          {zoomPresets.map((preset) => (
+      {/* Collapsible zoom controls - like a magnifying glass over ancient texts */}
+      <div className="absolute top-4 right-4 z-10 flex items-center">
+        {/* Collapsed toggle button */}
+        {isZoomCollapsed ? (
+          <button
+            onClick={() => setIsZoomCollapsed(false)}
+            className="flex items-center gap-2 px-3 py-2 bg-surface-parchment/95 backdrop-blur-sm border border-library-gold-200 rounded-book shadow-paper hover:shadow-book transition-all duration-200"
+            title="Show zoom controls"
+          >
+            <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span className="text-sm font-serif text-library-mahogany-600">{Math.round(zoomLevel * 100)}%</span>
+          </button>
+        ) : (
+          /* Expanded controls */
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-parchment/95 backdrop-blur-sm border border-library-gold-200 rounded-book shadow-paper">
             <button
-              key={preset.level}
-              onClick={() => setZoomLevel(preset.level)}
-              className={`px-2 py-1 text-xs font-serif transition-all ${
-                zoomLevel === preset.level
-                  ? 'text-library-mahogany-700 bg-library-gold-100 border-b-2 border-library-gold-400'
-                  : 'text-library-mahogany-500 hover:text-library-mahogany-700 hover:bg-library-cream-100'
-              }`}
-              title={`${preset.label} (${preset.percentage})`}
+              onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.1))}
+              className="p-1.5 hover:bg-library-cream-100 rounded transition-colors"
+              title="Zoom out (Cmd/Ctrl -)"
             >
-              {preset.percentage}
+              <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 12H4" />
+              </svg>
             </button>
-          ))}
-        </div>
-        
-        <button
-          onClick={() => setZoomLevel(prev => Math.min(1.5, prev + 0.1))}
-          className="p-1.5 hover:bg-library-cream-100 rounded transition-colors"
-          title="Zoom in (Cmd/Ctrl +)"
-        >
-          <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-        
-        <div className="w-px h-6 bg-library-gold-300 mx-1"></div>
-        
-        <button
-          onClick={() => setZoomLevel(1)}
-          className="p-1.5 hover:bg-library-cream-100 rounded transition-colors"
-          title="Reset zoom (Cmd/Ctrl 0)"
-        >
-          <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
+            
+            <div className="flex items-center gap-1">
+              {zoomPresets.map((preset) => (
+                <button
+                  key={preset.level}
+                  onClick={() => setZoomLevel(preset.level)}
+                  className={`px-2 py-1 text-sm font-serif transition-all ${
+                    zoomLevel === preset.level
+                      ? 'text-library-mahogany-700 bg-library-gold-100 border-b-2 border-library-gold-400'
+                      : 'text-library-mahogany-500 hover:text-library-mahogany-700 hover:bg-library-cream-100'
+                  }`}
+                  title={`${preset.label} (${preset.percentage})`}
+                >
+                  {preset.percentage}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => setZoomLevel(prev => Math.min(1.5, prev + 0.1))}
+              className="p-1.5 hover:bg-library-cream-100 rounded transition-colors"
+              title="Zoom in (Cmd/Ctrl +)"
+            >
+              <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+            
+            <div className="w-px h-6 bg-library-gold-300 mx-1"></div>
+            
+            <button
+              onClick={() => setZoomLevel(1)}
+              className="p-1.5 hover:bg-library-cream-100 rounded transition-colors"
+              title="Reset zoom (Cmd/Ctrl 0)"
+            >
+              <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+            
+            {/* Collapse button */}
+            <button
+              onClick={() => setIsZoomCollapsed(true)}
+              className="p-1.5 hover:bg-library-cream-100 rounded transition-colors ml-1"
+              title="Hide zoom controls"
+            >
+              <svg className="w-4 h-4 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
       
       {/* Content area */}

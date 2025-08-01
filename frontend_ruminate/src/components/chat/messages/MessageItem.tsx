@@ -157,7 +157,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             {/* ORNATE streaming indicator */}
             {isStreaming && message.role === MessageRole.ASSISTANT && (
               <div className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-library-forest-100 to-library-sage-100 rounded-book border border-library-forest-200">
-                <span className="text-xs font-serif text-library-forest-700">Contemplating...</span>
+                <span className="text-sm font-serif text-library-forest-700">Contemplating...</span>
                 <div className="flex space-x-1">
                   <div className="w-1.5 h-1.5 bg-library-forest-500 rounded-full animate-pulse"></div>
                   <div className="w-1.5 h-1.5 bg-library-forest-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
@@ -213,7 +213,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
                   </svg>
-                  <span className="text-xs font-serif font-medium">Cancel</span>
+                  <span className="text-sm font-serif font-medium">Cancel</span>
                 </button>
                 <button
                   onClick={handleEditSubmit}
@@ -222,14 +222,14 @@ const MessageItem: React.FC<MessageItemProps> = ({
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
                   </svg>
-                  <span className="text-xs font-serif font-medium">Preserve</span>
+                  <span className="text-sm font-serif font-medium">Preserve</span>
                 </button>
               </div>
             </div>
           ) : (
             <div className="relative">
               {/* Message content rendered through dedicated component */}
-              <div className="font-serif text-base leading-relaxed text-reading-primary">
+              <div className="font-serif text-lg leading-relaxed text-reading-primary">
                 <MessageContentRenderer
                   content={message.content}
                   role={message.role as MessageRole}
@@ -267,7 +267,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                   </svg>
                 </button>
                 
-                <span className="text-xs text-reading-muted font-mono">
+                <span className="text-sm text-reading-muted font-mono">
                   {currentIndex + 1}/{totalVersions}
                 </span>
                 
@@ -289,7 +289,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           })()}
           
           {/* Timestamp */}
-          <div className="flex items-center gap-2 text-xs text-reading-muted font-sans italic">
+          <div className="flex items-center gap-2 text-sm text-reading-muted font-sans italic">
             <svg className="w-3 h-3 opacity-60" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12.5,7H11V12.5L15.75,15.1L16.5,13.9L12.5,11.7V7Z"/>
             </svg>

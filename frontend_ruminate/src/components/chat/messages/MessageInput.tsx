@@ -67,7 +67,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             placeholder="Compose your message..."
             disabled={isDisabled}
             className={`
-              w-full font-serif text-reading-primary resize-none 
+              w-full font-serif text-reading-primary resize-none text-xl 
               border-2 border-library-sage-300 rounded-journal
               focus:outline-none focus:border-library-mahogany-400
               shadow-inner transition-all duration-500 ease-out
@@ -98,7 +98,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         
         {/* ELEGANT send button with manuscript styling */}
         <div className="flex justify-between items-center mt-4">
-          <div className="flex items-center gap-2 text-xs text-reading-muted font-sans italic">
+          <div className="flex items-center gap-2 text-base text-reading-muted font-sans italic">
             <svg className="w-3 h-3 opacity-60" fill="currentColor" viewBox="0 0 24 24">
               <path d="M13,3A9,9 0 0,0 4,12H1L4,15L7,12H4A7,7 0 0,1 11,5A7,7 0 0,1 18,12A7,7 0 0,1 11,19C10.5,19 10,18.9 9.5,18.8L8.8,20.3C9.9,20.8 10.9,21 12,21A9,9 0 0,0 21,12A9,9 0 0,0 12,3M12,8V13L16.2,15.2L15,17L10,14.5V8H12Z"/>
             </svg>
@@ -109,7 +109,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             onClick={handleSend}
             disabled={isDisabled || !message.trim() || isSending}
             className={`
-              group relative px-6 py-3 rounded-journal font-serif font-semibold text-sm
+              group relative px-6 py-3 rounded-journal font-serif font-semibold text-base
               transition-all duration-300 ease-out
               ${isDisabled || !message.trim() || isSending
                 ? 'bg-library-sage-200 text-library-sage-500 cursor-not-allowed shadow-none'

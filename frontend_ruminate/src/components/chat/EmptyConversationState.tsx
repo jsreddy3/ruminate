@@ -30,7 +30,7 @@ const EmptyConversationState: React.FC<EmptyConversationStateProps> = ({
               Main Conversation
             </h3>
             
-            <p className="text-reading-secondary text-base leading-relaxed">
+            <p className="text-reading-secondary text-lg leading-relaxed">
               This conversation follows you through the document. Ask any questions—it sees what you see.
             </p>
           </div>
@@ -48,13 +48,13 @@ const EmptyConversationState: React.FC<EmptyConversationStateProps> = ({
             
             {displayText && (
               <div className="mb-4 p-3 bg-surface-paper/60 border-l-2 border-library-gold-300 rounded text-left">
-                <p style={{ fontFamily: 'Iowan Old Style, serif' }} className="text-reading-secondary text-base italic">
+                <p style={{ fontFamily: 'Iowan Old Style, serif' }} className="text-reading-secondary text-lg italic">
                   "{displayText}"
                 </p>
               </div>
             )}
             
-            <p className="text-reading-secondary text-base leading-relaxed">
+            <p className="text-reading-secondary text-lg leading-relaxed">
               This conversation focuses on the selected text. Dive deep into this specific passage.
             </p>
           </div>

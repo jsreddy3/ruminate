@@ -76,7 +76,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
           </svg>
           {isCollapsed && (
-            <span className="text-xs font-serif text-reading-secondary group-hover:text-reading-primary transition-colors">
+            <span className="text-sm font-serif text-reading-secondary group-hover:text-reading-primary transition-colors">
               Show
             </span>
           )}
@@ -112,7 +112,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
           {/* Page Navigation */}
           <div className="flex items-center gap-2">
             <GoToPreviousPage />
-            <div className="px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-xs font-serif text-reading-primary min-w-[3.5rem] text-center shadow-paper">
+            <div className="px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-sm font-serif text-reading-primary min-w-[3.5rem] text-center shadow-paper">
               {currentPage} of {totalPages}
             </div>
             <GoToNextPage />
@@ -141,7 +141,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
                 onBlur={() => setSearchFocused(false)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search text..."
-                className="w-full px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-xs font-serif text-reading-primary placeholder-reading-secondary/60 shadow-paper focus:outline-none focus:ring-1 focus:ring-library-sage-400 focus:border-library-sage-400 transition-all"
+                className="w-full px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-sm font-serif text-reading-primary placeholder-reading-secondary/60 shadow-paper focus:outline-none focus:ring-1 focus:ring-library-sage-400 focus:border-library-sage-400 transition-all"
               />
               <button
                 type="submit"
@@ -163,7 +163,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               
               <button
                 onClick={onResumeReading}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-library-mahogany-100 to-library-mahogany-50 hover:from-library-mahogany-200 hover:to-library-mahogany-100 border border-library-mahogany-200 hover:border-library-mahogany-300 rounded-book text-xs font-serif text-library-mahogany-700 shadow-paper hover:shadow-book transition-all duration-200"
+                className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-library-mahogany-100 to-library-mahogany-50 hover:from-library-mahogany-200 hover:to-library-mahogany-100 border border-library-mahogany-200 hover:border-library-mahogany-300 rounded-book text-sm font-serif text-library-mahogany-700 shadow-paper hover:shadow-book transition-all duration-200"
                 title="Continue reading from where you left off"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -123,7 +123,7 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
           <div className="flex items-center gap-3 mb-4">
             <Book className="text-library-gold-600" size={28} />
             <h1 className="text-2xl font-serif text-reading-primary">Document Glossary</h1>
-            <span className="text-sm text-reading-muted font-serif">
+            <span className="text-base text-reading-muted font-serif">
               {filteredAndSortedEntries.length} definitions
             </span>
           </div>
@@ -151,7 +151,7 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={() => setSortBy(sortBy === 'alphabetical' ? 'chronological' : 'alphabetical')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-paper border transition-colors font-serif text-sm ${
+                className={`flex items-center gap-1 px-3 py-2 rounded-paper border transition-colors font-serif text-base ${
                   sortBy === 'alphabetical'
                     ? 'bg-library-gold-100 border-library-gold-300 text-reading-accent'
                     : 'bg-white border-library-sage-200 text-reading-secondary hover:border-library-gold-200'
@@ -163,7 +163,7 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
 
               <button
                 onClick={() => setFilterBy(filterBy === 'all' ? 'recent' : 'all')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-paper border transition-colors font-serif text-sm ${
+                className={`flex items-center gap-1 px-3 py-2 rounded-paper border transition-colors font-serif text-base ${
                   filterBy === 'recent'
                     ? 'bg-library-gold-100 border-library-gold-300 text-reading-accent'
                     : 'bg-white border-library-sage-200 text-reading-secondary hover:border-library-gold-200'

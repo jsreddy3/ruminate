@@ -123,21 +123,21 @@ export default function BlockNavigator({
               <h2 className="text-2xl font-serif text-reading-primary font-semibold">
                 Block {currentIndex + 1} of {blocks.length}
               </h2>
-              <p className="text-sm font-serif text-reading-muted mt-1">
+              <p className="text-base font-serif text-reading-muted mt-1">
                 Reading Progress • {Math.round(((currentIndex + 1) / blocks.length) * 100)}% Complete
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            <span className="text-sm font-serif text-reading-muted">View Mode:</span>
+            <span className="text-base font-serif text-reading-muted">View Mode:</span>
             <div className="bg-surface-paper rounded-book p-1.5 shadow-paper border border-library-sage-200">
               <button
                 onClick={() => {
                   console.log('Switching to stack view');
                   setViewMode('stack');
                 }}
-                className={`px-4 py-2 text-sm font-serif rounded-paper transition-all ${
+                className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
                   viewMode === 'stack'
                     ? 'bg-library-gold-100 text-reading-accent shadow-sm'
                     : 'text-reading-muted hover:text-reading-secondary'
@@ -151,7 +151,7 @@ export default function BlockNavigator({
                   console.log('Switching to traditional view');
                   setViewMode('traditional');
                 }}
-                className={`px-4 py-2 text-sm font-serif rounded-paper transition-all ${
+                className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
                   viewMode === 'traditional'
                     ? 'bg-library-gold-100 text-reading-accent shadow-sm'
                     : 'text-reading-muted hover:text-reading-secondary'
@@ -165,7 +165,7 @@ export default function BlockNavigator({
         </div>
         
         {/* Visual Progress Bar */}
-        <div className="w-full bg-library-sage-200 rounded-full h-3 shadow-inner">
+        <div className="w-full bg-library-sage-200 rounded-full h-3 shadow-inner mt-4">
           <div 
             className="bg-gradient-to-r from-library-gold-400 to-library-mahogany-400 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
             style={{ width: `${((currentIndex + 1) / blocks.length) * 100}%` }}
@@ -173,7 +173,7 @@ export default function BlockNavigator({
         </div>
         
         {/* Progress milestones */}
-        <div className="flex justify-between mt-2 text-xs font-serif text-reading-muted">
+        <div className="flex justify-between mt-2 text-lg font-serif text-reading-muted">
           <span>Start</span>
           <span>{Math.round(((currentIndex + 1) / blocks.length) * 100)}%</span>
           <span>Complete</span>

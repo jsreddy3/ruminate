@@ -145,7 +145,7 @@ const AnnotationsView: React.FC<AnnotationsViewProps> = ({
           <div className="flex items-center gap-3 mb-4">
             <FileText className="text-library-gold-600" size={28} />
             <h1 className="text-2xl font-serif text-reading-primary">Annotations & Notes</h1>
-            <span className="text-sm text-reading-muted font-serif">
+            <span className="text-base text-reading-muted font-serif">
               {filteredAndSortedEntries.length} entries
             </span>
           </div>
@@ -173,7 +173,7 @@ const AnnotationsView: React.FC<AnnotationsViewProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={cycleSortMode}
-                className="flex items-center gap-1 px-3 py-2 rounded-paper border border-library-sage-200 bg-white text-reading-secondary hover:border-library-gold-200 hover:text-reading-primary transition-colors font-serif text-sm"
+                className="flex items-center gap-1 px-3 py-2 rounded-paper border border-library-sage-200 bg-white text-reading-secondary hover:border-library-gold-200 hover:text-reading-primary transition-colors font-serif text-base"
               >
                 <ArrowUpDown size={14} />
                 {getSortButtonText()}
@@ -181,7 +181,7 @@ const AnnotationsView: React.FC<AnnotationsViewProps> = ({
 
               <button
                 onClick={() => setFilterBy(filterBy === 'all' ? 'personal' : filterBy === 'personal' ? 'generated' : 'all')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-paper border transition-colors font-serif text-sm ${
+                className={`flex items-center gap-1 px-3 py-2 rounded-paper border transition-colors font-serif text-base ${
                   filterBy !== 'all'
                     ? 'bg-library-gold-100 border-library-gold-300 text-reading-accent'
                     : 'bg-white border-library-sage-200 text-reading-secondary hover:border-library-gold-200'
@@ -245,7 +245,7 @@ const AnnotationCard: React.FC<{
         ) : (
           <MessageSquare className="text-library-sage-600 flex-shrink-0" size={18} />
         )}
-        <span className={`text-xs px-2 py-1 rounded-paper font-serif ${
+        <span className={`text-base px-2 py-1 rounded-paper font-serif ${
           entry.isGenerated 
             ? 'bg-library-gold-100 text-library-gold-800'
             : 'bg-library-sage-100 text-library-sage-800'
@@ -253,12 +253,12 @@ const AnnotationCard: React.FC<{
           {entry.isGenerated ? 'Generated Note' : 'Personal Annotation'}
         </span>
         {entry.topic && (
-          <span className="text-xs bg-library-cream-100 text-reading-muted px-2 py-1 rounded-paper font-serif">
+          <span className="text-base bg-library-cream-100 text-reading-muted px-2 py-1 rounded-paper font-serif">
             {entry.topic}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2 text-xs text-reading-muted font-serif">
+      <div className="flex items-center gap-2 text-base text-reading-muted font-serif">
         <span>{formatDate(entry.createdAt)}</span>
         {entry.pageNumber && (
           <span className="bg-library-cream-100 px-2 py-1 rounded-paper">
@@ -270,7 +270,7 @@ const AnnotationCard: React.FC<{
     
     {/* Selected Text */}
     <div className="mb-3 p-3 bg-library-cream-50 rounded-paper border border-library-cream-200">
-      <p className="text-sm font-serif text-reading-secondary italic leading-relaxed">
+      <p className="text-base font-serif text-reading-secondary italic leading-relaxed">
         "{entry.text}"
       </p>
     </div>
@@ -281,7 +281,7 @@ const AnnotationCard: React.FC<{
     </p>
     
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-xs text-reading-muted font-serif">
+      <div className="flex items-center gap-2 text-base text-reading-muted font-serif">
         <span className="bg-library-sage-100 px-2 py-1 rounded-paper">
           {entry.blockType}
         </span>
@@ -291,7 +291,7 @@ const AnnotationCard: React.FC<{
           </span>
         )}
       </div>
-      <span className="text-xs text-reading-muted font-serif group-hover:text-reading-secondary transition-colors">
+      <span className="text-base text-reading-muted font-serif group-hover:text-reading-secondary transition-colors">
         Click to view in context
       </span>
     </div>

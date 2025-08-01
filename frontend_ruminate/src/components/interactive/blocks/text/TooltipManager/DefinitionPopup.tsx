@@ -95,8 +95,8 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       offsetY={30}
     >
       <div className="p-5 flex flex-col h-full">
-        <div className="font-serif font-semibold text-reading-primary mb-2 text-base border-b border-library-sage-200 pb-2">{term}</div>
-        <div className="text-reading-secondary text-sm mt-3 flex-1 font-serif leading-relaxed">
+        <div className="font-serif font-semibold text-reading-primary mb-2 text-xl border-b border-library-sage-200 pb-2">{term}</div>
+        <div className="text-reading-secondary text-lg mt-3 flex-1 font-serif leading-relaxed">
           {isLoading ? (
             <div className="flex items-center gap-3 text-library-gold-600">
               <Loader size={18} className="animate-spin" />
@@ -112,7 +112,7 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
         </div>
         
         {/* Elegant footer with flourish */}
-        <div className="pt-4 mt-4 border-t border-library-sage-200 text-xs text-reading-muted relative">
+        <div className="pt-4 mt-4 border-t border-library-sage-200 text-base text-reading-muted relative">
           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
             <div className="w-4 h-1 bg-library-gold-300 rounded-full opacity-60"></div>
           </div>

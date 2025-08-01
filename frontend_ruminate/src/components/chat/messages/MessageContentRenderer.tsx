@@ -56,17 +56,17 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
                 <div key={index} className="flex gap-4 items-start">
                   {/* Elegant number styling */}
                   <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-library-forest-100 to-library-forest-200 rounded-full flex items-center justify-center border border-library-forest-300 shadow-paper">
-                    <span className="text-sm font-serif font-bold text-library-forest-700">
+                    <span className="text-base font-serif font-bold text-library-forest-700">
                       {number}
                     </span>
                   </div>
                   
                   {/* Content with scholarly styling */}
                   <div className="flex-1 space-y-2">
-                    <h4 className="font-serif font-bold text-library-forest-700 text-base leading-relaxed break-words overflow-wrap-anywhere">
+                    <h4 className="font-serif font-bold text-library-forest-700 text-xl leading-relaxed break-words overflow-wrap-anywhere">
                       {boldText}
                     </h4>
-                    <p className="font-serif text-reading-primary leading-relaxed text-base pl-1 break-words overflow-wrap-anywhere">
+                    <p className="font-serif text-reading-primary leading-relaxed text-xl pl-1 break-words overflow-wrap-anywhere">
                       {description.trim()}
                     </p>
                   </div>
@@ -84,7 +84,7 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
         return (
           <p 
             key={paragraphIndex} 
-            className="font-serif leading-relaxed mb-4 break-words overflow-wrap-anywhere"
+            className="font-serif leading-relaxed mb-4 break-words overflow-wrap-anywhere text-xl"
             dangerouslySetInnerHTML={{ __html: formattedParagraph }}
           />
         );
@@ -108,12 +108,12 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
         {shouldHaveDropCap ? (
           <div className="text-left">
             {/* Render content starting from second character with better flow */}
-            <span className="font-serif">
+            <span className="font-serif text-xl">
               {formatContent(content.slice(1))}
             </span>
           </div>
         ) : (
-          <div className="font-serif">
+          <div className="font-serif text-xl">
             {formatContent(content)}
           </div>
         )}

@@ -138,7 +138,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   return (
     <div 
       ref={tooltipRef}
-      className="selection-tooltip bg-gradient-to-br from-surface-paper to-library-cream-50 rounded-lg shadow-shelf border border-library-sage-300 text-sm py-1 px-1 transition-transform duration-200 ease-out hover:scale-105 group"
+      className="selection-tooltip bg-gradient-to-br from-surface-paper to-library-cream-50 rounded-lg shadow-shelf border border-library-sage-300 text-lg py-1 px-1 transition-transform duration-200 ease-out hover:scale-105 group"
       style={tooltipStyle}
     >
       <div className="animate-fadeIn">
