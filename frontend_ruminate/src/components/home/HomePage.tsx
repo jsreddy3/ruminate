@@ -217,23 +217,6 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                {/* Debug info */}
-                <div style={{padding: '10px', background: 'yellow', fontSize: '12px'}}>
-                  DEBUG: hasSeenWelcome={state.hasSeenWelcome.toString()}, 
-                  isWelcomeModalOpen={state.isWelcomeModalOpen.toString()}, 
-                  isActive={state.isActive.toString()},
-                  currentStep={state.currentStep},
-                  shouldHighlight={(state.isActive && state.currentStep === 2).toString()},
-                  targetId={state.isActive && state.currentStep === 2 ? documents[0]?.id : 'none'}, 
-                  documentsCount={documents.length}, 
-                  firstDocTitle={documents[0]?.title || 'none'}
-                  <button 
-                    onClick={() => {localStorage.removeItem('ruminate-onboarding'); window.location.reload();}}
-                    style={{marginLeft: '10px', padding: '2px 6px', background: 'red', color: 'white'}}
-                  >
-                    Reset Onboarding
-                  </button>
-                </div>
                 <DocumentTable 
                   documents={documents} 
                   onDocumentClick={handleDocumentClick}
