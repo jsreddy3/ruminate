@@ -29,6 +29,8 @@ interface BlockContainerProps {
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onTextSelectionForOnboarding?: () => void;
+  isOnboardingStep5?: boolean;
+  onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -51,6 +53,8 @@ export default function BlockContainer({
   onRefreshRabbitholes,
   onUpdateBlockMetadata,
   onTextSelectionForOnboarding,
+  isOnboardingStep5,
+  onCreateChatForOnboarding,
   customStyle
 }: BlockContainerProps) {
   // No-op refetch function for backwards compatibility
@@ -82,6 +86,8 @@ export default function BlockContainer({
       onCreateRabbithole={onCreateRabbithole}
       onUpdateBlockMetadata={onUpdateBlockMetadata}
       onTextSelectionForOnboarding={onTextSelectionForOnboarding}
+      isOnboardingStep5={isOnboardingStep5}
+      onCreateChatForOnboarding={onCreateChatForOnboarding}
       customStyle={customStyle}
     />
   );

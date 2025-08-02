@@ -57,7 +57,7 @@ interface TextRendererProps {
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep5?: boolean;
-  onDefineForOnboarding?: () => void;
+  onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -75,7 +75,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   onUpdateBlockMetadata,
   onTextSelectionForOnboarding,
   isOnboardingStep5 = false,
-  onDefineForOnboarding,
+  onCreateChatForOnboarding,
   customStyle
 }) => {
   // Use metadata directly from props - no local state needed
@@ -351,7 +351,10 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   return (
     <div ref={blockRef} className="text-renderer relative">
-      <SelectionManager onTextSelected={handleTextSelected}>
+      <SelectionManager 
+        onTextSelected={handleTextSelected}
+        preventDeselection={isOnboardingStep5}
+      >
         <div ref={contentRef} onClick={handleClick}>
           <TextContent 
             htmlContent={htmlContent}
@@ -413,7 +416,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           blockId={blockId}
           isDefining={isDefining}
           isOnboardingStep5={isOnboardingStep5}
-          onDefineForOnboarding={onDefineForOnboarding}
+          onCreateChatForOnboarding={onCreateChatForOnboarding}
         />,
         document.body
       )}

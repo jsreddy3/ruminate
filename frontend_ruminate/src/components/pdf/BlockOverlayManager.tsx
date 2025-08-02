@@ -43,6 +43,8 @@ interface BlockOverlayManagerProps {
   // Onboarding
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep4?: boolean;
+  isOnboardingStep5?: boolean;
+  onCreateChatForOnboarding?: () => void;
   onCompleteOnboarding?: () => void;
   
   // PDF Integration
@@ -87,6 +89,8 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     onAddRabbitholeConversation,
     onTextSelectionForOnboarding,
     isOnboardingStep4,
+    isOnboardingStep5,
+    onCreateChatForOnboarding,
     onCompleteOnboarding,
     refreshRabbitholesFnRef,
     onScrollToBlock,
@@ -223,6 +227,8 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       onSwitchToMainChat={() => onSetActiveConversationId(null)}
       onTextSelectionForOnboarding={onTextSelectionForOnboarding}
       isOnboardingStep4={isOnboardingStep4}
+      isOnboardingStep5={isOnboardingStep5}
+      onCreateChatForOnboarding={onCreateChatForOnboarding}
       onCompleteOnboarding={onCompleteOnboarding}
       mainConversationId={mainConversationId ?? undefined}
     />

@@ -14,7 +14,7 @@ interface TextSelectionTooltipProps {
   onClose: () => void;
   isDefining?: boolean;
   isOnboardingStep5?: boolean;
-  onDefineForOnboarding?: () => void;
+  onCreateChatForOnboarding?: () => void;
 }
 
 const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
@@ -30,7 +30,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   onClose,
   isDefining = false,
   isOnboardingStep5 = false,
-  onDefineForOnboarding,
+  onCreateChatForOnboarding,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -103,8 +103,13 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           // For now, use dummy offsets - we'll need to get real ones from the selection
           onCreateRabbithole(selectedText, 0, selectedText.length);
         }
+        // Call onboarding handler if in step 5
+        if (isOnboardingStep5 && onCreateChatForOnboarding) {
+          onCreateChatForOnboarding();
+        }
       },
-      disabled: isOnboardingStep5, // Disable during onboarding step 5
+      disabled: false, // Don't disable during onboarding step 5
+      isHighlighted: isOnboardingStep5, // Highlight during onboarding step 5
     }] : []),
     ...( onDefine ? [{
       label: isDefining ? 'Defining...' : 'Key Term',
@@ -113,15 +118,8 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       ) : (
         <BookOpen size={16} />
       ),
-      onClick: isDefining ? undefined : () => {
-        // Call both the regular define action and onboarding handler
-        if (onDefine) onDefine(selectedText);
-        if (isOnboardingStep5 && onDefineForOnboarding) {
-          onDefineForOnboarding();
-        }
-      },
-      disabled: isDefining,
-      isHighlighted: isOnboardingStep5, // Highlight during onboarding step 5
+      onClick: isDefining ? undefined : safeExecute(onDefine),
+      disabled: isDefining || isOnboardingStep5, // Disable during onboarding step 5
     }] : []),
     ...( onAnnotate ? [{
       label: 'Annotate',
@@ -169,12 +167,12 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
         <div className="flex">
           {defaultActions.map((action, index) => (
             <button
-              key={index}
+              key={`${action.label}-${index}`}
               className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 font-serif relative ${
                 action.disabled 
-                  ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-50' 
+                  ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30' 
                   : action.isHighlighted
-                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border border-library-gold-400 shadow-md animate-pulse'
+                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border-2 border-library-gold-500 shadow-lg font-bold ring-2 ring-library-gold-300/50'
                     : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
               }`}
               onClick={action.onClick}
@@ -189,7 +187,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
             >
               {/* Glowing highlight for onboarding */}
               {action.isHighlighted && (
-                <div className="absolute inset-0 bg-library-gold-400/30 rounded animate-pulse pointer-events-none" />
+                <div className="absolute inset-0 bg-library-gold-400/20 rounded animate-pulse pointer-events-none" />
               )}
               
               {action.icon && (
@@ -197,7 +195,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                   action.disabled 
                     ? "text-library-sage-300" 
                     : action.isHighlighted
-                      ? "text-library-mahogany-600"
+                      ? "text-library-mahogany-700 font-bold"
                       : "text-library-mahogany-500"
                 }>
                   {action.icon}

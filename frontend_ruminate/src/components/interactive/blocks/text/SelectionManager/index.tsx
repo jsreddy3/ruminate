@@ -7,6 +7,7 @@ interface SelectionManagerProps {
     position: { x: number, y: number }, 
     selectionRects: DOMRect[]
   ) => void;
+  preventDeselection?: boolean;
 }
 
 // Selection highlight component
@@ -30,7 +31,8 @@ const SelectionHighlight: React.FC<{ rect: { left: number, top: number, width: n
  */
 const SelectionManager: React.FC<SelectionManagerProps> = ({ 
   children, 
-  onTextSelected 
+  onTextSelected,
+  preventDeselection = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectionRects, setSelectionRects] = useState<DOMRect[]>([]);
@@ -69,6 +71,14 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      // Don't clear selection if deselection is prevented (e.g., during onboarding)
+      if (preventDeselection) {
+        // Also prevent the browser's native text selection clearing
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      
       // Only clear selection if clicking outside of selection-related elements
       const target = e.target as HTMLElement;
       const isTooltipClick = target.closest('.selection-tooltip, .definition-popup');
@@ -82,9 +92,30 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
     container.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
     
+    // Additional protection for preventing deselection during onboarding
+    const handleGlobalClick = (e: Event) => {
+      if (preventDeselection) {
+        const target = e.target as HTMLElement;
+        const isTooltipClick = target.closest('.selection-tooltip, .definition-popup');
+        if (!isTooltipClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+    
+    if (preventDeselection) {
+      document.addEventListener('click', handleGlobalClick, true);
+      document.addEventListener('mousedown', handleGlobalClick, true);
+    }
+    
     return () => {
       container.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousedown', handleMouseDown);
+      if (preventDeselection) {
+        document.removeEventListener('click', handleGlobalClick, true);
+        document.removeEventListener('mousedown', handleGlobalClick, true);
+      }
     };
   }, [onTextSelected]);
   

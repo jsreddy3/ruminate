@@ -35,6 +35,7 @@ import AnnotationsView from "../interactive/blocks/AnnotationsView";
 import BasePopover from "../common/BasePopover";
 import { TextSelectionTourDialogue } from "../onboarding/TextSelectionTourDialogue";
 import { AnimatedTextSelection } from "../onboarding/AnimatedTextSelection";
+import { Step5DefineModal } from "../onboarding/Step5DefineModal";
 
 export interface Block {
   id: string;
@@ -642,13 +643,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [onboardingState.isActive, onboardingState.currentStep, markTextSelectionComplete]);
 
-  // Handle define action during onboarding step 5
-  const handleDefineForOnboarding = useCallback(() => {
+  // Handle create chat action during onboarding step 5
+  const handleCreateChatForOnboarding = useCallback(() => {
     if (onboardingState.isActive && onboardingState.currentStep === 5) {
-      // User has successfully clicked define - complete onboarding after a short delay
+      // User has successfully clicked create chat - complete onboarding after a short delay
       setTimeout(() => {
         markDefineHighlightComplete();
-      }, 1000); // Give them time to see the definition process start
+      }, 1000); // Give them time to see the chat creation process start
     }
   }, [onboardingState.isActive, onboardingState.currentStep, markDefineHighlightComplete]);
 
@@ -676,7 +677,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onTextSelectionForOnboarding: onboardingState.isActive && onboardingState.currentStep === 4 ? handleTextSelectionForOnboarding : undefined,
     isOnboardingStep4: onboardingState.isActive && onboardingState.currentStep === 4,
     isOnboardingStep5: onboardingState.isActive && onboardingState.currentStep === 5,
-    onDefineForOnboarding: onboardingState.isActive && onboardingState.currentStep === 5 ? handleDefineForOnboarding : undefined,
+    onCreateChatForOnboarding: onboardingState.isActive && onboardingState.currentStep === 5 ? handleCreateChatForOnboarding : undefined,
     onCompleteOnboarding: markTextSelectionComplete,
     refreshRabbitholesFnRef,
     onScrollToBlock: scrollToBlock,
@@ -879,7 +880,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           
           {/* Content */}
           <div className={`relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm transition-all duration-300 ${
-            onboardingState.isActive && onboardingState.currentStep === 3 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+            onboardingState.isActive && (onboardingState.currentStep === 3 || onboardingState.currentStep === 4 || onboardingState.currentStep === 5) ? 'opacity-30 blur-[1px] pointer-events-none' : ''
           }`}>
             <button
               onClick={() => router.push('/home')}
@@ -998,7 +999,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           )}
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
         <div className={`transition-all duration-300 ${
-          onboardingState.isActive && onboardingState.currentStep === 3 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+          onboardingState.isActive && (onboardingState.currentStep === 3 || onboardingState.currentStep === 4 || onboardingState.currentStep === 5) ? 'opacity-30 blur-[1px] pointer-events-none' : ''
         }`}>
           <PDFToolbar
             GoToPreviousPage={GoToPreviousPage}
@@ -1215,7 +1216,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             
             {/* Content with enhanced border */}
             <div className={`relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent transition-all duration-300 ${
-              onboardingState.isActive && onboardingState.currentStep === 3 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+              onboardingState.isActive && (onboardingState.currentStep === 3 || onboardingState.currentStep === 4 || onboardingState.currentStep === 5) ? 'opacity-30 blur-[1px] pointer-events-none' : ''
             }`}>
               {/* Decorative book spine edge */}
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-library-mahogany-400 via-library-mahogany-500 to-library-mahogany-600 shadow-sm"></div>
@@ -1344,7 +1345,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               {/* Content section */}
               <div className="flex-1">
                 <h3 className="font-serif text-lg font-semibold text-reading-primary mb-4 tracking-wide">
-                  Click and drag text to select!
+                  Select text to annotate!
                 </h3>
                 
                 {/* Animated demonstration */}
@@ -1352,13 +1353,30 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                   <AnimatedTextSelection
                     isVisible={true}
                     delay={1000}
-                    targetText="Try selecting text like this"
+                    targetText="Click and drag to see options"
                   />
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </BasePopover>
+
+      {/* Step 5 Create Chat Instructions */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 5}
+        position={{ x: window.innerWidth / 2 - 150, y: window.innerHeight / 2 - 100 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={300}
+        initialHeight="auto"
+        title="🗨️ Create Chat"
+      >
+        <Step5DefineModal
+          isVisible={true}
+          onComplete={markDefineHighlightComplete}
+        />
       </BasePopover>
       
     </MathJaxProvider>

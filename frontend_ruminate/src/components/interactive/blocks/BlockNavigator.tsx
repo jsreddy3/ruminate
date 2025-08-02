@@ -19,6 +19,8 @@ interface BlockNavigatorProps {
   onSwitchToMainChat?: () => void;
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep4?: boolean;
+  isOnboardingStep5?: boolean;
+  onCreateChatForOnboarding?: () => void;
   mainConversationId?: string;
 }
 
@@ -36,6 +38,8 @@ export default function BlockNavigator({
   onSwitchToMainChat,
   onTextSelectionForOnboarding,
   isOnboardingStep4,
+  isOnboardingStep5,
+  onCreateChatForOnboarding,
   mainConversationId
 }: BlockNavigatorProps) {
   // Track current index
@@ -121,9 +125,26 @@ export default function BlockNavigator({
   const currentBlock = blocks[currentIndex];
   
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden relative">
+      {/* Full overlay for step 5 - only allow tooltip interactions */}
+      {isOnboardingStep5 && (
+        <div 
+          className="absolute inset-0 z-40 pointer-events-auto bg-black/10" 
+          onMouseDown={(e) => e.preventDefault()}
+          onMouseUp={(e) => e.preventDefault()}
+          onClick={(e) => e.preventDefault()}
+        />
+      )}
+      
+      <div className={`h-full flex flex-col overflow-hidden transition-all duration-300 ${
+        isOnboardingStep5 ? 'opacity-70' : ''
+      }`}>
       {/* Enhanced header with progress bar */}
-      <div className="border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 p-6 flex-shrink-0">
+      <div className="border-b border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 p-6 flex-shrink-0 relative">
+        {/* Overlay just for header buttons during onboarding */}
+        {(isOnboardingStep4 || isOnboardingStep5) && (
+          <div className="absolute inset-0 z-30 pointer-events-auto bg-black/5" />
+        )}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="w-3 h-3 rounded-full bg-library-gold-400 shadow-sm"></div>
@@ -141,28 +162,34 @@ export default function BlockNavigator({
             <span className="text-base font-serif text-reading-muted">View Mode:</span>
             <div className="bg-surface-paper rounded-book p-1.5 shadow-paper border border-library-sage-200">
               <button
-                onClick={() => {
+                onClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : () => {
                   setViewMode('traditional');
                 }}
                 className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
-                  viewMode === 'traditional'
-                    ? 'bg-library-gold-100 text-reading-accent shadow-sm'
-                    : 'text-reading-muted hover:text-reading-secondary'
+                  (isOnboardingStep4 || isOnboardingStep5)
+                    ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30'
+                    : viewMode === 'traditional'
+                      ? 'bg-library-gold-100 text-reading-accent shadow-sm'
+                      : 'text-reading-muted hover:text-reading-secondary'
                 }`}
-                title="Traditional linear view"
+                title={(isOnboardingStep4 || isOnboardingStep5) ? "Complete tutorial to continue" : "Traditional linear view"}
+                disabled={(isOnboardingStep4 || isOnboardingStep5)}
               >
                 📄 Single
               </button>
               <button
-                onClick={() => {
+                onClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : () => {
                   setViewMode('stack');
                 }}
                 className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
-                  viewMode === 'stack'
-                    ? 'bg-library-gold-100 text-reading-accent shadow-sm'
-                    : 'text-reading-muted hover:text-reading-secondary'
+                  (isOnboardingStep4 || isOnboardingStep5)
+                    ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30'
+                    : viewMode === 'stack'
+                      ? 'bg-library-gold-100 text-reading-accent shadow-sm'
+                      : 'text-reading-muted hover:text-reading-secondary'
                 }`}
-                title="Contextual stack view"
+                title={(isOnboardingStep4 || isOnboardingStep5) ? "Complete tutorial to continue" : "Contextual stack view"}
+                disabled={(isOnboardingStep4 || isOnboardingStep5)}
               >
                 📚 Stack
               </button>
@@ -209,19 +236,25 @@ export default function BlockNavigator({
                   onCreateRabbithole={onCreateRabbithole}
                   onUpdateBlockMetadata={onUpdateBlockMetadata}
                   onTextSelectionForOnboarding={onTextSelectionForOnboarding}
+                  isOnboardingStep5={isOnboardingStep5}
+                  onCreateChatForOnboarding={onCreateChatForOnboarding}
                 />
               </div>
             </div>
             
             {/* Traditional navigation controls */}
             <div className="relative h-20 border-t border-library-sage-200 bg-gradient-to-r from-surface-parchment to-library-cream-50 flex-shrink-0">
+              {/* Overlay for navigation controls during onboarding */}
+              {(isOnboardingStep4 || isOnboardingStep5) && (
+                <div className="absolute inset-0 z-30 pointer-events-auto bg-black/5" />
+              )}
               <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center gap-3">
                 <BlockNavigatorPill
                   currentIndex={currentIndex}
                   totalBlocks={blocks.length}
-                  onPrevious={isOnboardingStep4 ? undefined : goToPrevBlock}
-                  onNext={isOnboardingStep4 ? undefined : goToNextBlock}
-                  disabled={isOnboardingStep4}
+                  onPrevious={(isOnboardingStep4 || isOnboardingStep5) ? undefined : goToPrevBlock}
+                  onNext={(isOnboardingStep4 || isOnboardingStep5) ? undefined : goToNextBlock}
+                  disabled={(isOnboardingStep4 || isOnboardingStep5)}
                 />
                 
                 {/* Generated note badges next to the progress bar */}
@@ -266,6 +299,7 @@ export default function BlockNavigator({
             />
           </div>
         )}
+      </div>
       </div>
     </div>
   );
