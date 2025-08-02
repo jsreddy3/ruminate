@@ -2,6 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Block } from './PDFViewer';
 import BlockNavigator from '../interactive/blocks/BlockNavigator';
+import { TextSelectionTourDialogue } from '../onboarding/TextSelectionTourDialogue';
 
 interface BlockOverlayProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ interface BlockOverlayProps {
   onCreateRabbithole: (text: string, startOffset: number, endOffset: number) => void;
   onSwitchToMainChat?: () => void;
   onTextSelectionForOnboarding?: () => void;
+  isOnboardingStep4?: boolean; // New prop to indicate onboarding step 4
+  onCompleteOnboarding?: () => void; // Callback to complete onboarding
   mainConversationId?: string | undefined;
 }
 
@@ -38,6 +41,8 @@ export default function BlockOverlay({
   onCreateRabbithole,
   onSwitchToMainChat,
   onTextSelectionForOnboarding,
+  isOnboardingStep4,
+  onCompleteOnboarding,
   mainConversationId
 }: BlockOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -86,6 +91,7 @@ export default function BlockOverlay({
             {/* Backdrop with dimmed PDF visibility */}
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             
+            
             {/* Modal content */}
             <motion.div
               initial={{ x: -100, opacity: 0 }}
@@ -97,10 +103,15 @@ export default function BlockOverlay({
               <div className="bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden" style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}
                 <button
-                  onClick={onClose}
-                  className="absolute z-30 p-2 rounded-full bg-white shadow-lg hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition-colors"
+                  onClick={isOnboardingStep4 ? undefined : onClose}
+                  className={`absolute z-30 p-2 rounded-full shadow-lg transition-colors ${
+                    isOnboardingStep4 
+                      ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                      : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800'
+                  }`}
                   style={{ top: '12px', right: '12px' }}
-                  title="Close (Esc)"
+                  title={isOnboardingStep4 ? "Complete text selection to continue" : "Close (Esc)"}
+                  disabled={isOnboardingStep4}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -108,22 +119,24 @@ export default function BlockOverlay({
                 </button>
 
                 {/* Content - full height */}
-                <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 flex flex-col min-h-0 relative">
                   <BlockNavigator
                     blocks={flattenedBlocks}
                     currentBlockId={selectedBlock.id}
                     documentId={documentId}
                     getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
-                    onBlockChange={onBlockChange}
+                    onBlockChange={isOnboardingStep4 ? undefined : onBlockChange}
                     onRefreshRabbitholes={onRefreshRabbitholes}
-                    onAddTextToChat={onAddTextToChat}
+                    onAddTextToChat={isOnboardingStep4 ? undefined : onAddTextToChat}
                     onUpdateBlockMetadata={onUpdateBlockMetadata}
-                    onRabbitholeClick={onRabbitholeClick}
-                    onCreateRabbithole={onCreateRabbithole}
-                    onSwitchToMainChat={onSwitchToMainChat}
+                    onRabbitholeClick={isOnboardingStep4 ? undefined : onRabbitholeClick}
+                    onCreateRabbithole={isOnboardingStep4 ? undefined : onCreateRabbithole}
+                    onSwitchToMainChat={isOnboardingStep4 ? undefined : onSwitchToMainChat}
                     onTextSelectionForOnboarding={onTextSelectionForOnboarding}
+                    isOnboardingStep4={isOnboardingStep4}
                     mainConversationId={mainConversationId}
                   />
+                  
                 </div>
               </div>
             </motion.div>

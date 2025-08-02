@@ -77,7 +77,7 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
                   <div className="flex-1">
                     <p className="text-library-mahogany/90 font-iowan font-medium leading-relaxed text-[15px] tracking-wide"
                        style={{ fontFamily: '"Iowan Old Style", Georgia, serif' }}>
-                      Tap the text to start reading
+                      Tap a block of text to start reading
                     </p>
                   </div>
                 </div>

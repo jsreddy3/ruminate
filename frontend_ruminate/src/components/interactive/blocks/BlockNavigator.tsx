@@ -18,6 +18,7 @@ interface BlockNavigatorProps {
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onSwitchToMainChat?: () => void;
   onTextSelectionForOnboarding?: () => void;
+  isOnboardingStep4?: boolean;
   mainConversationId?: string;
 }
 
@@ -34,6 +35,7 @@ export default function BlockNavigator({
   onUpdateBlockMetadata,
   onSwitchToMainChat,
   onTextSelectionForOnboarding,
+  isOnboardingStep4,
   mainConversationId
 }: BlockNavigatorProps) {
   // Track current index
@@ -61,6 +63,7 @@ export default function BlockNavigator({
   
   // Handle navigation
   const goToNextBlock = useCallback(() => {
+    if (isOnboardingStep4) return; // Disable during onboarding step 4
     if (currentIndex < blocks.length - 1) {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
@@ -68,9 +71,10 @@ export default function BlockNavigator({
         onBlockChange(blocks[newIndex]);
       }
     }
-  }, [currentIndex, blocks.length, blocks, onBlockChange]);
+  }, [currentIndex, blocks.length, blocks, onBlockChange, isOnboardingStep4]);
   
   const goToPrevBlock = useCallback(() => {
+    if (isOnboardingStep4) return; // Disable during onboarding step 4
     if (currentIndex > 0) {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
@@ -78,10 +82,12 @@ export default function BlockNavigator({
         onBlockChange(blocks[newIndex]);
       }
     }
-  }, [currentIndex, blocks, onBlockChange]);
+  }, [currentIndex, blocks, onBlockChange, isOnboardingStep4]);
 
   // Add keyboard navigation
   useEffect(() => {
+    if (isOnboardingStep4) return; // Disable keyboard navigation during onboarding
+    
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle arrow keys when the component is focused/active
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
@@ -100,7 +106,7 @@ export default function BlockNavigator({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [goToPrevBlock, goToNextBlock]); // Include the functions in dependencies
+  }, [goToPrevBlock, goToNextBlock, isOnboardingStep4]); // Include the functions in dependencies
   
   // If no blocks available, show empty state
   if (blocks.length === 0) {
@@ -213,8 +219,9 @@ export default function BlockNavigator({
                 <BlockNavigatorPill
                   currentIndex={currentIndex}
                   totalBlocks={blocks.length}
-                  onPrevious={goToPrevBlock}
-                  onNext={goToNextBlock}
+                  onPrevious={isOnboardingStep4 ? undefined : goToPrevBlock}
+                  onNext={isOnboardingStep4 ? undefined : goToNextBlock}
+                  disabled={isOnboardingStep4}
                 />
                 
                 {/* Generated note badges next to the progress bar */}

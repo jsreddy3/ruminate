@@ -42,6 +42,8 @@ interface BlockOverlayManagerProps {
   
   // Onboarding
   onTextSelectionForOnboarding?: () => void;
+  isOnboardingStep4?: boolean;
+  onCompleteOnboarding?: () => void;
   
   // PDF Integration
   refreshRabbitholesFnRef: React.MutableRefObject<(() => void) | null>;
@@ -84,6 +86,8 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     onHandleRabbitholeCreated,
     onAddRabbitholeConversation,
     onTextSelectionForOnboarding,
+    isOnboardingStep4,
+    onCompleteOnboarding,
     refreshRabbitholesFnRef,
     onScrollToBlock,
   } = props;
@@ -218,6 +222,8 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       onCreateRabbithole={handleCreateRabbithole}
       onSwitchToMainChat={() => onSetActiveConversationId(null)}
       onTextSelectionForOnboarding={onTextSelectionForOnboarding}
+      isOnboardingStep4={isOnboardingStep4}
+      onCompleteOnboarding={onCompleteOnboarding}
       mainConversationId={mainConversationId ?? undefined}
     />
   );

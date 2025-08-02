@@ -13,6 +13,8 @@ interface TextSelectionTooltipProps {
   onAnnotate?: (text: string) => void;
   onClose: () => void;
   isDefining?: boolean;
+  isOnboardingStep5?: boolean;
+  onDefineForOnboarding?: () => void;
 }
 
 const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
@@ -27,6 +29,8 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   onAnnotate,
   onClose,
   isDefining = false,
+  isOnboardingStep5 = false,
+  onDefineForOnboarding,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -35,6 +39,9 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     if (!isVisible) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't close during onboarding step 5
+      if (isOnboardingStep5) return;
+      
       // Don't close if clicked inside tooltip
       if (tooltipRef.current && tooltipRef.current.contains(event.target as Node)) {
         return;
@@ -48,13 +55,16 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isVisible, onClose]);
+  }, [isVisible, onClose, isOnboardingStep5]);
 
   // Close tooltip when pressing Escape
   useEffect(() => {
     if (!isVisible) return;
 
     const handleEscape = (event: KeyboardEvent) => {
+      // Don't close during onboarding step 5
+      if (isOnboardingStep5) return;
+      
       if (event.key === 'Escape') {
         onClose();
       }
@@ -64,7 +74,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isVisible, onClose]);
+  }, [isVisible, onClose, isOnboardingStep5]);
 
   if (!isVisible) return null;
   
@@ -83,6 +93,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       label: 'Add to chat',
       icon: <MessageSquarePlus size={16} />,
       onClick: safeExecute(onAddToChat),
+      disabled: isOnboardingStep5, // Disable during onboarding step 5
     },
     ...( onCreateRabbithole ? [{
       label: 'Create chat',
@@ -93,6 +104,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           onCreateRabbithole(selectedText, 0, selectedText.length);
         }
       },
+      disabled: isOnboardingStep5, // Disable during onboarding step 5
     }] : []),
     ...( onDefine ? [{
       label: isDefining ? 'Defining...' : 'Key Term',
@@ -101,13 +113,21 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       ) : (
         <BookOpen size={16} />
       ),
-      onClick: isDefining ? undefined : safeExecute(onDefine),
+      onClick: isDefining ? undefined : () => {
+        // Call both the regular define action and onboarding handler
+        if (onDefine) onDefine(selectedText);
+        if (isOnboardingStep5 && onDefineForOnboarding) {
+          onDefineForOnboarding();
+        }
+      },
       disabled: isDefining,
+      isHighlighted: isOnboardingStep5, // Highlight during onboarding step 5
     }] : []),
     ...( onAnnotate ? [{
       label: 'Annotate',
       icon: <FileText size={16} />,
       onClick: safeExecute(onAnnotate),
+      disabled: isOnboardingStep5, // Disable during onboarding step 5
     }] : [])
   ];
 
@@ -138,7 +158,11 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
   return (
     <div 
       ref={tooltipRef}
-      className="selection-tooltip bg-gradient-to-br from-surface-paper to-library-cream-50 rounded-lg shadow-shelf border border-library-sage-300 text-lg py-1 px-1 transition-transform duration-200 ease-out hover:scale-105 group"
+      className={`selection-tooltip bg-gradient-to-br from-surface-paper to-library-cream-50 rounded-lg shadow-shelf border text-lg py-1 px-1 transition-all duration-200 ease-out hover:scale-105 group ${
+        isOnboardingStep5 
+          ? 'border-library-gold-400 shadow-2xl ring-2 ring-library-gold-400/20' 
+          : 'border-library-sage-300'
+      }`}
       style={tooltipStyle}
     >
       <div className="animate-fadeIn">
@@ -146,23 +170,48 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           {defaultActions.map((action, index) => (
             <button
               key={index}
-              className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150 font-serif ${
+              className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 font-serif relative ${
                 action.disabled 
-                  ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50' 
-                  : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
+                  ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-50' 
+                  : action.isHighlighted
+                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border border-library-gold-400 shadow-md animate-pulse'
+                    : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
               }`}
               onClick={action.onClick}
               disabled={action.disabled}
-              title={action.disabled ? 'Generating definition...' : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`}
+              title={
+                action.isHighlighted 
+                  ? 'Click here to define this term!' 
+                  : action.disabled 
+                    ? 'Generating definition...' 
+                    : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`
+              }
             >
-              {action.icon && <span className={action.disabled ? "text-library-sage-300" : "text-library-mahogany-500"}>{action.icon}</span>}
-              <span>{action.label}</span>
+              {/* Glowing highlight for onboarding */}
+              {action.isHighlighted && (
+                <div className="absolute inset-0 bg-library-gold-400/30 rounded animate-pulse pointer-events-none" />
+              )}
+              
+              {action.icon && (
+                <span className={
+                  action.disabled 
+                    ? "text-library-sage-300" 
+                    : action.isHighlighted
+                      ? "text-library-mahogany-600"
+                      : "text-library-mahogany-500"
+                }>
+                  {action.icon}
+                </span>
+              )}
+              <span className="relative z-10">{action.label}</span>
             </button>
           ))}
         </div>
         {/* Triangle pointer */}
         <div 
-          className="absolute w-3 h-3 bg-gradient-to-br from-surface-paper to-library-cream-100 border-b border-r border-library-sage-300 transform rotate-45"
+          className={`absolute w-3 h-3 bg-gradient-to-br from-surface-paper to-library-cream-100 border-b border-r transform rotate-45 ${
+            isOnboardingStep5 ? 'border-library-gold-400' : 'border-library-sage-300'
+          }`}
           style={{ 
             left: '50%', 
             bottom: '-6px', 

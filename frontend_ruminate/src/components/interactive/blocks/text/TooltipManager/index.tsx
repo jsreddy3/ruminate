@@ -7,6 +7,8 @@ interface TooltipManagerProps {
   onCreateRabbithole?: (text: string) => void;
   onDefine?: (text: string) => void;
   containerRef: React.RefObject<HTMLElement>;
+  isOnboardingStep5?: boolean;
+  onDefineForOnboarding?: () => void;
 }
 
 /**
@@ -17,7 +19,9 @@ const TooltipManager: React.FC<TooltipManagerProps> = ({
   selectionInfo,
   onCreateRabbithole,
   onDefine,
-  containerRef
+  containerRef,
+  isOnboardingStep5 = false,
+  onDefineForOnboarding
 }) => {
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   
@@ -58,12 +62,16 @@ const TooltipManager: React.FC<TooltipManagerProps> = ({
     <>
       {selectionInfo && selectionInfo.text && (
         <TextSelectionTooltip 
+          documentId="placeholder"
+          blockId="placeholder"
           selectedText={selectionInfo.text}
           isVisible={true}
           position={tooltipPosition}
           onAddToChat={handleCreateRabbithole}
           onDefine={onDefine}
           onClose={handleClose}
+          isOnboardingStep5={isOnboardingStep5}
+          onDefineForOnboarding={onDefineForOnboarding}
         />
       )}
     </>

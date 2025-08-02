@@ -34,6 +34,7 @@ import GlossaryView from "../interactive/blocks/GlossaryView";
 import AnnotationsView from "../interactive/blocks/AnnotationsView";
 import BasePopover from "../common/BasePopover";
 import { TextSelectionTourDialogue } from "../onboarding/TextSelectionTourDialogue";
+import { AnimatedTextSelection } from "../onboarding/AnimatedTextSelection";
 
 export interface Block {
   id: string;
@@ -124,7 +125,7 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const router = useRouter();
-  const { state: onboardingState, nextStep, markWelcomeComplete, markTextSelectionComplete } = useOnboarding();
+  const { state: onboardingState, nextStep, markWelcomeComplete, markTextSelectionComplete, markDefineHighlightComplete } = useOnboarding();
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   const [documentTitle, setDocumentTitle] = useState<string>('');
@@ -636,12 +637,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Handle text selection during onboarding step 4
   const handleTextSelectionForOnboarding = useCallback(() => {
     if (onboardingState.isActive && onboardingState.currentStep === 4) {
-      // User has successfully selected text - complete onboarding after a short delay
+      // User has successfully selected text - advance to step 5 after a short delay
       setTimeout(() => {
         markTextSelectionComplete();
       }, 1500); // Give them time to see the tooltip appear
     }
   }, [onboardingState.isActive, onboardingState.currentStep, markTextSelectionComplete]);
+
+  // Handle define action during onboarding step 5
+  const handleDefineForOnboarding = useCallback(() => {
+    if (onboardingState.isActive && onboardingState.currentStep === 5) {
+      // User has successfully clicked define - complete onboarding after a short delay
+      setTimeout(() => {
+        markDefineHighlightComplete();
+      }, 1000); // Give them time to see the definition process start
+    }
+  }, [onboardingState.isActive, onboardingState.currentStep, markDefineHighlightComplete]);
 
   // Block Overlay Manager - handles block selection and interactions
   const blockOverlayManager = useBlockOverlayManager({
@@ -665,6 +676,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onHandleRabbitholeCreated: handleRabbitholeCreated,
     onAddRabbitholeConversation: addRabbitholeConversation,
     onTextSelectionForOnboarding: onboardingState.isActive && onboardingState.currentStep === 4 ? handleTextSelectionForOnboarding : undefined,
+    isOnboardingStep4: onboardingState.isActive && onboardingState.currentStep === 4,
+    isOnboardingStep5: onboardingState.isActive && onboardingState.currentStep === 5,
+    onDefineForOnboarding: onboardingState.isActive && onboardingState.currentStep === 5 ? handleDefineForOnboarding : undefined,
+    onCompleteOnboarding: markTextSelectionComplete,
     refreshRabbitholesFnRef,
     onScrollToBlock: scrollToBlock,
   });
@@ -1298,12 +1313,56 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         </div>
       </BasePopover>
 
-      {/* Text Selection Onboarding Tour - Step 4 */}
-      <TextSelectionTourDialogue
+      {/* Text Selection Onboarding Tour - Step 4 - Beautiful animated version */}
+      <BasePopover
         isVisible={onboardingState.isActive && onboardingState.currentStep === 4}
-        onComplete={() => markTextSelectionComplete()}
-        position={{ top: '25%', left: '25%' }}
-      />
+        position={{ x: window.innerWidth / 2 - 200, y: window.innerHeight / 2 - 120 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={400}
+        initialHeight="auto"
+        className="overflow-hidden"
+      >
+        <div className="relative">
+          {/* Glassmorphic background overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-library-gold/[0.08] via-transparent to-library-gold/[0.12] pointer-events-none" />
+          <div className="absolute -top-12 -right-12 w-24 h-24 bg-library-gold/[0.15] rounded-full blur-xl pointer-events-none" />
+          
+          <div className="relative p-6">
+            <div className="flex items-start gap-4">
+              {/* Icon section */}
+              <div className="mt-1 flex-shrink-0">
+                <div className="relative">
+                  <svg className="w-6 h-6 text-library-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
+                  </svg>
+                  <div className="absolute -top-0.5 -right-0.5">
+                    <div className="w-2.5 h-2.5 bg-library-gold rounded-full animate-pulse" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Content section */}
+              <div className="flex-1">
+                <h3 className="font-serif text-lg font-semibold text-reading-primary mb-4 tracking-wide">
+                  Click and drag text to select!
+                </h3>
+                
+                {/* Animated demonstration */}
+                <div className="flex justify-center">
+                  <AnimatedTextSelection
+                    isVisible={true}
+                    delay={1000}
+                    targetText="Try selecting text like this"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </BasePopover>
+      
     </MathJaxProvider>
   );
 }

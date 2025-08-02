@@ -8,6 +8,7 @@ interface OnboardingState {
   hasSeenWelcome: boolean;
   hasSeenPDFTour: boolean;
   hasSeenTextSelection: boolean;
+  hasSeenDefineHighlight: boolean;
   isWelcomeModalOpen: boolean;
   showLibraryInstructions: boolean;
 }
@@ -19,6 +20,7 @@ interface OnboardingContextType {
   skipOnboarding: () => void;
   markWelcomeComplete: () => void;
   markTextSelectionComplete: () => void;
+  markDefineHighlightComplete: () => void;
   openWelcomeModal: () => void;
   closeWelcomeModal: () => void;
   setStep: (step: number) => void;
@@ -35,6 +37,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     hasSeenWelcome: false,
     hasSeenPDFTour: false,
     hasSeenTextSelection: false,
+    hasSeenDefineHighlight: false,
     isWelcomeModalOpen: false,
     showLibraryInstructions: false,
   });
@@ -50,6 +53,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           hasSeenWelcome: parsedState.hasSeenWelcome || false,
           hasSeenPDFTour: parsedState.hasSeenPDFTour || false,
           hasSeenTextSelection: parsedState.hasSeenTextSelection || false,
+          hasSeenDefineHighlight: parsedState.hasSeenDefineHighlight || false,
         }));
       }
     } catch (error) {
@@ -107,9 +111,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setState(prev => ({
       ...prev,
       hasSeenTextSelection: true,
-      isActive: false, // Complete onboarding
+      currentStep: 5, // Advance to step 5 instead of ending
     }));
     saveState({ hasSeenTextSelection: true });
+  }, []);
+
+  const markDefineHighlightComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      hasSeenDefineHighlight: true,
+      isActive: false, // Complete onboarding
+    }));
+    saveState({ hasSeenDefineHighlight: true });
   }, []);
 
   const openWelcomeModal = useCallback(() => {
@@ -142,6 +155,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         skipOnboarding,
         markWelcomeComplete,
         markTextSelectionComplete,
+        markDefineHighlightComplete,
         openWelcomeModal,
         closeWelcomeModal,
         setStep,
