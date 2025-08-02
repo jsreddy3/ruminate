@@ -4,6 +4,7 @@ import React from 'react';
 import { BookOpen, ArrowRight } from 'lucide-react';
 import BaseModal from '../common/BaseModal';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import StepCounter from './StepCounter';
 
 interface WelcomeModalProps {
   onStartTour: () => void;
@@ -36,6 +37,7 @@ export default function WelcomeModal({ onStartTour }: WelcomeModalProps) {
     >
       <div className="p-6">
         <div className="text-center">
+          <StepCounter currentStep={1} totalSteps={11} className="mb-4" />
           <BookOpen className="w-8 h-8 text-library-mahogany-600 mx-auto mb-4" />
           
           <h2 className="text-2xl font-serif font-semibold text-reading-primary mb-2">

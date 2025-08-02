@@ -36,6 +36,7 @@ import BasePopover from "../common/BasePopover";
 import { TextSelectionTourDialogue } from "../onboarding/TextSelectionTourDialogue";
 import { AnimatedTextSelection } from "../onboarding/AnimatedTextSelection";
 import { Step5DefineModal } from "../onboarding/Step5DefineModal";
+import StepCounter from "../onboarding/StepCounter";
 
 export interface Block {
   id: string;
@@ -1426,6 +1427,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           <div className="absolute -top-12 -right-12 w-24 h-24 bg-library-gold/[0.15] rounded-full blur-xl pointer-events-none" />
           
           <div className="relative p-6">
+            <StepCounter currentStep={4} totalSteps={11} className="mb-4" />
             <div className="flex items-start gap-4">
               {/* Icon section */}
               <div className="mt-1 flex-shrink-0">
@@ -1472,16 +1474,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         title="🎨 Selection Options"
       >
         <div className="text-center p-6" data-step-5-popover>
+          <StepCounter currentStep={5} totalSteps={11} className="mb-4" />
           <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
             <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
             </svg>
           </div>
           <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
-            Explore Your Options
+            Embed Notes in the Text
           </h3>
           <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
-            Once selected, you can choose from a menu of options to interact with your text.
+            Like notes in a margin, you can create annotations, definitions, and more.
           </p>
           
           <button 
@@ -1506,9 +1509,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         initialWidth={300}
         initialHeight="auto"
         preventOverflow={true}
-        title="🗨️ Create Chat"
       >
         <div className="text-center p-6" data-step-6-popover>
+          <StepCounter currentStep={6} totalSteps={11} className="mb-4" />
           <Step5DefineModal
             isVisible={true}
             onComplete={markDefineHighlightComplete}
@@ -1526,19 +1529,19 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         initialWidth={350}
         initialHeight="auto"
         preventOverflow={true}
-        title="💬 Focused Conversation"
       >
         <div className="text-center p-6" data-step-7-popover>
+          <StepCounter currentStep={7} totalSteps={11} className="mb-4" />
           <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
             <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
           <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
-            Ask Specific Questions
+            Chat About Your Selection
           </h3>
           <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
-            Ask questions specific to your quoted phrase to get grounded answers anchored to the text.
+            Ask questions here to get answers anchored in the text.
           </p>
           
           <button 
@@ -1563,9 +1566,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         initialWidth={350}
         initialHeight="auto"
         preventOverflow={true}
-        title="✨ Almost Done!"
       >
         <div className="text-center p-6" data-step-8-popover>
+          <StepCounter currentStep={8} totalSteps={11} className="mb-4" />
           <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
             <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
@@ -1574,13 +1577,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
             Close the Block
           </h3>
-          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
-            Click the X button to close this focused view and complete your tour!
-          </p>
-          
-          <div className="text-xs text-reading-muted italic">
-            Look for the close button in the top-right corner
-          </div>
         </div>
       </BasePopover>
 
@@ -1594,9 +1590,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         initialWidth={350}
         initialHeight="auto"
         preventOverflow={true}
-        title="📄 View Modes"
       >
         <div className="text-center p-6" data-step-9-popover>
+          <StepCounter currentStep={9} totalSteps={11} className="mb-4" />
           <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
             <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -1606,12 +1602,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             Switch View Modes
           </h3>
           <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
-            Click the glowing view mode button to explore different ways to view your document.
+            Click the view mode to explore other ways to view your notes.
           </p>
-          
-          <div className="text-xs text-reading-muted italic">
-            Try clicking "Glossary" or "Annotations"
-          </div>
         </div>
       </BasePopover>
 
@@ -1625,20 +1617,17 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         initialWidth={350}
         initialHeight="auto"
         preventOverflow={true}
-        title="📚 Your Notes & Definitions"
       >
         <div className="text-center p-6" data-step-10-popover>
+          <StepCounter currentStep={10} totalSteps={11} className="mb-4" />
           <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
             <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
           </div>
           <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
-            Perfect!
+            After generating definitions or annotations, they will be visible in these other view modes.
           </h3>
-          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
-            You can view your notes and definitions here! Switch between PDF view, Glossary, and Annotations anytime.
-          </p>
           
           <button 
             onClick={markViewExplanationComplete}
@@ -1662,9 +1651,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         initialWidth={400}
         initialHeight="auto"
         preventOverflow={true}
-        title="🎉 Welcome to Ruminate!"
       >
         <div className="text-center p-8" data-step-11-popover>
+          <StepCounter currentStep={11} totalSteps={11} className="mb-6" />
           <div className="w-16 h-16 mx-auto bg-gradient-to-br from-library-gold-100 to-library-gold-200 rounded-full flex items-center justify-center mb-6">
             <svg className="w-8 h-8 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1674,7 +1663,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             You're All Set!
           </h3>
           <p className="text-reading-secondary text-base mb-6 leading-relaxed">
-            You've learned how to navigate blocks, create conversations, define terms, and explore different view modes. Happy reading and researching!
+            You've learned how to navigate blocks, create conversations, and explore different view modes. Happy reading and researching!
           </p>
           
           <button 

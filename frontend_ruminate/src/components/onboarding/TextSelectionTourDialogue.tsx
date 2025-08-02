@@ -3,19 +3,22 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MousePointer2, Sparkles } from 'lucide-react';
 import { AnimatedTextSelection } from './AnimatedTextSelection';
+import StepCounter from './StepCounter';
 
 interface TextSelectionTourDialogueProps {
   isVisible: boolean;
   onComplete: () => void;
   position?: { top?: string; left?: string; right?: string; bottom?: string };
   overlayBlock?: boolean; // New prop to position over the block overlay
+  currentStep?: number; // Current step number for step counter
 }
 
 export const TextSelectionTourDialogue: React.FC<TextSelectionTourDialogueProps> = ({
   isVisible,
   onComplete,
   position = { top: '20%', left: '20%' },
-  overlayBlock = false
+  overlayBlock = false,
+  currentStep = 4
 }) => {
   const hasShownRef = useRef(false);
   const [shouldShowPointer, setShouldShowPointer] = useState(false);
@@ -59,6 +62,7 @@ export const TextSelectionTourDialogue: React.FC<TextSelectionTourDialogueProps>
           textAlign: 'center'
         }}
       >
+        <StepCounter currentStep={currentStep} totalSteps={11} className="mb-4" />
         <h2>TEXT SELECTION TOUR</h2>
         <p>Try selecting some text!</p>
       </div>

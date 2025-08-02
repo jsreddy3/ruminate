@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText } from 'lucide-react';
+import StepCounter from './StepCounter';
 
 interface PDFTourDialogueProps {
   isVisible: boolean;
@@ -69,16 +70,19 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-library-gold/[0.08] rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-t from-library-mahogany/[0.02] to-transparent pointer-events-none" />
                 
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="mt-0.5">
-                    <FileText className="w-5 h-5 text-library-mahogany/80" strokeWidth={1.5} />
-                  </div>
+                <div className="relative z-10">
+                  <StepCounter currentStep={3} totalSteps={11} className="mb-4" />
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      <FileText className="w-5 h-5 text-library-mahogany/80" strokeWidth={1.5} />
+                    </div>
                   
-                  <div className="flex-1">
-                    <p className="text-library-mahogany/90 font-iowan font-medium leading-relaxed text-[15px] tracking-wide"
-                       style={{ fontFamily: '"Iowan Old Style", Georgia, serif' }}>
-                      Tap a block of text to start reading
-                    </p>
+                    <div className="flex-1">
+                      <p className="text-library-mahogany/90 font-iowan font-medium leading-relaxed text-[15px] tracking-wide"
+                         style={{ fontFamily: '"Iowan Old Style", Georgia, serif' }}>
+                        Tap a block of text to start reading
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
