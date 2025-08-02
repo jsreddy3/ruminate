@@ -126,7 +126,82 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const router = useRouter();
-  const { state: onboardingState, nextStep, markWelcomeComplete, markTextSelectionComplete, markDefineHighlightComplete } = useOnboarding();
+  const { state: onboardingState, nextStep, markWelcomeComplete, markTextSelectionComplete, markTooltipOptionsComplete, markDefineHighlightComplete, markChatFocusComplete, markViewModeComplete, markViewExplanationComplete, markOnboardingComplete, setStep } = useOnboarding();
+
+  // Global interaction blocking for steps 5, 6, 7, 8, 9, 10, 11
+  useEffect(() => {
+    if (!onboardingState.isActive || ![5, 6, 7, 8, 9, 10, 11].includes(onboardingState.currentStep)) {
+      return;
+    }
+
+    const handleGlobalInteraction = (e: Event) => {
+      const target = e.target as HTMLElement;
+      
+      if (onboardingState.currentStep === 5) {
+        // Allow interaction only with the step 5 popover
+        const isStep5PopoverClick = target.closest('[data-step-5-popover]');
+        if (!isStep5PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 6) {
+        // Allow interaction only with the step 6 popover  
+        const isStep6PopoverClick = target.closest('[data-step-6-popover]');
+        if (!isStep6PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 7) {
+        // Allow interaction only with the step 7 popover
+        const isStep7PopoverClick = target.closest('[data-step-7-popover]');
+        if (!isStep7PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 8) {
+        // Allow interaction only with the close button and step 8 popover
+        const isCloseButtonClick = target.closest('button[title*="Click here to complete the tour"]');
+        const isStep8PopoverClick = target.closest('[data-step-8-popover]');
+        if (!isCloseButtonClick && !isStep8PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 9) {
+        // Allow interaction only with the view mode dropdown and step 9 popover
+        const isViewModeDropdownClick = target.closest('[data-view-mode-dropdown]');
+        const isStep9PopoverClick = target.closest('[data-step-9-popover]');
+        if (!isViewModeDropdownClick && !isStep9PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 10) {
+        // Allow interaction only with the step 10 popover
+        const isStep10PopoverClick = target.closest('[data-step-10-popover]');
+        if (!isStep10PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 11) {
+        // Allow interaction only with the step 11 popover
+        const isStep11PopoverClick = target.closest('[data-step-11-popover]');
+        if (!isStep11PopoverClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+
+    // Add global event listeners with capture to block all interactions
+    document.addEventListener('click', handleGlobalInteraction, true);
+    document.addEventListener('mousedown', handleGlobalInteraction, true);
+    document.addEventListener('keydown', handleGlobalInteraction, true);
+
+    return () => {
+      document.removeEventListener('click', handleGlobalInteraction, true);
+      document.removeEventListener('mousedown', handleGlobalInteraction, true);
+      document.removeEventListener('keydown', handleGlobalInteraction, true);
+    };
+  }, [onboardingState.isActive, onboardingState.currentStep]);
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   const [documentTitle, setDocumentTitle] = useState<string>('');
@@ -645,7 +720,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // Handle create chat action during onboarding step 5
   const handleCreateChatForOnboarding = useCallback(() => {
-    if (onboardingState.isActive && onboardingState.currentStep === 5) {
+    if (onboardingState.isActive && onboardingState.currentStep === 6) {
       // User has successfully clicked create chat - complete onboarding after a short delay
       setTimeout(() => {
         markDefineHighlightComplete();
@@ -677,8 +752,13 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onTextSelectionForOnboarding: onboardingState.isActive && onboardingState.currentStep === 4 ? handleTextSelectionForOnboarding : undefined,
     isOnboardingStep4: onboardingState.isActive && onboardingState.currentStep === 4,
     isOnboardingStep5: onboardingState.isActive && onboardingState.currentStep === 5,
-    onCreateChatForOnboarding: onboardingState.isActive && onboardingState.currentStep === 5 ? handleCreateChatForOnboarding : undefined,
-    onCompleteOnboarding: markTextSelectionComplete,
+    isOnboardingStep6: onboardingState.isActive && onboardingState.currentStep === 6,
+    isOnboardingStep7: onboardingState.isActive && onboardingState.currentStep === 7,
+    isOnboardingStep8: onboardingState.isActive && onboardingState.currentStep === 8,
+    onCreateChatForOnboarding: onboardingState.isActive && onboardingState.currentStep === 6 ? handleCreateChatForOnboarding : undefined,
+    onCompleteOnboarding: onboardingState.currentStep === 8 ? () => {
+      setStep(9);
+    } : markOnboardingComplete,
     refreshRabbitholesFnRef,
     onScrollToBlock: scrollToBlock,
   });
@@ -880,7 +960,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           
           {/* Content */}
           <div className={`relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm transition-all duration-300 ${
-            onboardingState.isActive && (onboardingState.currentStep === 3 || onboardingState.currentStep === 4 || onboardingState.currentStep === 5) ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+            onboardingState.isActive && (onboardingState.currentStep >= 3 && onboardingState.currentStep <= 6) ? 'opacity-30 blur-[1px] pointer-events-none' : onboardingState.isActive && onboardingState.currentStep === 8 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
           }`}>
             <button
               onClick={() => router.push('/home')}
@@ -922,15 +1002,31 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                       y: rect.bottom + 8
                     });
                     setIsViewDropdownOpen(!isViewDropdownOpen);
+                    
+                    // Advance to step 10 if we're in step 9
+                    if (onboardingState.isActive && onboardingState.currentStep === 9) {
+                      markViewModeComplete();
+                    }
                   }}
-                  className="w-32 h-12 flex items-center justify-center rounded-book border shadow-book hover:shadow-shelf transition-all font-serif font-medium"
+                  className={`w-32 h-12 flex items-center justify-center rounded-book border shadow-book hover:shadow-shelf transition-all font-serif font-medium ${
+                    onboardingState.isActive && onboardingState.currentStep === 9 
+                      ? 'ring-4 ring-library-gold-300/50 animate-pulse shadow-2xl' 
+                      : ''
+                  }`}
                   style={{ 
                     fontSize: '16px',
                     gap: '8px',
-                    background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)',
-                    color: '#FDF6E3',
-                    borderColor: '#654321'
+                    background: onboardingState.isActive && onboardingState.currentStep === 9 
+                      ? 'linear-gradient(135deg, #f9cf5f 0%, #edbe51 100%)' 
+                      : 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)',
+                    color: onboardingState.isActive && onboardingState.currentStep === 9 
+                      ? '#2c3830' 
+                      : '#FDF6E3',
+                    borderColor: onboardingState.isActive && onboardingState.currentStep === 9 
+                      ? '#f9cf5f' 
+                      : '#654321'
                   }}
+                  data-view-mode-dropdown
                 >
                   <span>{viewMode === 'pdf' ? 'PDF View' : viewMode === 'glossary' ? 'Glossary' : 'Annotations'}</span>
                   <svg className={`w-4 h-4 transition-transform ${isViewDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -960,6 +1056,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 }))}
                 activeConversationId={activeConversationId}
                 onConversationChange={handleConversationChangeWithScroll}
+                disabled={onboardingState.isActive && onboardingState.currentStep === 6}
               />
             </div>
           </div>
@@ -999,7 +1096,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           )}
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
         <div className={`transition-all duration-300 ${
-          onboardingState.isActive && (onboardingState.currentStep === 3 || onboardingState.currentStep === 4 || onboardingState.currentStep === 5) ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+          onboardingState.isActive && (onboardingState.currentStep >= 3 && onboardingState.currentStep <= 6) ? 'opacity-30 blur-[1px] pointer-events-none' : onboardingState.isActive && onboardingState.currentStep === 8 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
         }`}>
           <PDFToolbar
             GoToPreviousPage={GoToPreviousPage}
@@ -1216,7 +1313,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             
             {/* Content with enhanced border */}
             <div className={`relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent transition-all duration-300 ${
-              onboardingState.isActive && (onboardingState.currentStep === 3 || onboardingState.currentStep === 4 || onboardingState.currentStep === 5) ? 'opacity-30 blur-[1px] pointer-events-none' : ''
+              onboardingState.isActive && (onboardingState.currentStep >= 3 && onboardingState.currentStep <= 6) ? 'opacity-30 blur-[1px] pointer-events-none' : onboardingState.isActive && onboardingState.currentStep === 8 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
             }`}>
               {/* Decorative book spine edge */}
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-library-mahogany-400 via-library-mahogany-500 to-library-mahogany-600 shadow-sm"></div>
@@ -1362,21 +1459,234 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         </div>
       </BasePopover>
 
-      {/* Step 5 Create Chat Instructions */}
+      {/* Step 5 Tooltip Options Overview */}
       <BasePopover
         isVisible={onboardingState.isActive && onboardingState.currentStep === 5}
-        position={{ x: window.innerWidth / 2 - 150, y: window.innerHeight / 2 - 100 }}
+        position={{ x: window.innerWidth / 2 - 175, y: 100 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={350}
+        initialHeight="auto"
+        preventOverflow={true}
+        title="🎨 Selection Options"
+      >
+        <div className="text-center p-6" data-step-5-popover>
+          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
+            Explore Your Options
+          </h3>
+          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
+            Once selected, you can choose from a menu of options to interact with your text.
+          </p>
+          
+          <button 
+            onClick={markTooltipOptionsComplete}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
+          >
+            Next
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </BasePopover>
+
+      {/* Step 6 Create Chat Instructions - positioned deterministically above tooltip */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 6}
+        position={{ x: window.innerWidth / 2 - 150, y: 100 }}
         onClose={() => {}}
         showCloseButton={false}
         closeOnClickOutside={false}
         initialWidth={300}
         initialHeight="auto"
+        preventOverflow={true}
         title="🗨️ Create Chat"
       >
-        <Step5DefineModal
-          isVisible={true}
-          onComplete={markDefineHighlightComplete}
-        />
+        <div className="text-center p-6" data-step-6-popover>
+          <Step5DefineModal
+            isVisible={true}
+            onComplete={markDefineHighlightComplete}
+          />
+        </div>
+      </BasePopover>
+
+      {/* Step 7 Chat Focus Instructions */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 7}
+        position={{ x: Math.min(window.innerWidth * 0.75, window.innerWidth - 200), y: window.innerHeight / 2 - 100 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={350}
+        initialHeight="auto"
+        preventOverflow={true}
+        title="💬 Focused Conversation"
+      >
+        <div className="text-center p-6" data-step-7-popover>
+          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
+            Ask Specific Questions
+          </h3>
+          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
+            Ask questions specific to your quoted phrase to get grounded answers anchored to the text.
+          </p>
+          
+          <button 
+            onClick={markChatFocusComplete}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
+          >
+            Continue
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </BasePopover>
+
+      {/* Step 8 Close Block Instructions */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 8}
+        position={{ x: window.innerWidth / 2 - 175, y: window.innerHeight / 2 - 100 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={350}
+        initialHeight="auto"
+        preventOverflow={true}
+        title="✨ Almost Done!"
+      >
+        <div className="text-center p-6" data-step-8-popover>
+          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
+            Close the Block
+          </h3>
+          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
+            Click the X button to close this focused view and complete your tour!
+          </p>
+          
+          <div className="text-xs text-reading-muted italic">
+            Look for the close button in the top-right corner
+          </div>
+        </div>
+      </BasePopover>
+
+      {/* Step 9 View Mode Instructions */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 9}
+        position={{ x: window.innerWidth / 2 - 175, y: 150 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={350}
+        initialHeight="auto"
+        preventOverflow={true}
+        title="📄 View Modes"
+      >
+        <div className="text-center p-6" data-step-9-popover>
+          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
+            Switch View Modes
+          </h3>
+          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
+            Click the glowing view mode button to explore different ways to view your document.
+          </p>
+          
+          <div className="text-xs text-reading-muted italic">
+            Try clicking "Glossary" or "Annotations"
+          </div>
+        </div>
+      </BasePopover>
+
+      {/* Step 10 View Explanation */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 10}
+        position={{ x: window.innerWidth / 2 - 175, y: window.innerHeight / 2 - 100 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={350}
+        initialHeight="auto"
+        preventOverflow={true}
+        title="📚 Your Notes & Definitions"
+      >
+        <div className="text-center p-6" data-step-10-popover>
+          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
+            Perfect!
+          </h3>
+          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
+            You can view your notes and definitions here! Switch between PDF view, Glossary, and Annotations anytime.
+          </p>
+          
+          <button 
+            onClick={markViewExplanationComplete}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
+          >
+            Next
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </BasePopover>
+
+      {/* Step 11 Onboarding Complete */}
+      <BasePopover
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 11}
+        position={{ x: window.innerWidth / 2 - 200, y: window.innerHeight / 2 - 150 }}
+        onClose={() => {}}
+        showCloseButton={false}
+        closeOnClickOutside={false}
+        initialWidth={400}
+        initialHeight="auto"
+        preventOverflow={true}
+        title="🎉 Welcome to Ruminate!"
+      >
+        <div className="text-center p-8" data-step-11-popover>
+          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-library-gold-100 to-library-gold-200 rounded-full flex items-center justify-center mb-6">
+            <svg className="w-8 h-8 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-serif font-semibold text-reading-primary mb-4">
+            You're All Set!
+          </h3>
+          <p className="text-reading-secondary text-base mb-6 leading-relaxed">
+            You've learned how to navigate blocks, create conversations, define terms, and explore different view modes. Happy reading and researching!
+          </p>
+          
+          <button 
+            onClick={markOnboardingComplete}
+            className="inline-flex items-center gap-2 px-8 py-4 bg-library-mahogany-500 hover:bg-library-mahogany-600 text-white font-semibold rounded-book transition-all duration-300 shadow-book hover:shadow-shelf text-lg"
+          >
+            Start Reading!
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
       </BasePopover>
       
     </MathJaxProvider>

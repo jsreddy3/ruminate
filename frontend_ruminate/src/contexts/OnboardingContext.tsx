@@ -20,7 +20,12 @@ interface OnboardingContextType {
   skipOnboarding: () => void;
   markWelcomeComplete: () => void;
   markTextSelectionComplete: () => void;
+  markTooltipOptionsComplete: () => void;
   markDefineHighlightComplete: () => void;
+  markChatFocusComplete: () => void;
+  markViewModeComplete: () => void;
+  markViewExplanationComplete: () => void;
+  markOnboardingComplete: () => void;
   openWelcomeModal: () => void;
   closeWelcomeModal: () => void;
   setStep: (step: number) => void;
@@ -111,18 +116,53 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setState(prev => ({
       ...prev,
       hasSeenTextSelection: true,
-      currentStep: 5, // Advance to step 5 instead of ending
+      currentStep: 5, // Advance to new step 5 (tooltip options overview)
     }));
     saveState({ hasSeenTextSelection: true });
+  }, []);
+
+  const markTooltipOptionsComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentStep: 6, // Advance to step 6 (create chat focus)
+    }));
   }, []);
 
   const markDefineHighlightComplete = useCallback(() => {
     setState(prev => ({
       ...prev,
       hasSeenDefineHighlight: true,
-      isActive: false, // Complete onboarding
+      currentStep: 7, // Advance to step 7 (chat focus)
     }));
     saveState({ hasSeenDefineHighlight: true });
+  }, []);
+
+  const markChatFocusComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentStep: 8, // Advance to step 8 (close block)
+    }));
+  }, []);
+
+  const markViewModeComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentStep: 10, // Advance to step 10 (view explanation)
+    }));
+  }, []);
+
+  const markViewExplanationComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentStep: 11, // Advance to step 11 (onboarding complete)
+    }));
+  }, []);
+
+  const markOnboardingComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      isActive: false, // Complete onboarding
+    }));
   }, []);
 
   const openWelcomeModal = useCallback(() => {
@@ -155,7 +195,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         skipOnboarding,
         markWelcomeComplete,
         markTextSelectionComplete,
+        markTooltipOptionsComplete,
         markDefineHighlightComplete,
+        markChatFocusComplete,
+        markViewModeComplete,
+        markViewExplanationComplete,
+        markOnboardingComplete,
         openWelcomeModal,
         closeWelcomeModal,
         setStep,

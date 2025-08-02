@@ -57,6 +57,7 @@ interface TextRendererProps {
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep5?: boolean;
+  isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
@@ -75,6 +76,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   onUpdateBlockMetadata,
   onTextSelectionForOnboarding,
   isOnboardingStep5 = false,
+  isOnboardingStep6 = false,
   onCreateChatForOnboarding,
   customStyle
 }) => {
@@ -212,13 +214,18 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
   // Handle creating a rabbithole conversation
   const handleCreateRabbithole = (text: string, startOffset: number, endOffset: number) => {
+    console.log('🚀 handleCreateRabbithole called', { text, startOffset, endOffset, hasOnCreateRabbithole: !!onCreateRabbithole });
     if (onCreateRabbithole) {
       // Use the actual selection range data if available, otherwise use provided offsets
       if (selectedRange) {
+        console.log('🚀 Using selectedRange:', selectedRange);
         onCreateRabbithole(selectedRange.text, selectedRange.startOffset, selectedRange.endOffset);
       } else {
+        console.log('🚀 Using provided offsets:', { text, startOffset, endOffset });
         onCreateRabbithole(text, startOffset, endOffset);
       }
+    } else {
+      console.log('⚠️ No onCreateRabbithole function available');
     }
     setTooltipVisible(false);
   };
@@ -349,13 +356,13 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setAnnotationVisible(false);
   };
   
-  console.log('🎯 TextRenderer: isOnboardingStep5 =', isOnboardingStep5);
+  console.log('🎯 TextRenderer: isOnboardingStep5 =', isOnboardingStep5, 'isOnboardingStep6 =', isOnboardingStep6, 'hasOnCreateRabbithole =', !!onCreateRabbithole);
   
   return (
     <div ref={blockRef} className="text-renderer relative">
       <SelectionManager 
         onTextSelected={handleTextSelected}
-        preventDeselection={isOnboardingStep5}
+        preventDeselection={isOnboardingStep6}
       >
         <div ref={contentRef} onClick={handleClick}>
           <TextContent 
@@ -409,8 +416,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           onCreateRabbithole={handleCreateRabbithole}
           onAnnotate={handleAnnotateText}
           onClose={() => {
-            // Don't close during onboarding step 5
-            if (!isOnboardingStep5) {
+            // Don't close during onboarding step 5 or 6
+            if (!isOnboardingStep5 && !isOnboardingStep6) {
               setTooltipVisible(false);
             }
           } }
@@ -418,6 +425,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           blockId={blockId}
           isDefining={isDefining}
           isOnboardingStep5={isOnboardingStep5}
+          isOnboardingStep6={isOnboardingStep6}
           onCreateChatForOnboarding={onCreateChatForOnboarding}
         />,
         document.body

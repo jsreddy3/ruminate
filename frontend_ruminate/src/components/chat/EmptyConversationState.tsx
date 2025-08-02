@@ -31,7 +31,7 @@ const EmptyConversationState: React.FC<EmptyConversationStateProps> = ({
             </h3>
             
             <p className="text-reading-secondary text-lg leading-relaxed">
-              This conversation follows you through the document. Ask any questions—it sees what you see.
+              This conversation follows you through the document. Ask any question—your co-reader sees what you see.
             </p>
           </div>
         ) : (

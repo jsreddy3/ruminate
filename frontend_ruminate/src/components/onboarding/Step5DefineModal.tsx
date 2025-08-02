@@ -18,11 +18,8 @@ export const Step5DefineModal: React.FC<Step5DefineModalProps> = ({
         <Search className="w-6 h-6 text-library-mahogany-600" />
       </div>
       <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
-        Great! Now try "Create chat"
+        Click "create chat" to start a focused conversation.
       </h3>
-      <p className="text-reading-secondary text-sm mb-4">
-        Click the highlighted button to start a conversation about your selected text.
-      </p>
       
       <div className="flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">

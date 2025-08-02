@@ -44,6 +44,9 @@ interface BlockOverlayManagerProps {
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep4?: boolean;
   isOnboardingStep5?: boolean;
+  isOnboardingStep6?: boolean;
+  isOnboardingStep7?: boolean;
+  isOnboardingStep8?: boolean;
   onCreateChatForOnboarding?: () => void;
   onCompleteOnboarding?: () => void;
   
@@ -90,6 +93,9 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     onTextSelectionForOnboarding,
     isOnboardingStep4,
     isOnboardingStep5,
+    isOnboardingStep6,
+    isOnboardingStep7,
+    isOnboardingStep8,
     onCreateChatForOnboarding,
     onCompleteOnboarding,
     refreshRabbitholesFnRef,
@@ -228,6 +234,9 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       onTextSelectionForOnboarding={onTextSelectionForOnboarding}
       isOnboardingStep4={isOnboardingStep4}
       isOnboardingStep5={isOnboardingStep5}
+      isOnboardingStep6={isOnboardingStep6}
+      isOnboardingStep7={isOnboardingStep7}
+      isOnboardingStep8={isOnboardingStep8}
       onCreateChatForOnboarding={onCreateChatForOnboarding}
       onCompleteOnboarding={onCompleteOnboarding}
       mainConversationId={mainConversationId ?? undefined}

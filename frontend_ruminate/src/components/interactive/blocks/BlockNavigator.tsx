@@ -20,6 +20,9 @@ interface BlockNavigatorProps {
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep4?: boolean;
   isOnboardingStep5?: boolean;
+  isOnboardingStep6?: boolean;
+  isOnboardingStep7?: boolean;
+  isOnboardingStep8?: boolean;
   onCreateChatForOnboarding?: () => void;
   mainConversationId?: string;
 }
@@ -39,6 +42,9 @@ export default function BlockNavigator({
   onTextSelectionForOnboarding,
   isOnboardingStep4,
   isOnboardingStep5,
+  isOnboardingStep6,
+  isOnboardingStep7,
+  isOnboardingStep8,
   onCreateChatForOnboarding,
   mainConversationId
 }: BlockNavigatorProps) {
@@ -237,6 +243,7 @@ export default function BlockNavigator({
                   onUpdateBlockMetadata={onUpdateBlockMetadata}
                   onTextSelectionForOnboarding={onTextSelectionForOnboarding}
                   isOnboardingStep5={isOnboardingStep5}
+                  isOnboardingStep6={isOnboardingStep6}
                   onCreateChatForOnboarding={onCreateChatForOnboarding}
                 />
               </div>

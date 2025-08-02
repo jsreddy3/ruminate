@@ -22,6 +22,9 @@ interface BlockOverlayProps {
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep4?: boolean; // New prop to indicate onboarding step 4
   isOnboardingStep5?: boolean; // New prop to indicate onboarding step 5
+  isOnboardingStep6?: boolean; // New prop to indicate onboarding step 6
+  isOnboardingStep7?: boolean; // New prop to indicate onboarding step 7
+  isOnboardingStep8?: boolean; // New prop to indicate onboarding step 8
   onCreateChatForOnboarding?: () => void; // Callback for create chat onboarding
   onCompleteOnboarding?: () => void; // Callback to complete onboarding
   mainConversationId?: string | undefined;
@@ -45,23 +48,26 @@ export default function BlockOverlay({
   onTextSelectionForOnboarding,
   isOnboardingStep4,
   isOnboardingStep5,
+  isOnboardingStep6,
+  isOnboardingStep7,
+  isOnboardingStep8,
   onCreateChatForOnboarding,
   onCompleteOnboarding,
-  mainConversationId
+  mainConversationId,
 }: BlockOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Handle backdrop clicks to close overlay
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) {
+    if (e.target === overlayRef.current && !isOnboardingStep7) {
       onClose();
     }
-  }, [onClose]);
+  }, [onClose, isOnboardingStep7]);
 
   // Handle escape key to close overlay
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape' && isOpen && !isOnboardingStep7) {
         onClose();
       }
     };
@@ -104,18 +110,28 @@ export default function BlockOverlay({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="relative h-full flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden" style={{ width: '75%' }}>
+              <div className={`bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden transition-all duration-300 ${
+                isOnboardingStep7 ? 'opacity-50' : ''
+              }`} style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}
                 <button
-                  onClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onClose}
-                  className={`absolute z-30 p-2 rounded-full shadow-lg transition-colors ${
-                    (isOnboardingStep4 || isOnboardingStep5) 
+                  onClick={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : () => {
+                    onClose();
+                    // Advance to step 9 if we're in step 8
+                    if (isOnboardingStep8 && onCompleteOnboarding) {
+                      onCompleteOnboarding(); // This should advance to step 9, not complete onboarding
+                    }
+                  }}
+                  className={`absolute z-30 p-2 rounded-full shadow-lg transition-all duration-300 ${
+                    (isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) 
                       ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
-                      : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800'
+                      : isOnboardingStep8
+                        ? 'bg-library-gold-400 hover:bg-library-gold-500 text-white shadow-2xl ring-4 ring-library-gold-300/50 animate-pulse'
+                        : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800'
                   }`}
                   style={{ top: '12px', right: '12px' }}
-                  title={(isOnboardingStep4 || isOnboardingStep5) ? "Complete the tutorial to continue" : "Close (Esc)"}
-                  disabled={(isOnboardingStep4 || isOnboardingStep5)}
+                  title={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? "Complete the tutorial to continue" : isOnboardingStep8 ? "Click here to complete the tour!" : "Close (Esc)"}
+                  disabled={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7)}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -129,16 +145,19 @@ export default function BlockOverlay({
                     currentBlockId={selectedBlock.id}
                     documentId={documentId}
                     getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
-                    onBlockChange={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onBlockChange}
+                    onBlockChange={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : onBlockChange}
                     onRefreshRabbitholes={onRefreshRabbitholes}
-                    onAddTextToChat={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onAddTextToChat}
+                    onAddTextToChat={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : onAddTextToChat}
                     onUpdateBlockMetadata={onUpdateBlockMetadata}
-                    onRabbitholeClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onRabbitholeClick}
-                    onCreateRabbithole={isOnboardingStep4 ? undefined : onCreateRabbithole}
-                    onSwitchToMainChat={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onSwitchToMainChat}
+                    onRabbitholeClick={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : onRabbitholeClick}
+                    onCreateRabbithole={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep7) ? undefined : onCreateRabbithole}
+                    onSwitchToMainChat={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : onSwitchToMainChat}
                     onTextSelectionForOnboarding={onTextSelectionForOnboarding}
                     isOnboardingStep4={isOnboardingStep4}
                     isOnboardingStep5={isOnboardingStep5}
+                    isOnboardingStep6={isOnboardingStep6}
+                    isOnboardingStep7={isOnboardingStep7}
+                    isOnboardingStep8={isOnboardingStep8}
                     onCreateChatForOnboarding={onCreateChatForOnboarding}
                     mainConversationId={mainConversationId}
                   />

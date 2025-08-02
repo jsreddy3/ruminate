@@ -30,6 +30,7 @@ interface BlockContainerProps {
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep5?: boolean;
+  isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
@@ -54,6 +55,7 @@ export default function BlockContainer({
   onUpdateBlockMetadata,
   onTextSelectionForOnboarding,
   isOnboardingStep5,
+  isOnboardingStep6,
   onCreateChatForOnboarding,
   customStyle
 }: BlockContainerProps) {
@@ -87,6 +89,7 @@ export default function BlockContainer({
       onUpdateBlockMetadata={onUpdateBlockMetadata}
       onTextSelectionForOnboarding={onTextSelectionForOnboarding}
       isOnboardingStep5={isOnboardingStep5}
+      isOnboardingStep6={isOnboardingStep6}
       onCreateChatForOnboarding={onCreateChatForOnboarding}
       customStyle={customStyle}
     />

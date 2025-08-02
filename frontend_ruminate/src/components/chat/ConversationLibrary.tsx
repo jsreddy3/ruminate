@@ -13,6 +13,7 @@ interface ConversationLibraryProps {
   conversations: Conversation[];
   activeConversationId: string | null;
   onConversationChange: (id: string | null) => void;
+  disabled?: boolean;
 }
 
 /**
@@ -21,7 +22,8 @@ interface ConversationLibraryProps {
  */
 const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
   conversations,
-  onConversationChange
+  onConversationChange,
+  disabled = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +92,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
               <div
                 key={conversationKey}
                 className={styles.container}
-                onClick={() => onConversationChange(conversation.id)}
+                onClick={() => !disabled && onConversationChange(conversation.id)}
                 title={conversation.title}
               >
                 <div className={styles.icon}>
@@ -113,7 +115,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
           {/* Show +N indicator if there are more conversations */}
           {hasMore && (
             <button
-              onClick={handleExpandClick}
+              onClick={!disabled ? handleExpandClick : undefined}
               className="flex items-center justify-center w-10 h-10 bg-library-sage-300 hover:bg-library-sage-400 text-library-cream-50 rounded-book font-serif text-sm font-bold transition-colors duration-200"
               title={`Show ${conversations.length - maxPreviewIcons} more conversations`}
             >
@@ -157,8 +159,10 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
                     }
                   `}
                   onClick={() => {
-                    onConversationChange(conversation.id);
-                    setIsExpanded(false);
+                    if (!disabled) {
+                      onConversationChange(conversation.id);
+                      setIsExpanded(false);
+                    }
                   }}
                 >
                   {/* Clean icon */}

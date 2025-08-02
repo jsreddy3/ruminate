@@ -97,9 +97,13 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
       if (preventDeselection) {
         const target = e.target as HTMLElement;
         const isTooltipClick = target.closest('.selection-tooltip, .definition-popup');
+        console.log('🔒 SelectionManager: click event, target:', target.tagName, 'isTooltipClick:', !!isTooltipClick, 'className:', target.className);
         if (!isTooltipClick) {
+          console.log('🔒 SelectionManager: preventing click');
           e.preventDefault();
           e.stopPropagation();
+        } else {
+          console.log('🔒 SelectionManager: allowing tooltip click');
         }
       }
     };
