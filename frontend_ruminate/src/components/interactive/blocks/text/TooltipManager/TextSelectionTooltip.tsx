@@ -172,7 +172,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                 action.disabled 
                   ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30' 
                   : action.isHighlighted
-                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border-2 border-library-gold-500 shadow-lg font-bold ring-2 ring-library-gold-300/50'
+                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border-2 border-library-gold-500 shadow-lg ring-2 ring-library-gold-300/50'
                     : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
               }`}
               onClick={action.onClick}
@@ -195,7 +195,7 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                   action.disabled 
                     ? "text-library-sage-300" 
                     : action.isHighlighted
-                      ? "text-library-mahogany-700 font-bold"
+                      ? "text-library-mahogany-700"
                       : "text-library-mahogany-500"
                 }>
                   {action.icon}

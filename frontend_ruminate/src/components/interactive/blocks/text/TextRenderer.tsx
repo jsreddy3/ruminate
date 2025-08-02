@@ -349,6 +349,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setAnnotationVisible(false);
   };
   
+  console.log('🎯 TextRenderer: isOnboardingStep5 =', isOnboardingStep5);
+  
   return (
     <div ref={blockRef} className="text-renderer relative">
       <SelectionManager 

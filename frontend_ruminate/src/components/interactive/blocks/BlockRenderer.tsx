@@ -34,6 +34,8 @@ interface BlockRendererProps {
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onTextSelectionForOnboarding?: () => void;
+  isOnboardingStep5?: boolean;
+  onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -55,6 +57,8 @@ export default function BlockRenderer({
   onCreateRabbithole,
   onUpdateBlockMetadata,
   onTextSelectionForOnboarding,
+  isOnboardingStep5,
+  onCreateChatForOnboarding,
   customStyle
 }: BlockRendererProps) {
   const type = blockType.toLowerCase();
@@ -127,6 +131,8 @@ export default function BlockRenderer({
             onCreateRabbithole={onCreateRabbithole}
             onUpdateBlockMetadata={onUpdateBlockMetadata}
             onTextSelectionForOnboarding={onTextSelectionForOnboarding}
+            isOnboardingStep5={isOnboardingStep5}
+            onCreateChatForOnboarding={onCreateChatForOnboarding}
             customStyle={customStyle}
           />
         );

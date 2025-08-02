@@ -117,7 +117,90 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
         document.removeEventListener('mousedown', handleGlobalClick, true);
       }
     };
-  }, [onTextSelected]);
+  }, [onTextSelected, preventDeselection]);
+
+  // Aggressive selection preservation during onboarding
+  useEffect(() => {
+    console.log('🔒 SelectionManager: preventDeselection effect triggered:', preventDeselection);
+    
+    if (!preventDeselection) {
+      console.log('🔒 SelectionManager: preventDeselection is false, exiting');
+      return;
+    }
+
+    let savedSelection: Range | null = null;
+    let savedSelectionText = '';
+
+    const preserveSelection = () => {
+      const selection = window.getSelection();
+      console.log('🔒 SelectionManager: preserveSelection called, current selection:', selection?.toString());
+      
+      if (selection && selection.rangeCount > 0) {
+        savedSelection = selection.getRangeAt(0).cloneRange();
+        savedSelectionText = selection.toString();
+        console.log('🔒 SelectionManager: saved selection:', savedSelectionText);
+      }
+    };
+
+    const restoreSelection = () => {
+      if (savedSelection && savedSelectionText) {
+        const selection = window.getSelection();
+        const currentText = selection?.toString() || '';
+        
+        console.log('🔒 SelectionManager: restoreSelection called');
+        console.log('🔒 SelectionManager: current selection:', currentText);
+        console.log('🔒 SelectionManager: saved selection:', savedSelectionText);
+        
+        if (selection && (!currentText || currentText !== savedSelectionText)) {
+          console.log('🔒 SelectionManager: RESTORING selection!');
+          selection.removeAllRanges();
+          selection.addRange(savedSelection);
+        } else {
+          console.log('🔒 SelectionManager: selection already correct, no restore needed');
+        }
+      } else {
+        console.log('🔒 SelectionManager: no saved selection to restore');
+      }
+    };
+
+    // Save selection initially
+    console.log('🔒 SelectionManager: initial preserve');
+    preserveSelection();
+
+    // Restore selection on any potential clearing events
+    const handleSelectionChange = () => {
+      console.log('🔒 SelectionManager: selectionchange event detected');
+      setTimeout(restoreSelection, 0); // Defer to next tick
+    };
+
+    const handleMouseDown = (e: Event) => {
+      console.log('🔒 SelectionManager: mousedown event, target:', (e.target as HTMLElement)?.tagName);
+      preserveSelection();
+    };
+
+    const handleMouseUp = (e: Event) => {
+      console.log('🔒 SelectionManager: mouseup event');
+      setTimeout(restoreSelection, 0);
+    };
+
+    const handleClick = (e: Event) => {
+      console.log('🔒 SelectionManager: click event, target:', (e.target as HTMLElement)?.tagName);
+      setTimeout(restoreSelection, 0);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('click', handleClick);
+
+    return () => {
+      console.log('🔒 SelectionManager: cleaning up selection preservation listeners');
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('click', handleClick);
+    };
+  }, [preventDeselection]);
   
   // Convert DOMRect to a plain object and adjust coordinates to be relative to container
   const adjustedRects = selectionRects.map(rect => {

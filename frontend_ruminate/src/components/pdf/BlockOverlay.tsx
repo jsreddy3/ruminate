@@ -134,7 +134,7 @@ export default function BlockOverlay({
                     onAddTextToChat={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onAddTextToChat}
                     onUpdateBlockMetadata={onUpdateBlockMetadata}
                     onRabbitholeClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onRabbitholeClick}
-                    onCreateRabbithole={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onCreateRabbithole}
+                    onCreateRabbithole={isOnboardingStep4 ? undefined : onCreateRabbithole}
                     onSwitchToMainChat={(isOnboardingStep4 || isOnboardingStep5) ? undefined : onSwitchToMainChat}
                     onTextSelectionForOnboarding={onTextSelectionForOnboarding}
                     isOnboardingStep4={isOnboardingStep4}
