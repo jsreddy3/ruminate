@@ -56,6 +56,8 @@ interface TextRendererProps {
   }>;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onTextSelectionForOnboarding?: () => void;
+  isOnboardingStep5?: boolean;
+  onDefineForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
 }
 
@@ -72,6 +74,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   getBlockClassName,
   onUpdateBlockMetadata,
   onTextSelectionForOnboarding,
+  isOnboardingStep5 = false,
+  onDefineForOnboarding,
   customStyle
 }) => {
   // Use metadata directly from props - no local state needed
@@ -400,11 +404,16 @@ const TextRenderer: React.FC<TextRendererProps> = ({
           onCreateRabbithole={handleCreateRabbithole}
           onAnnotate={handleAnnotateText}
           onClose={() => {
-            setTooltipVisible(false);
+            // Don't close during onboarding step 5
+            if (!isOnboardingStep5) {
+              setTooltipVisible(false);
+            }
           } }
           documentId={documentId} 
           blockId={blockId}
           isDefining={isDefining}
+          isOnboardingStep5={isOnboardingStep5}
+          onDefineForOnboarding={onDefineForOnboarding}
         />,
         document.body
       )}

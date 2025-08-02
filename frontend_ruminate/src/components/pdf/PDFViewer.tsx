@@ -637,10 +637,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Handle text selection during onboarding step 4
   const handleTextSelectionForOnboarding = useCallback(() => {
     if (onboardingState.isActive && onboardingState.currentStep === 4) {
-      // User has successfully selected text - advance to step 5 after a short delay
-      setTimeout(() => {
-        markTextSelectionComplete();
-      }, 1500); // Give them time to see the tooltip appear
+      // User has successfully selected text - advance to step 5 immediately with visual feedback
+      markTextSelectionComplete();
     }
   }, [onboardingState.isActive, onboardingState.currentStep, markTextSelectionComplete]);
 
