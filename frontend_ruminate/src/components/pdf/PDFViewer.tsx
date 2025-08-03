@@ -1,31 +1,17 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Worker, Viewer, SpecialZoomLevel, ScrollMode } from "@react-pdf-viewer/core";
-import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
-import { zoomPlugin } from "@react-pdf-viewer/zoom";
-import { pageNavigationPlugin } from "@react-pdf-viewer/page-navigation";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
-import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
-import ChatContainer from "../chat/ChatContainer";
-import { useOnboarding } from "../../contexts/OnboardingContext";
-import { conversationApi } from "../../services/api/conversation";
 import { documentApi } from "../../services/api/document";
-import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
-import { createRabbithole } from "../../services/rabbithole";
-import BlockContainer from "../interactive/blocks/BlockContainer";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import BlockNavigator from "../interactive/blocks/BlockNavigator";
-import BlockOverlay from "./BlockOverlay";
 import PDFBlockOverlay from "./PDFBlockOverlay";
 import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
 import PDFDocumentViewer from "./PDFDocumentViewer";
-import { ResizeHandle, HorizontalResizeHandle } from "../common/ResizeHandles";
 import ConversationLibrary from "../chat/ConversationLibrary";
 import MainConversationButton from "../chat/MainConversationButton";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
@@ -33,10 +19,15 @@ import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker
 import GlossaryView from "../interactive/blocks/GlossaryView";
 import AnnotationsView from "../interactive/blocks/AnnotationsView";
 import BasePopover from "../common/BasePopover";
-import { TextSelectionTourDialogue } from "../onboarding/TextSelectionTourDialogue";
 import { AnimatedTextSelection } from "../onboarding/AnimatedTextSelection";
 import { Step5DefineModal } from "../onboarding/Step5DefineModal";
 import StepCounter from "../onboarding/StepCounter";
+import { usePDFDocument } from "./hooks/usePDFDocument";
+import { useViewMode } from "./hooks/useViewMode";
+import { useBlockManagement } from "./hooks/useBlockManagement";
+import { useConversations } from "./hooks/useConversations";
+import { useOnboarding } from "./hooks/useOnboarding";
+import { pdfViewerGlobalStyles } from "./PDFViewerStyles";
 
 export interface Block {
   id: string;
@@ -127,141 +118,51 @@ const usePanelStorage = (id: string, defaultSizes: number[]) => {
 
 export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const router = useRouter();
-  const { state: onboardingState, nextStep, markWelcomeComplete, markTextSelectionComplete, markTooltipOptionsComplete, markDefineHighlightComplete, markChatFocusComplete, markViewModeComplete, markViewExplanationComplete, markOnboardingComplete, setStep } = useOnboarding();
 
-  // Global interaction blocking for steps 5, 6, 7, 8, 9, 10, 11
-  useEffect(() => {
-    if (!onboardingState.isActive || ![5, 6, 7, 8, 9, 10, 11].includes(onboardingState.currentStep)) {
-      return;
-    }
-
-    const handleGlobalInteraction = (e: Event) => {
-      const target = e.target as HTMLElement;
-      
-      if (onboardingState.currentStep === 5) {
-        // Allow interaction only with the step 5 popover
-        const isStep5PopoverClick = target.closest('[data-step-5-popover]');
-        if (!isStep5PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      } else if (onboardingState.currentStep === 6) {
-        // Allow interaction only with the step 6 popover  
-        const isStep6PopoverClick = target.closest('[data-step-6-popover]');
-        if (!isStep6PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      } else if (onboardingState.currentStep === 7) {
-        // Allow interaction only with the step 7 popover
-        const isStep7PopoverClick = target.closest('[data-step-7-popover]');
-        if (!isStep7PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      } else if (onboardingState.currentStep === 8) {
-        // Allow interaction only with the close button and step 8 popover
-        const isCloseButtonClick = target.closest('button[title*="Click here to complete the tour"]');
-        const isStep8PopoverClick = target.closest('[data-step-8-popover]');
-        if (!isCloseButtonClick && !isStep8PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      } else if (onboardingState.currentStep === 9) {
-        // Allow interaction only with the view mode dropdown and step 9 popover
-        const isViewModeDropdownClick = target.closest('[data-view-mode-dropdown]');
-        const isStep9PopoverClick = target.closest('[data-step-9-popover]');
-        if (!isViewModeDropdownClick && !isStep9PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      } else if (onboardingState.currentStep === 10) {
-        // Allow interaction only with the step 10 popover
-        const isStep10PopoverClick = target.closest('[data-step-10-popover]');
-        if (!isStep10PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      } else if (onboardingState.currentStep === 11) {
-        // Allow interaction only with the step 11 popover
-        const isStep11PopoverClick = target.closest('[data-step-11-popover]');
-        if (!isStep11PopoverClick) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }
-    };
-
-    // Add global event listeners with capture to block all interactions
-    document.addEventListener('click', handleGlobalInteraction, true);
-    document.addEventListener('mousedown', handleGlobalInteraction, true);
-    document.addEventListener('keydown', handleGlobalInteraction, true);
-
-    return () => {
-      document.removeEventListener('click', handleGlobalInteraction, true);
-      document.removeEventListener('mousedown', handleGlobalInteraction, true);
-      document.removeEventListener('keydown', handleGlobalInteraction, true);
-    };
-  }, [onboardingState.isActive, onboardingState.currentStep]);
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
   const [documentTitle, setDocumentTitle] = useState<string>('');
   const [documentData, setDocumentData] = useState<any>(null);
   
-  // Add states for PDF loading management
-  const [pdfLoadingState, setPdfLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error' | 'stuck'>('idle');
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [forceRefreshKey, setForceRefreshKey] = useState(0);
-  
-  // Debug PDF URL
-  useEffect(() => {
-    if (pdfFile.startsWith('data:application/pdf;base64,')) {
-      const base64Length = pdfFile.length;
-      const estimatedSizeMB = (base64Length * 0.75) / (1024 * 1024); // rough estimate
-      
-      if (base64Length > 10000000) { // ~7.5MB
-        console.warn('⚠️ Very large base64 PDF - this might cause loading issues');
-      }
-    } else {
-      if (pdfFile.startsWith('file://')) {
-        console.error('❌ Invalid PDF URL: file:// URLs cannot be loaded in browsers');
-      }
-    }
-  }, [pdfFile, documentId]);
+  // Use the PDF document hook for all PDF-related state and logic
+  const {
+    pdfLoadingState,
+    currentPage,
+    totalPages,
+    forceRefreshKey,
+    zoomPluginInstance,
+    pageNavigationPluginInstance,
+    defaultLayoutPluginInstance,
+    handleForceRefresh,
+    handleDocumentLoad,
+    handlePageChange,
+    setCurrentPage,
+    ZoomIn,
+    ZoomOut,
+    GoToNextPage,
+    GoToPreviousPage,
+  } = usePDFDocument({ pdfFile, documentId });
 
-  const [blocks, setBlocks] = useState<Block[]>([]);
   // Block overlay state now managed by useBlockOverlayManager hook
   
-  // Add state for all document conversations and rabbithole data
-  const [documentConversations, setDocumentConversations] = useState<any[]>([]);
-  const [rabbitholeData, setRabbitholeData] = useState<any[]>([]);
-  const [fallbackMainConversationId, setFallbackMainConversationId] = useState<string | null>(null);
   
   // Block selection mode state
   const [isBlockSelectionMode, setIsBlockSelectionMode] = useState(false);
   const [blockSelectionPrompt, setBlockSelectionPrompt] = useState<string>("Select a block");
   const [onBlockSelectionComplete, setOnBlockSelectionComplete] = useState<((blockId: string) => void) | null>(null);
   
-  // Update the state management to handle multiple conversations
-  // Add state for tracking rabbithole conversations
-  const [rabbitholeConversations, setRabbitholeConversations] = useState<{
-    id: string;
-    title: string;
-    selectionText: string;
-    blockId: string;
-  }[]>([]);
-
-  // Add state for tracking the active conversation tab
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   
-  // Add state for page tracking
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(0);
   
-  // Add state for view mode (PDF, Glossary, or Annotations)
-  const [viewMode, setViewMode] = useState<'pdf' | 'glossary' | 'annotations'>('pdf');
-  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
-  const [viewDropdownPosition, setViewDropdownPosition] = useState({ x: 0, y: 0 });
+  // View mode management
+  const {
+    viewMode,
+    isViewDropdownOpen,
+    viewDropdownPosition,
+    setViewMode,
+    handleViewDropdownToggle,
+    closeViewDropdown,
+    handleViewModeSelect,
+  } = useViewMode();
   
   // Add state for pending text to be added to chat
   const [pendingChatText, setPendingChatText] = useState<string>('');
@@ -269,178 +170,60 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add ref to store the rabbithole refresh function
   const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
   
-  // Add a ref to track the last fetch time to prevent multiple refreshes
-  const lastFetchTimeRef = useRef<number>(0);
   
-  // Fetch blocks function that can be reused
-  const fetchBlocks = useCallback(async () => {
-    if (!documentId) return;
-    
-    // Prevent multiple fetches within 2 seconds
-    const now = Date.now();
-    if (now - lastFetchTimeRef.current < 2000) {
-      return;
-    }
-    lastFetchTimeRef.current = now;
-    
-    try {
-      const blocksResp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks?include_images=false`);
-      const blocksData = await blocksResp.json();
-      
-      if (Array.isArray(blocksData)) {
-        setBlocks(blocksData);
-        
-        // Block selection state is now managed by useBlockOverlayManager hook
-      }
-    } catch (error) {
-      console.error("Error fetching document data:", error);
-    } finally {
-    }
-  }, [documentId]); // Remove selectedBlock from the dependencies
+
+
+
+  // Block management - first without updateProgress
+  const blockManagement = useBlockManagement({
+    documentId,
+    updateProgress: undefined // Will be set later
+  });
   
-  // Fetch images for a specific block (lazy loading)
-  const fetchBlockImages = useCallback(async (blockId: string) => {
-    if (!documentId) return;
-    
-    try {
-      const resp = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/blocks/${blockId}/images`);
-      const data = await resp.json();
-      
-      // Update the specific block with real images
-      setBlocks(prev => prev.map(block => 
-        block.id === blockId 
-          ? { ...block, images: data.images }
-          : block
-      ));
-    } catch (error) {
-      console.error("Error fetching block images:", error);
-    }
-  }, [documentId]);
+  const { blocks, flattenedBlocks, fetchBlocks, fetchBlockImages, updateBlockMetadata: updateBlockMetadataBase } = blockManagement;
   
-  // Function to convert rabbithole conversations to highlights grouped by block
-  const getRabbitholeHighlightsForBlock = useCallback((blockId: string) => {
-    return rabbitholeData
-      .filter(conv => conv.source_block_id === blockId)
-      .map(conv => ({
-        id: conv.id,
-        selected_text: conv.selected_text || '',
-        text_start_offset: conv.text_start_offset || 0,
-        text_end_offset: conv.text_end_offset || 0,
-        created_at: conv.created_at,
-        conversation_id: conv.id
-      }));
-  }, [rabbitholeData]);
-
-  // Function to optimistically add a new rabbithole conversation
-  const addRabbitholeConversation = useCallback((blockId: string, conversationId: string, selectedText: string, startOffset: number, endOffset: number) => {
-    const newConversation = {
-      id: conversationId,
-      type: 'RABBITHOLE',
-      source_block_id: blockId,
-      selected_text: selectedText,
-      text_start_offset: startOffset,
-      text_end_offset: endOffset,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    setRabbitholeData(prevConversations => [...prevConversations, newConversation]);
-  }, []);
-
-  
-  // Fetch rabbithole data for the document
-  useEffect(() => {
-    if (!documentId) return;
-    
-    const fetchRabbitholeData = async () => {
-      try {
-        const rabbitholeResponse = await authenticatedFetch(`${API_BASE_URL}/conversations?document_id=${documentId}&type=RABBITHOLE`);
-        if (rabbitholeResponse.ok) {
-          const rabbitholeConvos = await rabbitholeResponse.json();
-          setRabbitholeData(rabbitholeConvos || []);
-        }
-      } catch (error) {
-        console.error('Error fetching rabbithole data:', error);
-      }
-    };
-    
-    fetchRabbitholeData();
-  }, [documentId]);
-
-  // Transform fetched rabbithole data into conversation tabs format
-  useEffect(() => {
-    if (!rabbitholeData || rabbitholeData.length === 0) return;
-
-    const transformedConversations = rabbitholeData.map(rabbithole => ({
-      id: rabbithole.id,
-      title: rabbithole.selected_text 
-        ? (rabbithole.selected_text.length > 30 
-            ? rabbithole.selected_text.substring(0, 30) + '...' 
-            : rabbithole.selected_text)
-        : 'Rabbithole Discussion',
-      selectionText: rabbithole.selected_text || '',
-      blockId: rabbithole.source_block_id || ''
-    }));
-
-    setRabbitholeConversations(transformedConversations);
-  }, [rabbitholeData]);
-
-  
-  // State to track all blocks in flattened form for navigation
-  const [flattenedBlocks, setFlattenedBlocks] = useState<Block[]>([]);
-  
-  // Onboarding state for target block
-  const [onboardingTargetBlockId, setOnboardingTargetBlockId] = useState<string | null>(null);
-
-  // Flatten blocks for easy navigation
-  useEffect(() => {
-    if (blocks.length > 0) {
-      // Define chat-enabled block types for filtering
-      const chatEnabledBlockTypes = [
-        "text",
-        "sectionheader",
-        "pageheader",
-        "pagefooter",
-        "listitem",
-        "footnote",
-        "reference",
-        "picture",
-        "figure",
-        "image",
-        "textinlinemath",
-        "equation",
-        "table"
-      ].map(type => type.toLowerCase());
-
-      // Simply filter the blocks we want to show without reordering
-      const filteredBlocks = blocks.filter(block => 
-        // Block must have a valid type
-        block.block_type && 
-        // Not be a page block
-        block.block_type.toLowerCase() !== "page" &&
-        // Be in our list of chat-enabled types
-        chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) &&
-        // Must have content (HTML or images)
-        (
-          block.html_content ||
-          (block.images && Object.keys(block.images).length > 0) ||
-          ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
-        ) &&
-        // If HTML content, must have four or more words
-        (block.html_content ? block.html_content.split(' ').length >= 4 : true)
-      );
-      
-      // Use the blocks as they come from the API (already ordered correctly)
-      setFlattenedBlocks(filteredBlocks);
-    }
-  }, [blocks]);
-
-
   // Reading Progress Hook - initialized after flattenedBlocks are set
   const { updateProgress, scrollToFurthestBlock, initializeProgress, getFurthestProgress } = useReadingProgress({
     documentId,
     flattenedBlocks
   });
+  
+  // Wrap updateBlockMetadata to include progress tracking
+  const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
+    updateBlockMetadataBase(blockId, newMetadata);
+    if (updateProgress) {
+      updateProgress(blockId);
+    }
+  }, [updateBlockMetadataBase, updateProgress]);
+  
+  // Conversation management
+  const {
+    activeConversationId,
+    rabbitholeConversations,
+    rabbitholeData,
+    setActiveConversationId,
+    setRabbitholeConversations,
+    handleRabbitholeCreated: handleRabbitholeCreatedBase,
+    addRabbitholeConversation,
+    getRabbitholeHighlightsForBlock,
+    switchToMainConversation,
+  } = useConversations({
+    documentId,
+    mainConversationId: documentData?.main_conversation_id,
+  });
+  
+  // Wrap handleRabbitholeCreated to include progress tracking
+  const handleRabbitholeCreated = useCallback((
+    conversationId: string,
+    selectedText: string,
+    blockId: string
+  ) => {
+    handleRabbitholeCreatedBase(conversationId, selectedText, blockId);
+    // Update reading progress when user creates a rabbithole
+    if (blockId && updateProgress) {
+      updateProgress(blockId);
+    }
+  }, [handleRabbitholeCreatedBase, updateProgress]);
 
 
   // Fetch document title and initialize reading progress
@@ -466,129 +249,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [documentId, initializeProgress]);
 
-  // Function to update a specific block's metadata optimistically
-  const updateBlockMetadata = useCallback((blockId: string, newMetadata: any) => {
-    setBlocks(prevBlocks => 
-      prevBlocks.map(block => 
-        block.id === blockId 
-          ? { ...block, metadata: { ...block.metadata, ...newMetadata } }
-          : block
-      )
-    );
-    
-    // Update reading progress when user interacts with a block
-    updateProgress(blockId);
-    
-    // Selected block metadata updates now handled by useBlockOverlayManager hook
-  }, [updateProgress]);
-
-  // Fetch blocks when component mounts
-  useEffect(() => {
-    if (documentId) {
-      fetchBlocks();
-    }
-  }, [documentId, fetchBlocks]);
-
-  // Create plugin instances
-  const zoomPluginInstance = zoomPlugin();
-  const { ZoomIn, ZoomOut } = zoomPluginInstance;
-
-  const pageNavigationPluginInstance = pageNavigationPlugin();
-  const { GoToNextPage, GoToPreviousPage } = pageNavigationPluginInstance;
-
-  const defaultLayoutPluginInstance = defaultLayoutPlugin({
-    toolbarPlugin: {
-      fullScreenPlugin: {
-        onEnterFullScreen: () => { },
-        onExitFullScreen: () => { },
-      },
-      searchPlugin: {
-        keyword: [''],
-      },
-    },
-    renderToolbar: () => <></>, // Hide the default toolbar
-    sidebarTabs: () => [],
-  });
-
-  // Page layout customization now handled by PDFDocumentViewer
-
-  // Example flattening function
-  const parseBlock = (block: Block, nextPageIndex: number, all: Block[]): number => {
-    if (block.block_type === "Page") {
-      if (typeof block.page_number === "number") {
-        block.pageIndex = block.page_number - 1;
-        if (block.pageIndex >= nextPageIndex) {
-          nextPageIndex = block.pageIndex + 1;
-        }
-      } else {
-        block.pageIndex = nextPageIndex;
-        nextPageIndex++;
-      }
-    } else {
-      if (typeof block.pageIndex !== "number") {
-        block.pageIndex = 0;
-      }
-    }
-    all.push(block);
-    if (block.children) {
-      for (const child of block.children) {
-        child.pageIndex = block.pageIndex;
-        nextPageIndex = parseBlock(child, nextPageIndex, all);
-      }
-    }
-    return nextPageIndex;
-  };
-
   // Block interaction handlers now managed by useBlockOverlayManager hook
   
-  // Handle creation of rabbithole conversations
-  const handleRabbitholeCreated = useCallback((
-    conversationId: string, 
-    selectedText: string,
-    blockId: string
-  ) => {
-    
-    // Validate inputs to ensure we never try to add undefined/null values
-    if (!conversationId) {
-      console.error("Cannot create rabbithole conversation without a conversation ID");
-      return;
-    }
-
-    // Create a title from the selected text (truncated if needed)
-    const title = selectedText && selectedText.length > 30 
-      ? `${selectedText.substring(0, 30)}...` 
-      : selectedText || "New Rabbithole Chat";
-    
-    // Check if we already have this conversation to prevent duplicates
-    const existingConversation = rabbitholeConversations.find(c => c.id === conversationId);
-    if (existingConversation) {
-      // If it already exists, just activate it
-      setActiveConversationId(conversationId);
-      return;
-    }
-    
-    // Add this conversation to our list
-    setRabbitholeConversations(prev => {
-      const newState = [
-        ...prev, 
-        {
-          id: conversationId,
-          title,
-          selectionText: selectedText || "",
-          blockId
-        }
-      ];
-      return newState;
-    });
-    
-    // Set this as the active conversation
-    setActiveConversationId(conversationId);
-    
-    // Update reading progress when user creates a rabbithole
-    if (blockId) {
-      updateProgress(blockId);
-    }
-  }, [rabbitholeConversations, updateProgress]);
 
   // renderOverlay moved to after blockOverlayManager hook
 
@@ -609,14 +271,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return () => clearTimeout(timer);
   }, []); // Run once on mount
 
-  useEffect(() => {
-  }, [rabbitholeConversations]);
-
-  useEffect(() => {
-  }, [activeConversationId]);
-
-  useEffect(() => {
-  }, [blocks]);
 
   // Add handlers for pending text management
   const handleAddTextToChat = useCallback((text: string) => {
@@ -637,34 +291,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add effect to log active conversation changes and scroll to block
   // Removed duplicate effect - scrolling is now handled by handleConversationChangeWithScroll
 
-  // Add timeout mechanism for stuck PDF loading
-  useEffect(() => {
-    if (pdfLoadingState === 'loading') {
-      const timeout = setTimeout(() => {
-        console.warn('⚠️ PDF loading timeout reached - marking as stuck');
-        setPdfLoadingState('stuck');
-      }, 10000); // 5 second timeout
-      
-      setLoadingTimeout(timeout);
-      
-      return () => {
-        clearTimeout(timeout);
-        setLoadingTimeout(null);
-      };
-    }
-  }, [pdfLoadingState]);
-
-  // Force refresh function
-  const handleForceRefresh = useCallback(() => {
-    setPdfLoadingState('idle');
-    setForceRefreshKey(prev => prev + 1);
-    
-    // Clear any existing timeout
-    if (loadingTimeout) {
-      clearTimeout(loadingTimeout);
-      setLoadingTimeout(null);
-    }
-  }, [loadingTimeout]);
 
 
   // Scroll to specific block using page navigation plugin
@@ -689,45 +315,30 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     }
   }, [pageNavigationPluginInstance, setCurrentPage]);
 
-  // Effect to handle onboarding step 3 - find and highlight first meaningful block
+  // Use the onboarding hook
+  const onboarding = useOnboarding({
+    blocks,
+    flattenedBlocks,
+    onBlockClick: (block) => blockOverlayManager?.handleBlockClick(block),
+    viewMode,
+    closeViewDropdown,
+  });
+
+  // Effect to handle onboarding step 3 - scroll to target block
   useEffect(() => {
-    if (onboardingState.isActive && onboardingState.currentStep === 3 && flattenedBlocks.length > 0 && !onboardingTargetBlockId) {
-      // Find first block with more than 10 words
-      const targetBlock = flattenedBlocks.find(block => {
-        if (!block.html_content) return false;
-        const textContent = block.html_content.replace(/<[^>]*>/g, '').trim();
-        const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
-        return wordCount > 10;
-      });
-      
+    if (onboarding.onboardingState.isActive && 
+        onboarding.onboardingState.currentStep === 3 && 
+        onboarding.onboardingTargetBlockId && 
+        flattenedBlocks.length > 0) {
+      const targetBlock = flattenedBlocks.find(b => b.id === onboarding.onboardingTargetBlockId);
       if (targetBlock) {
-        setOnboardingTargetBlockId(targetBlock.id);
-        
-        // Scroll to the target block after a short delay to ensure PDF is loaded
         setTimeout(() => {
           scrollToBlock(targetBlock);
         }, 1000);
       }
     }
-  }, [onboardingState.isActive, onboardingState.currentStep, flattenedBlocks, onboardingTargetBlockId, scrollToBlock]);
-
-  // Handle text selection during onboarding step 4
-  const handleTextSelectionForOnboarding = useCallback(() => {
-    if (onboardingState.isActive && onboardingState.currentStep === 4) {
-      // User has successfully selected text - advance to step 5 immediately with visual feedback
-      markTextSelectionComplete();
-    }
-  }, [onboardingState.isActive, onboardingState.currentStep, markTextSelectionComplete]);
-
-  // Handle create chat action during onboarding step 5
-  const handleCreateChatForOnboarding = useCallback(() => {
-    if (onboardingState.isActive && onboardingState.currentStep === 6) {
-      // User has successfully clicked create chat - complete onboarding after a short delay
-      setTimeout(() => {
-        markDefineHighlightComplete();
-      }, 1000); // Give them time to see the chat creation process start
-    }
-  }, [onboardingState.isActive, onboardingState.currentStep, markDefineHighlightComplete]);
+  }, [onboarding.onboardingState.isActive, onboarding.onboardingState.currentStep, 
+      onboarding.onboardingTargetBlockId, flattenedBlocks, scrollToBlock]);
 
   // Block Overlay Manager - handles block selection and interactions
   const blockOverlayManager = useBlockOverlayManager({
@@ -750,33 +361,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     onSetBlockSelectionComplete: setOnBlockSelectionComplete,
     onHandleRabbitholeCreated: handleRabbitholeCreated,
     onAddRabbitholeConversation: addRabbitholeConversation,
-    onTextSelectionForOnboarding: onboardingState.isActive && onboardingState.currentStep === 4 ? handleTextSelectionForOnboarding : undefined,
-    isOnboardingStep4: onboardingState.isActive && onboardingState.currentStep === 4,
-    isOnboardingStep5: onboardingState.isActive && onboardingState.currentStep === 5,
-    isOnboardingStep6: onboardingState.isActive && onboardingState.currentStep === 6,
-    isOnboardingStep7: onboardingState.isActive && onboardingState.currentStep === 7,
-    isOnboardingStep8: onboardingState.isActive && onboardingState.currentStep === 8,
-    onCreateChatForOnboarding: onboardingState.isActive && onboardingState.currentStep === 6 ? handleCreateChatForOnboarding : undefined,
-    onCompleteOnboarding: onboardingState.currentStep === 8 ? () => {
-      setStep(9);
-    } : markOnboardingComplete,
+    ...onboarding.getBlockOverlayManagerProps(),
     refreshRabbitholesFnRef,
     onScrollToBlock: scrollToBlock,
   });
-
-  // Handle onboarding block click
-  const handleOnboardingBlockClick = useCallback((block: Block) => {
-    if (onboardingState.isActive && onboardingState.currentStep === 3 && block.id === onboardingTargetBlockId) {
-      // First open the block overlay as normal
-      blockOverlayManager.handleBlockClick(block);
-      
-      // Then progress to next step after a short delay to let user see the block open
-      setTimeout(() => {
-        nextStep();
-        setOnboardingTargetBlockId(null);
-      }, 500);
-    }
-  }, [onboardingState.isActive, onboardingState.currentStep, onboardingTargetBlockId, nextStep, blockOverlayManager]);
 
   // Viewport Reading Tracker - for timer-based progress tracking (only when block is selected)
   useViewportReadingTracker({
@@ -815,8 +403,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           pageIndex={props.pageIndex}
           scale={props.scale}
           onBlockClick={(block: Block) => {
-            if (onboardingState.isActive && onboardingState.currentStep === 3 && block.id === onboardingTargetBlockId) {
-              handleOnboardingBlockClick(block);
+            if (onboarding.shouldProcessBlockForOnboarding(block)) {
+              onboarding.handleOnboardingBlockClick(block);
             } else {
               blockOverlayManager.handleBlockClick(block);
             }
@@ -824,12 +412,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           isSelectionMode={isBlockSelectionMode}
           onBlockSelect={blockOverlayManager.handleBlockSelect}
           temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
-          onboardingTargetBlockId={onboardingTargetBlockId}
-          isOnboardingActive={onboardingState.isActive && onboardingState.currentStep === 3}
+          {...onboarding.getPDFBlockOverlayProps()}
         />
       );
     },
-    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId, onboardingTargetBlockId, onboardingState.isActive, onboardingState.currentStep, handleOnboardingBlockClick]
+    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId, onboarding]
   );
 
   // Enhanced search functionality with scroll-to-block
@@ -920,37 +507,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     return () => document.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
-  // Track when PDF starts loading (triggered by the first render with percentages === 0)
-  useEffect(() => {
-    if (pdfLoadingState === 'idle') {
-      // Set a small delay to allow the first render to happen, then check if we need to start loading state
-      const timer = setTimeout(() => {
-        setPdfLoadingState('loading');
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [forceRefreshKey, pdfLoadingState]); // Re-trigger when force refresh happens
 
   return (
     <MathJaxProvider>
       <style jsx global>{`
-        /* Hide PDF.js tooltips */
-        .rpv-core__tooltip,
-        [role="tooltip"] {
-          display: none !important;
-        }
+        ${pdfViewerGlobalStyles}
         
-        /* PDF viewer background styling for library feel */
-        .rpv-core__viewer {
-          background: linear-gradient(135deg, #fefcf7 0%, #fef9ed 100%) !important;
-        }
-        
-        /* Page styling */
-        .rpv-core__page-layer {
-          box-shadow: 0 8px 16px rgba(60, 64, 67, 0.15), 0 4px 8px rgba(60, 64, 67, 0.1) !important;
-          border-radius: 6px !important;
-          border: 1px solid rgba(175, 95, 55, 0.1) !important;
+        @keyframes glow {
+          0% {
+            box-shadow: 0 0 20px rgba(249, 207, 95, 0.8), 0 0 40px rgba(249, 207, 95, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(249, 207, 95, 1), 0 0 60px rgba(249, 207, 95, 0.6), 0 0 80px rgba(249, 207, 95, 0.3);
+          }
+          100% {
+            box-shadow: 0 0 20px rgba(249, 207, 95, 0.8), 0 0 40px rgba(249, 207, 95, 0.4);
+          }
         }
       `}</style>
       <div className="h-screen flex flex-col w-full overflow-hidden relative bg-surface-paper">
@@ -960,9 +532,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           <div className="absolute inset-0 bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50"></div>
           
           {/* Content */}
-          <div className={`relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm transition-all duration-300 ${
-            onboardingState.isActive && (onboardingState.currentStep >= 3 && onboardingState.currentStep <= 6) ? 'opacity-30 blur-[1px] pointer-events-none' : onboardingState.isActive && onboardingState.currentStep === 8 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
-          }`}>
+          <div className={onboarding.getHeaderClassName('relative flex items-center gap-4 px-6 py-4 border-b border-library-sage-200 backdrop-blur-sm')}>
             <button
               onClick={() => router.push('/home')}
               className="group flex items-center gap-2 px-3 py-2 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-300 shadow-paper hover:shadow-book"
@@ -994,38 +564,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               </div>
               
               {/* View Mode Dropdown - mahogany styled, positioned to the right of title */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 relative">
+                {/* Add glowing rings animation for step 9 - pointer-events-none so they don't block clicks */}
+                {onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 9 && (
+                  <div className="pointer-events-none">
+                    <div className="absolute inset-0 bg-library-gold-400 rounded-book animate-ping opacity-60" />
+                    <div className="absolute inset-0 bg-library-gold-400 rounded-book animate-ping opacity-40" style={{ animationDelay: '0.5s' }} />
+                    <div className="absolute inset-0 bg-library-gold-300 rounded-book animate-ping opacity-20" style={{ animationDelay: '1s' }} />
+                  </div>
+                )}
                 <button 
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setViewDropdownPosition({
-                      x: rect.left,
-                      y: rect.bottom + 8
-                    });
-                    setIsViewDropdownOpen(!isViewDropdownOpen);
-                    
-                    // Advance to step 10 if we're in step 9
-                    if (onboardingState.isActive && onboardingState.currentStep === 9) {
-                      markViewModeComplete();
-                    }
-                  }}
-                  className={`w-32 h-12 flex items-center justify-center rounded-book border shadow-book hover:shadow-shelf transition-all font-serif font-medium ${
-                    onboardingState.isActive && onboardingState.currentStep === 9 
-                      ? 'ring-4 ring-library-gold-300/50 animate-pulse shadow-2xl' 
-                      : ''
-                  }`}
+                  onClick={(e) => onboarding.handleViewDropdownToggle(e, handleViewDropdownToggle)}
+                  className={onboarding.getViewDropdownClassName('w-32 h-12 flex items-center justify-center rounded-book border shadow-book hover:shadow-shelf transition-all font-serif font-medium')}
                   style={{ 
                     fontSize: '16px',
                     gap: '8px',
-                    background: onboardingState.isActive && onboardingState.currentStep === 9 
-                      ? 'linear-gradient(135deg, #f9cf5f 0%, #edbe51 100%)' 
-                      : 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)',
-                    color: onboardingState.isActive && onboardingState.currentStep === 9 
-                      ? '#2c3830' 
-                      : '#FDF6E3',
-                    borderColor: onboardingState.isActive && onboardingState.currentStep === 9 
-                      ? '#f9cf5f' 
-                      : '#654321'
+                    ...onboarding.getViewDropdownStyle()
                   }}
                   data-view-mode-dropdown
                 >
@@ -1057,7 +611,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 }))}
                 activeConversationId={activeConversationId}
                 onConversationChange={handleConversationChangeWithScroll}
-                disabled={onboardingState.isActive && onboardingState.currentStep === 6}
+                disabled={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 6}
               />
             </div>
           </div>
@@ -1096,9 +650,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             </div>
           )}
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
-        <div className={`transition-all duration-300 ${
-          onboardingState.isActive && (onboardingState.currentStep >= 3 && onboardingState.currentStep <= 6) ? 'opacity-30 blur-[1px] pointer-events-none' : onboardingState.isActive && onboardingState.currentStep === 8 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
-        }`}>
+        <div className={onboarding.getToolbarClassName()}>
           <PDFToolbar
             GoToPreviousPage={GoToPreviousPage}
             GoToNextPage={GoToNextPage}
@@ -1151,14 +703,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 pageNavigationPluginInstance
               ]}
               pdfLoadingState={pdfLoadingState}
-              onDocumentLoad={(e) => {
-                setPdfLoadingState('loaded');
-                setTotalPages(e.doc.numPages);
-                setCurrentPage(1);
-              }}
-              onPageChange={(e) => {
-                setCurrentPage(e.currentPage + 1);
-              }}
+              onDocumentLoad={handleDocumentLoad}
+              onPageChange={handlePageChange}
               renderLoader={(percentages: number) => {
                       // Don't set state during render - let useEffect handle it
                       return (
@@ -1313,9 +859,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             </div>
             
             {/* Content with enhanced border */}
-            <div className={`relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent transition-all duration-300 ${
-              onboardingState.isActive && (onboardingState.currentStep >= 3 && onboardingState.currentStep <= 6) ? 'opacity-30 blur-[1px] pointer-events-none' : onboardingState.isActive && onboardingState.currentStep === 8 ? 'opacity-30 blur-[1px] pointer-events-none' : ''
-            }`}>
+            <div className={onboarding.getChatClassName('relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent')}>
               {/* Decorative book spine edge */}
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-library-mahogany-400 via-library-mahogany-500 to-library-mahogany-600 shadow-sm"></div>
             <ChatSidebar
@@ -1350,7 +894,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       <BasePopover
         isVisible={isViewDropdownOpen}
         position={viewDropdownPosition}
-        onClose={() => setIsViewDropdownOpen(false)}
+        onClose={() => {
+          if (onboarding.canCloseViewDropdown()) {
+            closeViewDropdown();
+          }
+        }}
         title="📄 View Mode"
         initialWidth={240}
         initialHeight="auto"
@@ -1361,14 +909,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         <div className="p-3 space-y-2">
           <button
             onClick={() => {
-              setViewMode('pdf');
-              setIsViewDropdownOpen(false);
+              if (onboarding.canSelectViewMode()) {
+                handleViewModeSelect('pdf');
+              }
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors ${
-              viewMode === 'pdf'
-                ? 'bg-library-gold-100 text-reading-accent'
-                : 'text-reading-secondary hover:bg-library-cream-100 hover:text-reading-primary'
-            }`}
+            className={onboarding.getViewModeOptionClassName('pdf', 'w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1377,14 +922,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </button>
           <button
             onClick={() => {
-              setViewMode('glossary');
-              setIsViewDropdownOpen(false);
+              if (onboarding.canSelectViewMode()) {
+                handleViewModeSelect('glossary');
+              }
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors ${
-              viewMode === 'glossary'
-                ? 'bg-library-gold-100 text-reading-accent'
-                : 'text-reading-secondary hover:bg-library-cream-100 hover:text-reading-primary'
-            }`}
+            className={onboarding.getViewModeOptionClassName('glossary', 'w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -1393,14 +935,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </button>
           <button
             onClick={() => {
-              setViewMode('annotations');
-              setIsViewDropdownOpen(false);
+              if (onboarding.canSelectViewMode()) {
+                handleViewModeSelect('annotations');
+              }
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors ${
-              viewMode === 'annotations'
-                ? 'bg-library-gold-100 text-reading-accent'
-                : 'text-reading-secondary hover:bg-library-cream-100 hover:text-reading-primary'
-            }`}
+            className={onboarding.getViewModeOptionClassName('annotations', 'w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1412,7 +951,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
       {/* Text Selection Onboarding Tour - Step 4 - Beautiful animated version */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 4}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 4}
         position={{ x: window.innerWidth / 2 - 200, y: window.innerHeight / 2 - 120 }}
         onClose={() => {}}
         showCloseButton={false}
@@ -1463,7 +1002,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
       {/* Step 5 Tooltip Options Overview */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 5}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 5}
         position={{ x: window.innerWidth / 2 - 175, y: 100 }}
         onClose={() => {}}
         showCloseButton={false}
@@ -1488,7 +1027,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </p>
           
           <button 
-            onClick={markTooltipOptionsComplete}
+            onClick={onboarding.markTooltipOptionsComplete}
             className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
           >
             Try it out
@@ -1501,7 +1040,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
       {/* Step 6 Create Chat Instructions - positioned deterministically above tooltip */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 6}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 6}
         position={{ x: window.innerWidth / 2 - 150, y: 100 }}
         onClose={() => {}}
         showCloseButton={false}
@@ -1514,14 +1053,14 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           <StepCounter currentStep={6} totalSteps={11} className="mb-4" />
           <Step5DefineModal
             isVisible={true}
-            onComplete={markDefineHighlightComplete}
+            onComplete={onboarding.markDefineHighlightComplete}
           />
         </div>
       </BasePopover>
 
       {/* Step 7 Chat Focus Instructions */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 7}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 7}
         position={{ x: Math.min(window.innerWidth * 0.75, window.innerWidth - 200), y: window.innerHeight / 2 - 100 }}
         onClose={() => {}}
         showCloseButton={false}
@@ -1545,7 +1084,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </p>
           
           <button 
-            onClick={markChatFocusComplete}
+            onClick={onboarding.markChatFocusComplete}
             className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
           >
             Continue
@@ -1558,32 +1097,37 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
       {/* Step 8 Close Block Instructions */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 8}
-        position={{ x: window.innerWidth / 2 - 175, y: window.innerHeight / 2 - 100 }}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 8}
+        position={onboarding.popoverPositions.step8}
         onClose={() => {}}
         showCloseButton={false}
         closeOnClickOutside={false}
-        initialWidth={350}
+        initialWidth={250}
         initialHeight="auto"
         preventOverflow={true}
       >
-        <div className="text-center p-6" data-step-8-popover>
-          <StepCounter currentStep={8} totalSteps={11} className="mb-4" />
-          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+        <div className="text-center p-5" data-step-8-popover>
+          <StepCounter currentStep={8} totalSteps={11} className="mb-3" />
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-serif font-semibold text-reading-primary">
+                Close the Block
+              </h3>
+              <svg className="w-6 h-6 text-library-gold-500 animate-bounce transform rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+              </svg>
+            </div>
+            <p className="text-sm text-reading-secondary mt-1">
+              Click the glowing X button
+            </p>
           </div>
-          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
-            Close the Block
-          </h3>
         </div>
       </BasePopover>
 
       {/* Step 9 View Mode Instructions */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 9}
-        position={{ x: window.innerWidth / 2 - 175, y: 150 }}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 9}
+        position={onboarding.popoverPositions.step9}
         onClose={() => {}}
         showCloseButton={false}
         closeOnClickOutside={false}
@@ -1593,24 +1137,24 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       >
         <div className="text-center p-6" data-step-9-popover>
           <StepCounter currentStep={9} totalSteps={11} className="mb-4" />
-          <div className="w-12 h-12 mx-auto bg-library-gold-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-6 h-6 text-library-mahogany-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <svg className="w-6 h-6 text-library-gold-500 animate-bounce transform -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
             </svg>
+            <h3 className="text-lg font-serif font-semibold text-reading-primary">
+              Switch View Modes
+            </h3>
           </div>
-          <h3 className="text-lg font-serif font-semibold text-reading-primary mb-3">
-            Switch View Modes
-          </h3>
-          <p className="text-reading-secondary text-sm mb-6 leading-relaxed">
-            Click the view mode to explore other ways to view your notes.
+          <p className="text-reading-secondary text-sm leading-relaxed">
+            Click the glowing button above to see viewing options
           </p>
         </div>
       </BasePopover>
 
       {/* Step 10 View Explanation */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 10}
-        position={{ x: window.innerWidth / 2 - 175, y: window.innerHeight / 2 - 100 }}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 10}
+        position={onboarding.popoverPositions.step10}
         onClose={() => {}}
         showCloseButton={false}
         closeOnClickOutside={false}
@@ -1630,7 +1174,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </h3>
           
           <button 
-            onClick={markViewExplanationComplete}
+            onClick={onboarding.handleStep10Complete}
             className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
           >
             Next
@@ -1643,7 +1187,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
       {/* Step 11 Onboarding Complete */}
       <BasePopover
-        isVisible={onboardingState.isActive && onboardingState.currentStep === 11}
+        isVisible={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 11}
         position={{ x: window.innerWidth / 2 - 200, y: window.innerHeight / 2 - 150 }}
         onClose={() => {}}
         showCloseButton={false}
@@ -1667,7 +1211,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
           </p>
           
           <button 
-            onClick={markOnboardingComplete}
+            onClick={onboarding.markOnboardingComplete}
             className="inline-flex items-center gap-2 px-8 py-4 bg-library-mahogany-500 hover:bg-library-mahogany-600 text-white font-semibold rounded-book transition-all duration-300 shadow-book hover:shadow-shelf text-lg"
           >
             Start Reading!

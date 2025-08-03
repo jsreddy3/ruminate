@@ -114,29 +114,42 @@ export default function BlockOverlay({
                 isOnboardingStep7 ? 'opacity-50' : ''
               }`} style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}
-                <button
-                  onClick={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : () => {
-                    onClose();
-                    // Advance to step 9 if we're in step 8
-                    if (isOnboardingStep8 && onCompleteOnboarding) {
-                      onCompleteOnboarding(); // This should advance to step 9, not complete onboarding
-                    }
-                  }}
-                  className={`absolute z-30 p-2 rounded-full shadow-lg transition-all duration-300 ${
-                    (isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) 
-                      ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
-                      : isOnboardingStep8
-                        ? 'bg-library-gold-400 hover:bg-library-gold-500 text-white shadow-2xl ring-4 ring-library-gold-300/50 animate-pulse'
-                        : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800'
-                  }`}
-                  style={{ top: '12px', right: '12px' }}
-                  title={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? "Complete the tutorial to continue" : isOnboardingStep8 ? "Click here to complete the tour!" : "Close (Esc)"}
-                  disabled={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7)}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="absolute z-30" style={{ top: '12px', right: '12px' }}>
+                  {/* Add glowing rings animation for step 8 */}
+                  {isOnboardingStep8 && (
+                    <>
+                      <div className="absolute inset-0 bg-library-gold-400 rounded-full animate-ping opacity-75" />
+                      <div className="absolute inset-0 bg-library-gold-400 rounded-full animate-ping opacity-50" style={{ animationDelay: '0.5s' }} />
+                      <div className="absolute inset-0 bg-library-gold-300 rounded-full animate-ping opacity-30" style={{ animationDelay: '1s' }} />
+                    </>
+                  )}
+                  <button
+                    onClick={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? undefined : () => {
+                      onClose();
+                      // Advance to step 9 if we're in step 8
+                      if (isOnboardingStep8 && onCompleteOnboarding) {
+                        onCompleteOnboarding(); // This should advance to step 9, not complete onboarding
+                      }
+                    }}
+                    className={`relative p-2 rounded-full shadow-lg transition-all duration-300 ${
+                      (isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) 
+                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                        : isOnboardingStep8
+                          ? 'bg-gradient-to-br from-library-gold-400 to-library-gold-500 text-white shadow-2xl ring-4 ring-library-gold-300/70 scale-125 hover:scale-130'
+                          : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800'
+                    }`}
+                    style={isOnboardingStep8 ? {
+                      animation: 'glow 2s ease-in-out infinite',
+                      boxShadow: '0 0 20px rgba(249, 207, 95, 0.8), 0 0 40px rgba(249, 207, 95, 0.4)'
+                    } : {}}
+                    title={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7) ? "Complete the tutorial to continue" : isOnboardingStep8 ? "Click here to complete the tour!" : "Close (Esc)"}
+                    disabled={(isOnboardingStep4 || isOnboardingStep5 || isOnboardingStep6 || isOnboardingStep7)}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
                 {/* Content - full height */}
                 <div className="flex-1 flex flex-col min-h-0 relative">
