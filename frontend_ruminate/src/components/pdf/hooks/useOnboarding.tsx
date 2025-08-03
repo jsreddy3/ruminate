@@ -194,10 +194,8 @@ export function useOnboarding({
   // Handle create chat action during onboarding step 6
   const handleCreateChatForOnboarding = useCallback(() => {
     if (onboardingState.isActive && onboardingState.currentStep === 6) {
-      // User has successfully clicked create chat - complete onboarding after a short delay
-      setTimeout(() => {
-        markDefineHighlightComplete();
-      }, 1000); // Give them time to see the chat creation process start
+      // User has successfully clicked create chat - advance immediately
+      markDefineHighlightComplete();
     }
   }, [onboardingState.isActive, onboardingState.currentStep, markDefineHighlightComplete]);
 

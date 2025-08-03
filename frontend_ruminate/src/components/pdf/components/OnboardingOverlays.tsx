@@ -237,9 +237,6 @@ export function OnboardingOverlays({
               <h3 className="text-lg font-serif font-semibold text-reading-primary">
                 Close the Block
               </h3>
-              <svg className="w-6 h-6 text-library-gold-500 animate-bounce transform rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-              </svg>
             </div>
             <p className="text-sm text-reading-secondary mt-1">
               Click the glowing X button
@@ -262,9 +259,6 @@ export function OnboardingOverlays({
         <div className="text-center p-6" data-step-9-popover>
           <StepCounter currentStep={9} totalSteps={11} className="mb-4" />
           <div className="flex items-center justify-center gap-3 mb-3">
-            <svg className="w-6 h-6 text-library-gold-500 animate-bounce transform -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-            </svg>
             <h3 className="text-lg font-serif font-semibold text-reading-primary">
               Switch View Modes
             </h3>
