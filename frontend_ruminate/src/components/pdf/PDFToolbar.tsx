@@ -140,7 +140,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Search text..."
+                placeholder="Search..."
                 className="w-full px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-sm font-serif text-reading-primary placeholder-reading-secondary/60 shadow-paper focus:outline-none focus:ring-1 focus:ring-library-sage-400 focus:border-library-sage-400 transition-all"
               />
               <button
