@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from new_backend_ruminate.api.auth.schemas import LoginResponse, AuthStatusResponse, UserResponse
 from new_backend_ruminate.services.auth.service import AuthService
-from new_backend_ruminate.dependencies import get_session, get_auth_service, get_current_user_optional
+from new_backend_ruminate.dependencies import get_session, get_auth_service, get_current_user_optional, get_current_user
 from new_backend_ruminate.domain.user.entities.user import User
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -49,6 +49,7 @@ async def callback(
             "email": user.email,
             "name": user.name,
             "avatar_url": user.avatar_url,
+            "has_completed_onboarding": user.has_completed_onboarding,
             "created_at": user.created_at.isoformat(),
             "updated_at": user.updated_at.isoformat()
         }
@@ -81,6 +82,7 @@ async def get_current_user(
         email=current_user.email,
         name=current_user.name,
         avatar_url=current_user.avatar_url,
+        has_completed_onboarding=current_user.has_completed_onboarding,
         created_at=current_user.created_at,
         updated_at=current_user.updated_at
     )
@@ -100,6 +102,7 @@ async def get_auth_status(
             email=current_user.email,
             name=current_user.name,
             avatar_url=current_user.avatar_url,
+            has_completed_onboarding=current_user.has_completed_onboarding,
             created_at=current_user.created_at,
             updated_at=current_user.updated_at
         )
@@ -114,3 +117,18 @@ async def logout():
     Logout (client should delete token)
     """
     return {"message": "Logged out successfully. Please delete your token on the client side."}
+
+
+@router.patch("/onboarding/complete")
+async def complete_onboarding(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """
+    Mark user onboarding as complete
+    """
+    await auth_service.complete_onboarding(current_user.id, session)
+    await session.commit()
+    
+    return {"message": "Onboarding completed successfully"}

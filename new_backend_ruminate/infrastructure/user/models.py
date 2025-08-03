@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, DateTime, Text
+from sqlalchemy import String, DateTime, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from new_backend_ruminate.infrastructure.db.meta import Base
 
@@ -13,6 +13,7 @@ class UserModel(Base):
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     avatar_url: Mapped[str] = mapped_column(Text, nullable=True)
+    has_completed_onboarding: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

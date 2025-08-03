@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { authenticatedFetch, API_BASE_URL } from '../utils/api';
+import { useAuth } from './AuthContext';
 
 interface OnboardingState {
   isActive: boolean;
@@ -36,6 +38,7 @@ const OnboardingContext = createContext<OnboardingContextType | null>(null);
 const STORAGE_KEY = 'ruminate-onboarding';
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
+  const { refreshUser } = useAuth();
   const [state, setState] = useState<OnboardingState>({
     isActive: false,
     currentStep: 0,
@@ -158,12 +161,30 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const markOnboardingComplete = useCallback(() => {
+  const markOnboardingComplete = useCallback(async () => {
+    try {
+      // Call backend API to mark onboarding as complete
+      const response = await authenticatedFetch(`${API_BASE_URL}/auth/onboarding/complete`, {
+        method: 'PATCH'
+      });
+
+      if (response.ok) {
+        console.log('Onboarding marked as complete on backend');
+        // Refresh user data to get updated has_completed_onboarding status
+        await refreshUser();
+      } else {
+        console.error('Failed to mark onboarding complete on backend:', response.status);
+      }
+    } catch (error) {
+      console.error('Error calling onboarding complete API:', error);
+    }
+
+    // Update local state regardless of API call result
     setState(prev => ({
       ...prev,
       isActive: false, // Complete onboarding
     }));
-  }, []);
+  }, [refreshUser]);
 
   const openWelcomeModal = useCallback(() => {
     setState(prev => ({

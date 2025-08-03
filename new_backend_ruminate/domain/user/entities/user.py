@@ -12,6 +12,7 @@ class User:
     email: str = ""
     name: str = ""
     avatar_url: Optional[str] = None
+    has_completed_onboarding: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -31,6 +32,7 @@ class User:
             "email": self.email,
             "name": self.name,
             "avatar_url": self.avatar_url,
+            "has_completed_onboarding": self.has_completed_onboarding,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

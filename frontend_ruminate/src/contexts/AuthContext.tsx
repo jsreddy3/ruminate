@@ -8,6 +8,7 @@ interface User {
   email: string;
   name: string;
   avatar_url?: string;
+  has_completed_onboarding: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -18,6 +19,7 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   token: string | null;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -143,8 +145,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const statusData = await response.json();
+        if (statusData.authenticated && statusData.user) {
+          setUser(statusData.user);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, token }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, token, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

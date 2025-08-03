@@ -31,12 +31,12 @@ export default function HomePage() {
     }
   }, [user, authLoading, router]);
 
-  // Open welcome modal for testing (always on for now)
+  // Open welcome modal for users who haven't completed onboarding
   useEffect(() => {
-    if (user && !authLoading) {
-      openWelcomeModal(); // TEMPORARILY DISABLED FOR UPLOADING
+    if (user && !authLoading && !user.has_completed_onboarding) {
+      openWelcomeModal();
     }
-  }, [user, authLoading]); // Removed openWelcomeModal from dependencies
+  }, [user, authLoading, openWelcomeModal]);
 
   // Fetch documents
   useEffect(() => {

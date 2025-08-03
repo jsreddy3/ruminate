@@ -1,6 +1,7 @@
 from typing import Optional
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.domain.user.repositories.user_repository_interface import UserRepositoryInterface
 from new_backend_ruminate.infrastructure.user.models import UserModel
@@ -17,6 +18,7 @@ class RDSUserRepository(UserRepositoryInterface):
             email=model.email,
             name=model.name,
             avatar_url=model.avatar_url,
+            has_completed_onboarding=model.has_completed_onboarding,
             created_at=model.created_at,
             updated_at=model.updated_at
         )
@@ -29,6 +31,7 @@ class RDSUserRepository(UserRepositoryInterface):
             email=user.email,
             name=user.name,
             avatar_url=user.avatar_url,
+            has_completed_onboarding=user.has_completed_onboarding,
             created_at=user.created_at,
             updated_at=user.updated_at
         )
@@ -73,6 +76,7 @@ class RDSUserRepository(UserRepositoryInterface):
         model.email = user.email
         model.name = user.name
         model.avatar_url = user.avatar_url
+        model.has_completed_onboarding = user.has_completed_onboarding
         model.updated_at = user.updated_at
         
         await session.flush()
@@ -89,3 +93,11 @@ class RDSUserRepository(UserRepositoryInterface):
             await session.delete(model)
             return True
         return False
+    
+    async def update_onboarding_status(self, user_id: str, completed: bool, session: AsyncSession) -> None:
+        """Update user onboarding completion status"""
+        await session.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(has_completed_onboarding=completed, updated_at=datetime.utcnow())
+        )

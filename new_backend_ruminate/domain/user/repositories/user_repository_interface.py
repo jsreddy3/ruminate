@@ -36,3 +36,8 @@ class UserRepositoryInterface(ABC):
     async def delete_user(self, user_id: str, session: AsyncSession) -> bool:
         """Delete a user by ID"""
         pass
+    
+    @abstractmethod
+    async def update_onboarding_status(self, user_id: str, completed: bool, session: AsyncSession) -> None:
+        """Update user onboarding completion status"""
+        pass

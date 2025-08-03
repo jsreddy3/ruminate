@@ -78,6 +78,10 @@ class AuthService:
         """Get user by ID"""
         return await self._user_repo.get_user_by_id(user_id, session)
     
+    async def complete_onboarding(self, user_id: str, session: AsyncSession) -> None:
+        """Mark user onboarding as complete"""
+        await self._user_repo.update_onboarding_status(user_id, True, session)
+    
     async def _clone_template_documents(self, user_id: str, session: AsyncSession) -> None:
         """Clone template documents for new user"""
         template_ids = settings().template_document_ids

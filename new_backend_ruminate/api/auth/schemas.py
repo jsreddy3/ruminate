@@ -10,6 +10,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     avatar_url: Optional[str]
+    has_completed_onboarding: bool
     created_at: datetime
     updated_at: datetime
     

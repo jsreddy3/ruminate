@@ -66,7 +66,7 @@ class _Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     # Template Documents (for new user onboarding)                      #
     # ------------------------------------------------------------------ #
-    template_document_ids: Optional[str] = None  # Comma-separated list of document IDs to clone for new users
+    template_document_ids: Optional[str] = "7e89a199-51ad-4cb6-b59e-2f72dece26c6"  # Comma-separated list of document IDs to clone for new users
 
     # ------------------------------------------------------------------ #
     # Misc                                                                #
