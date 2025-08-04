@@ -21,6 +21,16 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
   streamingContent = null,
   disableDropCap = false
 }) => {
+  // Debug logging
+  console.log('[MessageContentRenderer] Render:', {
+    role,
+    isStreaming,
+    contentLength: content?.length || 0,
+    streamingContentLength: streamingContent?.length || 0,
+    hasContent: !!content,
+    hasStreamingContent: !!streamingContent
+  });
+
   // Handle streaming state for assistant messages
   if (role === MessageRole.ASSISTANT && isStreaming) {
     return (

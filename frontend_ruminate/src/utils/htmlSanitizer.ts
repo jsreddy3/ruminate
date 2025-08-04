@@ -56,7 +56,7 @@ export class HTMLSanitizer {
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li'
       ],
-      ALLOWED_ATTR: ['class', 'style', 'title']
+      ALLOWED_ATTR: ['class', 'style']
     };
 
     return DOMPurify.sanitize(htmlContent, pdfConfig);

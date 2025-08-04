@@ -23,14 +23,19 @@ export const useMessageStreamHandler = ({
   // When streaming completes, call the callback and clear streaming state
   useEffect(() => {
     if (isStreamingComplete && streamingMessageId) {
+      console.log('[useMessageStreamHandler] Stream complete, clearing state:', {
+        streamingMessageId,
+        contentLength: streamingContent.length
+      });
       if (onStreamComplete) {
         onStreamComplete();
       }
       setStreamingMessageId(null);
     }
-  }, [isStreamingComplete, streamingMessageId, onStreamComplete]);
+  }, [isStreamingComplete, streamingMessageId, onStreamComplete, streamingContent]);
 
   const startStreaming = useCallback((messageId: string) => {
+    console.log('[useMessageStreamHandler] Starting stream for message:', messageId);
     setStreamingMessageId(messageId);
   }, []);
 
