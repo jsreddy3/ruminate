@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import TextContent from './TextContentFile';
+import TextWithMath from './TextWithMath';
 import TextSelectionTooltip from './TooltipManager/TextSelectionTooltip';
 import DefinitionPopup from './TooltipManager/DefinitionPopup';
 import AnnotationEditor from './TooltipManager/AnnotationEditor';
@@ -358,6 +359,9 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   console.log('🎯 TextRenderer: isOnboardingStep5 =', isOnboardingStep5, 'isOnboardingStep6 =', isOnboardingStep6, 'hasOnCreateRabbithole =', !!onCreateRabbithole);
   
+  // Check if content contains math tags
+  const hasMathContent = /<math[^>]*>/.test(htmlContent);
+  
   return (
     <div ref={blockRef} className="text-renderer relative">
       <SelectionManager 
@@ -365,14 +369,25 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         preventDeselection={isOnboardingStep6}
       >
         <div ref={contentRef} onClick={handleClick}>
-          <TextContent 
-            htmlContent={htmlContent}
-            blockType={blockType}
-            processedContent={htmlContent}
-            onClickHighlight={() => {}}
-            getBlockClassName={getBlockClassName}
-            customStyle={customStyle}
-          />
+          {hasMathContent ? (
+            <TextWithMath
+              htmlContent={htmlContent}
+              blockType={blockType}
+              processedContent={htmlContent}
+              onClickHighlight={() => {}}
+              getBlockClassName={getBlockClassName}
+              customStyle={customStyle}
+            />
+          ) : (
+            <TextContent 
+              htmlContent={htmlContent}
+              blockType={blockType}
+              processedContent={htmlContent}
+              onClickHighlight={() => {}}
+              getBlockClassName={getBlockClassName}
+              customStyle={customStyle}
+            />
+          )}
         </div>
       </SelectionManager>
       
