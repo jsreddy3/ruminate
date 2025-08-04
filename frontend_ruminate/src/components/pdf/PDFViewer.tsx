@@ -395,6 +395,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     viewMode
   };
 
+  // Memoize renderLoader to prevent recreating on every render
+  const renderLoader = useCallback((percentages: number) => (
+    <PDFLoadingUI 
+      percentages={percentages}
+      pdfLoadingState={pdfLoadingState}
+      pdfFile={pdfFile}
+      onForceRefresh={handleForceRefresh}
+    />
+  ), [pdfLoadingState, pdfFile, handleForceRefresh]);
+
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
       // Use current refs to avoid dependency issues
@@ -424,7 +434,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         />
       );
     },
-    [blocksByPage, isBlockSelectionMode, temporarilyHighlightedBlockId, blockOverlayManager, onboarding] // Include all dependencies
+    [blocksByPage, isBlockSelectionMode, temporarilyHighlightedBlockId] // Removed object dependencies since we capture them
   );
 
   // Enhanced search functionality with scroll-to-block
@@ -507,6 +517,25 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         if (searchInput) {
           searchInput.focus();
           searchInput.select();
+        }
+      }
+      
+      // Arrow keys for page navigation
+      // Only trigger if not focused on an input/textarea
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.getAttribute('contenteditable') === 'true'
+      );
+      
+      if (!isInputFocused) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          goToPreviousPage();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          goToNextPage();
         }
       }
     };
@@ -713,14 +742,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 forceRefreshKey={forceRefreshKey}
                 pdfLoadingState={pdfLoadingState}
                 onForceRefresh={handleForceRefresh}
-                renderLoader={(percentages: number) => (
-                  <PDFLoadingUI 
-                    percentages={percentages}
-                    pdfLoadingState={pdfLoadingState}
-                    pdfFile={pdfFile}
-                    onForceRefresh={handleForceRefresh}
-                  />
-                )}
+                renderLoader={renderLoader}
               />
 
             {/* Block Overlay */}

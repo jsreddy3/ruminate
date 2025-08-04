@@ -531,6 +531,38 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = React.memo(({
       </Document>
     </div>
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison to debug what's changing
+  const areEqual = 
+    prevProps.pdfFile === nextProps.pdfFile &&
+    prevProps.blocks === nextProps.blocks &&
+    prevProps.scale === nextProps.scale &&
+    prevProps.renderOverlay === nextProps.renderOverlay &&
+    prevProps.onPageChange === nextProps.onPageChange &&
+    prevProps.onDocumentLoadSuccess === nextProps.onDocumentLoadSuccess &&
+    prevProps.scrollToPageRef === nextProps.scrollToPageRef &&
+    prevProps.renderLoader === nextProps.renderLoader &&
+    prevProps.forceRefreshKey === nextProps.forceRefreshKey &&
+    prevProps.pdfLoadingState === nextProps.pdfLoadingState &&
+    prevProps.onForceRefresh === nextProps.onForceRefresh;
+  
+  if (!areEqual) {
+    const changes = [];
+    if (prevProps.pdfFile !== nextProps.pdfFile) changes.push('pdfFile');
+    if (prevProps.blocks !== nextProps.blocks) changes.push('blocks');
+    if (prevProps.scale !== nextProps.scale) changes.push('scale');
+    if (prevProps.renderOverlay !== nextProps.renderOverlay) changes.push('renderOverlay');
+    if (prevProps.onPageChange !== nextProps.onPageChange) changes.push('onPageChange');
+    if (prevProps.onDocumentLoadSuccess !== nextProps.onDocumentLoadSuccess) changes.push('onDocumentLoadSuccess');
+    if (prevProps.scrollToPageRef !== nextProps.scrollToPageRef) changes.push('scrollToPageRef');
+    if (prevProps.renderLoader !== nextProps.renderLoader) changes.push('renderLoader');
+    if (prevProps.forceRefreshKey !== nextProps.forceRefreshKey) changes.push('forceRefreshKey');
+    if (prevProps.pdfLoadingState !== nextProps.pdfLoadingState) changes.push('pdfLoadingState');
+    if (prevProps.onForceRefresh !== nextProps.onForceRefresh) changes.push('onForceRefresh');
+    console.log('🔍 Memo comparison - props changed:', changes.join(', '));
+  }
+  
+  return areEqual;
 });
 
 VirtualizedPDFViewer.displayName = 'VirtualizedPDFViewer';
