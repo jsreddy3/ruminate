@@ -78,7 +78,7 @@ export default function BlockContextStack({
         
         container.scrollTo({
           top: scrollTarget,
-          behavior: 'smooth'
+          behavior: 'auto'
         });
       }
     }, 100);
@@ -116,8 +116,11 @@ export default function BlockContextStack({
           const isAboveCurrent = offset < 0;
           const isBelowCurrent = offset > 0;
           
-          // Calculate opacity based on distance from current
+          // Only render blocks within 3 positions of current for performance
           const distance = Math.abs(offset);
+          if (distance > 3) return null;
+          
+          // Calculate opacity based on distance from current
           const opacity = isCurrent ? 1.0 : 
                          distance === 1 ? 0.7 : 
                          distance === 2 ? 0.5 : 0.3;
@@ -147,7 +150,6 @@ export default function BlockContextStack({
                   // For blocks above current, wrap in a div to allow bottom alignment
                   <div className="overflow-y-auto max-h-full">
                     <BlockContainer
-                      key={block.id}
                       blockId={block.id}
                       blockType={block.block_type}
                       htmlContent={block.html_content || ''}
@@ -169,7 +171,6 @@ export default function BlockContextStack({
                 ) : (
                   // For current and below blocks, render normally
                   <BlockContainer
-                    key={block.id}
                     blockId={block.id}
                     blockType={block.block_type}
                     htmlContent={block.html_content || ''}

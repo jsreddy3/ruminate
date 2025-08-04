@@ -22,8 +22,9 @@ function ViewerContent() {
 
   useEffect(() => {
     const fetchPdfUrl = async () => {
-      if (!documentId || authLoading || !user) return;
+      if (!documentId || authLoading) return;
       
+      // If user is not authenticated, still try to fetch - let the API handle auth
       try {
         setIsLoading(true);
         setError(null);
@@ -38,7 +39,7 @@ function ViewerContent() {
     };
 
     fetchPdfUrl();
-  }, [documentId, authLoading, user]);
+  }, [documentId, authLoading]);
 
   if (authLoading || isLoading) {
     return (

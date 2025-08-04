@@ -34,6 +34,8 @@ class _Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     openai_api_key: str
     openai_model: str = "gpt-4o"
+    use_responses_api: bool = False
+    enable_web_search: bool = True
 
     # ------------------------------------------------------------------ #
     # Object Storage                                                     #

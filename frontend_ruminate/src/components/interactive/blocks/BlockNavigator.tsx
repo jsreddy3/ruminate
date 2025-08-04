@@ -99,6 +99,15 @@ export default function BlockNavigator({
     if (isOnboardingStep4) return; // Disable keyboard navigation during onboarding
     
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't handle arrow keys if user is typing in an input, textarea, or contenteditable
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.contentEditable === 'true' ||
+          target.closest('[contenteditable="true"]')) {
+        return;
+      }
+      
       // Only handle arrow keys when the component is focused/active
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
         event.preventDefault();
