@@ -26,15 +26,8 @@ const SimplePage = ({
 }) => {
   const [pageError, setPageError] = useState(false);
   
-  // Calculate page scale to fit container width
-  const pageScale = (() => {
-    const dimensions = pageDimensions.get(index);
-    if (dimensions && containerWidth > 0) {
-      const maxScale = (containerWidth - 80) / dimensions.width * scale;
-      return Math.min(scale, maxScale);
-    }
-    return scale;
-  })();
+  // Use the scale directly without clamping to container width
+  const pageScale = scale;
 
   // Get page dimensions for placeholders
   const dimensions = pageDimensions.get(index);
@@ -44,8 +37,8 @@ const SimplePage = ({
   };
 
   return (
-    <div style={style} className="pdf-page-container flex justify-center items-start py-2">
-      <div className="relative inline-block shadow-book rounded-book bg-white overflow-hidden">
+    <div style={{...style, minWidth: 'max-content'}} className="pdf-page-container flex justify-center items-start py-2" data-page-index={index}>
+      <div className="relative inline-block shadow-book rounded-book bg-white" style={{margin: '0 auto'}}>
         {pdf && !pageError && (
           <>
             <Page
@@ -326,7 +319,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   );
 
   return (
-    <div ref={containerRef} className="h-full w-full relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment">
+    <div ref={containerRef} className="h-full w-full relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment overflow-x-auto">
       {/* Document component wraps entire viewer */}
       <Document
         key={forceRefreshKey}
@@ -365,13 +358,14 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
             height={containerHeight}
             itemCount={totalPages}
             itemSize={getItemSize} // Dynamic size based on actual page dimensions
-            width="100%"
+            width={containerWidth}
             overscanCount={3} // Reduce overscan to prevent excessive mounting
             onItemsRendered={handleItemsRendered}
             className="pdf-virtual-list"
             style={{
               scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(175, 95, 55, 0.3) transparent'
+              scrollbarColor: 'rgba(175, 95, 55, 0.3) transparent',
+              overflowX: 'auto'
             }}
           >
             {renderPage}
