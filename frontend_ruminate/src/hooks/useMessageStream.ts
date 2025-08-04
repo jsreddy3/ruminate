@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 /**
  * Hook for streaming content of an assistant message as it's being generated
@@ -19,11 +19,11 @@ export function useMessageStream(conversationId: string | null, messageId: strin
   // Reset isComplete when messageId changes
   useEffect(() => {
     if (messageId !== currentMessageRef.current) {
-      console.log('[useMessageStream] Message ID changed:', {
-        oldId: currentMessageRef.current,
-        newId: messageId,
-        conversationId
-      });
+      // console.log('[useMessageStream] Message ID changed:', {
+      //   oldId: currentMessageRef.current,
+      //   newId: messageId,
+      //   conversationId
+      // });
       setIsComplete(false);
       currentMessageRef.current = messageId;
     }
@@ -32,7 +32,7 @@ export function useMessageStream(conversationId: string | null, messageId: strin
   useEffect(() => {
     // Don't attempt to stream if we don't have both IDs
     if (!conversationId || !messageId) {
-      console.log('[useMessageStream] Skipping stream - missing IDs:', { conversationId, messageId });
+      // console.log('[useMessageStream] Skipping stream - missing IDs:', { conversationId, messageId });
       return;
     }
 
@@ -66,17 +66,17 @@ export function useMessageStream(conversationId: string | null, messageId: strin
           eventSource.close();
         } else {
           // Append the new chunk to our content
-          console.log('[useMessageStream] Received chunk:', { 
-            messageId, 
-            chunkLength: data.length,
-            chunkPreview: data.substring(0, 50) 
-          });
+          // console.log('[useMessageStream] Received chunk:', { 
+          //   messageId, 
+          //   chunkLength: data.length,
+          //   chunkPreview: data.substring(0, 50) 
+          // });
           setContent(prevContent => {
             const newContent = prevContent + data;
-            console.log('[useMessageStream] Content accumulated:', {
-              messageId,
-              totalLength: newContent.length
-            });
+            // console.log('[useMessageStream] Content accumulated:', {
+            //   messageId,
+            //   totalLength: newContent.length
+            // });
             return newContent;
           });
         }
@@ -103,7 +103,7 @@ export function useMessageStream(conversationId: string | null, messageId: strin
     // Clean up the connection when the component unmounts or messageId changes
     return () => {
       if (eventSource) {
-        console.log('[useMessageStream] Cleaning up EventSource for message:', messageId);
+        // console.log('[useMessageStream] Cleaning up EventSource for message:', messageId);
         eventSource.close();
       }
     };

@@ -209,7 +209,8 @@ export function useMessageTree({
       const messages = response.messages || response; // Handle both old and new format
       console.log('[useMessageTree] Fetched messages:', {
         count: messages.length,
-        lastMessage: messages[messages.length - 1]
+        lastMessage: messages[messages.length - 1],
+        lastMessageContent: messages[messages.length - 1]?.content?.substring(0, 100)
       });
       setFlatMessages(messages);
       
