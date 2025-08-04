@@ -530,10 +530,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       );
       
       if (!isInputFocused) {
-        if (e.key === 'ArrowLeft') {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
           e.preventDefault();
           goToPreviousPage();
-        } else if (e.key === 'ArrowRight') {
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault();
           goToNextPage();
         }
@@ -542,7 +542,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
     document.addEventListener('keydown', handleGlobalKeyDown);
     return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [goToPreviousPage, goToNextPage]);
 
 
   return (

@@ -197,6 +197,10 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = React.memo(({
   onForceRefresh
 }) => {
   console.log('✅ VirtualizedPDFViewer rendered (memo allowed it)');
+  
+  // Performance measurement
+  const renderStartTime = performance.now();
+  
   const [pdf, setPdf] = useState<any>(null);
   const [pageDimensions, setPageDimensions] = useState<Map<number, PageDimensions>>(new Map());
   const [containerWidth, setContainerWidth] = useState(0);
