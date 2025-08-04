@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { MessageNode, MessageRole, GeneratedSummary } from '../../../types/chat';
 import MessageContentRenderer from './MessageContentRenderer';
 
@@ -309,4 +309,15 @@ const MessageItem: React.FC<MessageItemProps> = ({
   );
 };
 
-export default MessageItem;
+// Memoize the component to prevent unnecessary re-renders
+export default memo(MessageItem, (prevProps, nextProps) => {
+  // Custom comparison function for optimization
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.isStreaming === nextProps.isStreaming &&
+    prevProps.streamingContent === nextProps.streamingContent &&
+    prevProps.versions.length === nextProps.versions.length
+  );
+});

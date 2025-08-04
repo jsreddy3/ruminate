@@ -1,4 +1,4 @@
-#!/Users/jaidenreddy/Documents/projects/ruminate/new_backend_ruminate/my_env/bin/python
+#!/Users/vivekvajipey/Development/jsv-ai/ruminate/new_backend_ruminate/my_env/bin/python3.10
 
 import sys
 import json

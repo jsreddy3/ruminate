@@ -16,6 +16,8 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
   const [urlInput, setUrlInput] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
 
   const {
     isProcessing,
@@ -46,6 +48,55 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
       const filename = `generated-${Date.now()}.pdf`;
       await uploadFromUrl(augmentUrl, filename);
       setUrlInput('');
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(prev => prev + 1);
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(prev => prev - 1);
+    if (dragCounter - 1 === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    setDragCounter(0);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Validate that it's a PDF
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        await uploadFile(file);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } else {
+        // Show error for non-PDF files
+        alert('Please upload a PDF file only');
+      }
+      
+      e.dataTransfer.clearData();
     }
   };
 
@@ -171,10 +222,43 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                       />
                       <div
                         onClick={() => !isProcessing && fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition-all hover:border-library-mahogany-400 hover:bg-gray-50"
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        className={`relative border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
+                          isDragging 
+                            ? 'border-library-mahogany-500 bg-library-mahogany-50' 
+                            : 'border-gray-300 hover:border-library-mahogany-400 hover:bg-gray-50'
+                        }`}
                       >
+                        {isDragging && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-library-mahogany-50 bg-opacity-90 rounded-xl">
+                            <div className="text-center">
+                              <svg
+                                className="mx-auto h-16 w-16 text-library-mahogany-500 animate-pulse"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                />
+                              </svg>
+                              <p className="mt-3 text-xl font-semibold text-library-mahogany-600">
+                                Drop your PDF here
+                              </p>
+                              <p className="text-base text-library-mahogany-500">
+                                Release to upload
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         <svg
-                          className="mx-auto h-12 w-12 text-gray-400"
+                          className={`mx-auto h-12 w-12 ${isDragging ? 'text-transparent' : 'text-gray-400'}`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -186,10 +270,10 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                           />
                         </svg>
-                        <p className="mt-2 text-lg text-gray-600">
+                        <p className={`mt-2 text-lg ${isDragging ? 'text-transparent' : 'text-gray-600'}`}>
                           Click to upload or drag and drop
                         </p>
-                        <p className="text-base text-gray-500">PDF files only</p>
+                        <p className={`text-base ${isDragging ? 'text-transparent' : 'text-gray-500'}`}>PDF files only</p>
                       </div>
                     </>
                   ) : (

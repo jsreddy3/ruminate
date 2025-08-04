@@ -56,18 +56,70 @@ export default function BlockOverlay({
   mainConversationId,
 }: BlockOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
+  const isSelectingTextRef = useRef(false);
 
-  // Handle backdrop clicks to close overlay
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === overlayRef.current && !isOnboardingStep7) {
-      onClose();
+  // Track text selection state
+  React.useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      isSelectingTextRef.current = selection !== null && selection.toString().length > 0;
+    };
+
+    const handleMouseDown = () => {
+      // Mark as potentially selecting text
+      isSelectingTextRef.current = false;
+    };
+
+    const handleMouseUp = () => {
+      // Check if text was selected
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        isSelectingTextRef.current = true;
+        // Reset after a short delay to allow the click handler to check
+        setTimeout(() => {
+          isSelectingTextRef.current = false;
+        }, 100);
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  // Handle clicks outside the modal content to close overlay
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    // Don't close if we just finished selecting text
+    if (isSelectingTextRef.current) {
+      return;
     }
-  }, [onClose, isOnboardingStep7]);
+
+    // Check if there's any text currently selected
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      return;
+    }
+
+    // Check if the click is outside the modal content box
+    if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node)) {
+      // Ensure we're not in a restricted onboarding step
+      if (!isOnboardingStep4 && !isOnboardingStep5 && !isOnboardingStep6 && !isOnboardingStep7) {
+        onClose();
+      }
+    }
+  }, [onClose, isOnboardingStep4, isOnboardingStep5, isOnboardingStep6, isOnboardingStep7]);
 
   // Handle escape key to close overlay
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isOnboardingStep7) {
+      if (e.key === 'Escape' && isOpen && !isOnboardingStep4 && !isOnboardingStep5 && !isOnboardingStep6 && !isOnboardingStep7) {
         onClose();
       }
     };
@@ -82,7 +134,7 @@ export default function BlockOverlay({
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isOnboardingStep4, isOnboardingStep5, isOnboardingStep6, isOnboardingStep7]);
 
   return (
     <AnimatePresence>
@@ -94,10 +146,13 @@ export default function BlockOverlay({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-50 flex pointer-events-none"
-          onClick={handleBackdropClick}
         >
           {/* Left side - Modal content over PDF area - strictly constrained to panel */}
-          <div className="relative pointer-events-auto overflow-hidden" style={{ width: `${pdfPanelWidth}%` }}>
+          <div 
+            className="relative pointer-events-auto overflow-hidden" 
+            style={{ width: `${pdfPanelWidth}%` }}
+            onClick={handleContainerClick}
+          >
             {/* Backdrop with dimmed PDF visibility */}
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             
@@ -110,7 +165,9 @@ export default function BlockOverlay({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="relative h-full flex items-center justify-center p-4"
             >
-              <div className={`bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden transition-all duration-300 ${
+              <div 
+                ref={modalContentRef}
+                className={`bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden transition-all duration-300 ${
                 isOnboardingStep7 ? 'opacity-50' : ''
               }`} style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}

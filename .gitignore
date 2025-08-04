@@ -5,6 +5,7 @@ env/
 myenv/
 .venv/
 ENV/
+my_env/
 
 # Environment Variables
 .env
@@ -64,3 +65,5 @@ Thumbs.db
 
 *.pdf
 *.db
+
+*_PLAN.md

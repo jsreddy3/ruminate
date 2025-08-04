@@ -6,13 +6,27 @@ interface UseMessageStreamHandlerProps {
   onStreamComplete?: () => void;
 }
 
+interface UseMessageStreamHandlerReturn {
+  streamingMessageId: string | null;
+  streamingContent: string;
+  isStreamingComplete: boolean;
+  isStreamingActive: boolean;
+  streamingError: Error | null;
+  startStreaming: (messageId: string) => void;
+  stopStreaming: () => void;
+}
+
+/**
+ * Higher-level hook that manages message streaming state and handles completion callbacks.
+ * Coordinates between the streaming hook and the message tree refresh.
+ */
 export const useMessageStreamHandler = ({
   conversationId,
   onStreamComplete
-}: UseMessageStreamHandlerProps) => {
+}: UseMessageStreamHandlerProps): UseMessageStreamHandlerReturn => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   
-  // Stream content for chats
+  // Get streaming state from the lower-level hook
   const {
     content: streamingContent,
     isComplete: isStreamingComplete,
@@ -20,20 +34,43 @@ export const useMessageStreamHandler = ({
     error: streamingError
   } = useMessageStream(conversationId, streamingMessageId);
 
-  // When streaming completes, call the callback and clear streaming state
+  // Handle successful stream completion
   useEffect(() => {
     if (isStreamingComplete && streamingMessageId) {
+      // Clear streaming state
+      setStreamingMessageId(null);
+      
+      // Trigger callback to refresh the message tree
       if (onStreamComplete) {
         onStreamComplete();
       }
-      setStreamingMessageId(null);
     }
   }, [isStreamingComplete, streamingMessageId, onStreamComplete]);
 
+  // Handle streaming errors with fallback to refresh
+  useEffect(() => {
+    if (streamingError && streamingMessageId) {
+      // Wait a bit for the message to be processed server-side
+      const fallbackTimeout = setTimeout(() => {
+        // Clear streaming state
+        setStreamingMessageId(null);
+        
+        // Refresh to get the final message
+        if (onStreamComplete) {
+          onStreamComplete();
+        }
+      }, 2000);
+      
+      return () => clearTimeout(fallbackTimeout);
+    }
+  }, [streamingError, streamingMessageId, onStreamComplete]);
+
+  // Start streaming for a message
   const startStreaming = useCallback((messageId: string) => {
     setStreamingMessageId(messageId);
   }, []);
 
+  // Stop streaming manually
   const stopStreaming = useCallback(() => {
     setStreamingMessageId(null);
   }, []);

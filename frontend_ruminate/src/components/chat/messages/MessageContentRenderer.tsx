@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { MessageRole } from '../../../types/chat';
 import { HTMLSanitizer } from '../../../utils/htmlSanitizer';
 
@@ -7,7 +7,7 @@ interface MessageContentRendererProps {
   role: MessageRole;
   isStreaming?: boolean;
   streamingContent?: string | null;
-  disableDropCap?: boolean; // NEW: Option to disable drop cap
+  disableDropCap?: boolean;
 }
 
 /**
@@ -21,8 +21,99 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
   streamingContent = null,
   disableDropCap = false
 }) => {
+
+  // Parse and format the content - memoized for performance
+  const formatContent = useMemo(() => {
+    return (text: string) => {
+      if (!text) return null;
+      
+      // Split content into paragraphs
+      const paragraphs = text.split(/\n\s*\n/);
+      
+      return paragraphs.map((paragraph, paragraphIndex) => {
+        // Check if this paragraph contains a numbered list
+        const listItemRegex = /^(\d+)\.\s+\*\*(.*?)\*\*:\s*(.*?)(?=\n\d+\.\s+\*\*|\n\s*$|$)/gs;
+        const matches = [...paragraph.matchAll(listItemRegex)];
+        
+        if (matches.length > 0) {
+          // This is a numbered list with bold headers
+          return (
+            <div key={paragraphIndex} className="space-y-4 mt-5 mb-6">
+              {matches.map((match, index) => {
+                const [, number, boldText, description] = match;
+                return (
+                  <div key={index} className="flex gap-4 items-start">
+                    {/* Elegant number styling */}
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-library-forest-100 to-library-forest-200 rounded-full flex items-center justify-center border border-library-forest-300 shadow-paper">
+                      <span className="text-base font-serif font-bold text-library-forest-700">
+                        {number}
+                      </span>
+                    </div>
+                    
+                    {/* Content with scholarly styling */}
+                    <div className="flex-1 space-y-2">
+                      <h4 className="font-serif font-bold text-library-forest-700 text-xl leading-relaxed break-words overflow-wrap-anywhere">
+                        {boldText}
+                      </h4>
+                      <p className="font-serif text-reading-primary leading-relaxed text-xl pl-1 break-words overflow-wrap-anywhere">
+                        {description.trim()}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        } else {
+          // Regular paragraph - format bold and italic text
+          let formattedParagraph = paragraph
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-library-forest-700">$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em class="italic text-library-forest-600">$1</em>');
+          
+          // Sanitize the formatted paragraph content
+          const sanitizedParagraph = HTMLSanitizer.sanitizeChatContent(formattedParagraph);
+          
+          return (
+            <p 
+              key={paragraphIndex} 
+              className="font-serif leading-relaxed mb-4 break-words overflow-wrap-anywhere text-xl"
+              dangerouslySetInnerHTML={{ __html: sanitizedParagraph }}
+            />
+          );
+        }
+      });
+    };
+  }, []); // Empty deps since it's a pure function factory
+
+  // Determine what content to display
+  const displayContent = useMemo(() => {
+    if (role === MessageRole.ASSISTANT && isStreaming) {
+      // During streaming, show streaming content if available, otherwise show placeholder
+      return streamingContent || null;
+    }
+    // Not streaming, show regular content
+    return content;
+  }, [role, isStreaming, streamingContent, content]);
+
   // Handle streaming state for assistant messages
   if (role === MessageRole.ASSISTANT && isStreaming) {
+    // If we have streaming content, show it progressively
+    if (streamingContent && streamingContent.length > 0) {
+      return (
+        <div className="relative">
+          <div className="font-serif text-xl">
+            {formatContent(streamingContent)}
+          </div>
+          {/* Animated cursor to show streaming is active */}
+          <span 
+            className="inline-block w-0.5 h-5 bg-library-forest-500 ml-1 align-text-bottom animate-pulse"
+            aria-hidden="true"
+          />
+        </div>
+      );
+    }
+    
+    // Fallback to loading state if no content yet
     return (
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 bg-gradient-to-br from-library-forest-400 to-library-forest-600 rounded-full flex items-center justify-center animate-pulse">
@@ -31,73 +122,23 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
           </svg>
         </div>
         <span className="font-serif italic text-library-forest-600">
-          {streamingContent || 'Considering...'}
+          Considering...
         </span>
       </div>
     );
   }
 
-  // Parse and format the content
-  const formatContent = (text: string) => {
-    // Split content into paragraphs
-    const paragraphs = text.split(/\n\s*\n/);
-    
-    return paragraphs.map((paragraph, paragraphIndex) => {
-      // Check if this paragraph contains a numbered list
-      const listItemRegex = /^(\d+)\.\s+\*\*(.*?)\*\*:\s*(.*?)(?=\n\d+\.\s+\*\*|\n\s*$|$)/gs;
-      const matches = [...paragraph.matchAll(listItemRegex)];
-      
-      if (matches.length > 0) {
-        // This is a numbered list with bold headers
-        return (
-          <div key={paragraphIndex} className="space-y-4 mt-5 mb-6">
-            {matches.map((match, index) => {
-              const [, number, boldText, description] = match;
-              return (
-                <div key={index} className="flex gap-4 items-start">
-                  {/* Elegant number styling */}
-                  <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-library-forest-100 to-library-forest-200 rounded-full flex items-center justify-center border border-library-forest-300 shadow-paper">
-                    <span className="text-base font-serif font-bold text-library-forest-700">
-                      {number}
-                    </span>
-                  </div>
-                  
-                  {/* Content with scholarly styling */}
-                  <div className="flex-1 space-y-2">
-                    <h4 className="font-serif font-bold text-library-forest-700 text-xl leading-relaxed break-words overflow-wrap-anywhere">
-                      {boldText}
-                    </h4>
-                    <p className="font-serif text-reading-primary leading-relaxed text-xl pl-1 break-words overflow-wrap-anywhere">
-                      {description.trim()}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      } else {
-        // Regular paragraph - format bold and italic text
-        let formattedParagraph = paragraph
-          .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-library-forest-700">$1</strong>')
-          .replace(/\*(.*?)\*/g, '<em class="italic text-library-forest-600">$1</em>');
-        
-        // Sanitize the formatted paragraph content
-        const sanitizedParagraph = HTMLSanitizer.sanitizeChatContent(formattedParagraph);
-        
-        return (
-          <p 
-            key={paragraphIndex} 
-            className="font-serif leading-relaxed mb-4 break-words overflow-wrap-anywhere text-xl"
-            dangerouslySetInnerHTML={{ __html: sanitizedParagraph }}
-          />
-        );
-      }
-    });
-  };
-
-  // Render regular message content
-  const shouldHaveDropCap = !disableDropCap && role === MessageRole.ASSISTANT && content.length > 50 && !content.match(/^\d+\.\s+/);
+  // Render regular message content (non-streaming)
+  const shouldHaveDropCap = !disableDropCap && 
+                           role === MessageRole.ASSISTANT && 
+                           content && 
+                           content.length > 50 && 
+                           !content.match(/^\d+\.\s+/);
+  
+  // Handle empty content gracefully
+  if (!content || content.length === 0) {
+    return <div className="font-serif text-xl text-reading-muted italic">No content available</div>;
+  }
   
   return (
     <div className="relative">
@@ -108,7 +149,7 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
         </span>
       )}
       
-      <div className={shouldHaveDropCap ? "" : ""}>
+      <div>
         {shouldHaveDropCap ? (
           <div className="text-left">
             {/* Render content starting from second character with better flow */}

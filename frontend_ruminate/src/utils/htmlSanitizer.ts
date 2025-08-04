@@ -54,9 +54,10 @@ export class HTMLSanitizer {
       ALLOWED_TAGS: [
         'p', 'div', 'span', 'br', 'strong', 'b', 'em', 'i', 'u', 'sub', 'sup',
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'ul', 'ol', 'li'
+        'ul', 'ol', 'li',
+        'math' // Allow math tags for LaTeX rendering
       ],
-      ALLOWED_ATTR: ['class', 'style', 'title']
+      ALLOWED_ATTR: ['class', 'style', 'display', 'block-type'] // Added display for math tags and block-type
     };
 
     return DOMPurify.sanitize(htmlContent, pdfConfig);
