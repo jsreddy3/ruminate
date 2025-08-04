@@ -39,8 +39,8 @@ const SimplePage = React.memo(({
   }, [index, pageDimensions, scale]);
 
   return (
-    <div style={style} className="pdf-page-container flex justify-center items-start py-2" data-page-index={index}>
-      <div className="relative inline-block shadow-book rounded-book bg-white overflow-hidden">
+    <div style={style} className="pdf-page-container py-2" data-page-index={index}>
+      <div className="relative shadow-book rounded-book bg-white overflow-hidden mx-auto" style={{ width: pageDims.width }}>
         {pdf && !pageError && (
           <>
             <Page
@@ -366,8 +366,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
             className="pdf-virtual-list"
             style={{
               scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(175, 95, 55, 0.3) transparent',
-              overflowX: 'auto'
+              scrollbarColor: 'rgba(175, 95, 55, 0.3) transparent'
             }}
           >
             {renderPage}
