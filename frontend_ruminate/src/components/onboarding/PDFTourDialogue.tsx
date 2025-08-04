@@ -14,7 +14,6 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
   targetRect,
   scale
 }) => {
-  console.log('PDFTourDialogue - isVisible:', isVisible, 'targetRect:', targetRect, 'scale:', scale);
   if (!targetRect) return null;
   
   // Calculate position - place it to the right of the block with some padding

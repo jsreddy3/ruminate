@@ -29,23 +29,16 @@ export default function PDFBlockOverlay({
   onboardingTargetBlockId,
   isOnboardingActive = false
 }: PDFBlockOverlayProps) {
-  // Filter blocks for current page - memoized to prevent re-renders
-  const filteredBlocks = useMemo(() => {
-    return blocks.filter((b) => {
-      const blockPageNumber = b.page_number ?? 0;
-      return b.block_type !== "Page" && blockPageNumber === pageIndex;
-    });
-  }, [blocks, pageIndex]);
+  // Blocks are now pre-filtered by the parent component
+  const filteredBlocks = blocks;
 
   // State to track onboarding target block rectangle
   const [targetBlockRect, setTargetBlockRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Update target block rect when onboarding target changes
   useEffect(() => {
-    console.log('PDFBlockOverlay - onboardingTargetBlockId:', onboardingTargetBlockId, 'isOnboardingActive:', isOnboardingActive, 'filteredBlocks.length:', filteredBlocks.length);
     if (onboardingTargetBlockId && isOnboardingActive) {
       const targetBlock = filteredBlocks.find(b => b.id === onboardingTargetBlockId);
-      console.log('PDFBlockOverlay - targetBlock found:', !!targetBlock);
       if (targetBlock && targetBlock.polygon && targetBlock.polygon.length >= 4) {
         const x = Math.min(...targetBlock.polygon.map((p) => p[0]));
         const y = Math.min(...targetBlock.polygon.map((p) => p[1]));
@@ -58,7 +51,6 @@ export default function PDFBlockOverlay({
           width: w * scale,
           height: h * scale
         };
-        console.log('PDFBlockOverlay - setting targetBlockRect:', rect);
         setTargetBlockRect(rect);
       }
     } else {
@@ -118,13 +110,25 @@ export default function PDFBlockOverlay({
             pointerEvents: (isOnboardingActive && !isOnboardingTarget) ? 'none' as const : 'auto' as const,
           };
 
-          // Onboarding target styling - pulsing golden highlight
+          // Onboarding target styling - HEAVY glowing golden effect
           if (isOnboardingTarget) {
             return {
               ...baseStyle,
-              backgroundColor: 'rgba(251, 191, 36, 0.15)',
-              border: 'none',
-              animation: 'onboardingGoldenPulse 3s ease-in-out infinite',
+              backgroundColor: 'rgba(249, 207, 95, 0.4)',
+              border: '4px solid #f9cf5f',
+              boxShadow: `
+                0 0 40px rgba(249, 207, 95, 1),
+                0 0 80px rgba(249, 207, 95, 0.9),
+                0 0 120px rgba(249, 207, 95, 0.7),
+                0 0 160px rgba(249, 207, 95, 0.5),
+                inset 0 0 30px rgba(249, 207, 95, 0.5),
+                inset 0 0 60px rgba(249, 207, 95, 0.3)
+              `,
+              animation: 'glow 2s ease-in-out infinite',
+              outline: '6px solid rgba(249, 207, 95, 0.3)',
+              outlineOffset: '2px',
+              filter: 'brightness(1.2)',
+              transform: `scale(1.05)`,
             };
           }
 

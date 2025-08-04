@@ -80,13 +80,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
 
   if (!isVisible) return null;
   
-  console.log('🔍 TextSelectionTooltip rendering:', {
-    isOnboardingStep5,
-    isOnboardingStep6,
-    hasOnCreateRabbithole: !!onCreateRabbithole,
-    hasOnCreateChatForOnboarding: !!onCreateChatForOnboarding
-  });
-  
   // Create a safe wrapper for action click handlers
   const safeExecute = (callback?: (text: string) => void) => {
     return () => {
@@ -108,41 +101,20 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       label: 'Create chat',
       icon: <Search size={16} />,
       onClick: () => {
-        console.log('🚀 Create chat clicked!', {
-          isOnboardingStep5,
-          isOnboardingStep6,
-          hasOnCreateRabbithole: !!onCreateRabbithole,
-          hasOnCreateChatForOnboarding: !!onCreateChatForOnboarding,
-          selectedText
-        });
-        
         // Close tooltip immediately for responsive feel
         if (isOnboardingStep6) {
-          console.log('💬 Closing tooltip for step 6');
           onClose();
         }
         
         if (onCreateRabbithole && (!isOnboardingStep5 || isOnboardingStep6)) {
-          console.log('🎯 Calling onCreateRabbithole');
           // For now, use dummy offsets - we'll need to get real ones from the selection
           onCreateRabbithole(selectedText, 0, selectedText.length);
-        } else {
-          console.log('❌ NOT calling onCreateRabbithole', {
-            hasOnCreateRabbithole: !!onCreateRabbithole,
-            condition: (!isOnboardingStep5 || isOnboardingStep6)
-          });
-        }
+        } 
         
         // Call onboarding handler if in step 6
         if (isOnboardingStep6 && onCreateChatForOnboarding) {
-          console.log('📈 Calling onCreateChatForOnboarding');
           onCreateChatForOnboarding();
-        } else {
-          console.log('❌ NOT calling onCreateChatForOnboarding', {
-            isOnboardingStep6,
-            hasCallback: !!onCreateChatForOnboarding
-          });
-        }
+        } 
       },
       disabled: false, // Don't disable during onboarding
       isHighlighted: isOnboardingStep6, // Highlight during onboarding step 6
@@ -208,14 +180,9 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           {defaultActions.map((action, index) => (
             <button
               key={`${action.label}-${index}`}
-              onMouseDown={(e) => {
-                console.log('💆 Button mousedown:', action.label, 'disabled:', action.disabled);
-              }}
               onMouseUp={(e) => {
-                console.log('💆 Button mouseup:', action.label, 'disabled:', action.disabled);
                 // Use mouseup instead of onClick during onboarding steps 5 and 6
                 if ((isOnboardingStep5 || isOnboardingStep6) && !action.disabled && action.onClick) {
-                  console.log('🚀 Triggering action via mouseup');
                   e.preventDefault();
                   e.stopPropagation();
                   action.onClick();
@@ -225,16 +192,19 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                 action.disabled 
                   ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30' 
                   : action.isHighlighted
-                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border-2 border-library-gold-500 shadow-lg ring-2 ring-library-gold-300/50'
+                    ? 'ring-4 ring-library-gold-400/70 shadow-2xl scale-110 hover:scale-115'
                     : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
               }`}
+              style={action.isHighlighted ? {
+                background: 'linear-gradient(135deg, #f9cf5f 0%, #edbe51 100%)',
+                color: '#2c3830',
+                borderColor: '#f9cf5f',
+                animation: 'glow 2s ease-in-out infinite',
+                boxShadow: '0 0 25px rgba(249, 207, 95, 0.9), 0 0 50px rgba(249, 207, 95, 0.5)'
+              } : {}}
               onClick={(e) => {
-                console.log('🚀 Button onClick triggered:', action.label, 'disabled:', action.disabled);
-                // Only use onClick for normal (non-onboarding) scenarios
                 if (!isOnboardingStep5 && !isOnboardingStep6 && !action.disabled && action.onClick) {
                   action.onClick();
-                } else {
-                  console.log('⚠️ Button click blocked - onboarding step or disabled or no onClick');
                 }
               }}
               disabled={action.disabled}
@@ -246,11 +216,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                     : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`
               }
             >
-              {/* Glowing highlight for onboarding */}
-              {action.isHighlighted && (
-                <div className="absolute inset-0 bg-library-gold-400/20 rounded animate-pulse pointer-events-none" />
-              )}
-              
               {action.icon && (
                 <span className={
                   action.disabled 
