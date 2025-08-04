@@ -44,12 +44,14 @@ _repo = RDSConversationRepository()
 _document_repo = RDSDocumentRepository()
 _user_repo = RDSUserRepository()
 if settings().use_responses_api:
+    print(f"[Dependencies] Initializing OpenAIResponsesLLM with web_search={settings().enable_web_search}")
     _llm = OpenAIResponsesLLM(
         api_key=settings().openai_api_key,
         model=settings().openai_model,
         enable_web_search=settings().enable_web_search,
     )
 else:
+    print(f"[Dependencies] Initializing OpenAILLM (standard chat completions)")
     _llm = OpenAILLM(
         api_key=settings().openai_api_key,
         model=settings().openai_model,

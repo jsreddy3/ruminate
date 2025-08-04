@@ -32,6 +32,7 @@ class ConversationService:
         self._llm = llm
         self._hub = hub
         self._ctx_builder = ctx_builder
+        print(f"[ConversationService] Using LLM implementation: {type(llm).__name__}")
 
     # ─────────────────────────────── helpers ──────────────────────────────── #
 

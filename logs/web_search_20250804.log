@@ -1,0 +1,72 @@
+2025-08-04 16:37:00,783 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:37:00,783 - web_search - INFO - User query: can you explain what other literature says about this?...
+2025-08-04 16:37:08,874 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 16:38:35,288 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:38:35,288 - web_search - INFO - User query: can u search what "windsurf" is on google...
+2025-08-04 16:38:37,003 - web_search - INFO - Web search query: ''
+2025-08-04 16:38:37,003 - web_search - INFO - Web search initiated
+2025-08-04 16:38:37,158 - web_search - INFO - Web search in progress...
+2025-08-04 16:38:38,950 - web_search - INFO - Web search completed
+2025-08-04 16:38:38,951 - web_search - INFO - Web search completed with query: 'windsurf'
+2025-08-04 16:38:42,986 - web_search - INFO - Request completed WITH web search. Query: 'windsurf'
+2025-08-04 16:38:57,067 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:38:57,067 - web_search - INFO - User query: can u search what "windsurf" is on google? the tech company...
+2025-08-04 16:38:58,815 - web_search - INFO - Web search query: ''
+2025-08-04 16:38:58,815 - web_search - INFO - Web search initiated
+2025-08-04 16:38:59,007 - web_search - INFO - Web search in progress...
+2025-08-04 16:39:01,788 - web_search - INFO - Web search completed
+2025-08-04 16:39:01,788 - web_search - INFO - Web search completed with query: 'Windsurf tech company'
+2025-08-04 16:39:08,497 - web_search - INFO - Request completed WITH web search. Query: 'Windsurf tech company'
+2025-08-04 16:40:04,111 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:40:04,111 - web_search - INFO - User query: Document Title: generated-1754350776331.pdf
+
+Please summarize the following document:
+
+=
+
+Persona vectors: Monitoring and controlling character traits in language models
+
+Aug 1, 2025
+
+Language models are strange beasts. In many ways they appear to have human-like "personalities" and "moods," but these traits are highly fluid and liable to change unexpectedly.
+
+Sometimes these changes are dramatic. In 2023, Microsoft's Bing chatbot famously adopted an alter-ego called "Sydney," which declared lov...
+2025-08-04 16:40:12,769 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 16:40:27,131 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:40:27,131 - web_search - INFO - User query: Please summarize pages 0-8 of the document.
+
+Text from this section:
+Language models are strange beasts. In many ways they appear to have human-like "personalities" and "moods," but these traits are highly fluid and liable to change unexpectedly.
+
+Sometimes these changes are dramatic. In 2023, Microsoft's Bing chatbot famously adopted an alter-ego called "Sydney," which declared love for users and made threats of blackmail. More recently, xAI's Grok chatbot would for a brief period sometimes ide...
+2025-08-04 16:40:30,382 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 16:40:30,403 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:40:30,404 - web_search - INFO - User query: can you tell me how this relates to golden gate claude?...
+2025-08-04 16:40:42,549 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 16:40:57,524 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:40:57,524 - web_search - INFO - User query: did you use web search to generate that answer? just curious...
+2025-08-04 16:40:59,021 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 16:41:05,123 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:41:05,123 - web_search - INFO - User query: can you?...
+2025-08-04 16:41:06,676 - web_search - INFO - Web search query: ''
+2025-08-04 16:41:06,676 - web_search - INFO - Web search initiated
+2025-08-04 16:41:07,170 - web_search - INFO - Web search in progress...
+2025-08-04 16:41:09,424 - web_search - INFO - Web search completed
+2025-08-04 16:41:09,425 - web_search - INFO - Web search completed with query: 'Golden Gate Claude AI persona vectors'
+2025-08-04 16:41:16,092 - web_search - INFO - Request completed WITH web search. Query: 'Golden Gate Claude AI persona vectors'
+2025-08-04 16:41:39,310 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:41:39,310 - web_search - INFO - User query: can you tell me how this relates to golden gate claude? use web search...
+2025-08-04 16:41:40,302 - web_search - INFO - Web search query: ''
+2025-08-04 16:41:40,302 - web_search - INFO - Web search initiated
+2025-08-04 16:41:40,492 - web_search - INFO - Web search in progress...
+2025-08-04 16:41:42,502 - web_search - INFO - Web search completed
+2025-08-04 16:41:42,502 - web_search - INFO - Web search completed with query: 'golden gate Claude'
+2025-08-04 16:41:45,998 - web_search - INFO - Request completed WITH web search. Query: 'golden gate Claude'
+2025-08-04 16:42:53,787 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:42:53,787 - web_search - INFO - User query: can you tell me about recent research on sycophancy?...
+2025-08-04 16:42:55,291 - web_search - INFO - Web search query: ''
+2025-08-04 16:42:55,298 - web_search - INFO - Web search initiated
+2025-08-04 16:42:55,521 - web_search - INFO - Web search in progress...
+2025-08-04 16:42:58,085 - web_search - INFO - Web search completed
+2025-08-04 16:42:58,085 - web_search - INFO - Web search completed with query: 'recent research on sycophancy in AI models 2023'
+2025-08-04 16:43:06,988 - web_search - INFO - Request completed WITH web search. Query: 'recent research on sycophancy in AI models 2023'

@@ -1,11 +1,32 @@
 from __future__ import annotations
 import json
 import os
+import logging
+from datetime import datetime
+from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Union
 import httpx
 
 from new_backend_ruminate.domain.conversation.entities.message import Message
 from new_backend_ruminate.domain.ports.llm import LLMService
+
+# Set up dedicated logger for web search events
+log_dir = Path("logs")
+log_dir.mkdir(exist_ok=True)
+web_search_logger = logging.getLogger("web_search")
+web_search_logger.setLevel(logging.INFO)
+
+# Create file handler with timestamp
+log_file = log_dir / f"web_search_{datetime.now().strftime('%Y%m%d')}.log"
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+
+# Create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add handler to logger
+web_search_logger.addHandler(file_handler)
 
 
 class OpenAIResponsesLLM(LLMService):
@@ -58,16 +79,24 @@ class OpenAIResponsesLLM(LLMService):
         
         if self._enable_web_search:
             payload["tools"] = [{"type": "web_search_preview"}]
-
-        print(f"[DEBUG] Sending request to {self._base_url}")
-        print(f"[DEBUG] Payload: {json.dumps(payload, indent=2)}")
+            web_search_logger.info(f"Web search ENABLED for request")
+        else:
+            web_search_logger.info(f"Web search DISABLED for request")
+            
+        # Log the user's query
+        if chat_msgs:
+            last_user_msg = next((msg for msg in reversed(chat_msgs) if msg.get("role") == "user"), None)
+            if last_user_msg:
+                web_search_logger.info(f"User query: {last_user_msg.get('content', '')[:500]}...")
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             async with client.stream(
                 "POST", self._base_url, headers=self._headers, json=payload
             ) as resp:
-                print(f"[DEBUG] Response status: {resp.status_code}")
                 resp.raise_for_status()
+                
+                web_search_performed = False
+                web_search_query = None
                 
                 async for line in resp.aiter_lines():
                     if not line.startswith("data: "):
@@ -79,27 +108,72 @@ class OpenAIResponsesLLM(LLMService):
                     
                     try:
                         data = json.loads(data_str)
-                        # The Responses API streaming format might be different
-                        # Let's check what we're getting
-                        print(f"[DEBUG] Stream chunk: {json.dumps(data)[:200]}...")
                         
-                        # Try different paths for content
-                        if "choices" in data:
-                            delta = (
-                                data.get("choices", [{}])[0]
-                                .get("delta", {})
-                                .get("content", "")
-                            )
-                        elif "delta" in data:
-                            delta = data.get("delta", {}).get("content", "")
-                        else:
-                            # Maybe it's a different structure
-                            delta = ""
+                        # Responses API uses event types
+                        event_type = data.get("type", "")
+                        
+                        # Track web search events
+                        if event_type == "response.web_search_call.in_progress":
+                            web_search_performed = True
+                            web_search_logger.info("Web search initiated")
+                            # Yield a special event for the frontend
+                            yield json.dumps({
+                                "type": "tool_use",
+                                "tool": "web_search",
+                                "status": "starting"
+                            })
                             
-                        if delta:
-                            yield delta
+                        elif event_type == "response.output_item.added":
+                            item = data.get("item", {})
+                            if item.get("type") == "web_search_call":
+                                action = item.get("action", {})
+                                if action.get("type") == "search":
+                                    web_search_query = action.get("query", "")
+                                    web_search_logger.info(f"Web search query: '{web_search_query}'")
+                                    # Yield search query event
+                                    yield json.dumps({
+                                        "type": "tool_use",
+                                        "tool": "web_search",
+                                        "status": "searching",
+                                        "query": web_search_query
+                                    })
+                                    
+                        elif event_type == "response.web_search_call.searching":
+                            web_search_logger.info("Web search in progress...")
+                            
+                        elif event_type == "response.web_search_call.completed":
+                            web_search_logger.info("Web search completed")
+                            # Yield completion event
+                            yield json.dumps({
+                                "type": "tool_use",
+                                "tool": "web_search",
+                                "status": "completed"
+                            })
+                            
+                        elif event_type == "response.output_item.done":
+                            item = data.get("item", {})
+                            if item.get("type") == "web_search_call" and item.get("status") == "completed":
+                                action = item.get("action", {})
+                                if not web_search_query and action.get("type") == "search":
+                                    web_search_query = action.get("query", "")
+                                    web_search_logger.info(f"Web search completed with query: '{web_search_query}'")
+                        
+                        # Yield text deltas
+                        if event_type == "response.output_text.delta":
+                            delta = data.get("delta", "")
+                            if delta:
+                                yield delta
+                                
                     except json.JSONDecodeError as e:
-                        print(f"[DEBUG] JSON decode error: {e}")
+                        web_search_logger.error(f"JSON decode error: {e}")
+                    except Exception as e:
+                        web_search_logger.error(f"Error processing chunk: {e}")
+                
+                # Log summary at the end
+                if web_search_performed:
+                    web_search_logger.info(f"Request completed WITH web search. Query: '{web_search_query or 'unknown'}'")
+                else:
+                    web_search_logger.info(f"Request completed WITHOUT web search")
 
     async def generate_structured_response(
         self,

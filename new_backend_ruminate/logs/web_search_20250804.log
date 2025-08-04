@@ -1,0 +1,8 @@
+2025-08-04 16:34:09,688 - web_search - INFO - Web search ENABLED for request
+2025-08-04 16:34:09,689 - web_search - INFO - User query: What are the latest AI announcements from OpenAI in 2025? Please search for recent news....
+2025-08-04 16:34:11,894 - web_search - INFO - Web search query: ''
+2025-08-04 16:34:11,908 - web_search - INFO - Web search initiated
+2025-08-04 16:34:12,198 - web_search - INFO - Web search in progress...
+2025-08-04 16:34:13,993 - web_search - INFO - Web search completed
+2025-08-04 16:34:13,993 - web_search - INFO - Web search completed with query: 'OpenAI announcements 2025'
+2025-08-04 16:34:25,821 - web_search - INFO - Request completed WITH web search. Query: 'OpenAI announcements 2025'

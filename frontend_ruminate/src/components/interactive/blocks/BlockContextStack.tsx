@@ -54,37 +54,38 @@ export default function BlockContextStack({
 
   // Update scroll position when focused block changes
   useEffect(() => {
+    // First timer to let DOM update
     const timer = setTimeout(() => {
       if (focusedBlockRef.current && containerRef.current) {
         const container = containerRef.current;
         const focusedBlock = focusedBlockRef.current;
         
-        // Get container height and focused block position
-        const containerHeight = container.clientHeight;
-        const blockOffsetTop = focusedBlock.offsetTop;
+        // Force a reflow to ensure offsetTop is accurate
+        focusedBlock.getBoundingClientRect();
         
-        // Calculate where we want the block to be
-        let targetPosition;
-        if (isFirstShowableTextBlock) {
-          // For first text block, position at top with small padding
-          targetPosition = 40;
-        } else {
-          // For other blocks, center at 40% from top
-          targetPosition = containerHeight * 0.4;
-        }
-        
-        // Scroll the container so the block appears at target position
-        const scrollTarget = blockOffsetTop - targetPosition;
-        
-        container.scrollTo({
-          top: scrollTarget,
-          behavior: 'auto'
-        });
+        // Second timer to ensure layout is stable
+        setTimeout(() => {
+          // Get container height and focused block position
+          const containerHeight = container.clientHeight;
+          const blockOffsetTop = focusedBlock.offsetTop;
+          
+          // Calculate where we want the top of the block to be
+          // Always position at 25% down the viewport
+          const targetPosition = containerHeight * 0.25;
+          
+          // Scroll the container so the top of the block appears at target position
+          const scrollTarget = blockOffsetTop - targetPosition;
+          
+          container.scrollTo({
+            top: scrollTarget,
+            behavior: 'auto'
+          });
+        }, 50);
       }
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [currentIndex, currentBlockId, isFirstShowableTextBlock]);
+  }, [currentIndex, currentBlockId]);
 
 
   if (blocks.length === 0) {
