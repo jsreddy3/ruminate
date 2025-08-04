@@ -57,12 +57,6 @@ export default function WelcomeModal({ onStartTour }: WelcomeModalProps) {
               <span>Click here to begin</span>
               <ArrowRight className="ml-2 w-4 h-4" />
             </button>
-            <button
-              onClick={handleSkip}
-              className="text-reading-muted hover:text-reading-secondary transition-colors text-xs underline"
-            >
-              Skip introduction
-            </button>
           </div>
         </div>
       </div>
