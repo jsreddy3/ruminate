@@ -89,3 +89,14 @@ class DocumentRepositoryInterface(ABC):
     ) -> List[Page]:
         """Get pages in range [center_page - radius, center_page + radius]"""
         pass
+    
+    @abstractmethod
+    async def get_pages_in_range_with_blocks(
+        self, 
+        document_id: str, 
+        center_page: int, 
+        radius: int, 
+        session: AsyncSession
+    ) -> List[Page]:
+        """Get pages in range with their blocks eagerly loaded (fixes N+1 query)"""
+        pass

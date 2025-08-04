@@ -2,10 +2,10 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 
 interface PDFToolbarProps {
-  GoToPreviousPage: React.ComponentType;
-  GoToNextPage: React.ComponentType;
-  ZoomOut: React.ComponentType;
-  ZoomIn: React.ComponentType;
+  onGoToPreviousPage: () => void;
+  onGoToNextPage: () => void;
+  onZoomOut: () => void;
+  onZoomIn: () => void;
   currentPage: number;
   totalPages: number;
   currentPanelSizes: number[];
@@ -17,10 +17,10 @@ interface PDFToolbarProps {
 }
 
 const PDFToolbar: React.FC<PDFToolbarProps> = ({
-  GoToPreviousPage,
-  GoToNextPage,
-  ZoomOut,
-  ZoomIn,
+  onGoToPreviousPage,
+  onGoToNextPage,
+  onZoomOut,
+  onZoomIn,
   currentPage,
   totalPages,
   currentPanelSizes,
@@ -111,11 +111,27 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
         <div className="flex items-center gap-3">
           {/* Page Navigation */}
           <div className="flex items-center gap-2">
-            <GoToPreviousPage />
+            <button 
+              onClick={onGoToPreviousPage}
+              className="flex items-center justify-center w-8 h-8 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-200 shadow-paper hover:shadow-book" 
+              title="Previous page"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
             <div className="px-3 py-1.5 bg-gradient-to-br from-library-cream-100 to-surface-parchment border border-library-sage-200 rounded-book text-sm font-serif text-reading-primary min-w-[3.5rem] text-center shadow-paper">
               {currentPage} of {totalPages}
             </div>
-            <GoToNextPage />
+            <button 
+              onClick={onGoToNextPage}
+              className="flex items-center justify-center w-8 h-8 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-200 shadow-paper hover:shadow-book" 
+              title="Next page"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
           {/* Elegant divider */}
@@ -123,8 +139,24 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
 
           {/* Zoom Controls with scholarly styling */}
           <div className="flex items-center gap-2">
-            <ZoomOut />
-            <ZoomIn />
+            <button 
+              onClick={onZoomOut}
+              className="flex items-center justify-center w-8 h-8 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-200 shadow-paper hover:shadow-book" 
+              title="Zoom out"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+              </svg>
+            </button>
+            <button 
+              onClick={onZoomIn}
+              className="flex items-center justify-center w-8 h-8 text-reading-secondary hover:text-reading-primary hover:bg-library-cream-100 rounded-book transition-all duration-200 shadow-paper hover:shadow-book" 
+              title="Zoom in"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            </button>
           </div>
 
           {/* Elegant divider */}

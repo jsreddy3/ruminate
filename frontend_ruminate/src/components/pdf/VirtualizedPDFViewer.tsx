@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { VariableSizeList as List } from 'react-window';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Block } from './PDFViewer';
 
-// Configure PDF.js worker - use local file to avoid CORS issues
+// Configure PDF.js worker - use local copy from webpack build
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 // Move VirtualPage outside to prevent recreation on parent re-renders
@@ -55,7 +55,6 @@ const CachedPage = React.memo(({
 
   // Stable callbacks that update cache and force re-render
   const handlePageLoadSuccess = useCallback(() => {
-    // console.log(`✅ Page ${index + 1} loaded successfully`);
     pageLoadedRef.current.set(index, true);
     pageErrorRef.current.set(index, false);
     // Force a small re-render to show the loaded state
@@ -173,7 +172,7 @@ interface VirtualizedPDFViewerProps {
   onPageChange?: (pageNumber: number) => void;
   onDocumentLoadSuccess?: (pdf: any) => void;
   scrollToPageRef?: React.MutableRefObject<(pageNumber: number) => void>;
-  renderLoader?: (percentages: number) => React.ReactNode;
+  renderLoader?: (percentages: number) => React.ReactElement;
   forceRefreshKey?: number;
   pdfLoadingState?: string;
   onForceRefresh?: () => void;
@@ -210,7 +209,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const visiblePagesRef = useRef<Set<number>>(new Set());
-  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Page caching to prevent re-renders
   const pageLoadedRef = useRef<Map<number, boolean>>(new Map());
@@ -245,7 +244,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     setPdf(loadedPdf);
     setTotalPages(loadedPdf.numPages);
     setIsStuck(false);
-    clearTimeout(loadingTimeoutRef.current);
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     
     // Pre-calculate page dimensions
     const loadPageDimensions = async () => {
@@ -269,13 +268,13 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
         
         console.log('📐 Default dimensions set:', defaultDimensions);
         
-        // Load actual dimensions for all pages in background
+        // Load remaining pages in background without constant resets
         setTimeout(async () => {
           const updatedDimensions = new Map(dimensions);
-          let needsUpdate = false;
+          let hasChanges = false;
           
-          // Load all pages to ensure consistent dimensions
-          for (let i = 1; i <= loadedPdf.numPages; i++) {
+          // Load all remaining pages (skip page 1 since we already have it)
+          for (let i = 2; i <= loadedPdf.numPages; i++) {
             try {
               const page = await loadedPdf.getPage(i);
               const viewport = page.getViewport({ scale });
@@ -285,20 +284,20 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
               };
               
               updatedDimensions.set(i - 1, newDimensions);
-              needsUpdate = true;
-              
-              // Update in batches to avoid too many re-renders
-              if (i % 5 === 0 || i === loadedPdf.numPages) {
-                setPageDimensions(new Map(updatedDimensions));
-                if (listRef.current) {
-                  listRef.current.resetAfterIndex(0);
-                }
-              }
+              hasChanges = true;
             } catch (e) {
               console.warn(`Failed to get dimensions for page ${i}`, e);
             }
           }
-        }, 200); // Faster initial load
+          
+          // Single update at the end to avoid layout thrashing
+          if (hasChanges) {
+            setPageDimensions(new Map(updatedDimensions));
+            if (listRef.current) {
+              listRef.current.resetAfterIndex(0);
+            }
+          }
+        }, 100); // Faster initial load
       } catch (error) {
         console.error('Error loading page dimensions:', error);
         // Set fallback dimensions (more accurate A4)
@@ -334,7 +333,9 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
         setIsStuck(true);
       }, 10000); // 10 seconds
     }
-    return () => clearTimeout(loadingTimeoutRef.current);
+    return () => {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    };
   }, [pdf, pdfLoadingState]);
 
   // Update container dimensions
@@ -473,7 +474,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
             ref={listRef}
             height={containerHeight}
             itemCount={totalPages}
-            itemSize={842} // Fixed size: 792px page height + 50px margin for consistency
+            itemSize={getItemSize} // Dynamic size based on actual page dimensions
             width="100%"
             overscanCount={3} // Reduce overscan to prevent excessive mounting
             onItemsRendered={handleItemsRendered}

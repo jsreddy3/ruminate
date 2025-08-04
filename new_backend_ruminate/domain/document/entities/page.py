@@ -1,7 +1,10 @@
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, TYPE_CHECKING
 from uuid import uuid4
 from datetime import datetime
 from dataclasses import dataclass, field
+
+if TYPE_CHECKING:
+    from new_backend_ruminate.domain.document.entities.block import Block
 
 
 @dataclass
@@ -16,6 +19,8 @@ class Page:
     html_content: str = ""
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
+    # Optional preloaded blocks for performance optimization
+    blocks: Optional[List['Block']] = field(default=None)
 
     def add_block(self, block_id: str) -> None:
         """Add a block ID to this page in reading order"""

@@ -43,7 +43,7 @@ class PageRangeProvider:
         with open("/tmp/page_range_debug.txt", "a") as f:
             f.write(f"get_page_content: Fetching pages around page {current_page} with radius {self.page_radius}\n")
             
-        pages = await self.doc_repo.get_pages_in_range(
+        pages = await self.doc_repo.get_pages_in_range_with_blocks(
             conv.document_id, 
             current_page, 
             self.page_radius, 
@@ -128,8 +128,12 @@ class PageRangeProvider:
                 page_marker += " (CURRENT)"
             page_marker += " ---"
             
-            # Get all blocks for this page and aggregate their content
-            blocks = await self.doc_repo.get_blocks_by_page(page.id, session)
+            # Use preloaded blocks if available, otherwise fall back to query
+            if page.blocks is not None:
+                blocks = page.blocks
+            else:
+                blocks = await self.doc_repo.get_blocks_by_page(page.id, session)
+            
             page_text_parts = []
             
             for block in blocks:

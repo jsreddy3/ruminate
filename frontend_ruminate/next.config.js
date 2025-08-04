@@ -41,8 +41,9 @@ const nextConfig = {
         new CopyPlugin({
           patterns: [
             {
-              from: 'node_modules/pdfjs-dist/build/pdf.worker.min.js',
+              from: 'node_modules/react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
               to: '../public/pdf.worker.min.js',
+              noErrorOnMissing: true,
             },
           ],
         })

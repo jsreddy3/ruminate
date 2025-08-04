@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { getBlockTypeStyles, baseTextStyles, containerStyles } from './textStyles';
+import { HTMLSanitizer } from '../../../utils/htmlSanitizer';
 
 interface TextContentProps {
   htmlContent: string;

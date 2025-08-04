@@ -313,6 +313,38 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         db_pages = result.scalars().all()
         return [self._to_domain_page(page) for page in db_pages]
     
+    async def get_pages_in_range_with_blocks(
+        self, 
+        document_id: str, 
+        center_page: int, 
+        radius: int, 
+        session: AsyncSession
+    ) -> List[Page]:
+        """Get pages in range with their blocks eagerly loaded (fixes N+1 query)"""
+        from sqlalchemy.orm import selectinload
+        
+        result = await session.execute(
+            select(PageModel)
+            .options(selectinload(PageModel.blocks))  # Eager load blocks
+            .where(
+                and_(
+                    PageModel.document_id == document_id,
+                    PageModel.page_number >= center_page - radius,
+                    PageModel.page_number <= center_page + radius
+                )
+            )
+            .order_by(PageModel.page_number)
+        )
+        db_pages = result.scalars().all()
+        return [self._to_domain_page_with_blocks(page) for page in db_pages]
+    
+    def _to_domain_page_with_blocks(self, db_page: PageModel) -> Page:
+        """Convert DB page with preloaded blocks to domain entity"""
+        page = self._to_domain_page(db_page)
+        # The blocks are already loaded, so we can access them without additional queries
+        page.blocks = [self._to_domain_block(block) for block in db_page.blocks]
+        return page
+    
     # Helper methods to convert between domain and DB models
     def _to_domain_document(self, db_document: DocumentModel) -> Document:
         """Convert DB model to domain entity"""

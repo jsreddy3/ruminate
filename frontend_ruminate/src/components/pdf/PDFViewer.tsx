@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import "@react-pdf-viewer/core/lib/styles/index.css";
-import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
 import { documentApi } from "../../services/api/document";
@@ -444,7 +442,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
         e.preventDefault();
         // Focus the search input in the toolbar
-        const searchInput = document.querySelector('input[placeholder="Search text..."]') as HTMLInputElement;
+        const searchInput = document.querySelector('input[placeholder="Search..."]') as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
           searchInput.select();
@@ -601,10 +599,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
         <div className={onboarding.getToolbarClassName()}>
           <PDFToolbar
-            GoToPreviousPage={() => <button onClick={goToPreviousPage} className="hover:bg-library-sage-100 p-1 rounded">Previous</button>}
-            GoToNextPage={() => <button onClick={goToNextPage} className="hover:bg-library-sage-100 p-1 rounded">Next</button>}
-            ZoomOut={() => <button onClick={zoomOut} className="hover:bg-library-sage-100 p-1 rounded">Zoom Out</button>}
-            ZoomIn={() => <button onClick={zoomIn} className="hover:bg-library-sage-100 p-1 rounded">Zoom In</button>}
+            onGoToPreviousPage={goToPreviousPage}
+            onGoToNextPage={goToNextPage}
+            onZoomOut={zoomOut}
+            onZoomIn={zoomIn}
             currentPage={currentPage}
             totalPages={totalPages}
             currentPanelSizes={currentPanelSizes}

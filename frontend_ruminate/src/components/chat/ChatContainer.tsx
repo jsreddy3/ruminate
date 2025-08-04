@@ -62,7 +62,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const zoomPresets = [
     { level: 0.9, label: 'Small', percentage: '90%' },
     { level: 1, label: 'Standard', percentage: '100%' },
-    { level: 1.2, label: 'Large', percentage: '120%' }
+    { level: 1.1, label: 'Large', percentage: '110%' }
   ];
   
   // Core message tree state for the conversation

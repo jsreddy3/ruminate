@@ -93,7 +93,7 @@ async def init_engine(settings: "Settings") -> None:
             port=settings.db_port,
             database=settings.db_name,
         )
-        pool_cls = NullPool  # Use NullPool for async PostgreSQL
+        pool_cls = AsyncAdaptedQueuePool  # Use proper connection pooling
     elif dialect == "sqlite":
         url = settings.db_url
         # SQLite in async mode is already serialised; no pool needed.
@@ -108,12 +108,13 @@ async def init_engine(settings: "Settings") -> None:
         poolclass=pool_cls,
     )
 
-    # NullPool doesn't use pool_size or max_overflow
-    # if pool_cls is AsyncAdaptedQueuePool:
-    #     kw.update(
-    #         pool_size=settings.pool_size,
-    #         max_overflow=settings.max_overflow,
-    #     )
+    # Add pool settings for AsyncAdaptedQueuePool
+    if pool_cls is AsyncAdaptedQueuePool:
+        kw.update(
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+        )
     
     engine = create_async_engine(
         url,
