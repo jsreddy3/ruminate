@@ -6,14 +6,27 @@ interface UseMessageStreamHandlerProps {
   onStreamComplete?: () => void;
 }
 
+interface UseMessageStreamHandlerReturn {
+  streamingMessageId: string | null;
+  streamingContent: string;
+  isStreamingComplete: boolean;
+  isStreamingActive: boolean;
+  streamingError: Error | null;
+  startStreaming: (messageId: string) => void;
+  stopStreaming: () => void;
+}
+
+/**
+ * Higher-level hook that manages message streaming state and handles completion callbacks.
+ * Coordinates between the streaming hook and the message tree refresh.
+ */
 export const useMessageStreamHandler = ({
   conversationId,
   onStreamComplete
-}: UseMessageStreamHandlerProps) => {
+}: UseMessageStreamHandlerProps): UseMessageStreamHandlerReturn => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const [failedStreamAttempts, setFailedStreamAttempts] = useState<number>(0);
   
-  // Stream content for chats
+  // Get streaming state from the lower-level hook
   const {
     content: streamingContent,
     isComplete: isStreamingComplete,
@@ -21,37 +34,30 @@ export const useMessageStreamHandler = ({
     error: streamingError
   } = useMessageStream(conversationId, streamingMessageId);
 
-  // When streaming completes, call the callback and clear streaming state
+  // Handle successful stream completion
   useEffect(() => {
     if (isStreamingComplete && streamingMessageId) {
-      console.log('[useMessageStreamHandler] Stream complete, clearing state:', {
-        streamingMessageId,
-        contentLength: streamingContent.length
-      });
+      // Clear streaming state
+      setStreamingMessageId(null);
+      
+      // Trigger callback to refresh the message tree
       if (onStreamComplete) {
         onStreamComplete();
       }
-      setStreamingMessageId(null);
-      setFailedStreamAttempts(0);
     }
-  }, [isStreamingComplete, streamingMessageId, onStreamComplete, streamingContent]);
+  }, [isStreamingComplete, streamingMessageId, onStreamComplete]);
 
-  // Handle streaming errors with a delay before fallback
+  // Handle streaming errors with fallback to refresh
   useEffect(() => {
     if (streamingError && streamingMessageId) {
-      console.log('[useMessageStreamHandler] Stream error detected, will fallback after delay:', {
-        messageId: streamingMessageId,
-        error: streamingError.message
-      });
-      
-      // Wait 2 seconds before falling back to refresh
-      // This gives the backend time to process the message
+      // Wait a bit for the message to be processed server-side
       const fallbackTimeout = setTimeout(() => {
-        console.log('[useMessageStreamHandler] Falling back to refresh after stream error');
+        // Clear streaming state
         setStreamingMessageId(null);
-        setFailedStreamAttempts(0);
+        
+        // Refresh to get the final message
         if (onStreamComplete) {
-          onStreamComplete(); // This will trigger refreshTree
+          onStreamComplete();
         }
       }, 2000);
       
@@ -59,11 +65,12 @@ export const useMessageStreamHandler = ({
     }
   }, [streamingError, streamingMessageId, onStreamComplete]);
 
+  // Start streaming for a message
   const startStreaming = useCallback((messageId: string) => {
-    console.log('[useMessageStreamHandler] Starting stream for message:', messageId);
     setStreamingMessageId(messageId);
   }, []);
 
+  // Stop streaming manually
   const stopStreaming = useCallback(() => {
     setStreamingMessageId(null);
   }, []);

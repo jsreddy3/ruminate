@@ -21,15 +21,6 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
   streamingContent = null,
   disableDropCap = false
 }) => {
-  // Debug logging
-  console.log('[MessageContentRenderer] Render:', {
-    role,
-    isStreaming,
-    contentLength: content?.length || 0,
-    streamingContentLength: streamingContent?.length || 0,
-    hasContent: !!content,
-    hasStreamingContent: !!streamingContent
-  });
 
   // Parse and format the content - memoized for performance
   const formatContent = useMemo(() => {
@@ -114,18 +105,10 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
             {formatContent(streamingContent)}
           </div>
           {/* Animated cursor to show streaming is active */}
-          <span className="inline-block w-1 h-5 bg-library-forest-500 ml-0.5 -mb-1"
-                style={{ 
-                  animation: 'blink 1s ease-in-out infinite',
-                  verticalAlign: 'text-bottom'
-                }}>
-          </span>
-          <style jsx>{`
-            @keyframes blink {
-              0%, 50% { opacity: 1; }
-              51%, 100% { opacity: 0; }
-            }
-          `}</style>
+          <span 
+            className="inline-block w-0.5 h-5 bg-library-forest-500 ml-1 align-text-bottom animate-pulse"
+            aria-hidden="true"
+          />
         </div>
       );
     }
