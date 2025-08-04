@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MessageSquarePlus, BookOpen, Search, FileText } from 'lucide-react';
+import { MessageSquarePlus, Search, FileText } from 'lucide-react';
 
 interface TextSelectionTooltipProps {
   documentId: string;
@@ -152,7 +152,11 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       icon: isDefining ? (
         <div className="animate-spin w-4 h-4 border-2 border-library-gold-600 border-t-transparent rounded-full" />
       ) : (
-        <BookOpen size={16} />
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          <text x="12" y="13" textAnchor="middle" fontSize="8" fontWeight="bold" strokeWidth="0" fill="currentColor">Aa</text>
+        </svg>
       ),
       onClick: isDefining ? undefined : isOnboardingStep5 ? () => {} : safeExecute(onDefine), // Fake click during step 5
       disabled: isDefining || isOnboardingStep6, // Only disable during onboarding step 6
