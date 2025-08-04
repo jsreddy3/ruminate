@@ -215,15 +215,13 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   const pageLoadedRef = useRef<Map<number, boolean>>(new Map());
   const pageErrorRef = useRef<Map<number, boolean>>(new Map());
 
-  // Debug logging
+  // Track scale changes
+  const prevScaleRef = useRef<number>(scale);
   useEffect(() => {
-    console.log('🔍 VirtualizedPDFViewer mounting with:', {
-      pdfFile: pdfFile.substring(0, 50) + '...',
-      blocks: blocks.length,
-      scale,
-      pdfLoadingState
-    });
-  }, []);
+    if (prevScaleRef.current !== scale) {
+      prevScaleRef.current = scale;
+    }
+  });
 
   // Index blocks by page for O(1) lookup
   const blocksByPage = useMemo(() => {
@@ -240,7 +238,6 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
 
   // Handle PDF load
   const handleDocumentLoadSuccess = useCallback((loadedPdf: any) => {
-    console.log('✅ PDF loaded successfully, pages:', loadedPdf.numPages);
     setPdf(loadedPdf);
     setTotalPages(loadedPdf.numPages);
     setIsStuck(false);

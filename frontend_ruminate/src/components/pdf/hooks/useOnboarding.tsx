@@ -190,7 +190,6 @@ export function useOnboarding({
                           flattenedBlocks[0]; // Ultimate fallback
       
       if (targetBlock) {
-        console.log('Setting onboarding target block:', targetBlock.id, 'with', getWordCount(targetBlock), 'words');
         setOnboardingTargetBlockId(targetBlock.id);
       }
     } else if (onboardingState.currentStep !== 3) {

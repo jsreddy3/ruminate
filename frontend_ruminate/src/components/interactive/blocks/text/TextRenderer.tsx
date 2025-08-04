@@ -214,14 +214,11 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
   // Handle creating a rabbithole conversation
   const handleCreateRabbithole = (text: string, startOffset: number, endOffset: number) => {
-    console.log('🚀 handleCreateRabbithole called', { text, startOffset, endOffset, hasOnCreateRabbithole: !!onCreateRabbithole });
     if (onCreateRabbithole) {
       // Use the actual selection range data if available, otherwise use provided offsets
       if (selectedRange) {
-        console.log('🚀 Using selectedRange:', selectedRange);
         onCreateRabbithole(selectedRange.text, selectedRange.startOffset, selectedRange.endOffset);
       } else {
-        console.log('🚀 Using provided offsets:', { text, startOffset, endOffset });
         onCreateRabbithole(text, startOffset, endOffset);
       }
     } else {
@@ -355,8 +352,6 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setDefinitionVisible(false);
     setAnnotationVisible(false);
   };
-  
-  console.log('🎯 TextRenderer: isOnboardingStep5 =', isOnboardingStep5, 'isOnboardingStep6 =', isOnboardingStep6, 'hasOnCreateRabbithole =', !!onCreateRabbithole);
   
   return (
     <div ref={blockRef} className="text-renderer relative">
