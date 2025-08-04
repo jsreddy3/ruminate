@@ -169,13 +169,28 @@ export function useOnboarding({
   // Set the target block for onboarding step 3
   useEffect(() => {
     if (onboardingState.isActive && onboardingState.currentStep === 3 && flattenedBlocks.length > 0) {
-      // Find the first non-header block or fallback to first block
-      const targetBlock = flattenedBlocks.find(b => 
+      // Filter to only page 1 blocks that are text (not headers or images)
+      const page1Blocks = flattenedBlocks.filter(b => 
+        (b.page_number === 0 || b.page_number === 1) && // Page 1 (0-indexed or 1-indexed)
         b.block_type?.toLowerCase() !== 'sectionheader' && 
-        b.block_type?.toLowerCase() !== 'pageheader'
-      ) || flattenedBlocks[0];
+        b.block_type?.toLowerCase() !== 'pageheader' &&
+        b.block_type?.toLowerCase() !== 'image' &&
+        b.block_type?.toLowerCase() !== 'figure'
+      );
+      
+      // Try to find a text block with >100 words
+      const getWordCount = (block: Block) => {
+        const text = block.text_content || block.html_content?.replace(/<[^>]*>/g, '') || '';
+        return text.split(/\s+/).filter(word => word.length > 0).length;
+      };
+      
+      // Find first block with >100 words, or fallback to first text block
+      const targetBlock = page1Blocks.find(b => getWordCount(b) > 100) || 
+                          page1Blocks[0] || 
+                          flattenedBlocks[0]; // Ultimate fallback
       
       if (targetBlock) {
+        console.log('Setting onboarding target block:', targetBlock.id, 'with', getWordCount(targetBlock), 'words');
         setOnboardingTargetBlockId(targetBlock.id);
       }
     } else if (onboardingState.currentStep !== 3) {
@@ -207,11 +222,9 @@ export function useOnboarding({
         onBlockClick(block);
       }
       
-      // Then progress to next step after a short delay to let user see the block open
-      setTimeout(() => {
-        nextStep();
-        setOnboardingTargetBlockId(null);
-      }, 500);
+      // Progress to next step immediately
+      nextStep();
+      setOnboardingTargetBlockId(null);
     }
   }, [onboardingState.isActive, onboardingState.currentStep, onboardingTargetBlockId, nextStep, onBlockClick]);
 

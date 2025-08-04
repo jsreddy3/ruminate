@@ -363,7 +363,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         />
       );
     },
-    [blocks, isBlockSelectionMode, temporarilyHighlightedBlockId] // Minimal stable dependencies
+    [blocks, isBlockSelectionMode, temporarilyHighlightedBlockId, blockOverlayManager, onboarding] // Include all dependencies
   );
 
   // Enhanced search functionality with scroll-to-block

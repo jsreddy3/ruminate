@@ -42,20 +42,24 @@ export default function PDFBlockOverlay({
 
   // Update target block rect when onboarding target changes
   useEffect(() => {
+    console.log('PDFBlockOverlay - onboardingTargetBlockId:', onboardingTargetBlockId, 'isOnboardingActive:', isOnboardingActive, 'filteredBlocks.length:', filteredBlocks.length);
     if (onboardingTargetBlockId && isOnboardingActive) {
       const targetBlock = filteredBlocks.find(b => b.id === onboardingTargetBlockId);
+      console.log('PDFBlockOverlay - targetBlock found:', !!targetBlock);
       if (targetBlock && targetBlock.polygon && targetBlock.polygon.length >= 4) {
         const x = Math.min(...targetBlock.polygon.map((p) => p[0]));
         const y = Math.min(...targetBlock.polygon.map((p) => p[1]));
         const w = Math.max(...targetBlock.polygon.map((p) => p[0])) - x;
         const h = Math.max(...targetBlock.polygon.map((p) => p[1])) - y;
         
-        setTargetBlockRect({
+        const rect = {
           x: x * scale,
           y: y * scale,
           width: w * scale,
           height: h * scale
-        });
+        };
+        console.log('PDFBlockOverlay - setting targetBlockRect:', rect);
+        setTargetBlockRect(rect);
       }
     } else {
       setTargetBlockRect(null);
