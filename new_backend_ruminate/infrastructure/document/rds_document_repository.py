@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from new_backend_ruminate.domain.document.repositories.document_repository_interface import DocumentRepositoryInterface
 from new_backend_ruminate.domain.document.entities import Document, Page, Block, DocumentStatus, BlockType
-from new_backend_ruminate.infrastructure.document.models import DocumentModel, PageModel, BlockModel
+from new_backend_ruminate.domain.document.entities.chunk import Chunk, ChunkStatus
+from new_backend_ruminate.infrastructure.document.models import DocumentModel, PageModel, BlockModel, ChunkModel
 from datetime import datetime
 
 
@@ -21,6 +22,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             s3_pdf_path=document.s3_pdf_path,
             title=document.title,
             summary=document.summary,
+            document_info=document.document_info,
             arguments=document.arguments,
             key_themes_terms=document.key_themes_terms,
             processing_error=document.processing_error,
@@ -79,6 +81,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
         db_document.s3_pdf_path = document.s3_pdf_path
         db_document.title = document.title
         db_document.summary = document.summary
+        db_document.document_info = document.document_info
         db_document.arguments = document.arguments
         db_document.key_themes_terms = document.key_themes_terms
         db_document.processing_error = document.processing_error
@@ -171,6 +174,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
                 id=block.id,
                 document_id=block.document_id,
                 page_id=block.page_id,
+                chunk_id=block.chunk_id,
                 block_type=block.block_type.value if block.block_type else None,
                 html_content=block.html_content,
                 polygon=block.polygon,
@@ -267,6 +271,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             raise ValueError(f"Block {block.id} not found")
         
         # Update all modifiable fields
+        db_block.chunk_id = block.chunk_id  # Update chunk assignment
         db_block.is_critical = block.is_critical
         db_block.critical_summary = block.critical_summary
         db_block.meta_data = block.metadata  # Update metadata field
@@ -355,6 +360,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             s3_pdf_path=db_document.s3_pdf_path,
             title=db_document.title,
             summary=db_document.summary,
+            document_info=db_document.document_info,
             arguments=db_document.arguments,
             key_themes_terms=db_document.key_themes_terms,
             processing_error=db_document.processing_error,
@@ -393,6 +399,7 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             id=db_block.id,
             document_id=db_block.document_id,
             page_id=db_block.page_id,
+            chunk_id=db_block.chunk_id,
             block_type=BlockType(db_block.block_type) if db_block.block_type else None,
             html_content=db_block.html_content,
             polygon=db_block.polygon,
@@ -405,3 +412,108 @@ class RDSDocumentRepository(DocumentRepositoryInterface):
             created_at=db_block.created_at,
             updated_at=db_block.updated_at
         )
+    
+    def _to_domain_chunk(self, db_chunk: ChunkModel) -> Chunk:
+        """Convert DB model to domain entity"""
+        return Chunk(
+            id=db_chunk.id,
+            document_id=db_chunk.document_id,
+            chunk_index=db_chunk.chunk_index,
+            start_page=db_chunk.start_page,
+            end_page=db_chunk.end_page,
+            status=ChunkStatus(db_chunk.status),
+            summary=db_chunk.summary,
+            processing_error=db_chunk.processing_error,
+            created_at=db_chunk.created_at,
+            updated_at=db_chunk.updated_at
+        )
+    
+    # Chunk operations
+    async def create_chunks(self, chunks: List[Chunk], session: AsyncSession) -> List[Chunk]:
+        """Create multiple chunks"""
+        db_chunks = []
+        for chunk in chunks:
+            db_chunk = ChunkModel(
+                id=chunk.id,
+                document_id=chunk.document_id,
+                chunk_index=chunk.chunk_index,
+                start_page=chunk.start_page,
+                end_page=chunk.end_page,
+                status=chunk.status.value if isinstance(chunk.status, ChunkStatus) else chunk.status,
+                summary=chunk.summary,
+                processing_error=chunk.processing_error,
+                created_at=chunk.created_at,
+                updated_at=chunk.updated_at
+            )
+            db_chunks.append(db_chunk)
+            session.add(db_chunk)
+        
+        await session.commit()
+        
+        # Refresh all chunks
+        for db_chunk in db_chunks:
+            await session.refresh(db_chunk)
+        
+        return [self._to_domain_chunk(db_chunk) for db_chunk in db_chunks]
+    
+    async def get_chunks_by_document(self, document_id: str, session: AsyncSession) -> List[Chunk]:
+        """Get all chunks for a document"""
+        result = await session.execute(
+            select(ChunkModel)
+            .where(ChunkModel.document_id == document_id)
+            .order_by(ChunkModel.chunk_index)
+        )
+        db_chunks = result.scalars().all()
+        
+        return [self._to_domain_chunk(chunk) for chunk in db_chunks]
+    
+    async def get_chunk(self, chunk_id: str, session: AsyncSession) -> Optional[Chunk]:
+        """Get a specific chunk"""
+        result = await session.execute(
+            select(ChunkModel).where(ChunkModel.id == chunk_id)
+        )
+        db_chunk = result.scalar_one_or_none()
+        
+        if db_chunk:
+            return self._to_domain_chunk(db_chunk)
+        return None
+    
+    async def update_chunk(self, chunk: Chunk, session: AsyncSession) -> Chunk:
+        """Update a chunk"""
+        result = await session.execute(
+            select(ChunkModel).where(ChunkModel.id == chunk.id)
+        )
+        db_chunk = result.scalar_one_or_none()
+        
+        if not db_chunk:
+            raise ValueError(f"Chunk {chunk.id} not found")
+        
+        # Update fields
+        db_chunk.status = chunk.status.value if isinstance(chunk.status, ChunkStatus) else chunk.status
+        db_chunk.summary = chunk.summary
+        db_chunk.processing_error = chunk.processing_error
+        db_chunk.updated_at = datetime.now()
+        
+        await session.commit()
+        await session.refresh(db_chunk)
+        
+        return self._to_domain_chunk(db_chunk)
+    
+    async def get_chunks_up_to_page(self, document_id: str, page_number: int, session: AsyncSession) -> List[Chunk]:
+        """Get all chunks that contain pages up to and including the given page number"""
+        # Calculate which chunk contains the given page
+        chunk_index = page_number // 20  # Since each chunk is 20 pages
+        
+        result = await session.execute(
+            select(ChunkModel)
+            .where(
+                and_(
+                    ChunkModel.document_id == document_id,
+                    ChunkModel.chunk_index <= chunk_index
+                )
+            )
+            .order_by(ChunkModel.chunk_index)
+        )
+        db_chunks = result.scalars().all()
+        
+        return [self._to_domain_chunk(chunk) for chunk in db_chunks]

@@ -23,6 +23,7 @@ class Document:
     s3_pdf_path: Optional[str] = None
     title: str = "Untitled Document"
     summary: Optional[str] = None
+    document_info: Optional[str] = None  # Document-level info from external service
     arguments: Optional[List[Dict[str, str]]] = None  # List of {id, name}
     key_themes_terms: Optional[List[Dict[str, str]]] = None
     processing_error: Optional[str] = None
@@ -80,6 +81,7 @@ class Document:
             "s3_pdf_path": self.s3_pdf_path,
             "title": self.title,
             "summary": self.summary,
+            "document_info": self.document_info,
             "arguments": self.arguments,
             "key_themes_terms": self.key_themes_terms,
             "processing_error": self.processing_error,

@@ -14,6 +14,7 @@ class DocumentModel(Base):
     s3_pdf_path = Column(String, nullable=True)
     title = Column(String, nullable=False, default="Untitled Document")
     summary = Column(Text, nullable=True)
+    document_info = Column(Text, nullable=True)  # Document-level info from external service
     arguments = Column(JSON, nullable=True)
     key_themes_terms = Column(JSON, nullable=True)
     processing_error = Column(String, nullable=True)
@@ -38,6 +39,7 @@ class DocumentModel(Base):
     user = relationship("UserModel", back_populates="documents")
     pages = relationship("PageModel", back_populates="document", cascade="all, delete-orphan")
     blocks = relationship("BlockModel", back_populates="document", cascade="all, delete-orphan")
+    chunks = relationship("ChunkModel", back_populates="document", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="document", foreign_keys="Conversation.document_id")
     messages = relationship("Message", back_populates="document")
     # Main conversation relationship
@@ -64,12 +66,32 @@ class PageModel(Base):
     blocks = relationship("BlockModel", back_populates="page")
 
 
+class ChunkModel(Base):
+    __tablename__ = "chunks"
+    
+    id = Column(String, primary_key=True)
+    document_id = Column(String, ForeignKey("documents.id"), nullable=False)
+    chunk_index = Column(Integer, nullable=False)  # 0-based position in document
+    start_page = Column(Integer, nullable=False)   # inclusive
+    end_page = Column(Integer, nullable=False)     # exclusive
+    status = Column(String, nullable=False, default="UNPROCESSED")
+    summary = Column(Text, nullable=True)
+    processing_error = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    document = relationship("DocumentModel", back_populates="chunks")
+    blocks = relationship("BlockModel", back_populates="chunk")
+
+
 class BlockModel(Base):
     __tablename__ = "blocks"
     
     id = Column(String, primary_key=True)
     document_id = Column(String, ForeignKey("documents.id"), nullable=False)
     page_id = Column(String, ForeignKey("pages.id"), nullable=True)
+    chunk_id = Column(String, ForeignKey("chunks.id"), nullable=True)  # Reference to chunk
     block_type = Column(String, nullable=True)
     html_content = Column(Text, nullable=True)
     polygon = Column(JSON, nullable=True)
@@ -85,4 +107,5 @@ class BlockModel(Base):
     # Relationships
     document = relationship("DocumentModel", back_populates="blocks")
     page = relationship("PageModel", back_populates="blocks")
+    chunk = relationship("ChunkModel", back_populates="blocks")
     messages = relationship("Message", back_populates="block")

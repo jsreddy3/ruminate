@@ -42,6 +42,7 @@ class Block:
     id: str = field(default_factory=lambda: str(uuid4()))
     document_id: str = ""
     page_id: Optional[str] = None
+    chunk_id: Optional[str] = None  # Reference to chunk this block belongs to
     block_type: Optional[BlockType] = None
     html_content: Optional[str] = None
     polygon: Optional[List[List[float]]] = None  # Marker uses polygon
@@ -85,6 +86,7 @@ class Block:
             "id": self.id,
             "document_id": self.document_id,
             "page_id": self.page_id,
+            "chunk_id": self.chunk_id,
             "block_type": self.block_type.value if self.block_type else None,
             "html_content": self.html_content,
             "polygon": self.polygon,

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from new_backend_ruminate.domain.document.entities import Document, Page, Block
+from new_backend_ruminate.domain.document.entities.chunk import Chunk
 
 
 class DocumentRepositoryInterface(ABC):
@@ -99,4 +100,30 @@ class DocumentRepositoryInterface(ABC):
         session: AsyncSession
     ) -> List[Page]:
         """Get pages in range with their blocks eagerly loaded (fixes N+1 query)"""
+        pass
+    
+    # Chunk operations
+    @abstractmethod
+    async def create_chunks(self, chunks: List[Chunk], session: AsyncSession) -> List[Chunk]:
+        """Create multiple chunks"""
+        pass
+    
+    @abstractmethod
+    async def get_chunks_by_document(self, document_id: str, session: AsyncSession) -> List[Chunk]:
+        """Get all chunks for a document"""
+        pass
+    
+    @abstractmethod
+    async def get_chunk(self, chunk_id: str, session: AsyncSession) -> Optional[Chunk]:
+        """Get a specific chunk"""
+        pass
+    
+    @abstractmethod
+    async def update_chunk(self, chunk: Chunk, session: AsyncSession) -> Chunk:
+        """Update a chunk"""
+        pass
+    
+    @abstractmethod
+    async def get_chunks_up_to_page(self, document_id: str, page_number: int, session: AsyncSession) -> List[Chunk]:
+        """Get all chunks that contain pages up to and including the given page number"""
         pass

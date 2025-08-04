@@ -19,6 +19,7 @@ from new_backend_ruminate.infrastructure.document_processing.marker_client impor
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.context.renderers.note_generation import NoteGenerationContext
+from new_backend_ruminate.services.chunk import ChunkService
 
 
 class DocumentService:
@@ -33,7 +34,8 @@ class DocumentService:
         marker_client: Optional[MarkerClient] = None,
         analyzer: Optional[DocumentAnalyzer] = None,
         note_context: Optional[NoteGenerationContext] = None,
-        conversation_service = None  # Type hint avoided due to circular imports
+        conversation_service = None,  # Type hint avoided due to circular imports
+        chunk_service: Optional[ChunkService] = None
     ) -> None:
         self._repo = repo
         self._hub = hub
@@ -43,6 +45,7 @@ class DocumentService:
         self._analyzer = analyzer
         self._note_context = note_context
         self._conversation_service = conversation_service
+        self._chunk_service = chunk_service
     
     # ─────────────────────────────── helpers ──────────────────────────────── #
     
@@ -135,6 +138,20 @@ class DocumentService:
         pages_to_create = []
         blocks_to_create = []
         
+        # Create chunks for the document
+        total_pages = len(marker_response.pages)
+        chunks = await self._chunk_service.create_chunks_for_document(
+            document_id=document_id,
+            total_pages=total_pages,
+            session=session
+        )
+        
+        # Create a mapping of page numbers to chunk IDs
+        chunk_map = {}
+        for chunk in chunks:
+            for page_num in range(chunk.start_page, chunk.end_page):
+                chunk_map[page_num] = chunk.id
+        
         for idx, page_data in enumerate(marker_response.pages):
             # Create page - use 0-based indexing internally
             page = Page(
@@ -148,6 +165,9 @@ class DocumentService:
             )
             pages_to_create.append(page)
             
+            # Get chunk_id for this page
+            chunk_id = chunk_map.get(idx)
+            
             # Create blocks for this page
             for block_data in page_data.get("blocks", []):
                 block = Block.from_marker_block(
@@ -156,6 +176,8 @@ class DocumentService:
                     page_id=page.id,
                     page_number=page.page_number
                 )
+                # Assign chunk_id to block
+                block.chunk_id = chunk_id
                 blocks_to_create.append(block)
                 page.add_block(block.id)
         

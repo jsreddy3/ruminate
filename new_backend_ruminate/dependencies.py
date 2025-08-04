@@ -22,6 +22,7 @@ from new_backend_ruminate.infrastructure.llm.openai_llm import OpenAILLM
 from new_backend_ruminate.services.conversation.service import ConversationService
 from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.services.document.service import DocumentService
+from new_backend_ruminate.services.chunk import ChunkService
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.context.windowed import WindowedContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
@@ -45,10 +46,11 @@ _llm  = OpenAILLM(
     api_key=settings().openai_api_key,
     model=settings().openai_model,
 )
-_ctx_builder = WindowedContextBuilder(_document_repo)
 _storage = get_object_storage_singleton()
 _document_analyzer = LLMDocumentAnalyzer(_llm)
 _note_generation_context = NoteGenerationContext()
+_chunk_service = ChunkService(_document_repo, _llm)
+_ctx_builder = WindowedContextBuilder(_document_repo, chunk_service=_chunk_service)
 # Auth components (only initialize if settings are provided)
 _google_client = None
 _jwt_manager = None
@@ -75,7 +77,8 @@ _document_service = DocumentService(
     llm=_llm,
     analyzer=_document_analyzer,
     note_context=_note_generation_context,
-    conversation_service=_conversation_service
+    conversation_service=_conversation_service,
+    chunk_service=_chunk_service
 )
 # ─────────────────────── DI provider helpers ───────────────────── #
 
@@ -98,6 +101,10 @@ def get_agent_service() -> AgentService:
 def get_document_service() -> DocumentService:
     """Return the singleton DocumentService; stateless, safe to share."""
     return _document_service
+
+def get_chunk_service() -> ChunkService:
+    """Return the singleton ChunkService; stateless, safe to share."""
+    return _chunk_service
 
 def get_auth_service() -> AuthService:
     """Return the singleton AuthService; stateless, safe to share."""

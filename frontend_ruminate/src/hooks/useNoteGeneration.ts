@@ -161,7 +161,7 @@ export const useNoteGeneration = ({
     }
 
     onRequestBlockSelection({
-      prompt: "Select a block to save your conversation note",
+      prompt: "Select a block where you want to save your conversation note",
       onComplete: async (blockId: string) => {
         await generateNoteForBlock(blockId, messageCount, topic);
       }
