@@ -63,6 +63,7 @@ pydantic_core==2.33.2
 Pygments==2.19.2
 PyJWT==2.10.1
 PyPDF2==3.0.1
+python-magic==0.4.27
 pytest==8.4.1
 pytest-asyncio==1.1.0
 pytest-timeout==2.4.0
