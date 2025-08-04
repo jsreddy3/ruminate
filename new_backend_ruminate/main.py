@@ -25,10 +25,20 @@ from new_backend_ruminate.dependencies import get_event_hub  # optional: expose 
 from new_backend_ruminate.api.conversation.routes import router as conversation_router
 from new_backend_ruminate.api.document.routes import router as document_router
 from new_backend_ruminate.api.auth.routes import router as auth_router
+from new_backend_ruminate.middleware.security import (
+    SecurityHeadersMiddleware, 
+    RateLimitMiddleware,
+    FileUploadSecurityMiddleware
+)
 
 app = FastAPI()
 
-# Add CORS middleware
+# Add security middleware (order matters - add from innermost to outermost)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  # Allow 120 requests per minute
+app.add_middleware(FileUploadSecurityMiddleware, max_file_size=100 * 1024 * 1024)  # 100MB limit
+
+# Add CORS middleware (should be last/outermost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

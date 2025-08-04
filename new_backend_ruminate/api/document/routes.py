@@ -25,6 +25,7 @@ from new_backend_ruminate.api.document.schemas import (
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token, get_storage_service
 from new_backend_ruminate.domain.user.entities.user import User
+from new_backend_ruminate.utils.file_validator import PDFValidator, SecurityScanner
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -43,20 +44,24 @@ async def get_upload_url(
     """
     from uuid import uuid4
     
-    # Validate file type
+    # Validate file type and size constraints for presigned URL
     if not filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    
+    # Add file size constraints to presigned URL generation
+    max_file_size = PDFValidator.MAX_FILE_SIZE  # 100MB
     
     # Generate S3 key
     document_id = str(uuid4())
     storage_key = f"documents/{document_id}/{filename}"
     
     try:
-        # Generate presigned POST URL and fields
+        # Generate presigned POST URL and fields with size restrictions
         presigned_data = await storage.generate_presigned_post(
             key=storage_key,
             content_type="application/pdf",
-            expires_in=3600  # 1 hour
+            expires_in=3600,  # 1 hour
+            max_file_size=max_file_size
         )
         
         return {
@@ -94,9 +99,21 @@ async def upload_document(
     content_type = request.headers.get("content-type", "")
     
     if file and file.filename:
-        # Traditional file upload path
-        if not file.filename.lower().endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        # Traditional file upload path with comprehensive validation
+        
+        # Step 1: Comprehensive PDF validation
+        PDFValidator.validate_and_raise(file)
+        
+        # Step 2: Security scanning
+        file_content = await file.read()
+        await file.seek(0)  # Reset file pointer
+        
+        is_safe, security_warning = SecurityScanner.is_pdf_safe(file_content)
+        if not is_safe:
+            raise HTTPException(
+                status_code=422, 
+                detail=f"PDF contains potentially dangerous content: {security_warning}"
+            )
         
         filename = file.filename
         file_obj = file.file

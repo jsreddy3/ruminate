@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { getBlockTypeStyles, baseTextStyles, containerStyles } from './textStyles';
-import { HTMLSanitizer } from '../../../utils/htmlSanitizer';
+import { HTMLSanitizer } from '../../../../utils/htmlSanitizer';
 
 interface TextContentProps {
   htmlContent: string;
@@ -34,13 +34,16 @@ const TextContent = forwardRef<HTMLDivElement, TextContentProps>(
     ...customStyle, // Custom overrides last
   };
 
+  // Sanitize the processed content before rendering
+  const sanitizedContent = HTMLSanitizer.sanitizePDFContent(processedContent);
+
   return (
     <div
       className={`text-renderer ${getBlockClassName(blockType)}`}
       ref={ref}
       onClick={onClickHighlight}
       style={mergedStyles}
-      dangerouslySetInnerHTML={{ __html: processedContent }}
+      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
     />
   );
 });

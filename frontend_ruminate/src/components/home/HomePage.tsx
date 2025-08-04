@@ -23,6 +23,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; documentId: string; documentTitle: string }>({ isOpen: false, documentId: '', documentTitle: '' });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [navigatingDocId, setNavigatingDocId] = useState<string | null>(null);
 
   // Redirect to landing if not authenticated
   useEffect(() => {
@@ -59,11 +60,23 @@ export default function HomePage() {
     fetchDocuments();
   }, [user]);
 
+  // Prefetch viewer routes for ready documents for instant navigation
+  useEffect(() => {
+    documents.forEach(doc => {
+      if (doc.status === 'READY') {
+        router.prefetch(`/viewer/${doc.id}`);
+      }
+    });
+  }, [documents, router]);
+
   const handleDocumentClick = async (document: Document) => {
     if (document.status !== 'READY') {
       alert('This document is still processing. Please wait until it\'s ready.');
       return;
     }
+
+    // Show loading state immediately
+    setNavigatingDocId(document.id);
 
     // Handle onboarding progression
     if (state.isActive && state.currentStep === 2) {
@@ -223,6 +236,7 @@ export default function HomePage() {
                   onDocumentDelete={handleDeleteRequest}
                   onDocumentUpdate={handleDocumentUpdate}
                   isOnboardingActive={state.isActive && state.currentStep === 2}
+                  navigatingDocId={navigatingDocId}
                 />
               </>
             )}

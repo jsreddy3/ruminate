@@ -103,7 +103,7 @@ class S3ObjectStorage(ObjectStorageInterface):
         )
         return url
     
-    async def generate_presigned_post(self, key: str, content_type: Optional[str] = None, expires_in: int = 3600) -> dict:
+    async def generate_presigned_post(self, key: str, content_type: Optional[str] = None, expires_in: int = 3600, max_file_size: Optional[int] = None) -> dict:
         """Generate a presigned POST URL and fields for direct upload"""
         # Build conditions for the POST policy
         conditions = [
@@ -116,6 +116,10 @@ class S3ObjectStorage(ObjectStorageInterface):
         if content_type:
             conditions.append({'Content-Type': content_type})
             fields['Content-Type'] = content_type
+        
+        # Add file size limits to prevent abuse
+        if max_file_size:
+            conditions.append(['content-length-range', 1024, max_file_size])  # Min 1KB, Max as specified
         
         # Use sync client for presigned POST - it's a local operation
         response = self._sync_client.generate_presigned_post(

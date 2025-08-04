@@ -13,9 +13,10 @@ interface DocumentRowProps {
   onUpdate?: (document: Document) => void;
   isOnboardingActive?: boolean;
   isOnboardingTarget?: boolean;
+  isNavigating?: boolean;
 }
 
-export default function DocumentRow({ document, onClick, onDelete, onStartProcessing, onUpdate, isOnboardingActive, isOnboardingTarget }: DocumentRowProps) {
+export default function DocumentRow({ document, onClick, onDelete, onStartProcessing, onUpdate, isOnboardingActive, isOnboardingTarget, isNavigating }: DocumentRowProps) {
   const [isHovering, setIsHovering] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(document.title);
@@ -242,20 +243,24 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
             )}
           </div>
           
-          {/* Arrow Icon */}
-          <svg
-            className="w-5 h-5 text-library-sage-400 group-hover:text-library-sage-600 transition-colors"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
+          {/* Arrow Icon or Loading Spinner */}
+          {isNavigating ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-library-mahogany-500"></div>
+          ) : (
+            <svg
+              className="w-5 h-5 text-library-sage-400 group-hover:text-library-sage-600 transition-colors"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          )}
         </div>
       </td>
       

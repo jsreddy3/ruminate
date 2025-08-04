@@ -11,12 +11,13 @@ interface DocumentTableProps {
   onDocumentDelete?: (documentId: string) => void;
   onDocumentUpdate?: (document: Document) => void;
   isOnboardingActive?: boolean; // Whether onboarding mode is active
+  navigatingDocId?: string | null; // Document being navigated to
 }
 
 type SortField = 'title' | 'created_at' | 'updated_at' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate, isOnboardingActive }: DocumentTableProps) {
+export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate, isOnboardingActive, navigatingDocId }: DocumentTableProps) {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [processingDocumentId, setProcessingDocumentId] = useState<string | null>(null);
@@ -127,6 +128,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               onUpdate={onDocumentUpdate}
               isOnboardingActive={isOnboardingActive}
               isOnboardingTarget={isOnboardingActive && index === 0}
+              isNavigating={navigatingDocId === document.id}
             />
           ))}
         </tbody>

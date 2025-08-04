@@ -1,4 +1,5 @@
 import React from 'react';
+import { HTMLSanitizer } from '../../../../utils/htmlSanitizer';
 
 interface TableProps {
   html_content: string;
@@ -7,12 +8,15 @@ interface TableProps {
 }
 
 export default function Table({ html_content, block_type, getBlockClassName }: TableProps) {
+  // Sanitize table content to prevent XSS
+  const sanitizedContent = HTMLSanitizer.sanitizeTableContent(html_content);
+
   return (
     <div className="p-4 border-b border-neutral-200 bg-white">
       <div className="overflow-x-auto">
         <div 
           className={`${getBlockClassName(block_type)} table-container`}
-          dangerouslySetInnerHTML={{ __html: html_content }}
+          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         />
       </div>
       <style jsx global>{`

@@ -1,5 +1,6 @@
 import React from 'react';
 import { MessageRole } from '../../../types/chat';
+import { HTMLSanitizer } from '../../../utils/htmlSanitizer';
 
 interface MessageContentRendererProps {
   content: string;
@@ -81,11 +82,14 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
           .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-library-forest-700">$1</strong>')
           .replace(/\*(.*?)\*/g, '<em class="italic text-library-forest-600">$1</em>');
         
+        // Sanitize the formatted paragraph content
+        const sanitizedParagraph = HTMLSanitizer.sanitizeChatContent(formattedParagraph);
+        
         return (
           <p 
             key={paragraphIndex} 
             className="font-serif leading-relaxed mb-4 break-words overflow-wrap-anywhere text-xl"
-            dangerouslySetInnerHTML={{ __html: formattedParagraph }}
+            dangerouslySetInnerHTML={{ __html: sanitizedParagraph }}
           />
         );
       }
