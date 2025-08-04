@@ -153,7 +153,14 @@ export function OnboardingOverlays({
           </p>
           <button 
             onClick={onboarding.markTooltipOptionsComplete}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-library-mahogany-600 hover:bg-library-mahogany-700 text-white font-medium rounded-book transition-all duration-300 shadow-book hover:shadow-shelf"
+            className="inline-flex items-center gap-2 px-6 py-3 font-medium rounded-book transition-all duration-300 ring-4 ring-library-gold-400/70 shadow-2xl scale-110 hover:scale-115"
+            style={{
+              background: 'linear-gradient(135deg, #f9cf5f 0%, #edbe51 100%)',
+              color: '#2c3830',
+              borderColor: '#f9cf5f',
+              animation: 'glow 2s ease-in-out infinite',
+              boxShadow: '0 0 25px rgba(249, 207, 95, 0.9), 0 0 50px rgba(249, 207, 95, 0.5)'
+            }}
           >
             Try it out
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

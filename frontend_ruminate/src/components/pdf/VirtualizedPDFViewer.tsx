@@ -245,14 +245,27 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     setTotalPages(loadedPdf.numPages);
     setIsStuck(false);
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-    
-    // Pre-calculate page dimensions
+    onDocumentLoadSuccess?.(loadedPdf);
+  }, [onDocumentLoadSuccess]);
+
+  // Track the scale value used for dimension calculations
+  const dimensionScaleRef = useRef<number | null>(null);
+
+  // Recalculate page dimensions when PDF loads or scale changes significantly
+  useEffect(() => {
+    if (!pdf) return;
+
+    // Only recalculate if scale has actually changed since last calculation
+    if (dimensionScaleRef.current !== null && Math.abs(dimensionScaleRef.current - scale) < 0.01) {
+      return;
+    }
+
     const loadPageDimensions = async () => {
       const dimensions = new Map<number, PageDimensions>();
       
       try {
         // Load first page to get default dimensions (most PDFs have uniform pages)
-        const firstPage = await loadedPdf.getPage(1);
+        const firstPage = await pdf.getPage(1);
         const viewport = firstPage.getViewport({ scale });
         const defaultDimensions = {
           width: viewport.width,
@@ -260,13 +273,19 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
         };
         
         // Set default dimensions for all pages initially
-        for (let i = 0; i < loadedPdf.numPages; i++) {
+        for (let i = 0; i < pdf.numPages; i++) {
           dimensions.set(i, defaultDimensions);
         }
         
         setPageDimensions(dimensions);
+        dimensionScaleRef.current = scale; // Remember the scale we used
         
-        console.log('📐 Default dimensions set:', defaultDimensions);
+        console.log('📐 Dimensions updated for scale:', scale, defaultDimensions);
+        
+        // Reset the virtual list to recalculate all item positions
+        if (listRef.current) {
+          listRef.current.resetAfterIndex(0);
+        }
         
         // Load remaining pages in background without constant resets
         setTimeout(async () => {
@@ -274,9 +293,9 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
           let hasChanges = false;
           
           // Load all remaining pages (skip page 1 since we already have it)
-          for (let i = 2; i <= loadedPdf.numPages; i++) {
+          for (let i = 2; i <= pdf.numPages; i++) {
             try {
-              const page = await loadedPdf.getPage(i);
+              const page = await pdf.getPage(i);
               const viewport = page.getViewport({ scale });
               const newDimensions = {
                 width: viewport.width,
@@ -301,16 +320,16 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       } catch (error) {
         console.error('Error loading page dimensions:', error);
         // Set fallback dimensions (more accurate A4)
-        for (let i = 0; i < loadedPdf.numPages; i++) {
+        for (let i = 0; i < pdf.numPages; i++) {
           dimensions.set(i, { width: 612 * scale, height: 792 * scale }); // US Letter default, closer to your actual pages
         }
         setPageDimensions(dimensions);
+        dimensionScaleRef.current = scale; // Remember the scale we used
       }
     };
     
     loadPageDimensions();
-    onDocumentLoadSuccess?.(loadedPdf);
-  }, [scale, onDocumentLoadSuccess]);
+  }, [pdf, scale]);
 
   // Handle loading progress
   const handleLoadingProgress = useCallback((progressData: { loaded: number; total: number }) => {

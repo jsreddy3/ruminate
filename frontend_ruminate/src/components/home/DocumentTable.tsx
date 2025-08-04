@@ -18,6 +18,26 @@ type SortField = 'title' | 'created_at' | 'updated_at' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate, isOnboardingActive, navigatingDocId }: DocumentTableProps) {
+  // Add glow animation styles
+  if (typeof window !== 'undefined' && !document.getElementById('onboarding-glow-styles')) {
+    const style = document.createElement('style');
+    style.id = 'onboarding-glow-styles';
+    style.textContent = `
+      @keyframes glow {
+        0% {
+          box-shadow: 0 0 20px rgba(249, 207, 95, 0.8), 0 0 40px rgba(249, 207, 95, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 30px rgba(249, 207, 95, 1), 0 0 60px rgba(249, 207, 95, 0.6), 0 0 80px rgba(249, 207, 95, 0.3);
+        }
+        100% {
+          box-shadow: 0 0 20px rgba(249, 207, 95, 0.8), 0 0 40px rgba(249, 207, 95, 0.4);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [processingDocumentId, setProcessingDocumentId] = useState<string | null>(null);
@@ -117,7 +137,20 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
             <th className="w-20"></th>
           </tr>
         </thead>
-        <tbody className="bg-surface-parchment divide-y divide-library-cream-300 relative">
+        <tbody 
+          className={`divide-y divide-library-cream-300 relative transition-all duration-300 ${
+            isOnboardingActive 
+              ? 'ring-4 ring-library-gold-400/70 shadow-2xl scale-[1.02]' 
+              : 'bg-surface-parchment'
+          }`}
+          style={isOnboardingActive ? {
+            background: 'linear-gradient(135deg, #f9cf5f 0%, #edbe51 100%)',
+            animation: 'glow 2s ease-in-out infinite',
+            boxShadow: '0 0 25px rgba(249, 207, 95, 0.9), 0 0 50px rgba(249, 207, 95, 0.5)',
+            display: 'table-row-group'
+          } : {
+            background: ''
+          }}>
           {sortedDocuments.map((document, index) => (
             <DocumentRow
               key={document.id}
@@ -127,7 +160,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
               onStartProcessing={handleStartProcessing}
               onUpdate={onDocumentUpdate}
               isOnboardingActive={isOnboardingActive}
-              isOnboardingTarget={isOnboardingActive && index === 0}
+              isOnboardingTarget={isOnboardingActive}  // All documents are selectable during onboarding
               isNavigating={navigatingDocId === document.id}
             />
           ))}

@@ -118,13 +118,25 @@ export default function PDFBlockOverlay({
             pointerEvents: (isOnboardingActive && !isOnboardingTarget) ? 'none' as const : 'auto' as const,
           };
 
-          // Onboarding target styling - pulsing golden highlight
+          // Onboarding target styling - HEAVY glowing golden effect
           if (isOnboardingTarget) {
             return {
               ...baseStyle,
-              backgroundColor: 'rgba(251, 191, 36, 0.15)',
-              border: 'none',
-              animation: 'onboardingGoldenPulse 3s ease-in-out infinite',
+              backgroundColor: 'rgba(249, 207, 95, 0.4)',
+              border: '4px solid #f9cf5f',
+              boxShadow: `
+                0 0 40px rgba(249, 207, 95, 1),
+                0 0 80px rgba(249, 207, 95, 0.9),
+                0 0 120px rgba(249, 207, 95, 0.7),
+                0 0 160px rgba(249, 207, 95, 0.5),
+                inset 0 0 30px rgba(249, 207, 95, 0.5),
+                inset 0 0 60px rgba(249, 207, 95, 0.3)
+              `,
+              animation: 'glow 2s ease-in-out infinite',
+              outline: '6px solid rgba(249, 207, 95, 0.3)',
+              outlineOffset: '2px',
+              filter: 'brightness(1.2)',
+              transform: `scale(1.05)`,
             };
           }
 

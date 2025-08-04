@@ -188,9 +188,16 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                 action.disabled 
                   ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30' 
                   : action.isHighlighted
-                    ? 'bg-gradient-to-r from-library-gold-100 to-library-gold-200 text-reading-primary border-2 border-library-gold-500 shadow-lg ring-2 ring-library-gold-300/50'
+                    ? 'ring-4 ring-library-gold-400/70 shadow-2xl scale-110 hover:scale-115'
                     : 'hover:bg-library-gold-50 text-reading-secondary hover:text-reading-primary'
               }`}
+              style={action.isHighlighted ? {
+                background: 'linear-gradient(135deg, #f9cf5f 0%, #edbe51 100%)',
+                color: '#2c3830',
+                borderColor: '#f9cf5f',
+                animation: 'glow 2s ease-in-out infinite',
+                boxShadow: '0 0 25px rgba(249, 207, 95, 0.9), 0 0 50px rgba(249, 207, 95, 0.5)'
+              } : {}}
               onClick={(e) => {
                 if (!isOnboardingStep5 && !isOnboardingStep6 && !action.disabled && action.onClick) {
                   action.onClick();
@@ -205,11 +212,6 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
                     : `${action.label}: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`
               }
             >
-              {/* Glowing highlight for onboarding */}
-              {action.isHighlighted && (
-                <div className="absolute inset-0 bg-library-gold-400/20 rounded animate-pulse pointer-events-none" />
-              )}
-              
               {action.icon && (
                 <span className={
                   action.disabled 
