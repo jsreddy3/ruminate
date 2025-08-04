@@ -6,8 +6,8 @@ import { Block } from './PDFViewer';
 // Configure PDF.js worker - use local copy from webpack build
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
-// Simple page component - no need for complex caching
-const SimplePage = ({ 
+// Memoized page component to prevent re-renders
+const SimplePage = React.memo(({ 
   index, 
   style, 
   pdf, 
@@ -30,15 +30,17 @@ const SimplePage = ({
   const pageScale = scale;
 
   // Get page dimensions for placeholders
-  const dimensions = pageDimensions.get(index);
-  const pageDims = {
-    width: dimensions?.width || 612 * scale,
-    height: dimensions?.height || 792 * scale
-  };
+  const pageDims = useMemo(() => {
+    const dimensions = pageDimensions.get(index);
+    return {
+      width: dimensions?.width || 612 * scale,
+      height: dimensions?.height || 792 * scale
+    };
+  }, [index, pageDimensions, scale]);
 
   return (
-    <div style={{...style, minWidth: 'max-content'}} className="pdf-page-container flex justify-center items-start py-2" data-page-index={index}>
-      <div className="relative inline-block shadow-book rounded-book bg-white" style={{margin: '0 auto'}}>
+    <div style={style} className="pdf-page-container flex justify-center items-start py-2" data-page-index={index}>
+      <div className="relative inline-block shadow-book rounded-book bg-white overflow-hidden">
         {pdf && !pageError && (
           <>
             <Page
@@ -83,7 +85,7 @@ const SimplePage = ({
       </div>
     </div>
   );
-};
+});
 
 interface VirtualizedPDFViewerProps {
   pdfFile: string;
@@ -305,8 +307,8 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     }
   };
 
-  // Simple wrapper for virtual list items
-  const renderPage = ({ index, style }: { index: number; style: React.CSSProperties }) => (
+  // Memoized wrapper for virtual list items
+  const renderPage = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => (
     <SimplePage
       index={index}
       style={style}
@@ -316,7 +318,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       containerWidth={containerWidth}
       renderOverlay={renderOverlay}
     />
-  );
+  ), [pdf, pageDimensions, scale, containerWidth, renderOverlay]);
 
   return (
     <div ref={containerRef} className="h-full w-full relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment overflow-x-auto">
