@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
 import { documentApi } from "../../services/api/document";
@@ -337,15 +337,76 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   }, [blockOverlayManager.selectedBlock, blockOverlayManager.isBlockOverlayOpen]);
 
   // PDF overlay renderer - using refs to avoid dependency changes
+  // Pre-compute blocks by page for efficient lookup
+  const blocksByPage = useMemo(() => {
+    const map = new Map<number, Block[]>();
+    blocks.forEach(block => {
+      const pageNum = block.page_number ?? 0;
+      if (block.block_type !== "Page") {
+        if (!map.has(pageNum)) {
+          map.set(pageNum, []);
+        }
+        map.get(pageNum)!.push(block);
+      }
+    });
+    return map;
+  }, [blocks]);
+
+  // Track PDFViewer renders and state changes
+  const viewerRenderRef = useRef(0);
+  const prevStateRef = useRef({
+    currentPage,
+    totalPages,
+    scale,
+    blocksLength: blocks.length,
+    isBlockSelectionMode,
+    activeConversationId,
+    viewMode
+  });
+  
+  viewerRenderRef.current++;
+  
+  const stateChanges = [];
+  if (prevStateRef.current.currentPage !== currentPage) 
+    stateChanges.push(`currentPage(${prevStateRef.current.currentPage}→${currentPage})`);
+  if (prevStateRef.current.totalPages !== totalPages) 
+    stateChanges.push(`totalPages(${prevStateRef.current.totalPages}→${totalPages})`);
+  if (prevStateRef.current.scale !== scale) 
+    stateChanges.push(`scale(${prevStateRef.current.scale}→${scale})`);
+  if (prevStateRef.current.blocksLength !== blocks.length) 
+    stateChanges.push(`blocks(${prevStateRef.current.blocksLength}→${blocks.length})`);
+  if (prevStateRef.current.isBlockSelectionMode !== isBlockSelectionMode) 
+    stateChanges.push(`selectionMode(${prevStateRef.current.isBlockSelectionMode}→${isBlockSelectionMode})`);
+  if (prevStateRef.current.activeConversationId !== activeConversationId) 
+    stateChanges.push(`activeConv(${prevStateRef.current.activeConversationId}→${activeConversationId})`);
+  if (prevStateRef.current.viewMode !== viewMode) 
+    stateChanges.push(`viewMode(${prevStateRef.current.viewMode}→${viewMode})`);
+    
+  console.log(`🎯 PDFViewer render #${viewerRenderRef.current}`, 
+    stateChanges.length ? `- State changes: ${stateChanges.join(', ')}` : '- No state changes');
+  
+  prevStateRef.current = {
+    currentPage,
+    totalPages,
+    scale,
+    blocksLength: blocks.length,
+    isBlockSelectionMode,
+    activeConversationId,
+    viewMode
+  };
+
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
       // Use current refs to avoid dependency issues
       const currentBlockOverlayManager = blockOverlayManager;
       const currentOnboarding = onboarding;
       
+      // Get blocks for this specific page only
+      const pageBlocks = blocksByPage.get(props.pageIndex) || [];
+      
       return (
         <PDFBlockOverlay
-          blocks={blocks}
+          blocks={pageBlocks}
           selectedBlock={currentBlockOverlayManager?.selectedBlock}
           pageIndex={props.pageIndex}
           scale={props.scale}
@@ -363,7 +424,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         />
       );
     },
-    [blocks, isBlockSelectionMode, temporarilyHighlightedBlockId, blockOverlayManager, onboarding] // Include all dependencies
+    [blocksByPage, isBlockSelectionMode, temporarilyHighlightedBlockId, blockOverlayManager, onboarding] // Include all dependencies
   );
 
   // Enhanced search functionality with scroll-to-block

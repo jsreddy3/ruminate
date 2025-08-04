@@ -183,7 +183,7 @@ interface PageDimensions {
   height: number;
 }
 
-const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
+const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = React.memo(({
   pdfFile,
   blocks,
   scale = 1,
@@ -196,6 +196,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   pdfLoadingState,
   onForceRefresh
 }) => {
+  console.log('✅ VirtualizedPDFViewer rendered (memo allowed it)');
   const [pdf, setPdf] = useState<any>(null);
   const [pageDimensions, setPageDimensions] = useState<Map<number, PageDimensions>>(new Map());
   const [containerWidth, setContainerWidth] = useState(0);
@@ -215,26 +216,20 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   const pageLoadedRef = useRef<Map<number, boolean>>(new Map());
   const pageErrorRef = useRef<Map<number, boolean>>(new Map());
 
-  // Track scale changes
-  const prevScaleRef = useRef<number>(scale);
-  useEffect(() => {
-    if (prevScaleRef.current !== scale) {
-      prevScaleRef.current = scale;
-    }
-  });
+  // Track renders and what's changing
+  const renderCountRef = useRef(0);
+  const prevPropsRef = useRef({ pdfFile, blocks: blocks.length, scale });
+  renderCountRef.current++;
+  
+  const changes = [];
+  if (prevPropsRef.current.pdfFile !== pdfFile) changes.push('pdfFile');
+  if (prevPropsRef.current.blocks !== blocks.length) changes.push(`blocks(${prevPropsRef.current.blocks}→${blocks.length})`);
+  if (prevPropsRef.current.scale !== scale) changes.push(`scale(${prevPropsRef.current.scale}→${scale})`);
+  
+  console.log(`🔄 VirtualizedPDFViewer render #${renderCountRef.current}`, changes.length ? `- Changed: ${changes.join(', ')}` : '- No prop changes');
+  
+  prevPropsRef.current = { pdfFile, blocks: blocks.length, scale };
 
-  // Index blocks by page for O(1) lookup
-  const blocksByPage = useMemo(() => {
-    const map = new Map<number, Block[]>();
-    blocks.forEach(block => {
-      const pageNum = block.page_number ?? 0;
-      if (!map.has(pageNum)) {
-        map.set(pageNum, []);
-      }
-      map.get(pageNum)!.push(block);
-    });
-    return map;
-  }, [blocks]);
 
   // Handle PDF load
   const handleDocumentLoadSuccess = useCallback((loadedPdf: any) => {
@@ -250,12 +245,15 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
 
   // Recalculate page dimensions when PDF loads or scale changes significantly
   useEffect(() => {
+    console.log('📊 Dimension effect check - pdf exists:', !!pdf, 'current scale:', scale, 'stored scale:', dimensionScaleRef.current);
     if (!pdf) return;
 
     // Only recalculate if scale has actually changed since last calculation
     if (dimensionScaleRef.current !== null && Math.abs(dimensionScaleRef.current - scale) < 0.01) {
+      console.log('⏭️ Skipping recalc - scale unchanged');
       return;
     }
+    console.log('🚀 Will recalculate dimensions');
 
     const loadPageDimensions = async () => {
       const dimensions = new Map<number, PageDimensions>();
@@ -533,6 +531,8 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       </Document>
     </div>
   );
-};
+});
+
+VirtualizedPDFViewer.displayName = 'VirtualizedPDFViewer';
 
 export default VirtualizedPDFViewer;

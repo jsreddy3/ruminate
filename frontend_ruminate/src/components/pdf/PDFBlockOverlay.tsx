@@ -29,13 +29,8 @@ export default function PDFBlockOverlay({
   onboardingTargetBlockId,
   isOnboardingActive = false
 }: PDFBlockOverlayProps) {
-  // Filter blocks for current page - memoized to prevent re-renders
-  const filteredBlocks = useMemo(() => {
-    return blocks.filter((b) => {
-      const blockPageNumber = b.page_number ?? 0;
-      return b.block_type !== "Page" && blockPageNumber === pageIndex;
-    });
-  }, [blocks, pageIndex]);
+  // Blocks are now pre-filtered by the parent component
+  const filteredBlocks = blocks;
 
   // State to track onboarding target block rectangle
   const [targetBlockRect, setTargetBlockRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
