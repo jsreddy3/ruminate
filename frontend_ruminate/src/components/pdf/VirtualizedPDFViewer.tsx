@@ -1,18 +1,169 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { VariableSizeList as List } from 'react-window';
+import { FixedSizeList as List } from 'react-window';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Block } from './PDFViewer';
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// Configure PDF.js worker - use local file to avoid CORS issues
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+// Move VirtualPage outside to prevent recreation on parent re-renders
+const CachedPage = React.memo(({ 
+  index, 
+  style, 
+  pdf, 
+  pageDimensions, 
+  scale, 
+  containerWidth, 
+  renderOverlay,
+  pageLoadedRef,
+  pageErrorRef,
+  setLoadingProgress 
+}: { 
+  index: number; 
+  style: React.CSSProperties;
+  pdf: any;
+  pageDimensions: Map<number, { width: number; height: number }>;
+  scale: number;
+  containerWidth: number;
+  renderOverlay: (props: { pageIndex: number; scale: number; rotation: number }) => React.ReactNode;
+  pageLoadedRef: React.MutableRefObject<Map<number, boolean>>;
+  pageErrorRef: React.MutableRefObject<Map<number, boolean>>;
+  setLoadingProgress: React.Dispatch<React.SetStateAction<number>>;
+}) => {
+  // Debug: Track component lifecycle (disabled for performance)
+  // console.log(`🎯 CachedPage ${index + 1} rendering`);
+  
+  // useEffect(() => {
+  //   console.log(`🎯 CachedPage ${index + 1} mounted`);
+  //   return () => {
+  //     console.log(`🎯 CachedPage ${index + 1} unmounted`);
+  //   };
+  // }, [index]);
+  // Use cached state instead of local state
+  const pageLoaded = pageLoadedRef.current.get(index) || false;
+  const pageError = pageErrorRef.current.get(index) || false;
+  
+  // Stable page scale calculation
+  const pageScale = useMemo(() => {
+    const dimensions = pageDimensions.get(index);
+    if (dimensions && containerWidth > 0) {
+      const maxScale = (containerWidth - 80) / dimensions.width * scale; // Leave room for margins
+      return Math.min(scale, maxScale);
+    }
+    return scale;
+  }, [index, containerWidth, scale, pageDimensions]);
+
+  // Stable callbacks that update cache and force re-render
+  const handlePageLoadSuccess = useCallback(() => {
+    // console.log(`✅ Page ${index + 1} loaded successfully`);
+    pageLoadedRef.current.set(index, true);
+    pageErrorRef.current.set(index, false);
+    // Force a small re-render to show the loaded state
+    setLoadingProgress(prev => prev);
+  }, [index, pageLoadedRef, pageErrorRef, setLoadingProgress]);
+
+  const handlePageLoadError = useCallback(() => {
+    console.error(`Failed to load page ${index + 1}`);
+    pageLoadedRef.current.set(index, true); // Mark as "loaded" to stop loading state
+    pageErrorRef.current.set(index, true);
+    // Force a small re-render to show the error state
+    setLoadingProgress(prev => prev);
+  }, [index, pageLoadedRef, pageErrorRef, setLoadingProgress]);
+
+  // Stable page dimensions for loading placeholder
+  const pageDims = useMemo(() => {
+    const dimensions = pageDimensions.get(index);
+    return {
+      width: dimensions?.width || 612 * scale,
+      height: dimensions?.height || 792 * scale
+    };
+  }, [index, pageDimensions, scale]);
+
+  return (
+    <div 
+      style={style} 
+      className="pdf-page-container flex justify-center items-start py-2"
+    >
+      <div className="relative inline-block shadow-book rounded-book bg-white overflow-hidden">
+        {pdf && !pageError && (
+          <Page
+            key={`page-${index}`} // Stable key that doesn't cause re-renders
+            pageNumber={index + 1}
+            scale={pageScale}
+            onLoadSuccess={handlePageLoadSuccess}
+            onLoadError={handlePageLoadError}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+            className="pdf-page"
+            loading={
+              <div className="flex items-center justify-center bg-white" 
+                   style={{ 
+                     width: pageDims.width,
+                     height: pageDims.height 
+                   }}>
+                <div className="text-reading-muted">Loading page {index + 1}...</div>
+              </div>
+            }
+          >
+            {pageLoaded && (
+              <div className="absolute inset-0 pointer-events-auto">
+                {renderOverlay({
+                  pageIndex: index,
+                  scale: pageScale,
+                  rotation: 0
+                })}
+              </div>
+            )}
+          </Page>
+        )}
+        
+        {pageError && (
+          <div className="flex items-center justify-center bg-red-50 text-red-600"
+               style={{ 
+                 width: pageDims.width,
+                 height: pageDims.height 
+               }}>
+            <div className="text-center">
+              <p>Error loading page {index + 1}</p>
+              <button 
+                onClick={() => {
+                  pageErrorRef.current.set(index, false);
+                  setLoadingProgress(prev => prev);
+                }}
+                className="mt-2 text-sm underline hover:no-underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Page number indicator */}
+        {pageLoaded && (
+          <div className="absolute bottom-4 right-4 bg-library-mahogany-600/80 text-white px-2 py-1 rounded text-xs pointer-events-none z-10">
+            Page {index + 1}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render if critical props change
+  return (
+    prevProps.index === nextProps.index &&
+    prevProps.scale === nextProps.scale &&
+    prevProps.containerWidth === nextProps.containerWidth &&
+    prevProps.pdf === nextProps.pdf &&
+    prevProps.pageDimensions === nextProps.pageDimensions &&
+    prevProps.renderOverlay === nextProps.renderOverlay
+  );
+});
+
+CachedPage.displayName = 'CachedPage';
 
 interface VirtualizedPDFViewerProps {
   pdfFile: string;
   blocks: Block[];
-  currentPage: number;
-  totalPages: number;
   scale: number;
   renderOverlay: (props: {
     pageIndex: number;
@@ -22,6 +173,10 @@ interface VirtualizedPDFViewerProps {
   onPageChange?: (pageNumber: number) => void;
   onDocumentLoadSuccess?: (pdf: any) => void;
   scrollToPageRef?: React.MutableRefObject<(pageNumber: number) => void>;
+  renderLoader?: (percentages: number) => React.ReactNode;
+  forceRefreshKey?: number;
+  pdfLoadingState?: string;
+  onForceRefresh?: () => void;
 }
 
 interface PageDimensions {
@@ -32,21 +187,44 @@ interface PageDimensions {
 const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   pdfFile,
   blocks,
-  currentPage,
-  totalPages,
   scale = 1,
   renderOverlay,
   onPageChange,
   onDocumentLoadSuccess,
-  scrollToPageRef
+  scrollToPageRef,
+  renderLoader,
+  forceRefreshKey = 0,
+  pdfLoadingState,
+  onForceRefresh
 }) => {
   const [pdf, setPdf] = useState<any>(null);
   const [pageDimensions, setPageDimensions] = useState<Map<number, PageDimensions>>(new Map());
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
+  
+  // Memoize pageDimensions to prevent new object creation on every render
+  const memoizedPageDimensions = useMemo(() => pageDimensions, [pageDimensions]);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isStuck, setIsStuck] = useState(false);
+  const [totalPages, setTotalPages] = useState(0);
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const visiblePagesRef = useRef<Set<number>>(new Set());
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // Page caching to prevent re-renders
+  const pageLoadedRef = useRef<Map<number, boolean>>(new Map());
+  const pageErrorRef = useRef<Map<number, boolean>>(new Map());
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 VirtualizedPDFViewer mounting with:', {
+      pdfFile: pdfFile.substring(0, 50) + '...',
+      blocks: blocks.length,
+      scale,
+      pdfLoadingState
+    });
+  }, []);
 
   // Index blocks by page for O(1) lookup
   const blocksByPage = useMemo(() => {
@@ -63,43 +241,101 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
 
   // Handle PDF load
   const handleDocumentLoadSuccess = useCallback((loadedPdf: any) => {
+    console.log('✅ PDF loaded successfully, pages:', loadedPdf.numPages);
     setPdf(loadedPdf);
+    setTotalPages(loadedPdf.numPages);
+    setIsStuck(false);
+    clearTimeout(loadingTimeoutRef.current);
     
     // Pre-calculate page dimensions
     const loadPageDimensions = async () => {
       const dimensions = new Map<number, PageDimensions>();
       
-      // Load first page to get default dimensions (most PDFs have uniform pages)
-      const firstPage = await loadedPdf.getPage(1);
-      const viewport = firstPage.getViewport({ scale });
-      const defaultDimensions = {
-        width: viewport.width,
-        height: viewport.height
-      };
-      
-      // Set default dimensions for all pages initially
-      for (let i = 0; i < loadedPdf.numPages; i++) {
-        dimensions.set(i, defaultDimensions);
-      }
-      
-      setPageDimensions(dimensions);
-      
-      // Load actual dimensions for first few pages
-      for (let i = 1; i <= Math.min(5, loadedPdf.numPages); i++) {
-        const page = await loadedPdf.getPage(i);
-        const viewport = page.getViewport({ scale });
-        dimensions.set(i - 1, {
+      try {
+        // Load first page to get default dimensions (most PDFs have uniform pages)
+        const firstPage = await loadedPdf.getPage(1);
+        const viewport = firstPage.getViewport({ scale });
+        const defaultDimensions = {
           width: viewport.width,
           height: viewport.height
-        });
+        };
+        
+        // Set default dimensions for all pages initially
+        for (let i = 0; i < loadedPdf.numPages; i++) {
+          dimensions.set(i, defaultDimensions);
+        }
+        
+        setPageDimensions(dimensions);
+        
+        console.log('📐 Default dimensions set:', defaultDimensions);
+        
+        // Load actual dimensions for all pages in background
+        setTimeout(async () => {
+          const updatedDimensions = new Map(dimensions);
+          let needsUpdate = false;
+          
+          // Load all pages to ensure consistent dimensions
+          for (let i = 1; i <= loadedPdf.numPages; i++) {
+            try {
+              const page = await loadedPdf.getPage(i);
+              const viewport = page.getViewport({ scale });
+              const newDimensions = {
+                width: viewport.width,
+                height: viewport.height
+              };
+              
+              updatedDimensions.set(i - 1, newDimensions);
+              needsUpdate = true;
+              
+              // Update in batches to avoid too many re-renders
+              if (i % 5 === 0 || i === loadedPdf.numPages) {
+                setPageDimensions(new Map(updatedDimensions));
+                if (listRef.current) {
+                  listRef.current.resetAfterIndex(0);
+                }
+              }
+            } catch (e) {
+              console.warn(`Failed to get dimensions for page ${i}`, e);
+            }
+          }
+        }, 200); // Faster initial load
+      } catch (error) {
+        console.error('Error loading page dimensions:', error);
+        // Set fallback dimensions (more accurate A4)
+        for (let i = 0; i < loadedPdf.numPages; i++) {
+          dimensions.set(i, { width: 612 * scale, height: 792 * scale }); // US Letter default, closer to your actual pages
+        }
+        setPageDimensions(dimensions);
       }
-      
-      setPageDimensions(new Map(dimensions));
     };
     
     loadPageDimensions();
     onDocumentLoadSuccess?.(loadedPdf);
   }, [scale, onDocumentLoadSuccess]);
+
+  // Handle loading progress
+  const handleLoadingProgress = useCallback((progressData: { loaded: number; total: number }) => {
+    if (progressData.total > 0) {
+      const progress = Math.round((progressData.loaded / progressData.total) * 100);
+      setLoadingProgress(progress);
+    }
+  }, []);
+
+  // Handle loading error
+  const handleLoadingError = useCallback((error: Error) => {
+    console.error('❌ PDF loading error:', error);
+    setIsStuck(true);
+  }, []);
+
+  // Set loading timeout
+  useEffect(() => {
+    if (!pdf && pdfLoadingState === 'loading') {
+      loadingTimeoutRef.current = setTimeout(() => {
+        setIsStuck(true);
+      }, 10000); // 10 seconds
+    }
+    return () => clearTimeout(loadingTimeoutRef.current);
+  }, [pdf, pdfLoadingState]);
 
   // Update container dimensions
   useEffect(() => {
@@ -112,15 +348,38 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
 
     updateDimensions();
     window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    
+    // Also update on panel resize
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+      resizeObserver.disconnect();
+    };
   }, []);
 
   // Get item size (page height + margin)
   const getItemSize = useCallback((index: number) => {
-    const dimensions = pageDimensions.get(index);
-    if (!dimensions) return 800; // Default height
-    return dimensions.height + 32; // Add margin
-  }, [pageDimensions]);
+    const dimensions = memoizedPageDimensions.get(index);
+    const height = dimensions ? Math.ceil(dimensions.height) : 842 * scale; // Use more accurate A4 default
+    const totalHeight = height + 16; // Reduced margin for better spacing
+    
+    // Debug logging for first few pages to check consistency (disabled for performance)
+    // if (index <= 6) {
+    //   console.log(`📏 Page ${index + 1} dimensions:`, {
+    //     width: dimensions?.width,
+    //     height: dimensions?.height,
+    //     totalHeight,
+    //     scale,
+    //     hasRealDimensions: !!dimensions
+    //   });
+    // }
+    
+    return totalHeight;
+  }, [memoizedPageDimensions, scale]);
 
   // Handle scroll to page
   const scrollToPage = useCallback((pageNumber: number) => {
@@ -136,7 +395,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     }
   }, [scrollToPage, scrollToPageRef]);
 
-  // Track visible pages
+  // Track visible pages and notify about page changes
   const handleItemsRendered = useCallback(({ visibleStartIndex, visibleStopIndex }: {
     visibleStartIndex: number;
     visibleStopIndex: number;
@@ -149,106 +408,112 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     
     // Notify about page change (use middle visible page as current)
     const middleIndex = Math.floor((visibleStartIndex + visibleStopIndex) / 2);
-    if (onPageChange && middleIndex + 1 !== currentPage) {
+    if (onPageChange && middleIndex >= 0) {
       onPageChange(middleIndex + 1);
     }
-  }, [currentPage, onPageChange]);
+  }, [onPageChange]);
 
-  // Render individual PDF page
-  const PDFPageComponent = React.memo(({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const [pageLoaded, setPageLoaded] = useState(false);
-    const [pageScale, setPageScale] = useState(scale);
-    const pageBlocks = blocksByPage.get(index) || [];
+  // Memoize renderOverlay to prevent VirtualPageWrapper recreation
+  const memoizedRenderOverlay = useMemo(() => renderOverlay, [renderOverlay]);
 
-    // Adjust scale to fit container width if needed
-    useEffect(() => {
-      const dimensions = pageDimensions.get(index);
-      if (dimensions && containerWidth > 0) {
-        const maxScale = (containerWidth - 64) / dimensions.width * scale; // 64px for margins
-        setPageScale(Math.min(scale, maxScale));
-      }
-    }, [index, containerWidth]);
-
+  // Wrapper component for the virtual list - minimize dependencies to prevent recreations
+  const VirtualPageWrapper = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
     return (
-      <div 
-        style={style} 
-        className="pdf-page-container flex justify-center items-start"
-      >
-        <div className="relative inline-block shadow-book rounded-book bg-white">
-          {pdf && (
-            <Page
-              pageNumber={index + 1}
-              scale={pageScale}
-              onLoadSuccess={() => setPageLoaded(true)}
-              renderTextLayer={true}
-              renderAnnotationLayer={false}
-              className="pdf-page"
-            >
-              {pageLoaded && (
-                <div className="absolute inset-0 pointer-events-none">
-                  {renderOverlay({
-                    pageIndex: index,
-                    scale: pageScale,
-                    rotation: 0
-                  })}
-                </div>
-              )}
-            </Page>
-          )}
-          
-          {/* Page number indicator */}
-          <div className="absolute bottom-4 right-4 bg-library-mahogany-600/80 text-white px-2 py-1 rounded text-xs">
-            Page {index + 1}
-          </div>
-        </div>
-      </div>
+      <CachedPage
+        index={index}
+        style={style}
+        pdf={pdf}
+        pageDimensions={memoizedPageDimensions}
+        scale={scale}
+        containerWidth={containerWidth}
+        renderOverlay={memoizedRenderOverlay}
+        pageLoadedRef={pageLoadedRef}
+        pageErrorRef={pageErrorRef}
+        setLoadingProgress={setLoadingProgress}
+      />
     );
-  });
-
-  PDFPageComponent.displayName = 'PDFPageComponent';
+  }, [pdf, scale, containerWidth, memoizedRenderOverlay, memoizedPageDimensions]);
 
   return (
     <div ref={containerRef} className="h-full w-full relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment">
-      {/* Hidden Document component for loading PDF */}
-      <div style={{ position: 'absolute', left: '-9999px' }}>
-        <Document
-          file={pdfFile}
-          onLoadSuccess={handleDocumentLoadSuccess}
-          loading={
-            <div className="flex items-center justify-center h-full">
-              <div className="text-reading-secondary">Loading PDF...</div>
+      {/* Document component wraps entire viewer */}
+      <Document
+        key={forceRefreshKey}
+        file={pdfFile}
+        onLoadSuccess={handleDocumentLoadSuccess}
+        onLoadProgress={handleLoadingProgress}
+        onLoadError={handleLoadingError}
+        loading={null}
+        error={
+          <div className="flex items-center justify-center h-full">
+            <div className="bg-white rounded-journal shadow-shelf p-8 max-w-md">
+              <div className="text-red-600 text-center">
+                <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="font-semibold">Failed to load PDF</p>
+                <p className="text-sm mt-2 text-reading-secondary">Please try refreshing the page</p>
+                {onForceRefresh && (
+                  <button
+                    onClick={onForceRefresh}
+                    className="mt-4 px-4 py-2 bg-library-mahogany-600 text-white rounded-book hover:bg-library-mahogany-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
             </div>
-          }
-        >
-          {/* We don't render pages here, just use Document to load the PDF */}
-        </Document>
-      </div>
-
-      {/* Virtual list for pages */}
-      {pdf && containerHeight > 0 && (
-        <List
-          ref={listRef}
-          height={containerHeight}
-          itemCount={totalPages}
-          itemSize={getItemSize}
-          width="100%"
-          overscanCount={2} // Render 2 pages above and below viewport
-          onItemsRendered={handleItemsRendered}
-          className="pdf-virtual-list"
-        >
-          {PDFPageComponent}
-        </List>
-      )}
-
-      {/* Loading state */}
-      {!pdf && (
-        <div className="flex items-center justify-center h-full">
-          <div className="bg-white rounded-journal shadow-shelf p-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-library-mahogany-600 mx-auto"></div>
-            <p className="mt-4 text-reading-secondary">Loading document...</p>
           </div>
-        </div>
-      )}
+        }
+        className="h-full w-full"
+      >
+        {/* Virtual list for pages */}
+        {pdf && containerHeight > 0 && (
+          <List
+            ref={listRef}
+            height={containerHeight}
+            itemCount={totalPages}
+            itemSize={842} // Fixed size: 792px page height + 50px margin for consistency
+            width="100%"
+            overscanCount={3} // Reduce overscan to prevent excessive mounting
+            onItemsRendered={handleItemsRendered}
+            className="pdf-virtual-list"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(175, 95, 55, 0.3) transparent'
+            }}
+          >
+            {VirtualPageWrapper}
+          </List>
+        )}
+
+        {/* Loading state - use custom loader if provided */}
+        {!pdf && renderLoader && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            {renderLoader(pdfLoadingState === 'stuck' || isStuck ? 0 : loadingProgress)}
+          </div>
+        )}
+        
+        {/* Default loading state if no custom loader */}
+        {!pdf && !renderLoader && (
+          <div className="flex items-center justify-center h-full">
+            <div className="bg-white rounded-journal shadow-shelf p-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-library-mahogany-600 mx-auto"></div>
+              <p className="mt-4 text-reading-secondary">
+                Loading document... {loadingProgress > 0 ? `${loadingProgress}%` : ''}
+              </p>
+              {isStuck && onForceRefresh && (
+                <button
+                  onClick={onForceRefresh}
+                  className="mt-4 px-4 py-2 bg-library-mahogany-600 text-white rounded-book hover:bg-library-mahogany-700 transition-colors"
+                >
+                  Force Refresh
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </Document>
     </div>
   );
 };

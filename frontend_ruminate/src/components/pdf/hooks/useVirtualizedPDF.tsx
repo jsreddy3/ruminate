@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { PDFLoadingState } from './usePDFDocument';
+
+export type PDFLoadingState = 'idle' | 'loading' | 'loaded' | 'error' | 'stuck';
 
 interface UseVirtualizedPDFProps {
   pdfFile: string;
@@ -13,16 +14,19 @@ interface UseVirtualizedPDFReturn {
   currentPage: number;
   totalPages: number;
   scale: number;
+  forceRefreshKey: number;
   
   // Actions
   handleDocumentLoad: (pdf: any) => void;
   handlePageChange: (pageNumber: number) => void;
+  handleForceRefresh: () => void;
   setScale: (scale: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   goToNextPage: () => void;
   goToPreviousPage: () => void;
   goToPage: (pageNumber: number) => void;
+  setCurrentPage: (page: number) => void;
   
   // Refs
   scrollToPageRef: React.MutableRefObject<(pageNumber: number) => void>;
@@ -33,10 +37,12 @@ export function useVirtualizedPDF({
   documentId,
   initialScale = 1
 }: UseVirtualizedPDFProps): UseVirtualizedPDFReturn {
-  const [pdfLoadingState, setPdfLoadingState] = useState<PDFLoadingState>('loading');
+  const [pdfLoadingState, setPdfLoadingState] = useState<PDFLoadingState>('idle');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(initialScale);
+  const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   
   // Ref to store scroll function from virtualized viewer
   const scrollToPageRef = useRef<(pageNumber: number) => void>(() => {});
@@ -46,20 +52,43 @@ export function useVirtualizedPDF({
     setPdfLoadingState('loaded');
     setTotalPages(pdf.numPages);
     setCurrentPage(1);
-  }, []);
+    // Clear any loading timeout
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+  }, [loadingTimeout]);
   
   // Handle page change from virtual list
   const handlePageChange = useCallback((pageNumber: number) => {
     setCurrentPage(pageNumber);
   }, []);
   
+  // Handle force refresh
+  const handleForceRefresh = useCallback(() => {
+    setPdfLoadingState('idle');
+    setForceRefreshKey(prev => prev + 1);
+    
+    // Clear any existing timeout
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+  }, [loadingTimeout]);
+  
   // Zoom controls
   const zoomIn = useCallback(() => {
-    setScale(prev => Math.min(prev * 1.2, 3)); // Max 300% zoom
+    setScale(prev => {
+      const newScale = prev * 1.2;
+      return Math.min(newScale, 3); // Max 300% zoom
+    });
   }, []);
   
   const zoomOut = useCallback(() => {
-    setScale(prev => Math.max(prev / 1.2, 0.5)); // Min 50% zoom
+    setScale(prev => {
+      const newScale = prev / 1.2;
+      return Math.max(newScale, 0.5); // Min 50% zoom
+    });
   }, []);
   
   // Navigation controls
@@ -86,10 +115,33 @@ export function useVirtualizedPDF({
     }
   }, [totalPages]);
   
-  // Set initial loading state
+  // Set initial loading state and handle timeout
   useEffect(() => {
-    setPdfLoadingState('loading');
-  }, [pdfFile]);
+    if (pdfLoadingState === 'idle') {
+      const timer = setTimeout(() => {
+        setPdfLoadingState('loading');
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [forceRefreshKey, pdfLoadingState]);
+  
+  // Add timeout mechanism for stuck PDF loading
+  useEffect(() => {
+    if (pdfLoadingState === 'loading') {
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ PDF loading timeout reached - marking as stuck');
+        setPdfLoadingState('stuck');
+      }, 10000); // 10 second timeout
+      
+      setLoadingTimeout(timeout);
+      
+      return () => {
+        clearTimeout(timeout);
+        setLoadingTimeout(null);
+      };
+    }
+  }, [pdfLoadingState]);
   
   return {
     // State
@@ -97,16 +149,19 @@ export function useVirtualizedPDF({
     currentPage,
     totalPages,
     scale,
+    forceRefreshKey,
     
     // Actions
     handleDocumentLoad,
     handlePageChange,
+    handleForceRefresh,
     setScale,
     zoomIn,
     zoomOut,
     goToNextPage,
     goToPreviousPage,
     goToPage,
+    setCurrentPage,
     
     // Refs
     scrollToPageRef,

@@ -11,14 +11,14 @@ import PDFBlockOverlay from "./PDFBlockOverlay";
 import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
-import PDFDocumentViewer from "./PDFDocumentViewer";
+import VirtualizedPDFViewer from "./VirtualizedPDFWrapper";
 import ConversationLibrary from "../chat/ConversationLibrary";
 import MainConversationButton from "../chat/MainConversationButton";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
 import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
 import GlossaryView from "../interactive/blocks/GlossaryView";
 import AnnotationsView from "../interactive/blocks/AnnotationsView";
-import { usePDFDocument } from "./hooks/usePDFDocument";
+import { useVirtualizedPDF } from "./hooks/useVirtualizedPDF";
 import { useViewMode } from "./hooks/useViewMode";
 import { useBlockManagement } from "./hooks/useBlockManagement";
 import { useConversations } from "./hooks/useConversations";
@@ -77,24 +77,24 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   const [documentTitle, setDocumentTitle] = useState<string>('');
   const [documentData, setDocumentData] = useState<any>(null);
   
-  // Use the PDF document hook for all PDF-related state and logic
+  // Use the virtualized PDF hook for all PDF-related state and logic
   const {
     pdfLoadingState,
     currentPage,
     totalPages,
+    scale,
     forceRefreshKey,
-    zoomPluginInstance,
-    pageNavigationPluginInstance,
-    defaultLayoutPluginInstance,
-    handleForceRefresh,
     handleDocumentLoad,
     handlePageChange,
+    handleForceRefresh,
+    zoomIn,
+    zoomOut,
+    goToNextPage,
+    goToPreviousPage,
+    goToPage,
     setCurrentPage,
-    ZoomIn,
-    ZoomOut,
-    GoToNextPage,
-    GoToPreviousPage,
-  } = usePDFDocument({ pdfFile, documentId });
+    scrollToPageRef,
+  } = useVirtualizedPDF({ pdfFile, documentId });
 
   // Block overlay state now managed by useBlockOverlayManager hook
   
@@ -246,27 +246,19 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
 
 
-  // Scroll to specific block using page navigation plugin
+  // Scroll to specific block using virtualized viewer
   const scrollToBlock = useCallback(async (block: Block) => {
     if (!block.polygon || typeof block.page_number !== 'number') return;
     
     try {
-      // Get the jumpToPage function from the page navigation plugin
-      const { jumpToPage } = pageNavigationPluginInstance;
-      
-      if (jumpToPage) {
-        // Use direct 0-based indexing for PDF viewer
-        jumpToPage(block.page_number);
-      } else {
-        // Fallback to setting current page
-        setCurrentPage(block.page_number);
-      }
+      // Use the virtualized scroll function (convert 0-indexed to 1-indexed)
+      goToPage(block.page_number + 1);
     } catch (error) {
       console.error('Failed to scroll to block:', error);
       // Fallback to setting current page
-      setCurrentPage(block.page_number);
+      setCurrentPage(block.page_number + 1);
     }
-  }, [pageNavigationPluginInstance, setCurrentPage]);
+  }, [goToPage, setCurrentPage]);
 
   // Use the onboarding hook
   const onboarding = useOnboarding({
@@ -346,30 +338,34 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     setOnBlockSelectionComplete(() => config.onComplete);
   }, [blockOverlayManager.selectedBlock, blockOverlayManager.isBlockOverlayOpen]);
 
-  // PDF overlay renderer - now has access to blockOverlayManager
+  // PDF overlay renderer - using refs to avoid dependency changes
   const renderOverlay = useCallback(
     (props: { pageIndex: number; scale: number; rotation: number }) => {
+      // Use current refs to avoid dependency issues
+      const currentBlockOverlayManager = blockOverlayManager;
+      const currentOnboarding = onboarding;
+      
       return (
         <PDFBlockOverlay
           blocks={blocks}
-          selectedBlock={blockOverlayManager.selectedBlock}
+          selectedBlock={currentBlockOverlayManager?.selectedBlock}
           pageIndex={props.pageIndex}
           scale={props.scale}
           onBlockClick={(block: Block) => {
-            if (onboarding.shouldProcessBlockForOnboarding(block)) {
-              onboarding.handleOnboardingBlockClick(block);
+            if (currentOnboarding.shouldProcessBlockForOnboarding(block)) {
+              currentOnboarding.handleOnboardingBlockClick(block);
             } else {
-              blockOverlayManager.handleBlockClick(block);
+              currentBlockOverlayManager.handleBlockClick(block);
             }
           }}
           isSelectionMode={isBlockSelectionMode}
-          onBlockSelect={blockOverlayManager.handleBlockSelect}
+          onBlockSelect={currentBlockOverlayManager?.handleBlockSelect}
           temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
-          {...onboarding.getPDFBlockOverlayProps()}
+          {...currentOnboarding.getPDFBlockOverlayProps()}
         />
       );
     },
-    [blocks, blockOverlayManager.selectedBlock, blockOverlayManager.handleBlockClick, isBlockSelectionMode, blockOverlayManager.handleBlockSelect, temporarilyHighlightedBlockId, onboarding]
+    [blocks, isBlockSelectionMode, temporarilyHighlightedBlockId] // Minimal stable dependencies
   );
 
   // Enhanced search functionality with scroll-to-block
@@ -605,10 +601,10 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         {/* Custom Floating Toolbar Pill - positioned for PDF panel */}
         <div className={onboarding.getToolbarClassName()}>
           <PDFToolbar
-            GoToPreviousPage={GoToPreviousPage}
-            GoToNextPage={GoToNextPage}
-            ZoomOut={ZoomOut}
-            ZoomIn={ZoomIn}
+            GoToPreviousPage={() => <button onClick={goToPreviousPage} className="hover:bg-library-sage-100 p-1 rounded">Previous</button>}
+            GoToNextPage={() => <button onClick={goToNextPage} className="hover:bg-library-sage-100 p-1 rounded">Next</button>}
+            ZoomOut={() => <button onClick={zoomOut} className="hover:bg-library-sage-100 p-1 rounded">Zoom Out</button>}
+            ZoomIn={() => <button onClick={zoomIn} className="hover:bg-library-sage-100 p-1 rounded">Zoom In</button>}
             currentPage={currentPage}
             totalPages={totalPages}
             currentPanelSizes={currentPanelSizes}
@@ -647,33 +643,26 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
               /* PDF content with enhanced shadow */
               <div className="relative h-full shadow-inner"
                    style={{ boxShadow: 'inset 0 0 20px rgba(175, 95, 55, 0.03)' }}>
-              <PDFDocumentViewer
-              pdfFile={pdfFile}
-              forceRefreshKey={forceRefreshKey}
-              plugins={[
-                defaultLayoutPluginInstance,
-                zoomPluginInstance,
-                pageNavigationPluginInstance
-              ]}
-              pdfLoadingState={pdfLoadingState}
-              onDocumentLoad={handleDocumentLoad}
-              onPageChange={handlePageChange}
-              renderLoader={(percentages: number) => (
-                <PDFLoadingUI 
-                  percentages={percentages}
-                  pdfLoadingState={pdfLoadingState}
-                  pdfFile={pdfFile}
-                  onForceRefresh={handleForceRefresh}
-                />
-              )}
-              renderPage={(props) => (
-                <>
-                  {props.canvasLayer.children}
-                  {props.textLayer.children}
-                  {renderOverlay(props)}
-                </>
-              )}
-            />
+              <VirtualizedPDFViewer
+                pdfFile={pdfFile}
+                blocks={blocks}
+                scale={scale}
+                renderOverlay={renderOverlay}
+                onPageChange={handlePageChange}
+                onDocumentLoadSuccess={handleDocumentLoad}
+                scrollToPageRef={scrollToPageRef}
+                forceRefreshKey={forceRefreshKey}
+                pdfLoadingState={pdfLoadingState}
+                onForceRefresh={handleForceRefresh}
+                renderLoader={(percentages: number) => (
+                  <PDFLoadingUI 
+                    percentages={percentages}
+                    pdfLoadingState={pdfLoadingState}
+                    pdfFile={pdfFile}
+                    onForceRefresh={handleForceRefresh}
+                  />
+                )}
+              />
 
             {/* Block Overlay */}
             {blockOverlayManager.blockOverlayComponent}
