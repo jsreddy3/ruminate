@@ -227,7 +227,7 @@ export default function PDFBlockOverlay({
             title={
               isSelectionMode 
                 ? `Click to select this block for your note: ${block.html_content?.replace(/<[^>]*>/g, "").substring(0, 100)}...`
-                : block.html_content?.replace(/<[^>]*>/g, "") || ""
+                : ""
             }
             animate={{}}
             transition={{}}
