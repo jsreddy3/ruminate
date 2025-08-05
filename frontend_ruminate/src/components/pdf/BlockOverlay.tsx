@@ -60,6 +60,7 @@ export default function BlockOverlay({
 
   // Handle backdrop clicks to close overlay
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    console.log('Backdrop click:', e.target === e.currentTarget ? 'on backdrop' : 'on child element');
     // Only close if clicking the backdrop itself (not bubbled from children)
     if (e.target === e.currentTarget) {
       // Ensure we're not in a restricted onboarding step
@@ -112,17 +113,17 @@ export default function BlockOverlay({
             />
             
             
-            {/* Modal content */}
+            {/* Modal content - pointer-events-none on wrapper, pointer-events-auto on content */}
             <motion.div
               initial={{ x: -100, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -100, opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="relative h-full flex items-center justify-center p-4"
+              className="relative h-full flex items-center justify-center p-4 pointer-events-none"
             >
               <div 
                 ref={modalContentRef}
-                className={`bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden transition-all duration-300 ${
+                className={`bg-white rounded-lg shadow-2xl max-h-[80vh] flex flex-col relative overflow-hidden transition-all duration-300 pointer-events-auto ${
                 isOnboardingStep7 ? 'opacity-50' : ''
               }`} style={{ width: '75%' }}>
                 {/* Close button - positioned absolutely in top right corner */}

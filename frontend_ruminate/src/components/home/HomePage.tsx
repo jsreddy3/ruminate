@@ -27,6 +27,8 @@ export default function HomePage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; documentId: string; documentTitle: string }>({ isOpen: false, documentId: '', documentTitle: '' });
   const [isDeleting, setIsDeleting] = useState(false);
   const [navigatingDocId, setNavigatingDocId] = useState<string | null>(null);
+  const [recentlyUploadedDocId, setRecentlyUploadedDocId] = useState<string | null>(null);
+  const [previousProcessingStatus, setPreviousProcessingStatus] = useState<Map<string, string>>(new Map());
 
   // Redirect to landing if not authenticated
   useEffect(() => {
