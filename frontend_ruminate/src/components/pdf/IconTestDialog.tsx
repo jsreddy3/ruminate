@@ -17,6 +17,7 @@ import {
   QuestionMarkCircleIcon,
   TagIcon
 } from '@heroicons/react/24/solid';
+import { MessageSquare, Book, PenTool, Lightbulb, Palette } from 'lucide-react';
 
 // Additional icon options
 const ICON_OPTIONS = {
@@ -25,7 +26,7 @@ const ICON_OPTIONS = {
     { icon: <ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4" />, name: 'Oval Chat' },
     { icon: <HandRaisedIcon className="w-4 h-4" />, name: 'Hand Raised' },
     { icon: <QuestionMarkCircleIcon className="w-4 h-4" />, name: 'Question Circle' },
-    { icon: <div style={{ fontSize: '16px' }}>💬</div>, name: 'Speech Bubble Emoji' },
+    { icon: <MessageSquare className="w-4 h-4" />, name: 'Message Square (Lucide)' },
     { icon: <div style={{ fontSize: '14px', fontFamily: 'serif' }}>◊</div>, name: 'Diamond Symbol' },
   ],
   definitions: [
@@ -33,14 +34,14 @@ const ICON_OPTIONS = {
     { icon: <MagnifyingGlassIcon className="w-4 h-4" />, name: 'Magnifying Glass' },
     { icon: <DocumentTextIcon className="w-4 h-4" />, name: 'Document Text' },
     { icon: <BookmarkIcon className="w-4 h-4" />, name: 'Bookmark' },
-    { icon: <div style={{ fontSize: '16px' }}>📖</div>, name: 'Book Emoji' },
+    { icon: <Book className="w-4 h-4" />, name: 'Book (Lucide)' },
     { icon: <div style={{ fontSize: '14px', fontFamily: 'serif' }}>◈</div>, name: 'Diamond Dot' },
   ],
   annotations: [
     { icon: <PencilSquareIcon className="w-4 h-4" />, name: 'Pencil Square (current)' },
     { icon: <PencilIcon className="w-4 h-4" />, name: 'Pencil' },
     { icon: <TagIcon className="w-4 h-4" />, name: 'Tag' },
-    { icon: <div style={{ fontSize: '16px' }}>✏️</div>, name: 'Pencil Emoji' },
+    { icon: <PenTool className="w-4 h-4" />, name: 'Pen Tool (Lucide)' },
     { icon: <div style={{ fontSize: '14px', fontFamily: 'serif' }}>✱</div>, name: 'Star Symbol' },
     { icon: <div style={{ fontSize: '14px', fontFamily: 'serif' }}>※</div>, name: 'Reference Mark' },
   ],
@@ -48,7 +49,7 @@ const ICON_OPTIONS = {
     { icon: <SparklesIcon className="w-4 h-4" />, name: 'Sparkles (current)' },
     { icon: <StarIcon className="w-4 h-4" />, name: 'Star' },
     { icon: <LightBulbIcon className="w-4 h-4" />, name: 'Light Bulb' },
-    { icon: <div style={{ fontSize: '16px' }}>💡</div>, name: 'Bulb Emoji' },
+    { icon: <Lightbulb className="w-4 h-4" />, name: 'Lightbulb (Lucide)' },
     { icon: <div style={{ fontSize: '14px', fontFamily: 'serif' }}>✦</div>, name: 'Four-Point Star' },
     { icon: <div style={{ fontSize: '14px', fontFamily: 'serif' }}>❋</div>, name: 'Rotated Fleuron' },
   ]
@@ -206,7 +207,9 @@ const IconTestDialog: React.FC = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        Test Icons 🎨
+        <span className="flex items-center gap-2">
+          Test Icons <Palette className="w-4 h-4" />
+        </span>
       </motion.button>
 
       {/* Dialog */}

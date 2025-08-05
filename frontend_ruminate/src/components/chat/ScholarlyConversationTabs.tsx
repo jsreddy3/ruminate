@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Library, Book, Search } from 'lucide-react';
 
 interface Conversation {
   id: string | null;
@@ -69,7 +70,7 @@ const ScholarlyConversationTabs: React.FC<ScholarlyConversationTabsProps> = ({
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.98 }}
         >
-          <span>📚</span>
+          <Library className="w-3 h-3" />
           <span className="font-semibold">
             {isExpanded ? 'Hide' : 'Show'} Discussions
           </span>
@@ -118,9 +119,11 @@ const ScholarlyConversationTabs: React.FC<ScholarlyConversationTabsProps> = ({
                     <div className={styles.tab}>
                       <div className="flex items-center gap-2">
                         {/* Book icon */}
-                        <span className="text-xs">
-                          {conversation.type === 'main' ? '📖' : '🔍'}
-                        </span>
+                        {conversation.type === 'main' ? (
+                          <Book className="w-3 h-3" />
+                        ) : (
+                          <Search className="w-3 h-3" />
+                        )}
                         
                         {/* Title */}
                         <span className="font-medium">

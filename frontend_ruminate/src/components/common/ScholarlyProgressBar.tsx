@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Book, Settings, Upload, Sparkles } from 'lucide-react';
 
 interface ScholarlyProgressBarProps {
   progress: number; // 0-100
@@ -43,25 +44,25 @@ const ScholarlyProgressBar: React.FC<ScholarlyProgressBarProps> = ({
         return {
           bg: 'bg-library-forest-500',
           text: 'text-library-forest-700',
-          icon: '📖'
+          icon: <Book className="w-4 h-4" />
         };
       case 'processing':
         return {
           bg: 'bg-library-mahogany-500',
           text: 'text-library-mahogany-700',
-          icon: '⚙️'
+          icon: <Settings className="w-4 h-4" />
         };
       case 'uploading':
         return {
           bg: 'bg-library-gold-500',
           text: 'text-library-gold-700',
-          icon: '📤'
+          icon: <Upload className="w-4 h-4" />
         };
       default:
         return {
           bg: 'bg-library-mahogany-500',
           text: 'text-library-mahogany-700',
-          icon: '✨'
+          icon: <Sparkles className="w-4 h-4" />
         };
     }
   };
@@ -103,7 +104,7 @@ const ScholarlyProgressBar: React.FC<ScholarlyProgressBarProps> = ({
         <div className="flex items-center justify-between">
           {label && (
             <div className="flex items-center gap-2">
-              <span className={sizeStyles.text}>{colors.icon}</span>
+              <span className={`${colors.text} flex items-center`}>{colors.icon}</span>
               <span className={`font-serif font-medium ${colors.text} ${sizeStyles.text}`}>
                 {label}
               </span>
@@ -143,7 +144,7 @@ const ScholarlyProgressBar: React.FC<ScholarlyProgressBarProps> = ({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <span className="text-library-gold-500">✨</span>
+              <Sparkles className="w-4 h-4 text-library-gold-500" />
             </motion.div>
           )}
         </AnimatePresence>
