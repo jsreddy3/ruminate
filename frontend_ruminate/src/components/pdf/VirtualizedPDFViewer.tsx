@@ -331,36 +331,23 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     }
   };
 
-  // Use refs for stable callbacks and data that shouldn't trigger re-renders
-  const stablePropsRef = useRef({
-    blocks,
-    blocksByPage,
-    selectedBlock,
-    isBlockSelectionMode,
-    temporarilyHighlightedBlockId,
+  // Use refs for callbacks only to avoid re-creating renderPage
+  // Keep blocks and state in dependencies so they update properly
+  const stableCallbacksRef = useRef({
     onBlockClick,
     onBlockSelect,
-    onboardingTargetBlockId,
-    isOnboardingActive
   });
   
-  // Update refs when values change
+  // Update callback refs when they change
   useEffect(() => {
-    stablePropsRef.current = {
-      blocks,
-      blocksByPage,
-      selectedBlock,
-      isBlockSelectionMode,
-      temporarilyHighlightedBlockId,
+    stableCallbacksRef.current = {
       onBlockClick,
       onBlockSelect,
-      onboardingTargetBlockId,
-      isOnboardingActive
     };
   });
   
   // Memoized wrapper for virtual list items
-  // Only re-create when PDF structure changes (pdf, dimensions, scale, container)
+  // Include blocks and interactive state in dependencies for proper updates
   const renderPage = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => (
     <SimplePage
       index={index}
@@ -370,18 +357,19 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       scale={scale}
       containerWidth={containerWidth}
       pdfFile={pdfFile}
-      // Pass page overlay props from ref to avoid re-creating this callback
-      blocks={stablePropsRef.current.blocks}
-      blocksByPage={stablePropsRef.current.blocksByPage}
-      selectedBlock={stablePropsRef.current.selectedBlock}
-      isBlockSelectionMode={stablePropsRef.current.isBlockSelectionMode}
-      temporarilyHighlightedBlockId={stablePropsRef.current.temporarilyHighlightedBlockId}
-      onBlockClick={stablePropsRef.current.onBlockClick}
-      onBlockSelect={stablePropsRef.current.onBlockSelect}
-      onboardingTargetBlockId={stablePropsRef.current.onboardingTargetBlockId}
-      isOnboardingActive={stablePropsRef.current.isOnboardingActive}
+      // Pass current values for blocks and state (not refs) for proper updates
+      blocks={blocks}
+      blocksByPage={blocksByPage}
+      selectedBlock={selectedBlock}
+      isBlockSelectionMode={isBlockSelectionMode}
+      temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+      onboardingTargetBlockId={onboardingTargetBlockId}
+      isOnboardingActive={isOnboardingActive}
+      // Use stable refs only for callbacks
+      onBlockClick={stableCallbacksRef.current.onBlockClick}
+      onBlockSelect={stableCallbacksRef.current.onBlockSelect}
     />
-  ), [pdf, pageDimensions, scale, containerWidth, pdfFile]);
+  ), [pdf, pageDimensions, scale, containerWidth, pdfFile, blocksByPage, selectedBlock, isBlockSelectionMode, temporarilyHighlightedBlockId, onboardingTargetBlockId, isOnboardingActive]);
   
   // Track renderPage callback changes
   useEffect(() => {

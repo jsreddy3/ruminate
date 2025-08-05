@@ -119,6 +119,18 @@ export const PDFBlockItem = React.memo(({
   const hasConversations = block.metadata?.rabbithole_conversation_ids && block.metadata.rabbithole_conversation_ids.length > 0;
   const conversationCount = hasConversations ? block.metadata.rabbithole_conversation_ids.length : 0;
 
+  // Debug logging
+  if (block.id === 'some-test-block-id') { // Replace with actual block ID you're testing
+    console.log('PDFBlockItem render:', {
+      blockId: block.id,
+      metadata: block.metadata,
+      hasDefinitions,
+      hasConversations,
+      hasAnnotations: userAnnotations.length > 0,
+      hasGeneratedNotes: generatedNotes.length > 0
+    });
+  }
+
   // Check for annotations - separate generated notes from user annotations
   const allAnnotations = block.metadata?.annotations || {};
   
@@ -251,19 +263,6 @@ export const PDFBlockItem = React.memo(({
         position="top-right"
       />
     </motion.div>
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparison to prevent unnecessary re-renders
-  return (
-    prevProps.block.id === nextProps.block.id &&
-    prevProps.scale === nextProps.scale &&
-    prevProps.isSelected === nextProps.isSelected &&
-    prevProps.isTemporarilyHighlighted === nextProps.isTemporarilyHighlighted &&
-    prevProps.isOnboardingTarget === nextProps.isOnboardingTarget &&
-    prevProps.isOnboardingActive === nextProps.isOnboardingActive &&
-    prevProps.isSelectionMode === nextProps.isSelectionMode &&
-    // Deep compare metadata only if needed
-    JSON.stringify(prevProps.block.metadata) === JSON.stringify(nextProps.block.metadata)
   );
 });
 

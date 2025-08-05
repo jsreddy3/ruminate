@@ -10,6 +10,7 @@ interface TextWithMathProps {
   onClickHighlight: (e: React.MouseEvent) => void;
   getBlockClassName?: (blockType?: string) => string;
   customStyle?: React.CSSProperties;
+  onMathRendered?: () => void;
 }
 
 /**
@@ -23,11 +24,13 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
       processedContent,
       onClickHighlight,
       getBlockClassName = () => '',
-      customStyle
+      customStyle,
+      onMathRendered
     },
     ref
   ) => {
     const [processedMathContent, setProcessedMathContent] = useState('');
+    const [mathRendered, setMathRendered] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -57,6 +60,19 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
       ...customStyle,
     };
 
+    // Handle MathJax rendering completion
+    const handleMathRendered = () => {
+      if (!mathRendered) {
+        setMathRendered(true);
+        // Small delay to ensure DOM is fully updated
+        setTimeout(() => {
+          if (onMathRendered) {
+            onMathRendered();
+          }
+        }, 100);
+      }
+    };
+
     return (
       <div
         className={`text-renderer ${getBlockClassName(blockType)}`}
@@ -64,7 +80,10 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
         onClick={onClickHighlight}
         style={mergedStyles}
       >
-        <MathJax hideUntilTypeset="first">
+        <MathJax 
+          hideUntilTypeset="first"
+          onTypeset={handleMathRendered}
+        >
           <div dangerouslySetInnerHTML={{ __html: processedMathContent }} />
         </MathJax>
       </div>

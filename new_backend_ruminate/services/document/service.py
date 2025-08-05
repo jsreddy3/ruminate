@@ -755,7 +755,7 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             Message(id="usr", conversation_id="def", parent_id="sys", role=Role.USER, content=user_prompt, user_id=user_id, version=0)
         ]
         
-        definition = await self._llm.generate_response(messages, model="gpt-4o-mini")
+        definition = await self._llm.generate_response(messages, model="gpt-4o-mini", enable_web_search=False)
         
         # Save the definition to block metadata
         async with session_scope() as session:

@@ -138,7 +138,7 @@ const AnnotationsView: React.FC<AnnotationsViewProps> = ({
   };
 
   return (
-    <div className={`h-full bg-gradient-to-b from-surface-paper to-library-cream-50 ${className}`}>
+    <div className={`h-full flex flex-col bg-gradient-to-b from-surface-paper to-library-cream-50 ${className}`}>
       {/* Annotations Header */}
       <div className="sticky top-0 z-10 bg-surface-paper/95 backdrop-blur-sm border-b border-library-gold-200 p-6">
         <div className="w-full max-w-none px-4">

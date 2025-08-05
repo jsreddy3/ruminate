@@ -99,6 +99,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [mathRendered, setMathRendered] = useState(false);
   
   // State for tooltip handling
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -357,6 +358,14 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   // Check if content contains math tags
   const hasMathContent = /<math[^>]*>/.test(htmlContent);
   
+  // Handle math rendering completion
+  const handleMathRendered = () => {
+    setMathRendered(true);
+  };
+  
+  // Only show highlights after math has rendered (or if no math content)
+  const shouldShowHighlights = !hasMathContent || mathRendered;
+  
   return (
     <div ref={blockRef} className="text-renderer relative">
       <SelectionManager 
@@ -372,6 +381,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
               onClickHighlight={() => {}}
               getBlockClassName={getBlockClassName}
               customStyle={customStyle}
+              onMathRendered={handleMathRendered}
             />
           ) : (
             <TextContent 
@@ -387,7 +397,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       </SelectionManager>
       
       {/* Annotation highlights overlay (rendered first, lowest z-index) */}
-      {metadata?.annotations && (
+      {shouldShowHighlights && metadata?.annotations && (
         <ReactAnnotationHighlight
           contentRef={contentRef as React.RefObject<HTMLElement>}
           annotations={metadata.annotations}
@@ -398,7 +408,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
 
       {/* Definition highlights overlay (rendered before rabbithole so rabbithole is on top) */}
-      {metadata?.definitions && (
+      {shouldShowHighlights && metadata?.definitions && (
         <ReactDefinitionHighlight
           contentRef={contentRef as React.RefObject<HTMLElement>}
           definitions={metadata.definitions}
@@ -408,12 +418,14 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
       
       {/* Rabbithole highlights overlay */}
-      <ReactRabbitholeHighlight
-        contentRef={contentRef as React.RefObject<HTMLElement>}
-        highlights={rabbitholeHighlights}
-        onHighlightClick={handleRabbitholeClick}
-        definitions={metadata?.definitions}
-      />
+      {shouldShowHighlights && (
+        <ReactRabbitholeHighlight
+          contentRef={contentRef as React.RefObject<HTMLElement>}
+          highlights={rabbitholeHighlights}
+          onHighlightClick={handleRabbitholeClick}
+          definitions={metadata?.definitions}
+        />
+      )}
       
       {/* Text selection tooltip */}
       {tooltipVisible && createPortal(

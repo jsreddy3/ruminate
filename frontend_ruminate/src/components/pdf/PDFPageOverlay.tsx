@@ -35,7 +35,10 @@ export const PDFPageOverlay: React.FC<PDFPageOverlayProps> = React.memo(({
 }) => {
   // Get blocks for this specific page only
   const pageBlocks = useMemo(() => {
-    return blocksByPage.get(pageIndex) || [];
+    const blocks = blocksByPage.get(pageIndex) || [];
+    
+    
+    return blocks;
   }, [blocksByPage, pageIndex]);
   
   // Only re-render if:

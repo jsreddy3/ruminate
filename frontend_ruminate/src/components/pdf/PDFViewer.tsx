@@ -371,7 +371,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         return !prevBlock || 
           block.id !== prevBlock.id || 
           block.page_number !== prevBlock.page_number ||
-          block.block_type !== prevBlock.block_type;
+          block.block_type !== prevBlock.block_type ||
+          block.metadata !== prevBlock.metadata; // Check metadata changes too!
       });
     
     if (!blocksChanged && blocksByPageRef.current.size > 0) {
@@ -422,16 +423,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     stateChanges.push(`activeConv(${prevStateRef.current.activeConversationId}→${activeConversationId})`);
   if (prevStateRef.current.viewMode !== viewMode) 
     stateChanges.push(`viewMode(${prevStateRef.current.viewMode}→${viewMode})`);
-    
-  // Log PDFViewer renders
-  console.log(`[PDFViewer] Render #${viewerRenderRef.current}`, {
-    changes: stateChanges.length > 0 ? stateChanges : ['No state changes'],
-    timestamp: new Date().toISOString(),
-    blocks: blocks.length,
-    blocksByPage: Array.from(blocksByPage.entries()).map(([page, blocks]) => 
-      `Page ${page}: ${blocks.length} blocks`
-    )
-  });
     
   prevStateRef.current = {
     currentPage,

@@ -66,7 +66,6 @@ export default function BlockNavigator({
       if (index !== -1) {
         setCurrentIndex(index);
         const currentBlock = blocks[index];
-        console.log(`[BlockNavigator] Focused on block type: ${currentBlock.block_type}, ID: ${currentBlock.id}`);
       }
     }
   }, [currentBlockId, blocks]);
@@ -85,7 +84,6 @@ export default function BlockNavigator({
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       const newBlock = blocks[newIndex];
-      console.log(`[BlockNavigator] Focused on block type: ${newBlock.block_type}, ID: ${newBlock.id}`);
       if (onBlockChange) {
         onBlockChange(newBlock);
       }
@@ -98,7 +96,6 @@ export default function BlockNavigator({
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       const newBlock = blocks[newIndex];
-      console.log(`[BlockNavigator] Focused on block type: ${newBlock.block_type}, ID: ${newBlock.id}`);
       if (onBlockChange) {
         onBlockChange(newBlock);
       }
