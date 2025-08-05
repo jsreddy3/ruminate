@@ -82,6 +82,7 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
     const eventSourceUrl = `${API_BASE_URL}/documents/${documentId}/processing-stream`;
     const authenticatedUrl = token ? `${eventSourceUrl}?token=${token}` : eventSourceUrl;
     
+    console.log('[ProcessingContext] Connecting to SSE:', authenticatedUrl);
     const es = new EventSource(authenticatedUrl);
     eventSourcesRef.current.set(documentId, es);
 
@@ -169,6 +170,8 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
 
   // Start processing a document
   const startProcessing = useCallback((documentId: string, title: string) => {
+    console.log('[ProcessingContext] Starting processing for:', documentId, title);
+    
     const newDoc: ProcessingDocument = {
       documentId,
       title,
@@ -186,6 +189,7 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
     setProcessingDocuments(prev => {
       const updated = new Map(prev);
       updated.set(documentId, newDoc);
+      console.log('[ProcessingContext] Processing documents count:', updated.size);
       return updated;
     });
     
@@ -214,11 +218,13 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
 
   // Modal management
   const openProcessingModal = useCallback((documentId: string) => {
+    console.log('[ProcessingContext] Opening modal for:', documentId);
     setSelectedDocumentId(documentId);
     setIsModalOpen(true);
   }, []);
 
   const closeProcessingModal = useCallback(() => {
+    console.log('[ProcessingContext] Closing modal');
     setIsModalOpen(false);
     // Don't clear selectedDocumentId immediately for animation purposes
     setTimeout(() => setSelectedDocumentId(null), 300);

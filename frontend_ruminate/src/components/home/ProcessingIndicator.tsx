@@ -3,38 +3,36 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProcessing } from '@/contexts/ProcessingContext';
 import ProcessingModal from './ProcessingModal';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 export default function ProcessingIndicator() {
   const { activeCount, processingDocuments, openProcessingModal, selectedDocumentId, isModalOpen, closeProcessingModal } = useProcessing();
   
-  // Don't show indicator if no active processing or modal is open
-  if (activeCount === 0 || isModalOpen) {
-    return null;
-  }
-
   // Get the first processing document to show in the indicator
   const firstProcessingDoc = Array.from(processingDocuments.values())
     .find(doc => !['READY', 'ERROR'].includes(doc.status));
 
   return (
     <>
-      {/* Floating indicator */}
-      <AnimatePresence>
+      {/* Floating indicator - only show when there's processing and modal is closed */}
+      {activeCount > 0 && !isModalOpen && (
+        <AnimatePresence>
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.9 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ type: "spring", duration: 0.3 }}
           className="fixed bottom-6 right-6 z-30"
         >
           <button
             onClick={() => firstProcessingDoc && openProcessingModal(firstProcessingDoc.documentId)}
-            className="bg-white shadow-lg rounded-lg px-4 py-3 flex items-center gap-3 hover:shadow-xl transition-shadow border border-gray-200"
+            className="bg-surface-parchment shadow-book rounded-journal px-5 py-3 flex items-center gap-3 hover:shadow-lg transition-all border border-library-cream-300 hover:border-library-cream-400"
           >
-            {/* Spinner */}
+            {/* Spinner with count badge */}
             <div className="relative">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-library-mahogany-500"></div>
+              <div className="w-5 h-5 border-2 border-library-mahogany-200 border-t-library-mahogany-600 rounded-full animate-spin" />
               {activeCount > 1 && (
-                <div className="absolute -top-1 -right-1 bg-library-mahogany-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium">
+                <div className="absolute -top-2 -right-2 bg-library-mahogany-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium shadow-sm">
                   {activeCount}
                 </div>
               )}
@@ -42,33 +40,22 @@ export default function ProcessingIndicator() {
             
             {/* Text */}
             <div className="text-left">
-              <p className="text-sm font-medium text-gray-900">
-                Processing {activeCount} document{activeCount > 1 ? 's' : ''}
+              <p className="text-sm font-medium text-reading-primary">
+                Processing {activeCount > 1 ? `${activeCount} documents` : 'document'}
               </p>
               {firstProcessingDoc && (
-                <p className="text-xs text-gray-500 max-w-[200px] truncate">
+                <p className="text-xs text-reading-muted max-w-[200px] truncate">
                   {firstProcessingDoc.title}
                 </p>
               )}
             </div>
             
             {/* Arrow */}
-            <svg
-              className="w-4 h-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRightIcon className="w-4 h-4 text-library-sage-500" />
           </button>
         </motion.div>
-      </AnimatePresence>
+        </AnimatePresence>
+      )}
 
       {/* Processing Modal - now controlled by global state */}
       {selectedDocumentId && (

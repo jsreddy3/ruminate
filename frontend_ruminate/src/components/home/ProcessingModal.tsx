@@ -2,8 +2,9 @@
 
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import UploadProgressSteps from './UploadProgressSteps';
+import ProcessingProgress from './ProcessingProgress';
 import { useProcessing } from '@/contexts/ProcessingContext';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ProcessingModalProps {
   documentId: string;
@@ -32,60 +33,62 @@ export default function ProcessingModal({ documentId, isOpen, onClose }: Process
     };
   }, [processingDoc]);
 
-  // The document is already being tracked by ProcessingContext, no need for SSE here
-  
-  // Can close modal anytime now
-  const canClose = true;
-
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && processingDoc && (
         <>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={canClose ? onClose : undefined}
+            className="fixed inset-0 bg-black bg-opacity-40 z-40"
+            onClick={onClose}
           />
 
           {/* Modal Content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.97, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            exit={{ opacity: 0, scale: 0.97, y: 10 }}
+            transition={{ type: "spring", duration: 0.3 }}
+            className="fixed inset-0 flex items-center justify-center z-50 p-4 pointer-events-none"
           >
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Processing Your Document
-                </h2>
+            <div className="bg-surface-parchment rounded-journal shadow-book border border-library-cream-300 w-full max-w-2xl p-8 pointer-events-auto">
+              {/* Header */}
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h2 className="text-2xl font-serif font-semibold text-reading-primary">
+                    Processing Document
+                  </h2>
+                  <p className="text-base text-reading-muted mt-1 max-w-md truncate">
+                    {processingDoc.title}
+                  </p>
+                </div>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-2 rounded-full hover:bg-library-cream-200 transition-colors text-library-sage-600 hover:text-library-sage-800"
+                  aria-label="Close modal"
                 >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
 
+              {/* Progress Content */}
               <div className="mb-6">
-                <UploadProgressSteps 
-                  events={processingDoc?.events || []}
+                <ProcessingProgress 
+                  events={processingDoc.events}
                   currentStatus={currentStatus}
                   error={error || undefined}
                 />
-                
-                {/* Info message about background processing */}
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    <strong>Tip:</strong> You can close this window and continue using the app. 
-                    Processing will continue in the background.
-                  </p>
-                </div>
+              </div>
+              
+              {/* Footer Info */}
+              <div className="mt-8 pt-6 border-t border-library-cream-300">
+                <p className="text-sm text-reading-muted text-center">
+                  You can close this window and continue browsing. 
+                  Processing will continue in the background.
+                </p>
               </div>
             </div>
           </motion.div>

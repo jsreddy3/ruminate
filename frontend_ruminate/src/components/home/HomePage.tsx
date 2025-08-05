@@ -71,8 +71,8 @@ export default function HomePage() {
   }, [documents, router]);
 
   const handleDocumentClick = async (document: Document) => {
+    // Only allow clicking on ready documents
     if (document.status !== 'READY') {
-      alert('This document is still processing. Please wait until it\'s ready.');
       return;
     }
 

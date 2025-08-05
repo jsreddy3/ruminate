@@ -23,14 +23,19 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      console.log('[UploadButton] Starting file upload:', file.name);
       const documentId = await uploadFile(file);
+      console.log('[UploadButton] Upload returned documentId:', documentId);
+      
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
       if (documentId) {
         // Close upload modal and show processing modal
+        console.log('[UploadButton] Closing upload modal and opening processing modal');
         setIsOpen(false);
         setTimeout(() => {
+          console.log('[UploadButton] Calling openProcessingModal with:', documentId);
           openProcessingModal(documentId);
         }, 300);
         onUploadComplete?.();

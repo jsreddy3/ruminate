@@ -129,6 +129,10 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
     if (isOnboardingActive && !isOnboardingTarget) {
       return; // Prevent clicks on non-target documents during onboarding
     }
+    // Don't trigger row click for processing documents
+    if (isDocProcessing || document.status === 'PROCESSING' || document.status === 'PROCESSING_MARKER') {
+      return;
+    }
     onClick();
   };
 
@@ -229,10 +233,10 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
                 e.stopPropagation();
                 openProcessingModal(document.id);
               }}
-              className="px-3 py-1 text-base font-medium text-library-gold-700 bg-library-gold-100 hover:bg-library-gold-200 rounded-book transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 text-sm font-medium text-library-mahogany-700 bg-library-cream-100 hover:bg-library-cream-200 rounded-book transition-colors flex items-center gap-2 border border-library-cream-300"
               title="View processing progress"
             >
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-library-gold-700"></div>
+              <div className="w-3 h-3 border-2 border-library-cream-300 border-t-library-mahogany-600 rounded-full animate-spin" />
               Processing
             </button>
           )}
