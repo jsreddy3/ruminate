@@ -65,9 +65,9 @@ export function useOnboarding({
     }
   }, [onSetStep, contextSetStep]);
 
-  // Global interaction blocking for steps 5-11 (excluding 9 for now)
+  // Global interaction blocking for steps 3-11
   useEffect(() => {
-    if (!onboardingState.isActive || ![5, 6, 7, 8, 10, 11].includes(onboardingState.currentStep)) {
+    if (!onboardingState.isActive || ![3, 5, 6, 7, 8, 10, 11].includes(onboardingState.currentStep)) {
       blockingActiveRef.current = false;
       return;
     }
@@ -77,7 +77,25 @@ export function useOnboarding({
     const handleGlobalInteraction = (e: Event) => {
       const target = e.target as HTMLElement;
       
-      if (onboardingState.currentStep === 5) {
+      if (onboardingState.currentStep === 3) {
+        // Allow clicks only on the onboarding target block
+        const clickedBlock = target.closest('[data-block-id]');
+        const blockId = clickedBlock?.getAttribute('data-block-id');
+        
+        console.log('[useOnboarding] Step 3 interaction', {
+          eventType: e.type,
+          clickedBlockId: blockId,
+          onboardingTargetBlockId,
+          isTargetBlock: blockId === onboardingTargetBlockId,
+          target: target.tagName,
+          closestBlock: clickedBlock?.tagName
+        });
+        
+        if (blockId !== onboardingTargetBlockId) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if (onboardingState.currentStep === 5) {
         // Allow interaction only with the step 5 popover
         const isStep5PopoverClick = target.closest('[data-step-5-popover]');
         if (!isStep5PopoverClick) {
@@ -164,7 +182,7 @@ export function useOnboarding({
       document.removeEventListener('pointerdown', handleGlobalInteraction, true);
       document.removeEventListener('pointerup', handleGlobalInteraction, true);
     };
-  }, [onboardingState.isActive, onboardingState.currentStep]);
+  }, [onboardingState.isActive, onboardingState.currentStep, onboardingTargetBlockId]);
 
   // Set the target block for onboarding step 3
   useEffect(() => {
@@ -180,8 +198,8 @@ export function useOnboarding({
       
       // Try to find a text block with >100 words
       const getWordCount = (block: Block) => {
-        const text = block.text_content || block.html_content?.replace(/<[^>]*>/g, '') || '';
-        return text.split(/\s+/).filter(word => word.length > 0).length;
+        const text = (block as any).text_content || block.html_content?.replace(/<[^>]*>/g, '') || '';
+        return text.split(/\s+/).filter((word: string) => word.length > 0).length;
       };
       
       // Find first block with >100 words, or fallback to first text block
@@ -310,9 +328,19 @@ export function useOnboarding({
 
   // Check if a specific block should be processed for onboarding
   const shouldProcessBlockForOnboarding = useCallback((block: Block) => {
-    return onboardingState.isActive && 
+    const result = onboardingState.isActive && 
            onboardingState.currentStep === 3 && 
            block.id === onboardingTargetBlockId;
+    
+    console.log('[useOnboarding] shouldProcessBlockForOnboarding', {
+      blockId: block.id,
+      onboardingTargetBlockId,
+      isActive: onboardingState.isActive,
+      currentStep: onboardingState.currentStep,
+      result
+    });
+    
+    return result;
   }, [onboardingState.isActive, onboardingState.currentStep, onboardingTargetBlockId]);
 
   // Get onboarding props for BlockOverlayManager

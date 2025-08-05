@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { VariableSizeList as List } from 'react-window';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Block } from './PDFViewer';
+import { PDFPageOverlay } from './PDFPageOverlay';
 
 // Configure PDF.js worker - use local copy from webpack build
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -13,8 +14,17 @@ const SimplePage = React.memo(({
   pdf, 
   pageDimensions, 
   scale, 
-  containerWidth, 
-  renderOverlay
+  containerWidth,
+  // Page overlay props
+  blocks,
+  blocksByPage,
+  selectedBlock,
+  isBlockSelectionMode,
+  temporarilyHighlightedBlockId,
+  onBlockClick,
+  onBlockSelect,
+  onboardingTargetBlockId,
+  isOnboardingActive
 }: { 
   index: number; 
   style: React.CSSProperties;
@@ -22,7 +32,16 @@ const SimplePage = React.memo(({
   pageDimensions: Map<number, { width: number; height: number }>;
   scale: number;
   containerWidth: number;
-  renderOverlay: (props: { pageIndex: number; scale: number; rotation: number }) => React.ReactNode;
+  // Page overlay props
+  blocks: Block[];
+  blocksByPage: Map<number, Block[]>;
+  selectedBlock: Block | null;
+  isBlockSelectionMode: boolean;
+  temporarilyHighlightedBlockId: string | null;
+  onBlockClick: (block: Block) => void;
+  onBlockSelect?: (blockId: string) => void;
+  onboardingTargetBlockId?: string | null;
+  isOnboardingActive?: boolean;
 }) => {
   const [pageError, setPageError] = useState(false);
   
@@ -59,11 +78,19 @@ const SimplePage = React.memo(({
             />
             {/* Always render overlay - don't wait for page load */}
             <div className="absolute inset-0 pointer-events-auto">
-              {renderOverlay({
-                pageIndex: index,
-                scale: pageScale,
-                rotation: 0
-              })}
+              <PDFPageOverlay
+                pageIndex={index}
+                scale={pageScale}
+                blocks={blocks}
+                blocksByPage={blocksByPage}
+                selectedBlock={selectedBlock}
+                isBlockSelectionMode={isBlockSelectionMode}
+                temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+                onBlockClick={onBlockClick}
+                onBlockSelect={onBlockSelect}
+                onboardingTargetBlockId={onboardingTargetBlockId}
+                isOnboardingActive={isOnboardingActive}
+              />
             </div>
           </>
         )}
@@ -91,11 +118,16 @@ interface VirtualizedPDFViewerProps {
   pdfFile: string;
   blocks: Block[];
   scale: number;
-  renderOverlay: (props: {
-    pageIndex: number;
-    scale: number;
-    rotation: number;
-  }) => React.ReactNode;
+  // New props for page-level rendering
+  blocksByPage: Map<number, Block[]>;
+  selectedBlock: Block | null;
+  isBlockSelectionMode: boolean;
+  temporarilyHighlightedBlockId: string | null;
+  onBlockClick: (block: Block) => void;
+  onBlockSelect?: (blockId: string) => void;
+  onboardingTargetBlockId?: string | null;
+  isOnboardingActive?: boolean;
+  // Existing props
   onPageChange?: (pageNumber: number) => void;
   onDocumentLoadSuccess?: (pdf: any) => void;
   scrollToPageRef?: React.MutableRefObject<(pageNumber: number) => void>;
@@ -114,7 +146,16 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   pdfFile,
   blocks,
   scale = 1,
-  renderOverlay,
+  // New props
+  blocksByPage,
+  selectedBlock,
+  isBlockSelectionMode,
+  temporarilyHighlightedBlockId,
+  onBlockClick,
+  onBlockSelect,
+  onboardingTargetBlockId,
+  isOnboardingActive = false,
+  // Existing props
   onPageChange,
   onDocumentLoadSuccess,
   scrollToPageRef,
@@ -316,9 +357,18 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       pageDimensions={pageDimensions}
       scale={scale}
       containerWidth={containerWidth}
-      renderOverlay={renderOverlay}
+      // Pass page overlay props
+      blocks={blocks}
+      blocksByPage={blocksByPage}
+      selectedBlock={selectedBlock}
+      isBlockSelectionMode={isBlockSelectionMode}
+      temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+      onBlockClick={onBlockClick}
+      onBlockSelect={onBlockSelect}
+      onboardingTargetBlockId={onboardingTargetBlockId}
+      isOnboardingActive={isOnboardingActive}
     />
-  ), [pdf, pageDimensions, scale, containerWidth, renderOverlay]);
+  ), [pdf, pageDimensions, scale, containerWidth, blocks, blocksByPage, selectedBlock, isBlockSelectionMode, temporarilyHighlightedBlockId, onBlockClick, onBlockSelect, onboardingTargetBlockId, isOnboardingActive]);
 
   return (
     <div ref={containerRef} className="h-full w-full relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment overflow-x-auto">

@@ -6,6 +6,7 @@ from new_backend_ruminate.domain.ports.document_analyzer import DocumentAnalyzer
 from new_backend_ruminate.domain.ports.llm import LLMService
 from new_backend_ruminate.domain.document.entities.block import Block
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
+from new_backend_ruminate.infrastructure.llm.openai_responses_llm import OpenAIResponsesLLM
 
 
 class LLMDocumentAnalyzer(DocumentAnalyzer):
@@ -70,10 +71,15 @@ The summary should:
             )
         ]
         
-        # Generate summary using LLM
+        # Generate summary using LLM (disable web search for summaries)
         print(f"[LLMDocumentAnalyzer] Calling LLM to generate summary...")
         try:
-            summary = await self._llm.generate_response(messages)
+            # Check if LLM supports web search control (OpenAIResponsesLLM)
+            if isinstance(self._llm, OpenAIResponsesLLM):
+                summary = await self._llm.generate_response(messages, enable_web_search=False)
+                print(f"[LLMDocumentAnalyzer] Summary generated with web search DISABLED")
+            else:
+                summary = await self._llm.generate_response(messages)
             print(f"[LLMDocumentAnalyzer] LLM response received, length: {len(summary)} chars")
             return summary.strip()
         except Exception as e:
@@ -158,14 +164,24 @@ Base your analysis on the content provided from the first few pages of the docum
             )
         ]
         
-        # Generate structured response using LLM
+        # Generate structured response using LLM (enable web search for better context)
         print(f"[LLMDocumentAnalyzer] Calling LLM to extract document info...")
         try:
-            result = await self._llm.generate_structured_response(
-                messages=messages,
-                response_format={"type": "json_object"},
-                json_schema=info_schema
-            )
+            # Check if LLM supports web search control (OpenAIResponsesLLM)
+            if isinstance(self._llm, OpenAIResponsesLLM):
+                result = await self._llm.generate_structured_response(
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    json_schema=info_schema,
+                    enable_web_search=True
+                )
+                print(f"[LLMDocumentAnalyzer] Document info extracted with web search ENABLED")
+            else:
+                result = await self._llm.generate_structured_response(
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    json_schema=info_schema
+                )
             print(f"[LLMDocumentAnalyzer] Document info extracted successfully")
             return result
         except Exception as e:

@@ -382,6 +382,16 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   if (prevStateRef.current.viewMode !== viewMode) 
     stateChanges.push(`viewMode(${prevStateRef.current.viewMode}→${viewMode})`);
     
+  // Log PDFViewer renders
+  console.log(`[PDFViewer] Render #${viewerRenderRef.current}`, {
+    changes: stateChanges.length > 0 ? stateChanges : ['No state changes'],
+    timestamp: new Date().toISOString(),
+    blocks: blocks.length,
+    blocksByPage: Array.from(blocksByPage.entries()).map(([page, blocks]) => 
+      `Page ${page}: ${blocks.length} blocks`
+    )
+  });
+    
   prevStateRef.current = {
     currentPage,
     totalPages,
@@ -402,37 +412,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     />
   ), [pdfLoadingState, pdfFile, handleForceRefresh]);
 
-  const renderOverlay = useCallback(
-    (props: { pageIndex: number; scale: number; rotation: number }) => {
-      // Use current refs to avoid dependency issues
-      const currentBlockOverlayManager = blockOverlayManager;
-      const currentOnboarding = onboarding;
-      
-      // Get blocks for this specific page only
-      const pageBlocks = blocksByPage.get(props.pageIndex) || [];
-      
-      return (
-        <PDFBlockOverlay
-          blocks={pageBlocks}
-          selectedBlock={currentBlockOverlayManager?.selectedBlock}
-          pageIndex={props.pageIndex}
-          scale={props.scale}
-          onBlockClick={(block: Block) => {
-            if (currentOnboarding.shouldProcessBlockForOnboarding(block)) {
-              currentOnboarding.handleOnboardingBlockClick(block);
-            } else {
-              currentBlockOverlayManager.handleBlockClick(block);
-            }
-          }}
-          isSelectionMode={isBlockSelectionMode}
-          onBlockSelect={currentBlockOverlayManager?.handleBlockSelect}
-          temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
-          {...currentOnboarding.getPDFBlockOverlayProps()}
-        />
-      );
-    },
-    [blocksByPage, isBlockSelectionMode, temporarilyHighlightedBlockId] // Removed object dependencies since we capture them
-  );
+  // Removed renderOverlay - now handled by PDFPageOverlay component directly
 
   // Enhanced search functionality with scroll-to-block
   const handleSearch = useCallback((query: string) => {
@@ -734,7 +714,22 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
                 pdfFile={pdfFile}
                 blocks={blocks}
                 scale={scale}
-                renderOverlay={renderOverlay}
+                // New props for page-level rendering
+                blocksByPage={blocksByPage}
+                selectedBlock={blockOverlayManager.selectedBlock}
+                isBlockSelectionMode={isBlockSelectionMode}
+                temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+                onBlockClick={(block: Block) => {
+                  if (onboarding.shouldProcessBlockForOnboarding(block)) {
+                    onboarding.handleOnboardingBlockClick(block);
+                  } else {
+                    blockOverlayManager.handleBlockClick(block);
+                  }
+                }}
+                onBlockSelect={blockOverlayManager.handleBlockSelect}
+                onboardingTargetBlockId={onboarding.onboardingTargetBlockId}
+                isOnboardingActive={onboarding.onboardingState.isActive}
+                // Existing props
                 onPageChange={handlePageChange}
                 onDocumentLoadSuccess={handleDocumentLoad}
                 scrollToPageRef={scrollToPageRef}

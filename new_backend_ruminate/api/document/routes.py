@@ -216,7 +216,8 @@ async def get_document(
         furthest_read_block_id=document.furthest_read_block_id,
         furthest_read_position=document.furthest_read_position,
         furthest_read_updated_at=document.furthest_read_updated_at,
-        main_conversation_id=document.main_conversation_id
+        main_conversation_id=document.main_conversation_id,
+        document_info=document.document_info
     )
 
 
@@ -271,7 +272,8 @@ async def list_documents(
                 furthest_read_block_id=doc.furthest_read_block_id,
                 furthest_read_position=doc.furthest_read_position,
                 furthest_read_updated_at=doc.furthest_read_updated_at,
-                main_conversation_id=doc.main_conversation_id
+                main_conversation_id=doc.main_conversation_id,
+                document_info=doc.document_info
             )
             for doc in documents
         ],
@@ -572,7 +574,8 @@ async def update_document(
             chunk_index=updated_document.chunk_index,
             total_chunks=updated_document.total_chunks,
             is_auto_processed=updated_document.is_auto_processed,
-            main_conversation_id=updated_document.main_conversation_id
+            main_conversation_id=updated_document.main_conversation_id,
+            document_info=updated_document.document_info,
         )
         
     except ValueError as e:
@@ -663,7 +666,8 @@ async def start_document_processing(
             chunk_index=document.chunk_index,
             total_chunks=document.total_chunks,
             is_auto_processed=document.is_auto_processed,
-            main_conversation_id=document.main_conversation_id
+            main_conversation_id=document.main_conversation_id,
+            document_info=document.document_info,
         )
         
     except ValueError as e:
@@ -720,7 +724,8 @@ async def update_reading_progress(
             furthest_read_block_id=updated_document.furthest_read_block_id,
             furthest_read_position=updated_document.furthest_read_position,
             furthest_read_updated_at=updated_document.furthest_read_updated_at,
-            main_conversation_id=updated_document.main_conversation_id
+            main_conversation_id=updated_document.main_conversation_id,
+            document_info=updated_document.document_info,
         )
         
     except ValueError as e:

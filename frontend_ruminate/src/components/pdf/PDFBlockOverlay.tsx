@@ -30,6 +30,20 @@ export default function PDFBlockOverlay({
   onboardingTargetBlockId,
   isOnboardingActive = false
 }: PDFBlockOverlayProps) {
+  // Track renders
+  const renderCountRef = React.useRef(0);
+  renderCountRef.current++;
+  
+  console.log(`[PDFBlockOverlay] Render #${renderCountRef.current} for page ${pageIndex}`, {
+    blocksCount: blocks.length,
+    selectedBlockId: selectedBlock?.id,
+    isSelectionMode,
+    temporarilyHighlightedBlockId,
+    onboardingTargetBlockId,
+    isOnboardingActive,
+    scale,
+    timestamp: new Date().toISOString()
+  });
   // Blocks are now pre-filtered by the parent component
   const filteredBlocks = blocks;
 
@@ -38,6 +52,13 @@ export default function PDFBlockOverlay({
 
   // Update target block rect when onboarding target changes
   useEffect(() => {
+    console.log(`[PDFBlockOverlay] useEffect triggered for page ${pageIndex}`, {
+      onboardingTargetBlockId,
+      isOnboardingActive,
+      filteredBlocksLength: filteredBlocks.length,
+      scale
+    });
+    
     if (onboardingTargetBlockId && isOnboardingActive) {
       const targetBlock = filteredBlocks.find(b => b.id === onboardingTargetBlockId);
       if (targetBlock && targetBlock.polygon && targetBlock.polygon.length >= 4) {
@@ -57,7 +78,7 @@ export default function PDFBlockOverlay({
     } else {
       setTargetBlockRect(null);
     }
-  }, [onboardingTargetBlockId, isOnboardingActive, filteredBlocks, scale]);
+  }, [onboardingTargetBlockId, isOnboardingActive, filteredBlocks, scale, pageIndex]);
 
   return (
     <>
@@ -197,7 +218,21 @@ export default function PDFBlockOverlay({
 
         // Handle click based on mode
         const handleClick = () => {
-          console.log(`[Block Clicked] Type: ${block.type || block.block_type}, ID: ${block.id}`);
+          console.log(`[Block Clicked] Type: ${block.type || block.block_type}, ID: ${block.id}`, {
+            isOnboardingActive,
+            isOnboardingTarget,
+            onboardingTargetBlockId,
+            blockId: block.id,
+            isSelectionMode,
+            hasOnBlockClick: !!onBlockClick
+          });
+          
+          // During onboarding, only allow clicks on the target block
+          if (isOnboardingActive && !isOnboardingTarget) {
+            console.log('[Block Click Blocked] Not the onboarding target block');
+            return;
+          }
+          
           if (isSelectionMode && onBlockSelect) {
             onBlockSelect(block.id);
           } else {
@@ -320,6 +355,13 @@ export default function PDFBlockOverlay({
       </div>
       
       {/* Onboarding dialogue */}
+      {console.log('[PDFBlockOverlay] Rendering PDFTourDialogue', {
+        isVisible: isOnboardingActive && !!onboardingTargetBlockId,
+        isOnboardingActive,
+        onboardingTargetBlockId,
+        targetBlockRect,
+        scale
+      })}
       <PDFTourDialogue
         isVisible={isOnboardingActive && !!onboardingTargetBlockId}
         targetRect={targetBlockRect}

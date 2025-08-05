@@ -14,11 +14,62 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
   targetRect,
   scale
 }) => {
-  if (!targetRect) return null;
+  console.log('[PDFTourDialogue] Rendering', {
+    isVisible,
+    targetRect,
+    scale
+  });
   
-  // Calculate position - place it to the right of the block with some padding
-  const dialogueX = targetRect.x + targetRect.width + 20;
-  const dialogueY = targetRect.y + (targetRect.height / 2) - 80; // Center vertically, adjust for popover height
+  if (!targetRect) {
+    console.log('[PDFTourDialogue] No targetRect, returning null');
+    return null;
+  }
+  
+  // Determine best position based on available space
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const popoverWidth = 320;
+  const popoverHeight = 160; // Approximate height
+  const padding = 20;
+  
+  // Check if there's enough space to the right
+  const spaceOnRight = viewportWidth - (targetRect.x + targetRect.width);
+  const canPlaceRight = spaceOnRight >= (popoverWidth + padding * 2);
+  
+  // Check if there's enough space to the left
+  const spaceOnLeft = targetRect.x;
+  const canPlaceLeft = spaceOnLeft >= (popoverWidth + padding * 2);
+  
+  // Determine position and arrow direction
+  let dialogueX: number;
+  let dialogueY = targetRect.y + (targetRect.height / 2) - 80; // Center vertically
+  let arrowDirection: 'left' | 'right' | 'top' | 'bottom' = 'left';
+  
+  if (canPlaceRight) {
+    // Place to the right with arrow pointing left
+    dialogueX = targetRect.x + targetRect.width + padding;
+    arrowDirection = 'left';
+  } else if (canPlaceLeft) {
+    // Place to the left with arrow pointing right
+    dialogueX = targetRect.x - popoverWidth - padding;
+    arrowDirection = 'right';
+  } else {
+    // Place above or below if no horizontal space
+    dialogueX = Math.max(padding, Math.min(targetRect.x + (targetRect.width / 2) - (popoverWidth / 2), viewportWidth - popoverWidth - padding));
+    
+    const spaceAbove = targetRect.y;
+    const spaceBelow = viewportHeight - (targetRect.y + targetRect.height);
+    
+    if (spaceBelow >= popoverHeight + padding * 2) {
+      // Place below with arrow pointing up
+      dialogueY = targetRect.y + targetRect.height + padding;
+      arrowDirection = 'top';
+    } else {
+      // Place above with arrow pointing down
+      dialogueY = targetRect.y - popoverHeight - padding;
+      arrowDirection = 'bottom';
+    }
+  }
   
   return (
     <BasePopover
@@ -30,18 +81,38 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
       initialWidth={320}
       initialHeight="auto"
       className="pointer-events-none"
-      preventOverflow={true}
+      preventOverflow={false}
     >
       <div className="relative">
-        {/* Arrow pointing left to the block */}
-        <div className="absolute -left-[18px] top-1/2 -translate-y-1/2 pointer-events-none">
-          <svg width="12" height="20" viewBox="0 0 12 20" className="text-library-mahogany/50">
-            <path
-              d="M12 10 L0 2 L0 18 Z"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
+        {/* Dynamic arrow based on position */}
+        {arrowDirection === 'left' && (
+          <div className="absolute -left-[18px] top-1/2 -translate-y-1/2 pointer-events-none">
+            <svg width="12" height="20" viewBox="0 0 12 20" className="text-library-mahogany/50">
+              <path d="M12 10 L0 2 L0 18 Z" fill="currentColor" />
+            </svg>
+          </div>
+        )}
+        {arrowDirection === 'right' && (
+          <div className="absolute -right-[18px] top-1/2 -translate-y-1/2 pointer-events-none">
+            <svg width="12" height="20" viewBox="0 0 12 20" className="text-library-mahogany/50">
+              <path d="M0 10 L12 2 L12 18 Z" fill="currentColor" />
+            </svg>
+          </div>
+        )}
+        {arrowDirection === 'top' && (
+          <div className="absolute left-1/2 -top-[18px] -translate-x-1/2 pointer-events-none">
+            <svg width="20" height="12" viewBox="0 0 20 12" className="text-library-mahogany/50">
+              <path d="M10 12 L2 0 L18 0 Z" fill="currentColor" />
+            </svg>
+          </div>
+        )}
+        {arrowDirection === 'bottom' && (
+          <div className="absolute left-1/2 -bottom-[18px] -translate-x-1/2 pointer-events-none">
+            <svg width="20" height="12" viewBox="0 0 20 12" className="text-library-mahogany/50">
+              <path d="M10 0 L2 12 L18 12 Z" fill="currentColor" />
+            </svg>
+          </div>
+        )}
 
         {/* Main dialogue content */}
         <div className="relative">
