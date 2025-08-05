@@ -2,31 +2,26 @@ from __future__ import annotations
 import json
 import os
 import logging
-from datetime import datetime
-from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Union
 import httpx
 
 from new_backend_ruminate.domain.conversation.entities.message import Message
 from new_backend_ruminate.domain.ports.llm import LLMService
 
-# Set up dedicated logger for web search events
-log_dir = Path("logs")
-log_dir.mkdir(exist_ok=True)
+# Set up dedicated logger for web search events (console only)
 web_search_logger = logging.getLogger("web_search")
 web_search_logger.setLevel(logging.INFO)
 
-# Create file handler with timestamp
-log_file = log_dir / f"web_search_{datetime.now().strftime('%Y%m%d')}.log"
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.INFO)
+# Create console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
 
 # Create formatter
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
 
 # Add handler to logger
-web_search_logger.addHandler(file_handler)
+web_search_logger.addHandler(console_handler)
 
 
 class OpenAIResponsesLLM(LLMService):
