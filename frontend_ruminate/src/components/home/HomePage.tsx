@@ -10,6 +10,7 @@ import { Document } from '@/services/api/document';
 import DocumentTable from './DocumentTable';
 import UploadButton from './UploadButton';
 import UserMenu from './UserMenu';
+import ProcessingIndicator from './ProcessingIndicator';
 import ConfirmationDialog from '../common/ConfirmationDialog';
 import WelcomeModal from '../onboarding/WelcomeModal';
 import { LibraryTourDialogue } from '../onboarding/LibraryTourDialogue';
@@ -70,8 +71,8 @@ export default function HomePage() {
   }, [documents, router]);
 
   const handleDocumentClick = async (document: Document) => {
+    // Only allow clicking on ready documents
     if (document.status !== 'READY') {
-      alert('This document is still processing. Please wait until it\'s ready.');
       return;
     }
 
@@ -254,6 +255,9 @@ export default function HomePage() {
         onNext={() => nextStep()}
         position={{ top: '38%', left: '50%' }}
       />
+      
+      {/* Processing Indicator */}
+      <ProcessingIndicator />
     </div>
   );
 }

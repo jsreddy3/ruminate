@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import MessageList from './messages/MessageList';
-import EmptyConversationState from './EmptyConversationState';
+import ConversationHeader from './ConversationHeader';
 import { Block } from '../pdf/PDFViewer';
 
 interface ChatMessagesProps {
@@ -41,8 +41,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
   }, [messageTree, streamingContent]);
 
-  // Check if conversation is empty (no user/assistant messages, only system message)
-  const isEmpty = activeThreadIds.length <= 1; // Only system message or no messages at all
 
   return (
     <div 
@@ -55,24 +53,20 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       } as React.CSSProperties}
     >
       <div style={{ zoom: zoomLevel }}>
-        {isEmpty ? (
-          <EmptyConversationState 
-            conversationType={conversationType}
-            selectedText={selectedText}
-          />
-        ) : (
-          <MessageList 
-            messages={messageTree}
-            activeThreadIds={activeThreadIds}
-            onSwitchVersion={(messageId) => onSwitchVersion(messageId, 0)}
-            onEditMessage={onEditMessage}
-            streamingMessageId={streamingMessageId}
-            streamingContent={streamingContent}
-            webSearchEvent={webSearchEvent}
-            conversationId={conversationId || undefined}
-            documentId={documentId}
-          />
-        )}
+        <ConversationHeader 
+          conversationType={conversationType}
+          selectedText={selectedText}
+        />
+        <MessageList 
+          messages={messageTree}
+          activeThreadIds={activeThreadIds}
+          onSwitchVersion={(messageId) => onSwitchVersion(messageId, 0)}
+          onEditMessage={onEditMessage}
+          streamingMessageId={streamingMessageId}
+          streamingContent={streamingContent}
+          conversationId={conversationId || undefined}
+          documentId={documentId}
+        />
       </div>
     </div>
   );

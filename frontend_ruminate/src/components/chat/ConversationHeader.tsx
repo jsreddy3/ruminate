@@ -1,11 +1,11 @@
 import React from 'react';
 
-interface EmptyConversationStateProps {
+interface ConversationHeaderProps {
   conversationType: 'main' | 'rabbithole';
   selectedText?: string;
 }
 
-const EmptyConversationState: React.FC<EmptyConversationStateProps> = ({
+const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   conversationType,
   selectedText
 }) => {
@@ -16,7 +16,7 @@ const EmptyConversationState: React.FC<EmptyConversationStateProps> = ({
     : selectedText;
 
   return (
-    <div className="flex items-center justify-center h-full p-6">
+    <div className="flex items-center justify-center p-6 mb-4">
       <div className="w-[85%] max-w-none">
         {isMainConversation ? (
           <div className="bg-gradient-to-b from-surface-parchment/30 to-library-cream-50/30 border border-library-sage-200/40 rounded-2xl px-6 py-8 text-center space-y-4">
@@ -64,4 +64,4 @@ const EmptyConversationState: React.FC<EmptyConversationStateProps> = ({
   );
 };
 
-export default EmptyConversationState;
+export default ConversationHeader;

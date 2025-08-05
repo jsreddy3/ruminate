@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Book, Settings, ScrollText, Sparkles } from 'lucide-react';
 
 interface ProgressChronicleProps {
   progress: number; // 0-100
@@ -58,7 +59,7 @@ const ScholarlyProgressChronicle: React.FC<ProgressChronicleProps> = ({
           primary: 'library-forest',
           secondary: 'library-sage', 
           accent: 'library-gold',
-          icon: '📖',
+          icon: <Book className="w-4 h-4" />,
           title: 'Reading Chronicle'
         };
       case 'processing':
@@ -66,7 +67,7 @@ const ScholarlyProgressChronicle: React.FC<ProgressChronicleProps> = ({
           primary: 'library-mahogany',
           secondary: 'library-cream', 
           accent: 'library-gold',
-          icon: '⚙️',
+          icon: <Settings className="w-4 h-4" />,
           title: 'Processing Manuscript'
         };
       case 'uploading':
@@ -74,7 +75,7 @@ const ScholarlyProgressChronicle: React.FC<ProgressChronicleProps> = ({
           primary: 'library-gold',
           secondary: 'surface-aged', 
           accent: 'library-mahogany',
-          icon: '📜',
+          icon: <ScrollText className="w-4 h-4" />,
           title: 'Archiving Document'
         };
       default:
@@ -82,7 +83,7 @@ const ScholarlyProgressChronicle: React.FC<ProgressChronicleProps> = ({
           primary: 'library-mahogany',
           secondary: 'library-sage', 
           accent: 'library-gold',
-          icon: '✨',
+          icon: <Sparkles className="w-4 h-4" />,
           title: 'Progress Chronicle'
         };
     }
@@ -255,7 +256,7 @@ const ScholarlyProgressChronicle: React.FC<ProgressChronicleProps> = ({
                 animate={{ rotate: [0, 360] }}
                 transition={{ duration: 1, ease: 'easeInOut' }}
               >
-                ✨
+                <Sparkles className="w-8 h-8" />
               </motion.div>
             </motion.div>
           )}
@@ -265,7 +266,7 @@ const ScholarlyProgressChronicle: React.FC<ProgressChronicleProps> = ({
       {/* Progress information */}
       <div className="flex items-center justify-between mt-3">
         <div className="flex items-center gap-2">
-          <span className={`${sizeStyles.iconSize}`}>{styles.icon}</span>
+          <span className={`text-reading-primary flex items-center`}>{styles.icon}</span>
           <span className={`font-serif font-medium text-reading-primary ${sizeStyles.fontSize}`}>
             {label || styles.title}
           </span>

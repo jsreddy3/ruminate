@@ -4,6 +4,7 @@ import { Document, documentApi } from '@/services/api/document';
 import { formatDistanceToNow } from 'date-fns';
 import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { useProcessing } from '@/contexts/ProcessingContext';
 
 interface DocumentRowProps {
   document: Document;
@@ -21,6 +22,10 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(document.title);
   const [isSaving, setIsSaving] = useState(false);
+  const { isProcessing, openProcessingModal } = useProcessing();
+  
+  // Check if this document is currently processing in the global context
+  const isDocProcessing = isProcessing(document.id);
   
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
@@ -32,6 +37,13 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
   };
 
   const getStatusIcon = () => {
+    // Override with processing status from global context if actively processing
+    if (isDocProcessing) {
+      return (
+        <div className="w-2 h-2 bg-library-gold-500 rounded-full animate-pulse" />
+      );
+    }
+    
     switch (document.status) {
       case 'READY':
         return (
@@ -114,6 +126,13 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
 
   // Handle onboarding click
   const handleRowClick = () => {
+    if (isOnboardingActive && !isOnboardingTarget) {
+      return; // Prevent clicks on non-target documents during onboarding
+    }
+    // Don't trigger row click for processing documents
+    if (isDocProcessing || document.status === 'PROCESSING' || document.status === 'PROCESSING_MARKER') {
+      return;
+    }
     onClick();
   };
 
@@ -174,6 +193,20 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
                 <h3 className="text-lg font-serif font-medium text-reading-primary truncate">
                   {document.title}
                 </h3>
+                {/* Edit Button - next to document name */}
+                {!isOnboardingActive && (
+                  <button
+                    onClick={handleEditClick}
+                    className={`p-1 transition-all rounded-full hover:bg-library-sage-50 ${
+                      isHovering 
+                        ? 'text-library-sage-400 hover:text-library-sage-600 opacity-100' 
+                        : 'text-transparent opacity-0 pointer-events-none'
+                    }`}
+                    title="Edit document name"
+                  >
+                    <PencilIcon className="w-3 h-3" />
+                  </button>
+                )}
                 {getStatusIcon()}
               </>
             )}
@@ -202,22 +235,23 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
             </button>
           )}
           
+          {/* Processing Status Button - shown when actively processing */}
+          {isDocProcessing && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openProcessingModal(document.id);
+              }}
+              className="px-3 py-1.5 text-sm font-medium text-library-mahogany-700 bg-library-cream-100 hover:bg-library-cream-200 rounded-book transition-colors flex items-center gap-2 border border-library-cream-300"
+              title="View processing progress"
+            >
+              <div className="w-3 h-3 border-2 border-library-cream-300 border-t-library-mahogany-600 rounded-full animate-spin" />
+              Processing
+            </button>
+          )}
+          
           {/* Action buttons - positioned absolutely to prevent layout shift */}
           <div className="absolute right-12 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-            {/* Edit Button */}
-            {!isEditing && !isOnboardingActive && (
-              <button
-                onClick={handleEditClick}
-                className={`p-1 transition-all rounded-full hover:bg-library-sage-50 ${
-                  isHovering 
-                    ? 'text-library-sage-400 hover:text-library-sage-600 opacity-100' 
-                    : 'text-transparent opacity-0 pointer-events-none'
-                }`}
-                title="Edit document name"
-              >
-                <PencilIcon className="w-3 h-3" />
-              </button>
-            )}
             
             {/* Delete Button */}
             {onDelete && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && !isOnboardingActive && (

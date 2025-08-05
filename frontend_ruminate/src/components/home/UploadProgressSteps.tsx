@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentProcessingEvent, DocumentStatus } from '@/types';
 import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid';
 import ScholarlyProgressBar from '../common/ScholarlyProgressBar';
+import { Globe, FileText, Upload, Search, Brain, Sparkles, Lightbulb, PartyPopper } from 'lucide-react';
 
 interface UploadProgressStepsProps {
   events: DocumentProcessingEvent[];
@@ -16,7 +17,7 @@ interface StepInfo {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
   estimatedTime?: string;
 }
 
@@ -25,42 +26,42 @@ const URL_PROCESSING_STEPS: StepInfo[] = [
     id: 'pdf_navigating',
     title: 'Navigating',
     description: 'Opening the webpage',
-    icon: '🌐',
+    icon: <Globe className="w-4 h-4" />,
     estimatedTime: '5-10 seconds'
   },
   {
     id: 'pdf_generating',
     title: 'Generating PDF',
     description: 'Converting webpage to PDF format',
-    icon: '📄',
+    icon: <FileText className="w-4 h-4" />,
     estimatedTime: '30-45 seconds'
   },
   {
     id: 'pdf_uploading',
     title: 'Uploading',
     description: 'Transferring generated PDF',
-    icon: '📤',
+    icon: <Upload className="w-4 h-4" />,
     estimatedTime: '5-10 seconds'
   },
   {
     id: 'PROCESSING_MARKER',
     title: 'Extracting Content',
     description: 'Using AI to parse text and structure',
-    icon: '🔍',
+    icon: <Search className="w-4 h-4" />,
     estimatedTime: '30-60 seconds'
   },
   {
     id: 'ANALYZING_CONTENT',
     title: 'Creating Summary',
     description: 'Generating intelligent overview',
-    icon: '🧠',
+    icon: <Brain className="w-4 h-4" />,
     estimatedTime: '15-30 seconds'
   },
   {
     id: 'READY',
     title: 'Ready!',
     description: 'Your document is ready',
-    icon: '✨',
+    icon: <Sparkles className="w-4 h-4" />,
   }
 ];
 
@@ -69,28 +70,28 @@ const FILE_PROCESSING_STEPS: StepInfo[] = [
     id: 'UPLOADING',
     title: 'Uploading Document',
     description: 'Securely transferring your PDF to our servers',
-    icon: '📤',
+    icon: <Upload className="w-4 h-4" />,
     estimatedTime: '5-10 seconds'
   },
   {
     id: 'PROCESSING_MARKER',
     title: 'Extracting Content',
     description: 'Using AI to parse text, images, and structure from your PDF',
-    icon: '🔍',
+    icon: <Search className="w-4 h-4" />,
     estimatedTime: '30-60 seconds'
   },
   {
     id: 'ANALYZING_CONTENT',
     title: 'Generating Summary',
     description: 'Creating an intelligent overview of your document',
-    icon: '🧠',
+    icon: <Brain className="w-4 h-4" />,
     estimatedTime: '15-30 seconds'
   },
   {
     id: 'READY',
     title: 'Ready to Explore!',
     description: 'Your document is processed and ready for analysis',
-    icon: '✨',
+    icon: <Sparkles className="w-4 h-4" />,
   }
 ];
 
@@ -214,7 +215,7 @@ const ProcessingMessages = ({ events, currentStatus }: { events: DocumentProcess
       case 'ANALYSIS_COMPLETE':
         return "Almost ready! Finalizing everything...";
       case 'READY':
-        return "🎉 Your document is ready to explore!";
+        return "Your document is ready to explore!";
       case 'ERROR':
         return latestEvent?.error || "Something went wrong. Please try again.";
       default:
@@ -326,8 +327,9 @@ export default function UploadProgressSteps({ events, currentStatus, error: _err
           transition={{ delay: 2 }}
           className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100"
         >
-          <p className="text-sm text-blue-700 text-center">
-            💡 <strong>Did you know?</strong> Our AI reads your document alongside you -- it's the perfect copilot!
+          <p className="text-sm text-blue-700 text-center flex items-center justify-center gap-2">
+            <Lightbulb className="w-4 h-4" />
+            <span><strong>Did you know?</strong> Our AI reads your document alongside you -- it's the perfect copilot!</span>
           </p>
         </motion.div>
       )}

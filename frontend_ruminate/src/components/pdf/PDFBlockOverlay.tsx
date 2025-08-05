@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Block } from './PDFViewer';
 import BlockIndicators, { BlockDotIndicators } from './BlockIndicators';
 import { PDFTourDialogue } from '../onboarding/PDFTourDialogue';
+import { isBlockNavigable } from '../../utils/blockFiltering';
 
 interface PDFBlockOverlayProps {
   blocks: Block[];
