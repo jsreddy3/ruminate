@@ -39,13 +39,20 @@ export const useMessageStreamHandler = ({
   // Handle successful stream completion
   useEffect(() => {
     if (isStreamingComplete && streamingMessageId) {
-      // Clear streaming state
-      setStreamingMessageId(null);
+      // Don't immediately clear streaming state - let the refresh validate content first
+      // This prevents content from disappearing if backend hasn't saved it yet
       
       // Trigger callback to refresh the message tree
       if (onStreamComplete) {
         onStreamComplete();
       }
+      
+      // Add a delayed cleanup as a fallback (in case refresh doesn't clear it)
+      const cleanupTimeout = setTimeout(() => {
+        setStreamingMessageId(null);
+      }, 5000); // 5 seconds should be more than enough for backend to save
+      
+      return () => clearTimeout(cleanupTimeout);
     }
   }, [isStreamingComplete, streamingMessageId, onStreamComplete]);
 
@@ -54,13 +61,18 @@ export const useMessageStreamHandler = ({
     if (streamingError && streamingMessageId) {
       // Wait a bit for the message to be processed server-side
       const fallbackTimeout = setTimeout(() => {
-        // Clear streaming state
-        setStreamingMessageId(null);
+        // Don't immediately clear streaming state here either
+        // Let the refresh handle it
         
         // Refresh to get the final message
         if (onStreamComplete) {
           onStreamComplete();
         }
+        
+        // Add delayed cleanup as fallback
+        setTimeout(() => {
+          setStreamingMessageId(null);
+        }, 3000);
       }, 2000);
       
       return () => clearTimeout(fallbackTimeout);

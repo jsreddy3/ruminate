@@ -55,12 +55,14 @@ class ConversationService:
             # But still publish everything to SSE for real-time UI updates
             await self._hub.publish(ai_id, chunk)
         
-        # Send completion signal that frontend expects
-        await self._hub.publish(ai_id, "[DONE]")
-        await self._hub.terminate(ai_id)
-
+        # IMPORTANT: Save content to database BEFORE sending completion signal
+        # This ensures content is persisted before frontend refreshes
         async with session_scope() as session:
             await self._repo.update_message_content(ai_id, full, session)
+        
+        # Now send completion signal after content is saved
+        await self._hub.publish(ai_id, "[DONE]")
+        await self._hub.terminate(ai_id)
 
 
     # ───────────────────────────── public API ─────────────────────────────── #
