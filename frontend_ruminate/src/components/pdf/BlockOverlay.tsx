@@ -107,6 +107,12 @@ export default function BlockOverlay({
       return;
     }
 
+    // Check if click is on the image gallery
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-image-gallery="true"]')) {
+      return;
+    }
+
     // Check if the click is outside the modal content box
     if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node)) {
       // Ensure we're not in a restricted onboarding step

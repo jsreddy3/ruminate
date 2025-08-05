@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
 import BasePopover from '../../common/BasePopover';
+import ImageGallery from './ImageGallery';
+import { useBlockImages } from '../../../hooks/useBlockImages';
 
 interface BlockContextStackProps {
   blocks: Block[];
@@ -33,6 +35,9 @@ export default function BlockContextStack({
   
   // Find current block index
   const currentIndex = blocks.findIndex(block => block.id === currentBlockId);
+  
+  // Image fetching hook
+  const { fetchBlockImages } = useBlockImages(documentId);
   
   // Refs for container and focused block
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,9 +109,18 @@ export default function BlockContextStack({
   
 
   return (
-    <div 
-      ref={containerRef}
-      className={`flex-1 bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>
+    <>
+      {/* Image Gallery */}
+      <ImageGallery 
+        blocks={blocks}
+        currentBlockId={currentBlockId}
+        documentId={documentId}
+        onImageFetch={fetchBlockImages}
+      />
+      
+      <div 
+        ref={containerRef}
+        className={`flex-1 bg-gradient-to-b from-surface-paper to-library-cream-50 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>
       {/* Content area with padding for scrolling */}
       <div 
         className="px-4 space-y-4 w-full"
@@ -246,5 +260,6 @@ export default function BlockContextStack({
         </div>
       </BasePopover>
     </div>
+    </>
   );
 }

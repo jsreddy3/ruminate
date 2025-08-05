@@ -3,7 +3,9 @@ import BlockContainer from './BlockContainer';
 import BlockNavigatorPill from './BlockNavigatorPill';
 import GeneratedNoteBadges from './GeneratedNoteBadges';
 import BlockContextStack from './BlockContextStack';
+import ImageGallery from './ImageGallery';
 import { Block } from '../../pdf/PDFViewer';
+import { useBlockImages } from '../../../hooks/useBlockImages';
 
 interface BlockNavigatorProps {
   blocks: Block[];
@@ -50,6 +52,9 @@ export default function BlockNavigator({
 }: BlockNavigatorProps) {
   // Track current index
   const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // Image fetching hook
+  const { fetchBlockImages } = useBlockImages(documentId);
   
   // View mode state - toggles between traditional view and contextual stack
   const [viewMode, setViewMode] = useState<'traditional' | 'stack'>('traditional');
@@ -230,6 +235,13 @@ export default function BlockNavigator({
 
       {/* Content area - switches between views */}
       <div className="flex-1 overflow-hidden relative flex flex-col">
+        {/* Image Gallery - visible in both modes */}
+        <ImageGallery 
+          blocks={blocks}
+          currentBlockId={currentBlock.id}
+          documentId={documentId}
+          onImageFetch={fetchBlockImages}
+        />
         {viewMode === 'traditional' ? (
           // Traditional linear view
           <div className="flex flex-col h-full overflow-hidden">
