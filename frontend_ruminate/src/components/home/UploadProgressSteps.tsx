@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentProcessingEvent, DocumentStatus } from '@/types';
 import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid';
 import ScholarlyProgressBar from '../common/ScholarlyProgressBar';
-import { Globe, FileText, Upload, Search, Brain, Sparkles, Lightbulb, PartyPopper } from 'lucide-react';
+import { Globe, FileText, Upload, Search, Brain, Sparkles, Lightbulb } from 'lucide-react';
 
 interface UploadProgressStepsProps {
   events: DocumentProcessingEvent[];

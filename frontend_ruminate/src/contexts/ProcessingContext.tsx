@@ -121,8 +121,8 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
         if (status === 'READY') {
           cleanupEventSource(documentId);
           
-          // If this was the selected document in modal, redirect after delay
-          if (selectedDocumentId === documentId && isModalOpen) {
+          // Auto-navigate to viewer if user is on home page when processing completes
+          if (window.location.pathname === '/home') {
             setTimeout(() => {
               window.location.href = `/viewer/${documentId}`;
             }, 1000);
@@ -166,7 +166,7 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
         });
       }
     };
-  }, [processingDocuments, selectedDocumentId, isModalOpen, addProcessingEvent, cleanupEventSource]);
+  }, [processingDocuments, addProcessingEvent, cleanupEventSource]);
 
   // Start processing a document
   const startProcessing = useCallback((documentId: string, title: string) => {
