@@ -57,6 +57,69 @@ class OpenAIResponsesLLM(LLMService):
                     return content_items[0]['text']
         return ""
 
+    def _make_schema_format(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "DocumentInfo",
+                "strict": True,          # hard fail on schema mismatch
+                "schema": schema,
+            },
+        }
+
+    async def generate_response(
+        self,
+        messages: List[Dict[str, str]],
+        model: str | None = None,
+        *,
+        response_format: Dict[str, Any] | None = None,
+        tools: List[Dict[str, Any]] | None = None,
+        stream: bool = False,
+        enable_web_search: bool | None = None,  # Allow per-call override
+    ) -> str:
+        chat_msgs = await self._normalise(messages)
+
+        payload = {
+            "model": model or self._model,
+            "input": chat_msgs,
+            "stream": stream,
+        }
+
+        # Propagate structured-output settings
+        if response_format:
+            payload["response_format"] = response_format
+
+        # Handle web search tools
+        # Use explicit enable_web_search parameter if provided, otherwise use instance default
+        use_web_search = enable_web_search if enable_web_search is not None else self._enable_web_search
+        
+        if tools is not None:
+            # Explicit tools provided, use them
+            payload["tools"] = tools
+        elif use_web_search:
+            # No explicit tools, but web search is enabled
+            payload["tools"] = [{"type": "web_search_preview"}]
+            web_search_logger.info(f"Web search ENABLED for request")
+        else:
+            web_search_logger.info(f"Web search DISABLED for request")
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{self._base_url}",
+                headers=self._headers,
+                json=payload,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            
+            # Extract text from the response
+            if "output" in result:
+                return self._extract_text_from_output(result["output"])
+            elif "output_text" in result:
+                return result["output_text"]
+            else:
+                raise ValueError(f"Unexpected response format: {result}")
+
     async def generate_response_stream(
         self, messages: List[Message], model: str | None = None
     ) -> AsyncGenerator[str, None]:
@@ -177,11 +240,16 @@ class OpenAIResponsesLLM(LLMService):
         response_format: Dict[str, Any],
         json_schema: Dict[str, Any] | None = None,
         model: str | None = None,
+        enable_web_search: bool | None = None,  # Allow web search control
     ) -> Dict[str, Any]:
-        # For now, just use regular generation and parse the response
-        # The Responses API doesn't support structured output directly yet
-        response = await self.generate_response(messages, model)
+        # Use the Responses API structured output feature with proper schema format
+        response = await self.generate_response(
+            messages,
+            response_format=self._make_schema_format(json_schema) if json_schema else response_format,
+            model=model or "gpt-4o-2024-08-06",   # any model ≥ 4o-08-06 works
+            enable_web_search=enable_web_search,  # Pass through web search control
+        )
         try:
             return json.loads(response)
         except json.JSONDecodeError:
-            return {"error": "Failed to parse JSON response"}
+            return {"error": "Failed to parse JSON response", "raw_response": response}

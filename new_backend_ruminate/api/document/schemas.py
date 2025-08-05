@@ -12,6 +12,7 @@ class DocumentResponse(BaseModel):
     status: DocumentStatus
     title: str
     summary: Optional[str]
+    document_info: Optional[str]  # JSON string containing extracted info
     created_at: datetime
     updated_at: datetime
     processing_error: Optional[str]

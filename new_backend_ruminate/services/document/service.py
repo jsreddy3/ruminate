@@ -191,7 +191,7 @@ class DocumentService:
         document_id: str, 
         session: AsyncSession
     ) -> None:
-        """Generate and save document summary using the analyzer"""
+        """Generate and save document summary and info using the analyzer"""
         try:
             # Get document and blocks
             document = await self._repo.get_document(document_id, session)
@@ -204,28 +204,42 @@ class DocumentService:
             event_data = json.dumps({
                 "status": "ANALYZING_CONTENT",
                 "document_id": document_id,
-                "message": "Generating document summary..."
+                "message": "Analyzing document content..."
             })
             await self._hub.publish(
                 f"document_{document_id}",
                 f"event: analysis_started\ndata: {event_data}\n\n"
             )
             
-            # Generate summary
-            summary = await self._analyzer.generate_document_summary(
-                blocks, 
-                document.title
-            )
+            # Generate both summary and document info in parallel
+            import asyncio
             
-            # Update document with summary
+            # Run both analyses concurrently
+            summary_task = self._analyzer.generate_document_summary(blocks, document.title)
+            info_task = self._analyzer.generate_document_info(blocks, document.title)
+            
+            summary, doc_info = await asyncio.gather(summary_task, info_task)
+            
+            # Update document with summary and info
             document.summary = summary
+            
+            # Store the structured info as JSON in document_info field
+            import json as json_module
+            document.document_info = json_module.dumps(doc_info)
+            
+            # Update the document title with the extracted title if available
+            if doc_info.get("title") and doc_info["title"] != document.title:
+                print(f"[DocumentService] Updating document title from '{document.title}' to '{doc_info['title']}'")
+                document.title = doc_info["title"]
+            
             await self._repo.update_document(document, session)
             
             # Emit completion
             event_data = json.dumps({
                 "status": "ANALYSIS_COMPLETE",
                 "document_id": document_id,
-                "message": "Document summary generated"
+                "message": "Document analysis completed",
+                "extracted_info": doc_info
             })
             await self._hub.publish(
                 f"document_{document_id}",
@@ -234,7 +248,7 @@ class DocumentService:
             
         except Exception as e:
             # Log error but don't fail the entire process
-            print(f"[DocumentService] ERROR in summary generation: {type(e).__name__}: {str(e)}")
+            print(f"[DocumentService] ERROR in document analysis: {type(e).__name__}: {str(e)}")
             import traceback
             print(f"[DocumentService] Traceback: {traceback.format_exc()}")
             
