@@ -67,3 +67,10 @@ Thumbs.db
 *.db
 
 *_PLAN.md
+
+# Database utility scripts
+delete_old_documents.py
+clone_document_to_all_users.py
+flip_onboarding_flag.py
+set_all_users_onboarded.py
+manage_onboarding.py
