@@ -137,7 +137,10 @@ export default function ImageGallery({
             transform: 'translate3d(0, -50%, 0)' // Force GPU acceleration
           }}
         >
-          <div className="bg-gradient-to-br from-surface-paper to-library-cream-100 shadow-shelf rounded-r-journal border border-l-0 border-library-sage-300 h-[400px] flex backdrop-blur-paper">
+          <div className="bg-gradient-to-br from-surface-paper to-library-cream-100 shadow-shelf border border-library-sage-300 h-[400px] flex backdrop-blur-paper overflow-hidden" style={{
+            borderRadius: '0 16px 16px 0',
+            borderLeft: 'none'
+          }}>
             {/* Gallery content */}
             <div className={`${isCollapsed ? 'w-0' : 'w-36'} overflow-hidden transition-all duration-300`}>
               <div className="p-3 h-full flex flex-col">
@@ -193,17 +196,24 @@ export default function ImageGallery({
               </div>
             </div>
 
-            {/* Toggle button */}
+            {/* Toggle button with tab design */}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="w-12 h-full bg-gradient-to-r from-library-cream-50 to-surface-parchment hover:from-library-cream-100 hover:to-library-cream-50 transition-all duration-200 flex items-center justify-center border-l border-library-sage-300 group"
+              className="relative w-12 h-full bg-gradient-to-r from-library-cream-50 to-surface-parchment hover:from-library-cream-100 hover:to-library-cream-50 transition-all duration-200 flex items-center justify-center border-l border-library-sage-300 group"
               title={isCollapsed ? "Show figure gallery" : "Hide figure gallery"}
+              style={{
+                borderRadius: '0 16px 16px 0',
+                boxShadow: isCollapsed ? '2px 0 8px rgba(0,0,0,0.05)' : 'none'
+              }}
             >
-              {isCollapsed ? (
-                <ChevronRight className="w-5 h-5 text-library-sage-600 group-hover:text-reading-secondary transition-colors" />
-              ) : (
-                <ChevronLeft className="w-5 h-5 text-library-sage-600 group-hover:text-reading-secondary transition-colors" />
-              )}
+              <div className="flex flex-col items-center gap-1">
+                {/* Arrow */}
+                {isCollapsed ? (
+                  <ChevronRight className="w-5 h-5 text-library-sage-600 group-hover:text-reading-secondary transition-colors" />
+                ) : (
+                  <ChevronLeft className="w-5 h-5 text-library-sage-600 group-hover:text-reading-secondary transition-colors" />
+                )}
+              </div>
             </button>
           </div>
         </div>,
