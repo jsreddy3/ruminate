@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
+import BasePopover from '../../common/BasePopover';
 
 interface BlockContextStackProps {
   blocks: Block[];
@@ -36,6 +37,10 @@ export default function BlockContextStack({
   // Refs for container and focused block
   const containerRef = useRef<HTMLDivElement>(null);
   const focusedBlockRef = useRef<HTMLDivElement>(null);
+  
+  // Navigation tip state
+  const [showNavigationTip, setShowNavigationTip] = useState(false);
+  const [tipPosition, setTipPosition] = useState({ x: 0, y: 0 });
   
   // Check if this is the first showable text block
   const isFirstShowableTextBlock = useMemo(() => {
@@ -139,7 +144,26 @@ export default function BlockContextStack({
                 opacity,
                 maxHeight: isCurrent ? '50vh' : '25vh'
               }}
-              onClick={() => onBlockChange(block)}
+              onClick={(e) => {
+                // Check if we should show the navigation tip
+                const storageKey = 'ruminate_stack_navigation_tip_shown';
+                const tipShown = localStorage.getItem(storageKey);
+                
+                if (!tipShown) {
+                  // Get click position for tooltip placement
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setTipPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top
+                  });
+                  setShowNavigationTip(true);
+                  
+                  // Mark tip as shown for this session
+                  localStorage.setItem(storageKey, 'true');
+                }
+                
+                onBlockChange(block);
+              }}
             >
               {/* Block content using the same renderer as linear view */}
               <div className={`p-4 ${
@@ -199,6 +223,28 @@ export default function BlockContextStack({
           );
         })}
       </div>
+      
+      {/* Navigation tip popover */}
+      <BasePopover
+        isVisible={showNavigationTip}
+        position={tipPosition}
+        onClose={() => setShowNavigationTip(false)}
+        initialWidth={280}
+        initialHeight="auto"
+        showCloseButton={false}
+        offsetY={10}
+        className="border-library-gold-300"
+      >
+        <div className="p-3 text-center">
+          <div className="flex items-center justify-center gap-2 text-library-gold-700">
+            <span className="text-lg">💡</span>
+            <span className="font-medium">Navigation Tip</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-600">
+            Use arrow keys for smoother stack navigation!
+          </p>
+        </div>
+      </BasePopover>
     </div>
   );
 }
