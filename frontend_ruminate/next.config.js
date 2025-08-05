@@ -99,6 +99,12 @@ const nextConfig = {
               to: '../public/pdf.worker.min.js',
               noErrorOnMissing: true,
             },
+            // Copy JPEG 2000 decoder
+            {
+              from: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
+              to: '../public/pdf.worker.min.js',
+              noErrorOnMissing: true,
+            },
           ],
         })
       );

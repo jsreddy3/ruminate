@@ -89,11 +89,16 @@ export default function HomePage() {
   }, [documents, router]);
 
   const handleDocumentClick = async (document: Document) => {
+    console.log('Document clicked:', document.id, 'Status:', document.status, 'Title:', document.title);
+    
     // Only allow clicking on ready documents
     if (document.status !== 'READY') {
+      console.log('Document not ready, blocking click');
       return;
     }
 
+    console.log('Navigating to document:', document.id);
+    
     // Show loading state immediately
     setNavigatingDocId(document.id);
 

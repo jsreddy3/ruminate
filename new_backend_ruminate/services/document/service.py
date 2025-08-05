@@ -88,8 +88,12 @@ class DocumentService:
                 await self._save_marker_results(document_id, marker_response, session)
                 
                 # Generate document summary if analyzer is available
+                print(f"[DocumentService] Analyzer available: {self._analyzer is not None}")
                 if self._analyzer:
+                    print(f"[DocumentService] Generating document summary for {document_id}")
                     await self._generate_document_summary(document_id, session)
+                else:
+                    print(f"[DocumentService] No analyzer available, skipping document summary generation")
                 
                 # Update document status
                 document = await self._repo.get_document(document_id, session)

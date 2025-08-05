@@ -85,9 +85,10 @@ class OpenAIResponsesLLM(LLMService):
             "stream": stream,
         }
 
-        # Propagate structured-output settings
+        # Propagate structured-output settings for Responses API
         if response_format:
-            payload["response_format"] = response_format
+            # Responses API uses different structure - move to text.format
+            payload["text"] = {"format": response_format}
 
         # Handle web search tools
         # Use explicit enable_web_search parameter if provided, otherwise use instance default
@@ -109,6 +110,9 @@ class OpenAIResponsesLLM(LLMService):
                 headers=self._headers,
                 json=payload,
             )
+            if resp.status_code != 200:
+                print(f"[OpenAI Responses API] Error {resp.status_code}: {resp.text}")
+                print(f"[OpenAI Responses API] Request payload: {json.dumps(payload, indent=2)}")
             resp.raise_for_status()
             result = resp.json()
             

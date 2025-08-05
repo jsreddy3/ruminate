@@ -169,7 +169,8 @@ async def upload_document(
                 chunk_index=document.chunk_index,
                 total_chunks=document.total_chunks,
                 is_auto_processed=document.is_auto_processed,
-                main_conversation_id=document.main_conversation_id
+                main_conversation_id=document.main_conversation_id,
+                document_info=document.document_info
             )
         )
         

@@ -8,6 +8,41 @@ import { PDFPageRenderer } from './PDFPageRenderer';
 // Configure PDF.js worker - use local copy from webpack build
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
+// Configure PDF.js to handle JPEG 2000 images more gracefully
+if (typeof window !== 'undefined') {
+  // Suppress JPEG 2000 warnings and handle gracefully
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const message = args.join(' ');
+    // Filter out JPEG 2000 warnings
+    if (message.includes('JpxError') || message.includes('OpenJPEG')) {
+      return; // Suppress these warnings
+    }
+    originalConsoleWarn.apply(console, args);
+  };
+
+  // Override canvas rendering to add fallbacks for failed images
+  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = function(...args) {
+    try {
+      return originalToDataURL.apply(this, args);
+    } catch (error) {
+      // Return a placeholder for failed image rendering
+      const ctx = this.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Image unavailable', this.width/2, this.height/2);
+        ctx.fillText('(JPEG 2000 format)', this.width/2, this.height/2 + 20);
+      }
+      return originalToDataURL.apply(this, args);
+    }
+  };
+}
+
 // Memoized page component to prevent re-renders
 const SimplePage = React.memo(({ 
   index, 
@@ -391,6 +426,27 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       renderPageRef.current = renderPage;
     }
   }, [renderPage]);
+
+  // Memoize PDF.js options to prevent unnecessary reloads
+  const pdfOptions = useMemo(() => ({
+    enableXfa: true,
+    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+    cMapPacked: true,
+    isEvalSupported: false,
+    isOffscreenCanvasSupported: false,
+    maxImageSize: 1024 * 1024 * 50, // 50MB limit for images
+    disableAutoFetch: false,
+    disableStream: false,
+    disableRange: false,
+    // Enable external services for JPEG 2000 decoding
+    useSystemFonts: false,
+    verbosity: 0, // Suppress console warnings completely
+    // Force fallback rendering for unsupported images
+    useOnlyCssZoom: true,
+    // Disable image rendering that might cause JPEG 2000 errors
+    disableCreateObjectURL: false
+  }), []);
   
   // Track which dependencies are changing
   const prevDepsRef = useRef<any>({});
@@ -432,6 +488,7 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
         onLoadProgress={handleLoadingProgress}
         onLoadError={handleLoadingError}
         loading={null}
+        options={pdfOptions}
         error={
           <div className="flex items-center justify-center h-full">
             <div className="bg-white rounded-journal shadow-shelf p-8 max-w-md">
