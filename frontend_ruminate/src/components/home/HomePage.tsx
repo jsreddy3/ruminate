@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { useProcessing } from '@/contexts/ProcessingContext';
 import { documentApi } from '@/services/api/document';
 import { Document } from '@/services/api/document';
 import DocumentTable from './DocumentTable';
@@ -18,6 +19,7 @@ import { LibraryTourDialogue } from '../onboarding/LibraryTourDialogue';
 export default function HomePage() {
   const { user, isLoading: authLoading } = useAuth();
   const { openWelcomeModal, state, markWelcomeComplete, nextStep } = useOnboarding();
+  const { processingDocuments } = useProcessing();
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,26 +42,40 @@ export default function HomePage() {
     }
   }, [user, authLoading, openWelcomeModal]);
 
-  // Fetch documents
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      if (!user) return;
-      
-      try {
-        setIsLoading(true);
-        const docs = await documentApi.getAllDocuments();
-        setDocuments(docs);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-        setError('Failed to load documents');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchDocuments();
+  // Fetch documents function
+  const fetchDocuments = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      const docs = await documentApi.getAllDocuments();
+      setDocuments(docs);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching documents:', err);
+      setError('Failed to load documents');
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
+
+  // Fetch documents on mount
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  // Refresh documents when processing completes
+  useEffect(() => {
+    // Check if any document just finished processing
+    const completedDocs = Array.from(processingDocuments.values()).filter(
+      doc => doc.status === 'READY'
+    );
+    
+    if (completedDocs.length > 0) {
+      // Refresh the document list to update statuses
+      fetchDocuments();
+    }
+  }, [processingDocuments, fetchDocuments]);
 
   // Prefetch viewer routes for ready documents for instant navigation
   useEffect(() => {
@@ -89,15 +105,10 @@ export default function HomePage() {
     router.push(`/viewer/${document.id}`);
   };
 
-  const handleUploadComplete = useCallback(async () => {
-    // Refresh the documents list
-    try {
-      const docs = await documentApi.getAllDocuments();
-      setDocuments(docs);
-    } catch (err) {
-      console.error('Error refreshing documents:', err);
-    }
-  }, []);
+  const handleUploadComplete = useCallback(() => {
+    // Refresh the documents list after upload
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleDeleteRequest = (documentId: string) => {
     const document = documents.find(doc => doc.id === documentId);

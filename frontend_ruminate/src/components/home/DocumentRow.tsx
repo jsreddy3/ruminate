@@ -22,7 +22,7 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(document.title);
   const [isSaving, setIsSaving] = useState(false);
-  const { isProcessing, openProcessingModal } = useProcessing();
+  const { isProcessing, openProcessingModal, startProcessing } = useProcessing();
   
   // Check if this document is currently processing in the global context
   const isDocProcessing = isProcessing(document.id);
@@ -129,8 +129,13 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
     if (isOnboardingActive && !isOnboardingTarget) {
       return; // Prevent clicks on non-target documents during onboarding
     }
-    // Don't trigger row click for processing documents
-    if (isDocProcessing || document.status === 'PROCESSING' || document.status === 'PROCESSING_MARKER') {
+    // If document is processing, open the processing modal
+    if (document.status === 'PROCESSING' || document.status === 'PROCESSING_MARKER') {
+      // If not in processing context (e.g., after page refresh), register it
+      if (!isDocProcessing) {
+        startProcessing(document.id, document.title);
+      }
+      openProcessingModal(document.id);
       return;
     }
     onClick();
