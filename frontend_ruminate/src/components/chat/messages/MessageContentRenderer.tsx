@@ -111,11 +111,6 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
           <div className="font-serif text-xl">
             {formatContent(streamingContent)}
           </div>
-          {/* Animated cursor to show streaming is active */}
-          <span 
-            className="inline-block w-0.5 h-5 bg-library-forest-500 ml-1 align-text-bottom animate-pulse"
-            aria-hidden="true"
-          />
         </div>
       );
     }

@@ -49,6 +49,7 @@ export const useMessageStreamHandler = ({
       
       // Add a delayed cleanup as a fallback (in case refresh doesn't clear it)
       const cleanupTimeout = setTimeout(() => {
+        console.log('[STREAMING] 5-second fallback timeout triggered - clearing streamingMessageId');
         setStreamingMessageId(null);
       }, 5000); // 5 seconds should be more than enough for backend to save
       
@@ -71,6 +72,7 @@ export const useMessageStreamHandler = ({
         
         // Add delayed cleanup as fallback
         setTimeout(() => {
+          console.log('[STREAMING] 3-second error fallback timeout triggered - clearing streamingMessageId');
           setStreamingMessageId(null);
         }, 3000);
       }, 2000);
