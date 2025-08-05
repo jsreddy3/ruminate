@@ -153,11 +153,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
             {isStreaming && message.role === MessageRole.ASSISTANT && (
               <div className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-library-forest-100 to-library-sage-100 rounded-book border border-library-forest-200">
                 <span className="text-sm font-serif text-library-forest-700">Contemplating...</span>
-                <div className="flex space-x-1">
-                  <div className="w-1.5 h-1.5 bg-library-forest-500 rounded-full animate-pulse"></div>
-                  <div className="w-1.5 h-1.5 bg-library-forest-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-library-forest-300 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                </div>
               </div>
             )}
             
