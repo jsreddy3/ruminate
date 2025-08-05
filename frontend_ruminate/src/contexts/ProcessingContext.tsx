@@ -38,19 +38,6 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
   const reconnectTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  
-  // Use refs to track current modal state for EventSource handlers
-  const selectedDocumentIdRef = useRef<string | null>(null);
-  const isModalOpenRef = useRef(false);
-  
-  // Keep refs in sync with state
-  useEffect(() => {
-    selectedDocumentIdRef.current = selectedDocumentId;
-  }, [selectedDocumentId]);
-  
-  useEffect(() => {
-    isModalOpenRef.current = isModalOpen;
-  }, [isModalOpen]);
 
   // Calculate active count
   const activeCount = Array.from(processingDocuments.values()).filter(
@@ -134,8 +121,8 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
         if (status === 'READY') {
           cleanupEventSource(documentId);
           
-          // If this was the selected document in modal, redirect after delay
-          if (selectedDocumentIdRef.current === documentId && isModalOpenRef.current) {
+          // Auto-navigate to viewer if user is on home page when processing completes
+          if (window.location.pathname === '/home') {
             setTimeout(() => {
               window.location.href = `/viewer/${documentId}`;
             }, 1000);
