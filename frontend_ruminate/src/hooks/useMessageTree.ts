@@ -202,8 +202,6 @@ export function useMessageTree({
   const refreshTree = useCallback(async (preventThreadUpdate = false) => {
     if (!conversationId) return;
     
-    console.log('[REFRESH] refreshTree called at', new Date().toISOString());
-    
     setIsLoading(true);
     try {
       const response = await conversationApi.getMessageTree(conversationId);
