@@ -103,21 +103,23 @@ export function PDFViewerHeader({
           />
         </div>
 
-        {/* Conversation Library */}
-        <div className="flex-shrink-0">
-          <ConversationLibrary
-            conversations={rabbitholeConversations.map(conv => ({
-              id: conv.id,
-              title: conv.title,
-              type: 'rabbithole' as const,
-              selectionText: conv.selectionText,
-              isActive: activeConversationId === conv.id
-            }))}
-            activeConversationId={activeConversationId}
-            onConversationChange={onConversationChange}
-            disabled={onboardingProps.onboardingState.isActive && onboardingProps.onboardingState.currentStep === 6}
-          />
-        </div>
+        {/* Conversation Library - only show when there are rabbithole conversations */}
+        {rabbitholeConversations.length > 0 && (
+          <div className="flex-shrink-0">
+            <ConversationLibrary
+              conversations={rabbitholeConversations.map(conv => ({
+                id: conv.id,
+                title: conv.title,
+                type: 'rabbithole' as const,
+                selectionText: conv.selectionText,
+                isActive: activeConversationId === conv.id
+              }))}
+              activeConversationId={activeConversationId}
+              onConversationChange={onConversationChange}
+              disabled={onboardingProps.onboardingState.isActive && onboardingProps.onboardingState.currentStep === 6}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

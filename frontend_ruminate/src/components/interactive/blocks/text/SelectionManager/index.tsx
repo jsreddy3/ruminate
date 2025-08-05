@@ -37,6 +37,7 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectionRects, setSelectionRects] = useState<DOMRect[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
+  const selectedTextRef = useRef<string>('');
   
   useEffect(() => {
     const container = containerRef.current;
@@ -67,6 +68,10 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
       setSelectionRects(rects);
       setIsSelecting(true);
       
+      // Store selected text in ref for copy operations
+      selectedTextRef.current = selectionText;
+      console.log('📝 Text stored in ref:', selectionText.substring(0, 50) + '...');
+      
       onTextSelected(selectionText, position, rects);
     };
 
@@ -92,18 +97,52 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
     container.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
     
+    // Handle Command+C to copy selected text
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && selectedTextRef.current) {
+        const browserSelection = window.getSelection()?.toString() || '';
+        console.log('📋 Copy triggered');
+        console.log('   Our ref text:', selectedTextRef.current);
+        console.log('   Browser selection:', browserSelection);
+        console.log('   Text lengths - ref:', selectedTextRef.current.length, 'browser:', browserSelection.length);
+        
+        // Use browser selection if available, otherwise use our stored text
+        const textToCopy = browserSelection || selectedTextRef.current;
+        console.log('   Will copy:', textToCopy);
+        
+        // Don't let the browser handle this copy event since selection might be cleared
+        e.preventDefault();
+        
+        // Use the Clipboard API if available, otherwise fallback to execCommand
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(textToCopy)
+            .then(() => console.log('✅ Copy success (clipboard API)'))
+            .catch(err => {
+              console.warn('❌ Copy failed (clipboard API):', err);
+            });
+        } else {
+          // Fallback for older browsers
+          const textarea = document.createElement('textarea');
+          textarea.value = textToCopy;
+          document.body.appendChild(textarea);
+          textarea.select();
+          const success = document.execCommand('copy');
+          document.body.removeChild(textarea);
+          console.log(success ? '✅ Copy success (execCommand)' : '❌ Copy failed (execCommand)');
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
     // Additional protection for preventing deselection during onboarding
     const handleGlobalClick = (e: Event) => {
       if (preventDeselection) {
         const target = e.target as HTMLElement;
         const isTooltipClick = target.closest('.selection-tooltip, .definition-popup');
-        console.log('🔒 SelectionManager: click event, target:', target.tagName, 'isTooltipClick:', !!isTooltipClick, 'className:', target.className);
         if (!isTooltipClick) {
-          console.log('🔒 SelectionManager: preventing click');
           e.preventDefault();
           e.stopPropagation();
-        } else {
-          console.log('🔒 SelectionManager: allowing tooltip click');
         }
       }
     };
@@ -116,6 +155,7 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
     return () => {
       container.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
       if (preventDeselection) {
         document.removeEventListener('click', handleGlobalClick, true);
         document.removeEventListener('mousedown', handleGlobalClick, true);
@@ -125,10 +165,8 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
 
   // Aggressive selection preservation during onboarding
   useEffect(() => {
-    console.log('🔒 SelectionManager: preventDeselection effect triggered:', preventDeselection);
     
     if (!preventDeselection) {
-      console.log('🔒 SelectionManager: preventDeselection is false, exiting');
       return;
     }
 
@@ -137,12 +175,10 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
 
     const preserveSelection = () => {
       const selection = window.getSelection();
-      console.log('🔒 SelectionManager: preserveSelection called, current selection:', selection?.toString());
       
       if (selection && selection.rangeCount > 0) {
         savedSelection = selection.getRangeAt(0).cloneRange();
         savedSelectionText = selection.toString();
-        console.log('🔒 SelectionManager: saved selection:', savedSelectionText);
       }
     };
 
@@ -151,44 +187,30 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
         const selection = window.getSelection();
         const currentText = selection?.toString() || '';
         
-        console.log('🔒 SelectionManager: restoreSelection called');
-        console.log('🔒 SelectionManager: current selection:', currentText);
-        console.log('🔒 SelectionManager: saved selection:', savedSelectionText);
-        
         if (selection && (!currentText || currentText !== savedSelectionText)) {
-          console.log('🔒 SelectionManager: RESTORING selection!');
           selection.removeAllRanges();
           selection.addRange(savedSelection);
-        } else {
-          console.log('🔒 SelectionManager: selection already correct, no restore needed');
-        }
-      } else {
-        console.log('🔒 SelectionManager: no saved selection to restore');
-      }
+        } 
+      } 
     };
 
     // Save selection initially
-    console.log('🔒 SelectionManager: initial preserve');
     preserveSelection();
 
     // Restore selection on any potential clearing events
     const handleSelectionChange = () => {
-      console.log('🔒 SelectionManager: selectionchange event detected');
       setTimeout(restoreSelection, 0); // Defer to next tick
     };
 
-    const handleMouseDown = (e: Event) => {
-      console.log('🔒 SelectionManager: mousedown event, target:', (e.target as HTMLElement)?.tagName);
+    const handleMouseDown = () => {
       preserveSelection();
     };
 
-    const handleMouseUp = (e: Event) => {
-      console.log('🔒 SelectionManager: mouseup event');
+    const handleMouseUp = () => {
       setTimeout(restoreSelection, 0);
     };
 
-    const handleClick = (e: Event) => {
-      console.log('🔒 SelectionManager: click event, target:', (e.target as HTMLElement)?.tagName);
+    const handleClick = () => {
       setTimeout(restoreSelection, 0);
     };
 
@@ -198,7 +220,6 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
     document.addEventListener('click', handleClick);
 
     return () => {
-      console.log('🔒 SelectionManager: cleaning up selection preservation listeners');
       document.removeEventListener('selectionchange', handleSelectionChange);
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -220,7 +241,7 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
       width: rect.width,
       height: rect.height
     };
-  }).filter(Boolean); // Remove any null values
+  }).filter((rect): rect is { left: number; top: number; width: number; height: number } => rect !== null);
   
   return (
     <div 

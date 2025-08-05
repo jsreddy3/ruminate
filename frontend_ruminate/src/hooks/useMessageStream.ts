@@ -7,11 +7,19 @@ const STREAM_COMPLETION_SIGNAL = "[DONE]";
 const RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 
+interface WebSearchEvent {
+  type: 'tool_use';
+  tool: 'web_search';
+  status: 'starting' | 'searching' | 'completed';
+  query?: string;
+}
+
 interface UseMessageStreamReturn {
   content: string;
   isLoading: boolean;
   isComplete: boolean;
   error: Error | null;
+  webSearchEvent: WebSearchEvent | null;
 }
 
 /**
@@ -30,6 +38,7 @@ export function useMessageStream(
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [webSearchEvent, setWebSearchEvent] = useState<WebSearchEvent | null>(null);
   
   // Track the current message ID to detect changes
   const currentMessageRef = useRef<string | null>(null);
@@ -98,8 +107,23 @@ export function useMessageStream(
             setIsComplete(true);
             setIsLoading(false);
             cleanup();
+          } else if (data.startsWith('{')) {
+            // Try to parse as JSON event
+            try {
+              const jsonEvent = JSON.parse(data);
+              if (jsonEvent.type === 'tool_use' && jsonEvent.tool === 'web_search') {
+                setWebSearchEvent(jsonEvent as WebSearchEvent);
+                // Clear the event after a delay if it's completed
+                if (jsonEvent.status === 'completed') {
+                  setTimeout(() => setWebSearchEvent(null), 2000);
+                }
+              }
+            } catch {
+              // Not valid JSON, treat as regular content
+              setContent(prevContent => prevContent + data);
+            }
           } else {
-            // Accumulate content
+            // Regular text content
             setContent(prevContent => prevContent + data);
           }
         };
@@ -145,5 +169,6 @@ export function useMessageStream(
     isLoading,
     isComplete,
     error,
+    webSearchEvent,
   };
 }

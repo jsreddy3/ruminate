@@ -86,6 +86,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const {
     streamingMessageId,
     streamingContent,
+    webSearchEvent,
     startStreaming
   } = useMessageStreamHandler({
     conversationId,
@@ -185,7 +186,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // Count total messages for pill visibility (exclude system messages)
   // Use activeThreadIds length instead of messageTree since tree building has issues
   const totalMessageCount = Math.max(0, activeThreadIds.length - 1); // -1 to exclude system message
-  const shouldShowNotePill = totalMessageCount >= 5;
+  const shouldShowNotePill = totalMessageCount >= 4;
   
   
   
@@ -285,6 +286,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           activeThreadIds={activeThreadIds}
           streamingMessageId={streamingMessageId}
           streamingContent={streamingContent}
+          webSearchEvent={webSearchEvent}
           conversationId={conversationId}
           onSwitchVersion={switchToVersion}
           onEditMessage={handleEditMessage}

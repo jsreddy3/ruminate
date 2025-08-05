@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authEvents } from '@/utils/api';
 
 interface User {
   id: string;
@@ -20,6 +21,7 @@ interface AuthContextType {
   logout: () => void;
   token: string | null;
   refreshUser: () => Promise<void>;
+  handleUnauthorized: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showUnauthorizedMessage, setShowUnauthorizedMessage] = useState(false);
 
   // Helper function to set auth token in both localStorage and cookies
   const setAuthToken = (tokenValue: string | null) => {
@@ -166,9 +169,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleUnauthorized = useCallback(() => {
+    // Clear auth state
+    setUser(null);
+    setToken(null);
+    setAuthToken(null);
+    setShowUnauthorizedMessage(true);
+    
+    // Hide message after 5 seconds
+    setTimeout(() => {
+      setShowUnauthorizedMessage(false);
+    }, 5000);
+    
+    // Redirect to home page after a short delay
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1000);
+  }, []);
+
+  // Listen for 401 events from authenticatedFetch
+  useEffect(() => {
+    const handleUnauthorizedEvent = () => {
+      handleUnauthorized();
+    };
+
+    authEvents.addEventListener('unauthorized', handleUnauthorizedEvent);
+
+    return () => {
+      authEvents.removeEventListener('unauthorized', handleUnauthorizedEvent);
+    };
+  }, [handleUnauthorized]);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, token, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, token, refreshUser, handleUnauthorized }}>
       {children}
+      {showUnauthorizedMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3">
+            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm font-medium">You've been signed out. Please sign in again.</p>
+          </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }

@@ -44,7 +44,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",  # Local development
         "http://localhost:3001",  # Local development
-        "https://ruminate-six.vercel.app"  # Production frontend
+        "https://ruminate-six.vercel.app",  # Production frontend
+        "https://tryruminate.com"  # New production domain
     ],
     allow_credentials=True,
     allow_methods=["*"],

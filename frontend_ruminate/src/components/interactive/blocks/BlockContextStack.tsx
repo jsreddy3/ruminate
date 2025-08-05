@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
+import BasePopover from '../../common/BasePopover';
 
 interface BlockContextStackProps {
   blocks: Block[];
@@ -37,6 +38,10 @@ export default function BlockContextStack({
   const containerRef = useRef<HTMLDivElement>(null);
   const focusedBlockRef = useRef<HTMLDivElement>(null);
   
+  // Navigation tip state
+  const [showNavigationTip, setShowNavigationTip] = useState(false);
+  const [tipPosition, setTipPosition] = useState({ x: 0, y: 0 });
+  
   // Check if this is the first showable text block
   const isFirstShowableTextBlock = useMemo(() => {
     // Find all text-based blocks before current
@@ -54,37 +59,38 @@ export default function BlockContextStack({
 
   // Update scroll position when focused block changes
   useEffect(() => {
+    // First timer to let DOM update
     const timer = setTimeout(() => {
       if (focusedBlockRef.current && containerRef.current) {
         const container = containerRef.current;
         const focusedBlock = focusedBlockRef.current;
         
-        // Get container height and focused block position
-        const containerHeight = container.clientHeight;
-        const blockOffsetTop = focusedBlock.offsetTop;
+        // Force a reflow to ensure offsetTop is accurate
+        focusedBlock.getBoundingClientRect();
         
-        // Calculate where we want the block to be
-        let targetPosition;
-        if (isFirstShowableTextBlock) {
-          // For first text block, position at top with small padding
-          targetPosition = 40;
-        } else {
-          // For other blocks, center at 40% from top
-          targetPosition = containerHeight * 0.4;
-        }
-        
-        // Scroll the container so the block appears at target position
-        const scrollTarget = blockOffsetTop - targetPosition;
-        
-        container.scrollTo({
-          top: scrollTarget,
-          behavior: 'smooth'
-        });
+        // Second timer to ensure layout is stable
+        setTimeout(() => {
+          // Get container height and focused block position
+          const containerHeight = container.clientHeight;
+          const blockOffsetTop = focusedBlock.offsetTop;
+          
+          // Calculate where we want the top of the block to be
+          // Always position at 25% down the viewport
+          const targetPosition = containerHeight * 0.25;
+          
+          // Scroll the container so the top of the block appears at target position
+          const scrollTarget = blockOffsetTop - targetPosition;
+          
+          container.scrollTo({
+            top: scrollTarget,
+            behavior: 'auto'
+          });
+        }, 50);
       }
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [currentIndex, currentBlockId, isFirstShowableTextBlock]);
+  }, [currentIndex, currentBlockId]);
 
 
   if (blocks.length === 0) {
@@ -116,8 +122,11 @@ export default function BlockContextStack({
           const isAboveCurrent = offset < 0;
           const isBelowCurrent = offset > 0;
           
-          // Calculate opacity based on distance from current
+          // Only render blocks within 3 positions of current for performance
           const distance = Math.abs(offset);
+          if (distance > 3) return null;
+          
+          // Calculate opacity based on distance from current
           const opacity = isCurrent ? 1.0 : 
                          distance === 1 ? 0.7 : 
                          distance === 2 ? 0.5 : 0.3;
@@ -135,7 +144,26 @@ export default function BlockContextStack({
                 opacity,
                 maxHeight: isCurrent ? '50vh' : '25vh'
               }}
-              onClick={() => onBlockChange(block)}
+              onClick={(e) => {
+                // Check if we should show the navigation tip
+                const storageKey = 'ruminate_stack_navigation_tip_shown';
+                const tipShown = localStorage.getItem(storageKey);
+                
+                if (!tipShown) {
+                  // Get click position for tooltip placement
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setTipPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top
+                  });
+                  setShowNavigationTip(true);
+                  
+                  // Mark tip as shown for this session
+                  localStorage.setItem(storageKey, 'true');
+                }
+                
+                onBlockChange(block);
+              }}
             >
               {/* Block content using the same renderer as linear view */}
               <div className={`p-4 ${
@@ -147,7 +175,6 @@ export default function BlockContextStack({
                   // For blocks above current, wrap in a div to allow bottom alignment
                   <div className="overflow-y-auto max-h-full">
                     <BlockContainer
-                      key={block.id}
                       blockId={block.id}
                       blockType={block.block_type}
                       htmlContent={block.html_content || ''}
@@ -169,7 +196,6 @@ export default function BlockContextStack({
                 ) : (
                   // For current and below blocks, render normally
                   <BlockContainer
-                    key={block.id}
                     blockId={block.id}
                     blockType={block.block_type}
                     htmlContent={block.html_content || ''}
@@ -197,6 +223,28 @@ export default function BlockContextStack({
           );
         })}
       </div>
+      
+      {/* Navigation tip popover */}
+      <BasePopover
+        isVisible={showNavigationTip}
+        position={tipPosition}
+        onClose={() => setShowNavigationTip(false)}
+        initialWidth={280}
+        initialHeight="auto"
+        showCloseButton={false}
+        offsetY={10}
+        className="border-library-gold-300"
+      >
+        <div className="p-3 text-center">
+          <div className="flex items-center justify-center gap-2 text-library-gold-700">
+            <span className="text-lg">💡</span>
+            <span className="font-medium">Navigation Tip</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-600">
+            Use arrow keys for smoother stack navigation!
+          </p>
+        </div>
+      </BasePopover>
     </div>
   );
 }

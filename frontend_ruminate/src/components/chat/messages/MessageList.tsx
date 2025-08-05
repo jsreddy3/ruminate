@@ -2,12 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import { MessageNode, MessageRole, GeneratedSummary } from '../../../types/chat';
 import MessageItem from './MessageItem';
 import SummaryCard from './SummaryCard';
+import { WebSearchIndicator } from './WebSearchIndicator';
 
 interface MessageListProps {
   messages: MessageNode[];
   activeThreadIds: string[];
   streamingMessageId: string | null;
   streamingContent: string;
+  webSearchEvent?: any | null;
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   conversationId?: string;
@@ -22,6 +24,7 @@ const MessageList: React.FC<MessageListProps> = ({
   activeThreadIds,
   streamingMessageId,
   streamingContent,
+  webSearchEvent,
   onSwitchVersion,
   onEditMessage,
   conversationId,
@@ -83,6 +86,11 @@ const MessageList: React.FC<MessageListProps> = ({
           
         return (
           <React.Fragment key={message.id}>
+            {/* Show web search indicator for streaming assistant messages */}
+            {isMessageStreaming && message.role === MessageRole.ASSISTANT && webSearchEvent && (
+              <WebSearchIndicator event={webSearchEvent} />
+            )}
+            
             <MessageItem
               message={message}
               isActive={true}

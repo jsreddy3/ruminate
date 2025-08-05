@@ -65,10 +65,17 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
             </div>
           );
         } else {
-          // Regular paragraph - format bold and italic text
+          // Regular paragraph - format bold, italic text, and links
+          // Process markdown links BEFORE plain URLs to avoid conflicts
           let formattedParagraph = paragraph
             .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-library-forest-700">$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em class="italic text-library-forest-600">$1</em>');
+            .replace(/\*(.*?)\*/g, '<em class="italic text-library-forest-600">$1</em>')
+            // Handle parenthetical markdown links first: ([text](url))
+            .replace(/\(\[([^\]]+)\]\(([^)]+)\)\)/g, '(<a href="$2" target="_blank" rel="noopener noreferrer" class="text-xs font-mono text-library-forest-600 hover:text-library-forest-800 underline decoration-dotted hover:decoration-solid transition-all duration-200 bg-library-sage-50 hover:bg-library-sage-100 px-1 py-0.5 rounded border border-library-sage-200">$1</a>)')
+            // Handle regular markdown links: [text](url)
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-xs font-mono text-library-forest-600 hover:text-library-forest-800 underline decoration-dotted hover:decoration-solid transition-all duration-200 bg-library-sage-50 hover:bg-library-sage-100 px-1 py-0.5 rounded border border-library-sage-200">$1</a>')
+            // Handle plain URLs (but not ones already inside <a> tags)
+            .replace(/(?<!href=["'])(https?:\/\/[^\s<>"{}|\\^`[\]()]+)(?![^<]*<\/a>)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-xs font-mono text-library-forest-600 hover:text-library-forest-800 underline decoration-dotted hover:decoration-solid transition-all duration-200 bg-library-sage-50 hover:bg-library-sage-100 px-1 py-0.5 rounded border border-library-sage-200">$1</a>');
           
           // Sanitize the formatted paragraph content
           const sanitizedParagraph = HTMLSanitizer.sanitizeChatContent(formattedParagraph);

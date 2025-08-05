@@ -41,15 +41,30 @@ export default function LandingPage() {
     }
   }, [user, isLoading, router]);
 
-  // Lock section for 2 seconds on first view
+  // Lock section with different delays per page
   useEffect(() => {
-    setSectionLocked(true);
-    setScrollAttempted(false); // Reset scroll attempt state
-    const timer = setTimeout(() => {
+    // Different delays for each section
+    const delays = {
+      0: 0,     // Hero section: no delay
+      1: 1500,  // Word jumble: 1.5 seconds  
+      2: 1000   // App previews: 1 second
+    };
+    
+    const delay = delays[currentSection as keyof typeof delays] ?? 2000;
+    
+    if (delay === 0) {
+      // No lock for 0 delay
       setSectionLocked(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
+      setScrollAttempted(false);
+    } else {
+      setSectionLocked(true);
+      setScrollAttempted(false);
+      const timer = setTimeout(() => {
+        setSectionLocked(false);
+      }, delay);
+      
+      return () => clearTimeout(timer);
+    }
   }, [currentSection]);
 
   const scrollToSection = (index: number) => {
@@ -101,7 +116,6 @@ export default function LandingPage() {
           scrollToSection(currentSection - 1);
         }
       } else if (currentSection === 1) {
-        // User tried to scroll on section 2 while locked
         setScrollAttempted(true);
       }
     };

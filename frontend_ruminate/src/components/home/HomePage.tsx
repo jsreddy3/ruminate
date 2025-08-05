@@ -145,19 +145,7 @@ export default function HomePage() {
   const handleStartTour = () => {
     // For now, just close the modal
     // Later we'll navigate to the first document or start the next onboarding step
-    console.log('Starting tour!');
   };
-  
-  // Debug the dialogue visibility condition
-  const dialogueVisible = state.isActive && state.currentStep === 2 && !state.isWelcomeModalOpen && documents.length > 0;
-  useEffect(() => {
-    console.log('Dialogue visibility:', dialogueVisible, {
-      isActive: state.isActive,
-      currentStep: state.currentStep,
-      isWelcomeModalOpen: state.isWelcomeModalOpen,
-      documentsLength: documents.length
-    });
-  }, [dialogueVisible, state.isActive, state.currentStep, state.isWelcomeModalOpen, documents.length]);
 
   if (authLoading) {
     return (
@@ -263,7 +251,7 @@ export default function HomePage() {
       
       {/* Library Tour Dialogue */}
       <LibraryTourDialogue 
-        isVisible={dialogueVisible}
+        isVisible={state.isActive && state.currentStep === 2 && !state.isWelcomeModalOpen && documents.length > 0}
         onNext={() => nextStep()}
         position={{ top: '38%', left: '50%' }}
       />

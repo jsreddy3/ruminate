@@ -140,10 +140,9 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
   const getRowClasses = () => {
     let classes = "transition-all duration-300 group relative";
     
-    if (isOnboardingActive && !isOnboardingTarget) {
-      classes += " opacity-30 blur-[1px] cursor-not-allowed pointer-events-none";
-    } else if (isOnboardingTarget) {
-      classes += " bg-gradient-to-r from-library-cream-50 to-transparent cursor-pointer z-10";
+    if (isOnboardingTarget) {
+      // During onboarding, all rows are clickable and highlighted
+      classes += " hover:bg-library-gold-100/50 cursor-pointer z-10";
     } else {
       classes += " hover:bg-surface-vellum cursor-pointer";
     }
@@ -159,10 +158,6 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
         onClick={handleRowClick}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        style={isOnboardingTarget ? {
-          boxShadow: '0 0 0 2px rgb(158 86 50), 0 0 0 4px rgb(158 86 50 / 0.3), 0 0 20px rgb(158 86 50 / 0.4)',
-          animation: 'pulse 2s ease-in-out infinite'
-        } : {}}
       >
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">

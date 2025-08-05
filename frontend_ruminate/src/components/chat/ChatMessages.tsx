@@ -8,6 +8,7 @@ interface ChatMessagesProps {
   activeThreadIds: string[];
   streamingMessageId: string | null;
   streamingContent: string;
+  webSearchEvent?: any | null;
   conversationId: string | null;
   onSwitchVersion: (messageId: string, versionIndex: number) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
@@ -22,6 +23,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   activeThreadIds,
   streamingMessageId,
   streamingContent,
+  webSearchEvent,
   conversationId,
   onSwitchVersion,
   onEditMessage,

@@ -19,6 +19,7 @@ from new_backend_ruminate.infrastructure.conversation.rds_conversation_repositor
 from new_backend_ruminate.infrastructure.document.rds_document_repository import RDSDocumentRepository
 from new_backend_ruminate.infrastructure.object_storage.factory import get_object_storage_singleton
 from new_backend_ruminate.infrastructure.llm.openai_llm import OpenAILLM
+from new_backend_ruminate.infrastructure.llm.openai_responses_llm import OpenAIResponsesLLM
 from new_backend_ruminate.services.conversation.service import ConversationService
 from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.services.document.service import DocumentService
@@ -42,10 +43,19 @@ _hub = EventStreamHub()
 _repo = RDSConversationRepository()
 _document_repo = RDSDocumentRepository()
 _user_repo = RDSUserRepository()
-_llm  = OpenAILLM(
-    api_key=settings().openai_api_key,
-    model=settings().openai_model,
-)
+if settings().use_responses_api:
+    print(f"[Dependencies] Initializing OpenAIResponsesLLM with web_search={settings().enable_web_search}")
+    _llm = OpenAIResponsesLLM(
+        api_key=settings().openai_api_key,
+        model=settings().openai_model,
+        enable_web_search=settings().enable_web_search,
+    )
+else:
+    print(f"[Dependencies] Initializing OpenAILLM (standard chat completions)")
+    _llm = OpenAILLM(
+        api_key=settings().openai_api_key,
+        model=settings().openai_model,
+    )
 _storage = get_object_storage_singleton()
 _document_analyzer = LLMDocumentAnalyzer(_llm)
 _note_generation_context = NoteGenerationContext()
