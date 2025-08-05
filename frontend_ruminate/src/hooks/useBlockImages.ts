@@ -24,14 +24,12 @@ export function useBlockImages(documentId: string) {
     // Check cache first
     const cached = cacheRef.current[blockId];
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log(`[ImageCache] Using cached images for block ${blockId}`);
       return cached.images;
     }
 
     // Prevent duplicate fetches
     if (fetchingRef.current.has(blockId)) {
       // Wait for the ongoing fetch
-      console.log(`[ImageCache] Waiting for ongoing fetch for block ${blockId}`);
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
           const cached = cacheRef.current[blockId];
@@ -44,7 +42,6 @@ export function useBlockImages(documentId: string) {
     }
 
     fetchingRef.current.add(blockId);
-    console.log(`[ImageCache] Fetching images for block ${blockId}`);
 
     try {
       const resp = await authenticatedFetch(

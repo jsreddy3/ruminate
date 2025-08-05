@@ -176,6 +176,7 @@ export default function BlockContextStack({
                   localStorage.setItem(storageKey, 'true');
                 }
                 
+                console.log(`[BlockContextStack] Clicked block type: ${block.block_type}, ID: ${block.id}`);
                 onBlockChange(block);
               }}
             >

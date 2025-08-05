@@ -18,7 +18,6 @@ export const getBlockTypeStyles = (blockType: string): React.CSSProperties => {
     case 'caption':
       return {
         fontSize: '0.9rem',
-        fontStyle: 'italic',
         textAlign: 'center',
         color: '#6b7280',
         marginTop: '0.5rem',

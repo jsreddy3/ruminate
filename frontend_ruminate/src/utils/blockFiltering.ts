@@ -9,6 +9,7 @@ const CHAT_ENABLED_BLOCK_TYPES = [
   "listitem",
   "footnote",
   "reference",
+  "caption",
   "picture",
   "figure",
   "image",

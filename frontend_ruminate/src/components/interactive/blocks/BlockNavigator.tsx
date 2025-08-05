@@ -65,6 +65,8 @@ export default function BlockNavigator({
       const index = blocks.findIndex(block => block.id === currentBlockId);
       if (index !== -1) {
         setCurrentIndex(index);
+        const currentBlock = blocks[index];
+        console.log(`[BlockNavigator] Focused on block type: ${currentBlock.block_type}, ID: ${currentBlock.id}`);
       }
     }
   }, [currentBlockId, blocks]);
@@ -82,8 +84,10 @@ export default function BlockNavigator({
     if (currentIndex < blocks.length - 1) {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
+      const newBlock = blocks[newIndex];
+      console.log(`[BlockNavigator] Focused on block type: ${newBlock.block_type}, ID: ${newBlock.id}`);
       if (onBlockChange) {
-        onBlockChange(blocks[newIndex]);
+        onBlockChange(newBlock);
       }
     }
   }, [currentIndex, blocks.length, blocks, onBlockChange, isOnboardingStep4]);
@@ -93,8 +97,10 @@ export default function BlockNavigator({
     if (currentIndex > 0) {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
+      const newBlock = blocks[newIndex];
+      console.log(`[BlockNavigator] Focused on block type: ${newBlock.block_type}, ID: ${newBlock.id}`);
       if (onBlockChange) {
-        onBlockChange(blocks[newIndex]);
+        onBlockChange(newBlock);
       }
     }
   }, [currentIndex, blocks, onBlockChange, isOnboardingStep4]);

@@ -48,7 +48,11 @@ export default function ImageGallery({
     
     return blocks.slice(start, end + 1).filter(block => {
       const blockType = block.block_type.toLowerCase();
-      return ['picture', 'figure', 'image'].includes(blockType);
+      // Only include blocks that are actually image types
+      // Exclude caption blocks as they are text-only
+      const isImageType = ['picture', 'figure', 'image'].includes(blockType);
+      const isCaption = blockType === 'caption';
+      return isImageType && !isCaption;
     });
   }, [blocks, currentIndex]);
 
@@ -148,7 +152,11 @@ export default function ImageGallery({
                     const imageData = loadedImages.get(block.id);
                     if (!imageData) {
                       return (
-                        <div key={block.id} className="aspect-square bg-library-cream-200 rounded-book animate-pulse shadow-paper" />
+                        <div key={block.id} className="aspect-square bg-library-cream-200 rounded-book animate-pulse shadow-paper">
+                          <div className="flex items-center justify-center h-full">
+                            <span className="text-[9px] text-reading-muted">Loading...</span>
+                          </div>
+                        </div>
                       );
                     }
 
@@ -175,7 +183,7 @@ export default function ImageGallery({
                             <div className="absolute inset-0 ring-2 ring-library-gold-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-book" />
                           </div>
                           <div className="text-[10px] font-serif text-reading-muted mt-1.5 text-center">
-                            {imageData.pageNumber ? `p. ${imageData.pageNumber}` : 'Figure'}
+                            {imageData.pageNumber !== undefined ? `p. ${imageData.pageNumber + 1}` : 'Figure'}
                           </div>
                         </div>
                       );
