@@ -130,6 +130,21 @@ export function OnboardingOverlays({
         isVisible={onboardingState.isActive && onboardingState.currentStep === 3}
         targetRect={targetRect}
         scale={scale}
+        onSkip={() => {
+          // Find and click the target block
+          if (onboarding.onboardingTargetBlockId) {
+            const blockElement = document.querySelector(`[data-block-id="${onboarding.onboardingTargetBlockId}"]`);
+            if (blockElement) {
+              (blockElement as HTMLElement).click();
+            } else {
+              // If block still not found, find any clickable block on page 1
+              const anyBlock = document.querySelector('.pdf-page-container[data-page-index="0"] [data-block-id]');
+              if (anyBlock) {
+                (anyBlock as HTMLElement).click();
+              }
+            }
+          }
+        }}
       />
 
       {/* Text Selection Onboarding Tour - Step 4 */}

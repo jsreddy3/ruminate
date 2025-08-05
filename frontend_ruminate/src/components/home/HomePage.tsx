@@ -96,10 +96,8 @@ export default function HomePage() {
     setNavigatingDocId(document.id);
 
     // Handle onboarding progression
-    if (state.isActive && state.currentStep === 2) {
-      // Move to step 3 (PDF viewer onboarding)
-      nextStep();
-    }
+    // DO NOT advance to step 3 here - let the PDF viewer handle it
+    // This ensures the PDF and blocks are loaded before showing the golden glow
 
     // Navigate to the viewer - it will fetch the PDF URL securely
     router.push(`/viewer/${document.id}`);

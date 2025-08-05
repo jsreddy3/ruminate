@@ -273,6 +273,20 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     closeViewDropdown,
   });
 
+  // Effect to handle onboarding progression from step 2 to 3
+  useEffect(() => {
+    // If we're in step 2 and the PDF viewer is ready, advance to step 3
+    if (onboarding.onboardingState.isActive && 
+        onboarding.onboardingState.currentStep === 2 &&
+        pdfLoadingState === 'loaded' &&
+        flattenedBlocks.length > 0 &&
+        currentPage === 1) { // Ensure we're on the first page
+      // Advance to step 3 now that everything is ready
+      onboarding.setStep(3);
+    }
+  }, [onboarding.onboardingState.isActive, onboarding.onboardingState.currentStep,
+      pdfLoadingState, flattenedBlocks.length, currentPage, onboarding.setStep]);
+
   // Effect to handle onboarding step 3 - scroll to target block
   useEffect(() => {
     if (onboarding.onboardingState.isActive && 
@@ -281,13 +295,14 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         flattenedBlocks.length > 0) {
       const targetBlock = flattenedBlocks.find(b => b.id === onboarding.onboardingTargetBlockId);
       if (targetBlock) {
-        setTimeout(() => {
+        // Ensure we're on the right page first
+        if (currentPage !== (targetBlock.page_number ?? 0) + 1) {
           scrollToBlock(targetBlock);
-        }, 1000);
+        }
       }
     }
   }, [onboarding.onboardingState.isActive, onboarding.onboardingState.currentStep, 
-      onboarding.onboardingTargetBlockId, flattenedBlocks, scrollToBlock]);
+      onboarding.onboardingTargetBlockId, flattenedBlocks, scrollToBlock, currentPage]);
 
   // Block Overlay Manager - handles block selection and interactions
   const blockOverlayManager = useBlockOverlayManager({

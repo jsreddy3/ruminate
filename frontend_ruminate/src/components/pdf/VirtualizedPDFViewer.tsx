@@ -70,8 +70,8 @@ const SimplePage = React.memo(({
           documentId={pdfFile}
         />
         
-        {/* Block overlay - only this re-renders on block state changes */}
-        {pdf && (
+        {/* Block overlay - render even without PDF during onboarding to prevent user getting stuck */}
+        {(pdf || (isOnboardingActive && onboardingTargetBlockId)) && (
           <div className="absolute inset-0 pointer-events-auto">
             <PDFPageOverlay
               pageIndex={index}

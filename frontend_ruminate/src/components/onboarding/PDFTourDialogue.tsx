@@ -7,12 +7,14 @@ interface PDFTourDialogueProps {
   isVisible: boolean;
   targetRect: { x: number; y: number; width: number; height: number } | null;
   scale: number;
+  onSkip?: () => void;
 }
 
 export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
   isVisible,
   targetRect,
-  scale
+  scale,
+  onSkip
 }) => {
   
   if (!targetRect) {
@@ -140,6 +142,15 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
                      style={{ fontFamily: '"Iowan Old Style", Georgia, serif' }}>
                     Tap a block of text to start reading
                   </p>
+                  {onSkip && (
+                    <button
+                      onClick={onSkip}
+                      className="mt-2 text-xs text-library-mahogany/60 hover:text-library-mahogany/80 underline transition-colors"
+                      style={{ pointerEvents: 'auto' }}
+                    >
+                      Not working? Click here
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
