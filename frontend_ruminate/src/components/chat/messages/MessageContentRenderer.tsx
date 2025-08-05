@@ -111,11 +111,6 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
           <div className="font-serif text-xl">
             {formatContent(streamingContent)}
           </div>
-          {/* Animated cursor to show streaming is active */}
-          <span 
-            className="inline-block w-0.5 h-5 bg-library-forest-500 ml-1 align-text-bottom animate-pulse"
-            aria-hidden="true"
-          />
         </div>
       );
     }
@@ -144,7 +139,20 @@ const MessageContentRenderer: React.FC<MessageContentRendererProps> = ({
   
   // Handle empty content gracefully
   if (!content || content.length === 0) {
-    return <div className="font-serif text-xl text-reading-muted italic">No content available</div>;
+    // For assistant messages, show a subtle loading state instead of "No content available"
+    // This prevents the jarring experience of content disappearing
+    if (role === MessageRole.ASSISTANT) {
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-library-forest-400 rounded-full animate-pulse"></div>
+          <div className="w-2 h-2 bg-library-forest-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+          <div className="w-2 h-2 bg-library-forest-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+        </div>
+      );
+    }
+    // For user messages, empty content might be intentional (e.g., just an image)
+    // For system messages, they're usually hidden anyway
+    return null;
   }
   
   return (
