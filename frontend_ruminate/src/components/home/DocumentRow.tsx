@@ -4,6 +4,7 @@ import { Document, documentApi } from '@/services/api/document';
 import { formatDistanceToNow } from 'date-fns';
 import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { useProcessing } from '@/contexts/ProcessingContext';
 
 interface DocumentRowProps {
   document: Document;
@@ -21,6 +22,10 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(document.title);
   const [isSaving, setIsSaving] = useState(false);
+  const { isProcessing, openProcessingModal } = useProcessing();
+  
+  // Check if this document is currently processing in the global context
+  const isDocProcessing = isProcessing(document.id);
   
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
@@ -32,6 +37,13 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
   };
 
   const getStatusIcon = () => {
+    // Override with processing status from global context if actively processing
+    if (isDocProcessing) {
+      return (
+        <div className="w-2 h-2 bg-library-gold-500 rounded-full animate-pulse" />
+      );
+    }
+    
     switch (document.status) {
       case 'READY':
         return (
@@ -207,6 +219,21 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
               title="Start processing this chunk"
             >
               Process
+            </button>
+          )}
+          
+          {/* Processing Status Button - shown when actively processing */}
+          {isDocProcessing && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openProcessingModal(document.id);
+              }}
+              className="px-3 py-1 text-base font-medium text-library-gold-700 bg-library-gold-100 hover:bg-library-gold-200 rounded-book transition-colors flex items-center gap-2"
+              title="View processing progress"
+            >
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-library-gold-700"></div>
+              Processing
             </button>
           )}
           

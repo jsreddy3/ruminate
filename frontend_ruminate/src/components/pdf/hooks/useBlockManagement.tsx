@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { authenticatedFetch, API_BASE_URL } from '../../../utils/api';
 import { Block } from '../PDFViewer';
+import { filterNavigableBlocks } from '../../../utils/blockFiltering';
 
 interface UseBlockManagementProps {
   documentId: string;
@@ -92,43 +93,9 @@ export function useBlockManagement({
   // Flatten blocks for easy navigation
   useEffect(() => {
     if (blocks.length > 0) {
-      // Define chat-enabled block types for filtering
-      const chatEnabledBlockTypes = [
-        "text",
-        "sectionheader",
-        "pageheader",
-        "pagefooter",
-        "listitem",
-        "footnote",
-        "reference",
-        "picture",
-        "figure",
-        "image",
-        "textinlinemath",
-        "equation",
-        "table"
-      ].map(type => type.toLowerCase());
-
-      // Simply filter the blocks we want to show without reordering
-      const filteredBlocks = blocks.filter(block => 
-        // Block must have a valid type
-        block.block_type && 
-        // Not be a page block
-        block.block_type.toLowerCase() !== "page" &&
-        // Be in our list of chat-enabled types
-        chatEnabledBlockTypes.includes(block.block_type.toLowerCase()) &&
-        // Must have content (HTML or images)
-        (
-          block.html_content ||
-          (block.images && Object.keys(block.images).length > 0) ||
-          ['picture', 'figure', 'image'].includes(block.block_type.toLowerCase())
-        ) &&
-        // If HTML content, must have four or more words
-        (block.html_content ? block.html_content.split(' ').length >= 4 : true)
-      );
-      
-      // Use the blocks as they come from the API (already ordered correctly)
-      setFlattenedBlocks(filteredBlocks);
+      // Use the shared filtering logic
+      const navigableBlocks = filterNavigableBlocks(blocks);
+      setFlattenedBlocks(navigableBlocks);
     }
   }, [blocks]);
   

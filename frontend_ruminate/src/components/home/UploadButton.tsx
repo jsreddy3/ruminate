@@ -1,17 +1,15 @@
 "use client";
 
-import { useRef, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
-import UploadProgressSteps from './UploadProgressSteps';
+import { useDocumentUploadV2 } from '@/hooks/useDocumentUploadV2';
+import { useProcessing } from '@/contexts/ProcessingContext';
 
 interface UploadButtonProps {
   onUploadComplete?: () => void;
 }
 
 export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
@@ -19,24 +17,23 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
 
-  const {
-    isProcessing,
-    error,
-    documentId,
-    pdfFile,
-    uploadFile,
-    uploadFromUrl,
-    hasUploadedFile,
-    processingEvents,
-    currentStatus,
-  } = useDocumentUpload();
+  const { isUploading, uploadError, uploadFile, uploadFromUrl } = useDocumentUploadV2();
+  const { openProcessingModal } = useProcessing();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      await uploadFile(file);
+      const documentId = await uploadFile(file);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+      if (documentId) {
+        // Close upload modal and show processing modal
+        setIsOpen(false);
+        setTimeout(() => {
+          openProcessingModal(documentId);
+        }, 300);
+        onUploadComplete?.();
       }
     }
   };
@@ -46,8 +43,16 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
       // Pass the user's URL to the augment service
       const augmentUrl = `https://augment.explainai.pro/generate-pdf?url=${encodeURIComponent(urlInput)}`;
       const filename = `generated-${Date.now()}.pdf`;
-      await uploadFromUrl(augmentUrl, filename);
+      const documentId = await uploadFromUrl(augmentUrl, filename);
       setUrlInput('');
+      if (documentId) {
+        // Close upload modal and show processing modal
+        setIsOpen(false);
+        setTimeout(() => {
+          openProcessingModal(documentId);
+        }, 300);
+        onUploadComplete?.();
+      }
     }
   };
 
@@ -100,19 +105,6 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
     }
   };
 
-  // Navigate to viewer when upload is complete
-  useEffect(() => {
-    if (hasUploadedFile && documentId) {
-      // Close modal first
-      setIsOpen(false);
-      // Reset upload mode
-      setUploadMode('file');
-      // Navigate to viewer
-      router.push(`/viewer/${documentId}`);
-      // Call callback if provided
-      onUploadComplete?.();
-    }
-  }, [hasUploadedFile, documentId, router, onUploadComplete]);
 
 
   return (
@@ -149,7 +141,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black bg-opacity-50 z-40"
-              onClick={() => !isProcessing && setIsOpen(false)}
+              onClick={() => !isUploading && setIsOpen(false)}
             />
 
             {/* Modal Content */}
@@ -161,31 +153,26 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div
-                className={`bg-white rounded-xl shadow-2xl w-full p-6 transition-all duration-300 ${
-                  isProcessing ? 'max-w-4xl' : 'max-w-md'
-                }`}
+                className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transition-all duration-300"
                 onClick={(e) => e.stopPropagation()}
               >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {isProcessing ? 'Processing Your Document' : 'Upload Document'}
+                  Upload Document
                 </h2>
-                {!isProcessing && (
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
 
-              {/* Upload Area or Progress */}
-              {!isProcessing ? (
-                <div className="mb-6">
+              {/* Upload Area */}
+              <div className="mb-6">
                   {/* Upload mode toggle */}
                   <div className="flex space-x-2 mb-4">
                     <button
@@ -218,10 +205,10 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                         onChange={handleFileChange}
                         className="hidden"
                         ref={fileInputRef}
-                        disabled={isProcessing}
+                        disabled={isUploading}
                       />
                       <div
-                        onClick={() => !isProcessing && fileInputRef.current?.click()}
+                        onClick={() => !isUploading && fileInputRef.current?.click()}
                         onDragEnter={handleDragEnter}
                         onDragLeave={handleDragLeave}
                         onDragOver={handleDragOver}
@@ -299,7 +286,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                       <div className="flex flex-col items-center space-y-3">
                         <button
                           onClick={handleUrlUpload}
-                          disabled={!urlInput.trim()}
+                          disabled={!urlInput.trim() || isUploading}
                           className="w-full py-3 px-4 bg-library-mahogany-500 text-white rounded-lg font-medium hover:bg-library-mahogany-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                           Generate
@@ -313,14 +300,11 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="mb-6">
-                  <UploadProgressSteps 
-                    events={processingEvents}
-                    currentStatus={currentStatus}
-                    error={error || undefined}
-                    isUrlUpload={uploadMode === 'url'}
-                  />
+              
+              {/* Error display */}
+              {uploadError && (
+                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm text-red-700">{uploadError}</p>
                 </div>
               )}
 

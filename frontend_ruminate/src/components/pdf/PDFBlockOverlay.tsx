@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Block } from './PDFViewer';
 import BlockIndicators, { BlockDotIndicators } from './BlockIndicators';
 import { PDFTourDialogue } from '../onboarding/PDFTourDialogue';
+import { isBlockNavigable } from '../../utils/blockFiltering';
 
 interface PDFBlockOverlayProps {
   blocks: Block[];
@@ -33,7 +34,8 @@ export default function PDFBlockOverlay({
   const filteredBlocks = useMemo(() => {
     return blocks.filter((b) => {
       const blockPageNumber = b.page_number ?? 0;
-      return b.block_type !== "Page" && blockPageNumber === pageIndex;
+      // Only show navigable blocks (same filtering as in BlockNavigator)
+      return b.block_type !== "Page" && blockPageNumber === pageIndex && isBlockNavigable(b);
     });
   }, [blocks, pageIndex]);
 

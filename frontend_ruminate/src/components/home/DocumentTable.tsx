@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Document, documentApi } from '@/services/api/document';
 import DocumentRow from './DocumentRow';
-import ProcessingModal from './ProcessingModal';
+import { useProcessing } from '@/contexts/ProcessingContext';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -20,7 +20,7 @@ type SortDirection = 'asc' | 'desc';
 export default function DocumentTable({ documents, onDocumentClick, onDocumentDelete, onDocumentUpdate, isOnboardingActive, navigatingDocId }: DocumentTableProps) {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [processingDocumentId, setProcessingDocumentId] = useState<string | null>(null);
+  const { startProcessing } = useProcessing();
 
   const sortedDocuments = useMemo(() => {
     const sorted = [...documents].sort((a, b) => {
@@ -53,8 +53,13 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
 
   const handleStartProcessing = async (documentId: string) => {
     try {
-      await documentApi.startProcessing(documentId);
-      setProcessingDocumentId(documentId);
+      const doc = documents.find(d => d.id === documentId);
+      if (doc) {
+        // Start processing in the backend
+        await documentApi.startProcessing(documentId);
+        // Register with global processing context
+        startProcessing(documentId, doc.title);
+      }
     } catch (error) {
       console.error('Failed to start processing:', error);
       alert('Failed to start processing. Please try again.');
@@ -134,15 +139,6 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
         </tbody>
         </table>
       </div>
-      
-      {/* Processing Modal - rendered outside the table */}
-      {processingDocumentId && (
-        <ProcessingModal
-          documentId={processingDocumentId}
-          isOpen={true}
-          onClose={() => setProcessingDocumentId(null)}
-        />
-      )}
     </>
   );
 }
