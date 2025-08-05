@@ -6,6 +6,7 @@ import BlockContextStack from './BlockContextStack';
 import ImageGallery from './ImageGallery';
 import { Block } from '../../pdf/PDFViewer';
 import { useBlockImages } from '../../../hooks/useBlockImages';
+import { FileText, Layers } from 'lucide-react';
 
 interface BlockNavigatorProps {
   blocks: Block[];
@@ -198,7 +199,10 @@ export default function BlockNavigator({
                 title={(isOnboardingStep4 || isOnboardingStep5) ? "Complete tutorial to continue" : "Traditional linear view"}
                 disabled={(isOnboardingStep4 || isOnboardingStep5)}
               >
-                📄 Single
+                <span className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Single
+                </span>
               </button>
               <button
                 onClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : () => {
@@ -214,7 +218,10 @@ export default function BlockNavigator({
                 title={(isOnboardingStep4 || isOnboardingStep5) ? "Complete tutorial to continue" : "Contextual stack view"}
                 disabled={(isOnboardingStep4 || isOnboardingStep5)}
               >
-                📚 Stack
+                <span className="flex items-center gap-2">
+                  <Layers className="w-4 h-4" />
+                  Stack
+                </span>
               </button>
             </div>
           </div>
