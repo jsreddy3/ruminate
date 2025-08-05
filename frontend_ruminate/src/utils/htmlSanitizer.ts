@@ -77,9 +77,9 @@ export class HTMLSanitizer {
       ALLOWED_TAGS: [
         'p', 'div', 'span', 'br', 'strong', 'b', 'em', 'i', 'u',
         'ul', 'ol', 'li',
-        'blockquote', 'pre', 'code'
+        'blockquote', 'pre', 'code', 'a'
       ],
-      ALLOWED_ATTR: ['class', 'style']
+      ALLOWED_ATTR: ['class', 'style', 'href', 'target', 'rel']
     };
 
     return DOMPurify.sanitize(htmlContent, chatConfig);

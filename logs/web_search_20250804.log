@@ -97,3 +97,33 @@ Sometimes these changes are dramatic. In 2023, Microsoft's Bing chatbot famously
 2025-08-04 17:51:04,683 - web_search - INFO - Web search completed
 2025-08-04 17:51:04,683 - web_search - INFO - Web search completed with query: 'cultural differences in emotional expression in job applications'
 2025-08-04 17:51:09,453 - web_search - INFO - Request completed WITH web search. Query: 'cultural differences in emotional expression in job applications'
+2025-08-04 18:12:40,320 - web_search - INFO - Web search ENABLED for request
+2025-08-04 18:12:40,320 - web_search - INFO - User query: can you explain what other literature says about this? use web search...
+2025-08-04 18:12:42,145 - web_search - INFO - Web search query: ''
+2025-08-04 18:12:42,150 - web_search - INFO - Web search initiated
+2025-08-04 18:12:42,438 - web_search - INFO - Web search in progress...
+2025-08-04 18:12:45,620 - web_search - INFO - Web search completed
+2025-08-04 18:12:45,620 - web_search - INFO - Web search completed with query: 'cultural differences in emotional expression in job applications'
+2025-08-04 18:12:50,746 - web_search - INFO - Request completed WITH web search. Query: 'cultural differences in emotional expression in job applications'
+2025-08-04 18:13:19,417 - web_search - INFO - Web search ENABLED for request
+2025-08-04 18:13:19,417 - web_search - INFO - User query: can you explain what other literature says about this? use web search!...
+2025-08-04 18:13:20,473 - web_search - INFO - Web search query: ''
+2025-08-04 18:13:20,473 - web_search - INFO - Web search initiated
+2025-08-04 18:13:20,826 - web_search - INFO - Web search in progress...
+2025-08-04 18:13:23,532 - web_search - INFO - Web search completed
+2025-08-04 18:13:23,532 - web_search - INFO - Web search completed with query: 'Cultural differences in emotional expression in job applications literature'
+2025-08-04 18:13:31,737 - web_search - INFO - Request completed WITH web search. Query: 'Cultural differences in emotional expression in job applications literature'
+2025-08-04 18:16:57,956 - web_search - INFO - Web search ENABLED for request
+2025-08-04 18:16:57,956 - web_search - INFO - User query: who dis...
+2025-08-04 18:16:59,762 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 18:17:05,173 - web_search - INFO - Web search ENABLED for request
+2025-08-04 18:17:05,173 - web_search - INFO - User query: yeah but tell me more about them...
+2025-08-04 18:17:08,325 - web_search - INFO - Request completed WITHOUT web search
+2025-08-04 18:17:14,190 - web_search - INFO - Web search ENABLED for request
+2025-08-04 18:17:14,190 - web_search - INFO - User query: what other papers has she published?...
+2025-08-04 18:17:17,580 - web_search - INFO - Web search query: ''
+2025-08-04 18:17:17,581 - web_search - INFO - Web search initiated
+2025-08-04 18:17:18,170 - web_search - INFO - Web search in progress...
+2025-08-04 18:17:21,984 - web_search - INFO - Web search completed
+2025-08-04 18:17:21,984 - web_search - INFO - Web search completed with query: 'Jeanne L. Tsai publications'
+2025-08-04 18:17:24,482 - web_search - INFO - Request completed WITH web search. Query: 'Jeanne L. Tsai publications'
