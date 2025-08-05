@@ -60,8 +60,8 @@ class OpenAIResponsesLLM(LLMService):
     def _make_schema_format(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "type": "json_schema",
+            "name": "DocumentInfo",  # Move name to top level for Responses API
             "json_schema": {
-                "name": "DocumentInfo",
                 "strict": True,          # hard fail on schema mismatch
                 "schema": schema,
             },

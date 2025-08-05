@@ -741,13 +741,16 @@ class DocumentService:
         
         Your task is to define the term "{term}" based on how it's used in this specific document.
         Provide a concise but comprehensive definition that someone reading this document would find helpful.
-        Focus on the meaning within this document's context, not just a general dictionary definition."""
+        If it's a place, person, or other proper noun, provide an exact definition / search for information. If it's more
+        of an in-context question, provide something more contextual. Don't talk about symbolism, etc unless specifically asked.
+        CHECK IF IT'S A PROPER NOUN OR REFERENCE TO A PROPER NOUN, AND PROVIDE SPECIFICS IF IT IS. USE WEB SEARCH ALWAYS. If after web search, you don't know - 
+        admit it! never make things up."""
         
         user_prompt = f"""Please define the term "{term}" based on the following context from the document:
 
 {full_context}
 
-Provide a clear, contextual definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two.
+Provide a clear definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two.
 DO NOT say things like "in this document" or anything - imagine you're just providing a short, concise note that, with no filler, has EVERY WORD be useful."""
         
         # Get LLM service and generate definition (this is async I/O, not DB)
@@ -756,10 +759,10 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
             
         messages = [
             Message(id="sys", conversation_id="def", parent_id=None, role=Role.SYSTEM, content=system_prompt, user_id=user_id, version=0),
-            Message(id="usr", conversation_id="def", parent_id="sys", role=Role.USER, content=user_prompt, user_id=user_id, version=0)
+            Message(id="usr", conversation_id="def", parent_id="sys", role=Role.USER, content=user_prompt + "use web search.", user_id=user_id, version=0)
         ]
         
-        definition = await self._llm.generate_response(messages, model="gpt-4o-mini", enable_web_search=False)
+        definition = await self._llm.generate_response(messages, model="gpt-4o-mini", enable_web_search=True)
         
         # Save the definition to block metadata
         async with session_scope() as session:
