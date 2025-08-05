@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, TrashIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
 interface ConfirmationDialogProps {
   isOpen: boolean;
@@ -35,7 +35,8 @@ export default function ConfirmationDialog({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             onClick={!isLoading ? onClose : undefined}
           />
 
@@ -44,61 +45,92 @@ export default function ConfirmationDialog({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="fixed inset-0 flex items-center justify-center z-50 p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6"
+              className="relative bg-surface-parchment rounded-journal shadow-deep border border-library-cream-300 w-full max-w-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Icon */}
-              <div className="flex items-center justify-center mb-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  isDestructive ? 'bg-red-100' : 'bg-blue-100'
-                }`}>
-                  <ExclamationTriangleIcon className={`w-6 h-6 ${
-                    isDestructive ? 'text-red-600' : 'text-blue-600'
-                  }`} />
+              {/* Paper texture overlay */}
+              <div 
+                className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0,0,0,0.1) 2px,
+                    rgba(0,0,0,0.1) 4px
+                  ), repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0,0,0,0.1) 2px,
+                    rgba(0,0,0,0.1) 4px
+                  )`
+                }}
+              />
+              {/* Header Section with Icon */}
+              <div className="bg-gradient-to-br from-library-cream-100 to-library-cream-200 px-8 py-6 border-b border-library-cream-300">
+                <div className="flex items-center justify-center mb-3">
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-paper ${
+                    isDestructive 
+                      ? 'bg-gradient-to-br from-library-mahogany-100 to-library-mahogany-200' 
+                      : 'bg-gradient-to-br from-library-sage-100 to-library-sage-200'
+                  }`}>
+                    {isDestructive ? (
+                      <TrashIcon className="w-7 h-7 text-library-mahogany-600" />
+                    ) : (
+                      <InformationCircleIcon className="w-7 h-7 text-library-sage-600" />
+                    )}
+                  </div>
                 </div>
+                
+                {/* Title */}
+                <h2 className="text-2xl font-serif font-semibold text-reading-primary text-center">
+                  {title}
+                </h2>
               </div>
 
-              {/* Title */}
-              <h2 className="text-lg font-semibold text-gray-900 text-center mb-2">
-                {title}
-              </h2>
-
-              {/* Message */}
-              <p className="text-gray-600 text-center mb-6">
-                {message}
-              </p>
+              {/* Content Section */}
+              <div className="px-8 py-6">
+                {/* Message */}
+                <p className="text-lg text-reading-secondary leading-relaxed text-center font-serif whitespace-pre-line">
+                  {message}
+                </p>
+              </div>
 
               {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={onClose}
-                  disabled={isLoading}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {cancelText}
-                </button>
-                <button
-                  onClick={onConfirm}
-                  disabled={isLoading}
-                  className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    isDestructive 
-                      ? 'bg-red-600 hover:bg-red-700' 
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Deleting...
-                    </div>
-                  ) : (
-                    confirmText
-                  )}
-                </button>
+              <div className="px-8 pb-8 pt-2">
+                <div className="flex gap-3">
+                  <button
+                    onClick={onClose}
+                    disabled={isLoading}
+                    className="flex-1 px-5 py-3 text-lg font-medium text-reading-primary bg-library-cream-100 hover:bg-library-cream-200 rounded-book border border-library-sage-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-paper"
+                  >
+                    {cancelText}
+                  </button>
+                  <button
+                    onClick={onConfirm}
+                    disabled={isLoading}
+                    className={`flex-1 px-5 py-3 text-lg font-medium text-white rounded-book transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-paper ${
+                      isDestructive 
+                        ? 'bg-library-mahogany-600 hover:bg-library-mahogany-700 border border-library-mahogany-700' 
+                        : 'bg-library-forest-600 hover:bg-library-forest-700 border border-library-forest-700'
+                    }`}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <span>Processing...</span>
+                      </div>
+                    ) : (
+                      confirmText
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

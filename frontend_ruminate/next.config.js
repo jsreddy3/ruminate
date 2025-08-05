@@ -35,7 +35,7 @@ const nextConfig = {
               "default-src 'self' 'unsafe-inline' 'unsafe-eval'", // More permissive for development
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://unpkg.com localhost:* http://localhost:*", // Allow local development
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com localhost:* http://localhost:*", // Allow local styles
-              "font-src 'self' https://fonts.gstatic.com data: localhost:* http://localhost:*",
+              "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data: localhost:* http://localhost:*",
               "img-src 'self' data: blob: https: localhost:* http://localhost:*", // Allow local images
               "connect-src 'self' https: http: wss: ws: localhost:* http://localhost:*", // Allow local API connections
               "media-src 'self' blob: localhost:* http://localhost:*",

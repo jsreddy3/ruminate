@@ -23,7 +23,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com localhost:* http://localhost:*; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com localhost:* http://localhost:*; "
-            "font-src 'self' https://fonts.gstatic.com data: localhost:* http://localhost:*; "
+            "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data: localhost:* http://localhost:*; "
             "img-src 'self' data: blob: https: localhost:* http://localhost:*; "
             "connect-src 'self' https: http: wss: ws: localhost:* http://localhost:*; "
             "media-src 'self' blob: localhost:* http://localhost:*; "

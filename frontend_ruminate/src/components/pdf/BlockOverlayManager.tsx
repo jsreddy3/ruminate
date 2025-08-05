@@ -118,6 +118,7 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
 
   // Handle block click to select and view it
   const handleBlockClick = useCallback((block: Block) => {
+    console.log(`[Block Selected in Manager] Type: ${block.type || block.block_type}, ID: ${block.id}`);
     handleBlockSelection(block);
     setIsBlockOverlayOpen(true);
   }, [handleBlockSelection]);

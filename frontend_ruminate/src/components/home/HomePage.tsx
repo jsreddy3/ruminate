@@ -239,9 +239,9 @@ export default function HomePage() {
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
         title="Delete Document"
-        message={`Are you sure you want to delete "${deleteConfirm.documentTitle}"? This action cannot be undone and will remove all associated data including conversations and annotations.`}
-        confirmText="Delete Document"
-        cancelText="Keep Document"
+        message={`Delete "${deleteConfirm.documentTitle}"?\n\nThis will permanently remove:\n• All annotations\n• Conversation history\n• Reading progress`}
+        confirmText="Delete"
+        cancelText="Cancel"
         isDestructive={true}
         isLoading={isDeleting}
       />

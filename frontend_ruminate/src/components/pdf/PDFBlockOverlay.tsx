@@ -197,6 +197,7 @@ export default function PDFBlockOverlay({
 
         // Handle click based on mode
         const handleClick = () => {
+          console.log(`[Block Clicked] Type: ${block.type || block.block_type}, ID: ${block.id}`);
           if (isSelectionMode && onBlockSelect) {
             onBlockSelect(block.id);
           } else {
