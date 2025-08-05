@@ -72,8 +72,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   const [pdfFile] = useState<string>(initialPdfFile);
   const [documentId] = useState<string>(initialDocumentId);
-  const [documentTitle, setDocumentTitle] = useState<string>('');
-  const [documentData, setDocumentData] = useState<any>(null);
+  // Combine document state to reduce renders
+  const [documentState, setDocumentState] = useState<{
+    title: string;
+    data: any;
+  }>({ title: '', data: null });
   
   // Use the virtualized PDF hook for all PDF-related state and logic
   const {
@@ -160,7 +163,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     switchToMainConversation,
   } = useConversations({
     documentId,
-    mainConversationId: documentData?.main_conversation_id,
+    mainConversationId: documentState.data?.main_conversation_id,
   });
   
   // Wrap handleRabbitholeCreated to include progress tracking
@@ -182,8 +185,11 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     const fetchDocumentTitle = async () => {
       try {
         const docData = await documentApi.getDocument(documentId);
-        setDocumentData(docData);
-        setDocumentTitle(docData.title);
+        // Single state update instead of two
+        setDocumentState({ 
+          title: docData.title, 
+          data: docData 
+        });
         
         // Initialize reading progress from document data
         if (initializeProgress) {
@@ -191,7 +197,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         }
       } catch (error) {
         console.error('Error fetching document title:', error);
-        setDocumentTitle('Unknown Document');
+        setDocumentState(prev => ({ ...prev, title: 'Unknown Document' }));
       }
     };
 
@@ -289,7 +295,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     flattenedBlocks,
     documentId,
     currentPanelSizes,
-    mainConversationId: documentData?.main_conversation_id,
+    mainConversationId: documentState.data?.main_conversation_id,
     rabbitholeConversations,
     onSetRabbitholeConversations: setRabbitholeConversations,
     onSetActiveConversationId: setActiveConversationId,
@@ -338,7 +344,27 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
 
   // PDF overlay renderer - using refs to avoid dependency changes
   // Pre-compute blocks by page for efficient lookup
+  // Use a ref to track if blocks content actually changed
+  const prevBlocksRef = useRef<Block[]>([]);
+  const blocksByPageRef = useRef<Map<number, Block[]>>(new Map());
+  
   const blocksByPage = useMemo(() => {
+    // Deep comparison - only recompute if blocks actually changed
+    const blocksChanged = blocks.length !== prevBlocksRef.current.length ||
+      blocks.some((block, i) => {
+        const prevBlock = prevBlocksRef.current[i];
+        return !prevBlock || 
+          block.id !== prevBlock.id || 
+          block.page_number !== prevBlock.page_number ||
+          block.block_type !== prevBlock.block_type;
+      });
+    
+    if (!blocksChanged && blocksByPageRef.current.size > 0) {
+      console.log('[PDFViewer] Blocks unchanged, reusing existing blocksByPage');
+      return blocksByPageRef.current;
+    }
+    
+    console.log('[PDFViewer] Blocks changed, recomputing blocksByPage');
     const map = new Map<number, Block[]>();
     blocks.forEach(block => {
       const pageNum = block.page_number ?? 0;
@@ -349,6 +375,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         map.get(pageNum)!.push(block);
       }
     });
+    
+    prevBlocksRef.current = blocks;
+    blocksByPageRef.current = map;
     return map;
   }, [blocks]);
 
@@ -565,7 +594,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             <div className="flex-1 min-w-0 flex items-center gap-6">
               <div className="min-w-0">
                 <h1 className="font-serif text-lg font-semibold text-reading-primary truncate tracking-wide">
-                  {documentTitle || (
+                  {documentState.title || (
                     <span className="animate-pulse text-reading-muted">Loading manuscript...</span>
                   )}
                 </h1>
@@ -808,7 +837,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
             <ChatSidebar
               documentId={documentId}
               selectedBlock={blockOverlayManager.selectedBlock}
-              mainConversationId={documentData?.main_conversation_id}
+              mainConversationId={documentState.data?.main_conversation_id}
               activeConversationId={activeConversationId}
               rabbitholeConversations={rabbitholeConversations}
               rabbitholeData={rabbitholeData}

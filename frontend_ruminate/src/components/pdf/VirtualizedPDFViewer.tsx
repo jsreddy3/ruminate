@@ -3,6 +3,7 @@ import { VariableSizeList as List } from 'react-window';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Block } from './PDFViewer';
 import { PDFPageOverlay } from './PDFPageOverlay';
+import { PDFPageRenderer } from './PDFPageRenderer';
 
 // Configure PDF.js worker - use local copy from webpack build
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -15,6 +16,7 @@ const SimplePage = React.memo(({
   pageDimensions, 
   scale, 
   containerWidth,
+  pdfFile,
   // Page overlay props
   blocks,
   blocksByPage,
@@ -32,6 +34,7 @@ const SimplePage = React.memo(({
   pageDimensions: Map<number, { width: number; height: number }>;
   scale: number;
   containerWidth: number;
+  pdfFile: string;
   // Page overlay props
   blocks: Block[];
   blocksByPage: Map<number, Block[]>;
@@ -43,8 +46,6 @@ const SimplePage = React.memo(({
   onboardingTargetBlockId?: string | null;
   isOnboardingActive?: boolean;
 }) => {
-  const [pageError, setPageError] = useState(false);
-  
   // Use the scale directly without clamping to container width
   const pageScale = scale;
 
@@ -60,53 +61,31 @@ const SimplePage = React.memo(({
   return (
     <div style={style} className="pdf-page-container py-2" data-page-index={index}>
       <div className="relative shadow-book rounded-book bg-white overflow-hidden mx-auto" style={{ width: pageDims.width }}>
-        {pdf && !pageError && (
-          <>
-            <Page
-              pageNumber={index + 1}
-              scale={pageScale}
-              onLoadError={() => setPageError(true)}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-              className="pdf-page"
-              loading={
-                <div className="flex items-center justify-center bg-white" 
-                     style={{ width: pageDims.width, height: pageDims.height }}>
-                  <div className="text-reading-muted">Loading page {index + 1}...</div>
-                </div>
-              }
-            />
-            {/* Always render overlay - don't wait for page load */}
-            <div className="absolute inset-0 pointer-events-auto">
-              <PDFPageOverlay
-                pageIndex={index}
-                scale={pageScale}
-                blocks={blocks}
-                blocksByPage={blocksByPage}
-                selectedBlock={selectedBlock}
-                isBlockSelectionMode={isBlockSelectionMode}
-                temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
-                onBlockClick={onBlockClick}
-                onBlockSelect={onBlockSelect}
-                onboardingTargetBlockId={onboardingTargetBlockId}
-                isOnboardingActive={isOnboardingActive}
-              />
-            </div>
-          </>
-        )}
+        {/* PDF page renderer - isolated from block state */}
+        <PDFPageRenderer
+          index={index}
+          pdf={pdf}
+          scale={pageScale}
+          pageDimensions={pageDimensions}
+          documentId={pdfFile}
+        />
         
-        {pageError && (
-          <div className="flex items-center justify-center bg-red-50 text-red-600"
-               style={{ width: pageDims.width, height: pageDims.height }}>
-            <div className="text-center">
-              <p>Error loading page {index + 1}</p>
-              <button 
-                onClick={() => setPageError(false)}
-                className="mt-2 text-sm underline hover:no-underline"
-              >
-                Retry
-              </button>
-            </div>
+        {/* Block overlay - only this re-renders on block state changes */}
+        {pdf && (
+          <div className="absolute inset-0 pointer-events-auto">
+            <PDFPageOverlay
+              pageIndex={index}
+              scale={pageScale}
+              blocks={blocks}
+              blocksByPage={blocksByPage}
+              selectedBlock={selectedBlock}
+              isBlockSelectionMode={isBlockSelectionMode}
+              temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
+              onBlockClick={onBlockClick}
+              onBlockSelect={onBlockSelect}
+              onboardingTargetBlockId={onboardingTargetBlockId}
+              isOnboardingActive={isOnboardingActive}
+            />
           </div>
         )}
       </div>
@@ -174,6 +153,10 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track renderPage callback reference changes
+  const renderPageRef = useRef<any>(null);
+  const renderPageChangeCount = useRef(0);
 
 
   // Handle PDF load
@@ -348,7 +331,36 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
     }
   };
 
+  // Use refs for stable callbacks and data that shouldn't trigger re-renders
+  const stablePropsRef = useRef({
+    blocks,
+    blocksByPage,
+    selectedBlock,
+    isBlockSelectionMode,
+    temporarilyHighlightedBlockId,
+    onBlockClick,
+    onBlockSelect,
+    onboardingTargetBlockId,
+    isOnboardingActive
+  });
+  
+  // Update refs when values change
+  useEffect(() => {
+    stablePropsRef.current = {
+      blocks,
+      blocksByPage,
+      selectedBlock,
+      isBlockSelectionMode,
+      temporarilyHighlightedBlockId,
+      onBlockClick,
+      onBlockSelect,
+      onboardingTargetBlockId,
+      isOnboardingActive
+    };
+  });
+  
   // Memoized wrapper for virtual list items
+  // Only re-create when PDF structure changes (pdf, dimensions, scale, container)
   const renderPage = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => (
     <SimplePage
       index={index}
@@ -357,18 +369,56 @@ const VirtualizedPDFViewer: React.FC<VirtualizedPDFViewerProps> = ({
       pageDimensions={pageDimensions}
       scale={scale}
       containerWidth={containerWidth}
-      // Pass page overlay props
-      blocks={blocks}
-      blocksByPage={blocksByPage}
-      selectedBlock={selectedBlock}
-      isBlockSelectionMode={isBlockSelectionMode}
-      temporarilyHighlightedBlockId={temporarilyHighlightedBlockId}
-      onBlockClick={onBlockClick}
-      onBlockSelect={onBlockSelect}
-      onboardingTargetBlockId={onboardingTargetBlockId}
-      isOnboardingActive={isOnboardingActive}
+      pdfFile={pdfFile}
+      // Pass page overlay props from ref to avoid re-creating this callback
+      blocks={stablePropsRef.current.blocks}
+      blocksByPage={stablePropsRef.current.blocksByPage}
+      selectedBlock={stablePropsRef.current.selectedBlock}
+      isBlockSelectionMode={stablePropsRef.current.isBlockSelectionMode}
+      temporarilyHighlightedBlockId={stablePropsRef.current.temporarilyHighlightedBlockId}
+      onBlockClick={stablePropsRef.current.onBlockClick}
+      onBlockSelect={stablePropsRef.current.onBlockSelect}
+      onboardingTargetBlockId={stablePropsRef.current.onboardingTargetBlockId}
+      isOnboardingActive={stablePropsRef.current.isOnboardingActive}
     />
-  ), [pdf, pageDimensions, scale, containerWidth, blocks, blocksByPage, selectedBlock, isBlockSelectionMode, temporarilyHighlightedBlockId, onBlockClick, onBlockSelect, onboardingTargetBlockId, isOnboardingActive]);
+  ), [pdf, pageDimensions, scale, containerWidth, pdfFile]);
+  
+  // Track renderPage callback changes
+  useEffect(() => {
+    if (renderPageRef.current !== renderPage) {
+      renderPageRef.current = renderPage;
+    }
+  }, [renderPage]);
+  
+  // Track which dependencies are changing
+  const prevDepsRef = useRef<any>({});
+  useEffect(() => {
+    const deps = {
+      pdf,
+      pageDimensions,
+      scale,
+      containerWidth,
+      pdfFile,
+      blocks,
+      blocksByPage,
+      selectedBlock,
+      isBlockSelectionMode,
+      temporarilyHighlightedBlockId,
+      onBlockClick,
+      onBlockSelect,
+      onboardingTargetBlockId,
+      isOnboardingActive
+    };
+    
+    const changedDeps: string[] = [];
+    Object.keys(deps).forEach(key => {
+      if (prevDepsRef.current[key] !== deps[key as keyof typeof deps]) {
+        changedDeps.push(key);
+      }
+    });
+    
+    prevDepsRef.current = deps;
+  });
 
   return (
     <div ref={containerRef} className="h-full w-full relative bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment overflow-x-auto">

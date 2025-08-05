@@ -14,14 +14,8 @@ export const PDFTourDialogue: React.FC<PDFTourDialogueProps> = ({
   targetRect,
   scale
 }) => {
-  console.log('[PDFTourDialogue] Rendering', {
-    isVisible,
-    targetRect,
-    scale
-  });
   
   if (!targetRect) {
-    console.log('[PDFTourDialogue] No targetRect, returning null');
     return null;
   }
   
