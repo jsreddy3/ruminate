@@ -57,64 +57,11 @@ export default function BlockOverlay({
 }: BlockOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
-  const isSelectingTextRef = useRef(false);
 
-  // Track text selection state
-  React.useEffect(() => {
-    const handleSelectionChange = () => {
-      const selection = window.getSelection();
-      isSelectingTextRef.current = selection !== null && selection.toString().length > 0;
-    };
-
-    const handleMouseDown = () => {
-      // Mark as potentially selecting text
-      isSelectingTextRef.current = false;
-    };
-
-    const handleMouseUp = () => {
-      // Check if text was selected
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        isSelectingTextRef.current = true;
-        // Reset after a short delay to allow the click handler to check
-        setTimeout(() => {
-          isSelectingTextRef.current = false;
-        }, 100);
-      }
-    };
-
-    document.addEventListener('selectionchange', handleSelectionChange);
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
-
-  // Handle clicks outside the modal content to close overlay
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
-    // Don't close if we just finished selecting text
-    if (isSelectingTextRef.current) {
-      return;
-    }
-
-    // Check if there's any text currently selected
-    const selection = window.getSelection();
-    if (selection && selection.toString().length > 0) {
-      return;
-    }
-
-    // Check if click is on the image gallery
-    const target = e.target as HTMLElement;
-    if (target.closest('[data-image-gallery="true"]')) {
-      return;
-    }
-
-    // Check if the click is outside the modal content box
-    if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node)) {
+  // Handle backdrop clicks to close overlay
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    // Only close if clicking the backdrop itself (not bubbled from children)
+    if (e.target === e.currentTarget) {
       // Ensure we're not in a restricted onboarding step
       if (!isOnboardingStep4 && !isOnboardingStep5 && !isOnboardingStep6 && !isOnboardingStep7) {
         onClose();
@@ -157,10 +104,12 @@ export default function BlockOverlay({
           <div 
             className="relative pointer-events-auto overflow-hidden" 
             style={{ width: `${pdfPanelWidth}%` }}
-            onClick={handleContainerClick}
           >
-            {/* Backdrop with dimmed PDF visibility */}
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            {/* Backdrop with dimmed PDF visibility - clicking this closes the modal */}
+            <div 
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer" 
+              onClick={handleBackdropClick}
+            />
             
             
             {/* Modal content */}
