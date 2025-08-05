@@ -12,23 +12,29 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function useBlockImages(documentId: string) {
   const [cache, setCache] = useState<ImageCache>({});
+  const cacheRef = useRef<ImageCache>({});
   const fetchingRef = useRef<Set<string>>(new Set());
+  
+  // Keep ref in sync with state
+  cacheRef.current = cache;
 
   const fetchBlockImages = useCallback(async (blockId: string): Promise<{ [key: string]: string }> => {
     if (!documentId) return {};
 
     // Check cache first
-    const cached = cache[blockId];
+    const cached = cacheRef.current[blockId];
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(`[ImageCache] Using cached images for block ${blockId}`);
       return cached.images;
     }
 
     // Prevent duplicate fetches
     if (fetchingRef.current.has(blockId)) {
       // Wait for the ongoing fetch
+      console.log(`[ImageCache] Waiting for ongoing fetch for block ${blockId}`);
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
-          const cached = cache[blockId];
+          const cached = cacheRef.current[blockId];
           if (cached && !fetchingRef.current.has(blockId)) {
             clearInterval(checkInterval);
             resolve(cached.images);
@@ -38,6 +44,7 @@ export function useBlockImages(documentId: string) {
     }
 
     fetchingRef.current.add(blockId);
+    console.log(`[ImageCache] Fetching images for block ${blockId}`);
 
     try {
       const resp = await authenticatedFetch(
@@ -61,7 +68,7 @@ export function useBlockImages(documentId: string) {
       fetchingRef.current.delete(blockId);
       return {};
     }
-  }, [documentId, cache]);
+  }, [documentId]); // Remove cache from dependencies
 
   // Clear old cache entries
   const clearExpiredCache = useCallback(() => {

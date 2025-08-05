@@ -20,7 +20,12 @@ export default function ImagePopover({ src, initialPosition, onClose }: ImagePop
 
   // Handle dragging
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Don't start dragging if clicking on resize handle
     if ((e.target as HTMLElement).classList.contains('resize-handle')) return;
+    
+    // Don't start dragging if clicking on close button or its children
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
     
     setIsDragging(true);
     setDragStart({ 
@@ -104,8 +109,8 @@ export default function ImagePopover({ src, initialPosition, onClose }: ImagePop
         height = height * scale;
       }
       
-      // Add some padding
-      setSize({ width: width + 40, height: height + 40 });
+      // Add padding for the header and frame
+      setSize({ width: width + 40, height: height + 60 }); // Extra height for header
       setImageLoaded(true);
     }
   };
@@ -125,54 +130,65 @@ export default function ImagePopover({ src, initialPosition, onClose }: ImagePop
     <div
       ref={popoverRef}
       data-image-gallery="true"
-      className="fixed bg-white rounded-lg shadow-2xl overflow-hidden"
+      className="fixed bg-gradient-to-br from-surface-paper via-library-cream-50 to-surface-parchment rounded-journal shadow-deep border border-library-sage-300 overflow-hidden backdrop-blur-paper hover:shadow-shelf"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
         height: `${size.height}px`,
         zIndex: 999999,
-        cursor: isDragging ? 'grabbing' : 'grab'
+        cursor: isDragging ? 'grabbing' : 'move',
+        background: 'linear-gradient(135deg, #fefcf7 0%, #fcf0d2 50%, #fef9ed 100%), repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(175, 95, 55, 0.01) 35px, rgba(175, 95, 55, 0.01) 70px)'
       }}
       onMouseDown={handleMouseDown}
     >
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-2 right-2 z-10 bg-white/80 hover:bg-white rounded-full p-1.5 shadow-md transition-all"
-        title="Close (Esc)"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-
-      {/* Image */}
-      <div className="w-full h-full flex items-center justify-center bg-gray-50 p-5">
-        <img
-          ref={imageRef}
-          src={src}
-          alt="Figure"
-          className="max-w-full max-h-full object-contain"
-          draggable={false}
-          onLoad={handleImageLoad}
-          style={{ opacity: imageLoaded ? 1 : 0 }}
-        />
-        {!imageLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-pulse text-gray-400">Loading...</div>
-          </div>
-        )}
+      {/* Elegant header bar */}
+      <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-r from-library-cream-50/90 via-surface-parchment/90 to-library-cream-50/90 backdrop-blur-sm border-b border-library-sage-200 flex items-center justify-end px-3 z-10">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="text-library-sage-400 hover:text-reading-secondary p-1 rounded-book hover:bg-library-cream-100 relative z-20"
+          title="Close (Esc)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      {/* Resize handle */}
+      {/* Image container with scholarly frame */}
+      <div className="w-full h-full flex items-center justify-center pt-8">
+        <div className="relative p-4 w-full h-full flex items-center justify-center">
+          <img
+            ref={imageRef}
+            src={src}
+            alt="Figure"
+            className="max-w-full max-h-full object-contain rounded-paper shadow-paper"
+            draggable={false}
+            onLoad={handleImageLoad}
+            style={{ 
+              opacity: imageLoaded ? 1 : 0
+            }}
+          />
+          {!imageLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-xs font-serif text-reading-muted animate-parchment-shimmer">Loading figure...</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Resize handle with scholarly styling */}
       <div
-        className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize group"
+        className="resize-handle absolute bottom-0 right-0 w-5 h-5 cursor-se-resize group"
         onMouseDown={handleResizeStart}
       >
-        <div className="absolute bottom-1 right-1 w-0 h-0 border-l-2 border-b-2 border-gray-400 group-hover:border-gray-600"></div>
-        <div className="absolute bottom-0.5 right-2 w-0 h-0 border-l-2 border-b-2 border-gray-400 group-hover:border-gray-600"></div>
-        <div className="absolute bottom-2 right-0.5 w-0 h-0 border-l-2 border-b-2 border-gray-400 group-hover:border-gray-600"></div>
+        <div className="absolute bottom-1.5 right-1.5 w-0 h-0 border-l-[3px] border-b-[3px] border-library-sage-400 group-hover:border-library-gold-500 rounded-sm"></div>
+        <div className="absolute bottom-1 right-2.5 w-0 h-0 border-l-2 border-b-2 border-library-sage-300 group-hover:border-library-gold-400"></div>
+        <div className="absolute bottom-2.5 right-1 w-0 h-0 border-l-2 border-b-2 border-library-sage-300 group-hover:border-library-gold-400"></div>
       </div>
     </div>,
     document.body

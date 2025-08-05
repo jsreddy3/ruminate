@@ -41,10 +41,10 @@ export default function ImageGallery({
     [blocks, currentBlockId]
   );
 
-  // Get blocks within ±5 range that have images
+  // Get blocks within ±10 range that have images
   const nearbyImageBlocks = useMemo(() => {
-    const start = Math.max(0, currentIndex - 5);
-    const end = Math.min(blocks.length - 1, currentIndex + 5);
+    const start = Math.max(0, currentIndex - 10);
+    const end = Math.min(blocks.length - 1, currentIndex + 10);
     
     return blocks.slice(start, end + 1).filter(block => {
       const blockType = block.block_type.toLowerCase();
@@ -92,7 +92,7 @@ export default function ImageGallery({
     };
 
     loadImages();
-  }, [nearbyImageBlocks, onImageFetch]);
+  }, [nearbyImageBlocks, onImageFetch, loadedImages]); // Added loadedImages dependency
 
   // Handle thumbnail click
   const handleThumbnailClick = (imageData: ImageData, imageKey: string, event: React.MouseEvent) => {
@@ -133,22 +133,22 @@ export default function ImageGallery({
             transform: 'translate3d(0, -50%, 0)' // Force GPU acceleration
           }}
         >
-          <div className="bg-white shadow-xl rounded-r-lg border border-l-0 border-gray-200 h-[400px] flex">
+          <div className="bg-gradient-to-br from-surface-paper to-library-cream-100 shadow-shelf rounded-r-journal border border-l-0 border-library-sage-300 h-[400px] flex backdrop-blur-paper">
             {/* Gallery content */}
             <div className={`${isCollapsed ? 'w-0' : 'w-36'} overflow-hidden transition-all duration-300`}>
-              <div className="p-2 h-full flex flex-col">
-                <div className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
-                  <Images size={12} />
-                  <span>Nearby Figures</span>
+              <div className="p-3 h-full flex flex-col">
+                <div className="text-xs font-serif text-reading-secondary mb-3 flex items-center gap-1.5">
+                  <Images size={14} className="text-library-gold-600" />
+                  <span className="font-medium">Figures</span>
                 </div>
                 
                 {/* Scrollable thumbnails */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-library-sage-300 scrollbar-track-transparent">
                   {nearbyImageBlocks.map(block => {
                     const imageData = loadedImages.get(block.id);
                     if (!imageData) {
                       return (
-                        <div key={block.id} className="aspect-square bg-gray-100 rounded animate-pulse" />
+                        <div key={block.id} className="aspect-square bg-library-cream-200 rounded-book animate-pulse shadow-paper" />
                       );
                     }
 
@@ -162,16 +162,20 @@ export default function ImageGallery({
                       return (
                         <div
                           key={`${block.id}-${key}`}
-                          className="cursor-pointer hover:ring-2 hover:ring-amber-400 rounded transition-all"
+                          className="cursor-pointer group transition-all duration-200 hover:scale-105"
                           onClick={(e) => handleThumbnailClick(imageData, key, e)}
                         >
-                          <img
-                            src={thumbnailSrc}
-                            alt={`Figure from block ${block.id}`}
-                            className="w-full h-auto rounded shadow-sm"
-                          />
-                          <div className="text-xs text-gray-500 mt-1 text-center">
-                            {imageData.pageNumber ? `Page ${imageData.pageNumber}` : imageData.blockType}
+                          <div className="relative overflow-hidden rounded-book shadow-paper hover:shadow-book transition-shadow duration-200">
+                            <img
+                              src={thumbnailSrc}
+                              alt={`Figure from block ${block.id}`}
+                              className="w-full h-auto"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                            <div className="absolute inset-0 ring-2 ring-library-gold-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-book" />
+                          </div>
+                          <div className="text-[10px] font-serif text-reading-muted mt-1.5 text-center">
+                            {imageData.pageNumber ? `p. ${imageData.pageNumber}` : 'Figure'}
                           </div>
                         </div>
                       );
@@ -184,13 +188,13 @@ export default function ImageGallery({
             {/* Toggle button */}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="w-12 h-full bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-center border-l border-gray-200"
-              title={isCollapsed ? "Show image gallery" : "Hide image gallery"}
+              className="w-12 h-full bg-gradient-to-r from-library-cream-50 to-surface-parchment hover:from-library-cream-100 hover:to-library-cream-50 transition-all duration-200 flex items-center justify-center border-l border-library-sage-300 group"
+              title={isCollapsed ? "Show figure gallery" : "Hide figure gallery"}
             >
               {isCollapsed ? (
-                <ChevronRight className="w-5 h-5 text-gray-600" />
+                <ChevronRight className="w-5 h-5 text-library-sage-600 group-hover:text-reading-secondary transition-colors" />
               ) : (
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+                <ChevronLeft className="w-5 h-5 text-library-sage-600 group-hover:text-reading-secondary transition-colors" />
               )}
             </button>
           </div>
