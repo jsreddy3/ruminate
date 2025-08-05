@@ -55,13 +55,6 @@ export const PDFPageOverlay: React.FC<PDFPageOverlayProps> = React.memo(({
     return pageBlocks.some(block => block.id === temporarilyHighlightedBlockId);
   }, [temporarilyHighlightedBlockId, pageBlocks]);
   
-  console.log(`[PDFPageOverlay] Rendering for page ${pageIndex}`, {
-    blocksCount: pageBlocks.length,
-    hasSelectedBlock: shouldShowSelectedBlock,
-    hasHighlight: shouldShowHighlight,
-    scale,
-    isBlockSelectionMode
-  });
   
   return (
     <PDFBlockOverlay

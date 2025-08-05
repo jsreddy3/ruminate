@@ -3,6 +3,7 @@ import BasePopover from '../../common/BasePopover';
 import StepCounter from '../../onboarding/StepCounter';
 import { AnimatedTextSelection } from '../../onboarding/AnimatedTextSelection';
 import { Step5DefineModal } from '../../onboarding/Step5DefineModal';
+import { PDFTourDialogue } from '../../onboarding/PDFTourDialogue';
 
 interface OnboardingOverlaysProps {
   onboarding: any; // Using any to avoid complex type definition for now
@@ -10,6 +11,8 @@ interface OnboardingOverlaysProps {
   isViewDropdownOpen: boolean;
   closeViewDropdown: () => void;
   handleViewModeSelect: (mode: 'pdf' | 'glossary' | 'annotations') => void;
+  blocks?: any[]; // For finding onboarding target block
+  scale?: number; // PDF scale for positioning
 }
 
 export function OnboardingOverlays({
@@ -18,8 +21,48 @@ export function OnboardingOverlays({
   isViewDropdownOpen,
   closeViewDropdown,
   handleViewModeSelect,
+  blocks = [],
+  scale = 1,
 }: OnboardingOverlaysProps) {
   const { onboardingState } = onboarding;
+  
+  // Calculate target rect for PDFTourDialogue
+  const [targetRect, setTargetRect] = React.useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  
+  React.useEffect(() => {
+    if (onboardingState.currentStep === 3 && onboarding.onboardingTargetBlockId) {
+      // Try to find the block element in the DOM
+      const checkForBlock = () => {
+        const blockElements = document.querySelectorAll(`[data-block-id="${onboarding.onboardingTargetBlockId}"]`);
+        if (blockElements.length > 0) {
+          const blockElement = blockElements[0];
+          const rect = blockElement.getBoundingClientRect();
+          setTargetRect({
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height
+          });
+        } else {
+          // Fallback: show in center of screen
+          setTargetRect({
+            x: window.innerWidth / 2 - 100,
+            y: window.innerHeight / 2,
+            width: 200,
+            height: 100
+          });
+        }
+      };
+      
+      // Check immediately and then periodically
+      checkForBlock();
+      const interval = setInterval(checkForBlock, 500);
+      
+      return () => clearInterval(interval);
+    } else {
+      setTargetRect(null);
+    }
+  }, [onboardingState.currentStep, onboarding.onboardingTargetBlockId]);
   
   return (
     <>
@@ -81,6 +124,13 @@ export function OnboardingOverlays({
           </button>
         </div>
       </BasePopover>
+
+      {/* Step 3 - PDF Tour Dialogue */}
+      <PDFTourDialogue
+        isVisible={onboardingState.isActive && onboardingState.currentStep === 3}
+        targetRect={targetRect}
+        scale={scale}
+      />
 
       {/* Text Selection Onboarding Tour - Step 4 */}
       <BasePopover

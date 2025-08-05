@@ -360,11 +360,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       });
     
     if (!blocksChanged && blocksByPageRef.current.size > 0) {
-      console.log('[PDFViewer] Blocks unchanged, reusing existing blocksByPage');
       return blocksByPageRef.current;
     }
-    
-    console.log('[PDFViewer] Blocks changed, recomputing blocksByPage');
     const map = new Map<number, Block[]>();
     blocks.forEach(block => {
       const pageNum = block.page_number ?? 0;
@@ -872,6 +869,8 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         isViewDropdownOpen={isViewDropdownOpen}
         closeViewDropdown={closeViewDropdown}
         handleViewModeSelect={handleViewModeSelect}
+        blocks={blocks}
+        scale={scale}
       />
       
     </MathJaxProvider>

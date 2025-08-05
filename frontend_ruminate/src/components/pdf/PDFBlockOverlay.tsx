@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Block } from './PDFViewer';
 import BlockIndicators, { BlockDotIndicators } from './BlockIndicators';
-import { PDFTourDialogue } from '../onboarding/PDFTourDialogue';
 import { isBlockNavigable } from '../../utils/blockFiltering';
 import { PDFBlockItem } from './PDFBlockItem';
 
@@ -37,32 +36,6 @@ export default function PDFBlockOverlay({
   
   // Blocks are now pre-filtered by the parent component
   const filteredBlocks = blocks;
-
-  // State to track onboarding target block rectangle
-  const [targetBlockRect, setTargetBlockRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-
-  // Update target block rect when onboarding target changes
-  useEffect(() => {
-    if (onboardingTargetBlockId && isOnboardingActive) {
-      const targetBlock = filteredBlocks.find(b => b.id === onboardingTargetBlockId);
-      if (targetBlock && targetBlock.polygon && targetBlock.polygon.length >= 4) {
-        const x = Math.min(...targetBlock.polygon.map((p) => p[0]));
-        const y = Math.min(...targetBlock.polygon.map((p) => p[1]));
-        const w = Math.max(...targetBlock.polygon.map((p) => p[0])) - x;
-        const h = Math.max(...targetBlock.polygon.map((p) => p[1])) - y;
-        
-        const rect = {
-          x: x * scale,
-          y: y * scale,
-          width: w * scale,
-          height: h * scale
-        };
-        setTargetBlockRect(rect);
-      }
-    } else {
-      setTargetBlockRect(null);
-    }
-  }, [onboardingTargetBlockId, isOnboardingActive, filteredBlocks, scale, pageIndex]);
 
   return (
     <>
@@ -120,13 +93,6 @@ export default function PDFBlockOverlay({
         );
       })}
       </div>
-      
-      {/* Onboarding dialogue */}
-      <PDFTourDialogue
-        isVisible={isOnboardingActive && !!onboardingTargetBlockId}
-        targetRect={targetBlockRect}
-        scale={scale}
-      />
     </>
   );
 }

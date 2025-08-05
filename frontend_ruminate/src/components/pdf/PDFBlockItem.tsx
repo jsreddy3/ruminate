@@ -139,7 +139,6 @@ export const PDFBlockItem = React.memo(({
 
   // Handle click based on mode
   const handleClick = () => {
-    console.log(`[PDFBlockItem] Block clicked: ${block.id}`);
     if (isSelectionMode && onBlockSelect) {
       onBlockSelect(block.id);
     } else {
