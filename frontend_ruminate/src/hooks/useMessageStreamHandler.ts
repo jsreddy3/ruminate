@@ -12,6 +12,7 @@ interface UseMessageStreamHandlerReturn {
   isStreamingComplete: boolean;
   isStreamingActive: boolean;
   streamingError: Error | null;
+  webSearchEvent: any | null;
   startStreaming: (messageId: string) => void;
   stopStreaming: () => void;
 }
@@ -31,7 +32,8 @@ export const useMessageStreamHandler = ({
     content: streamingContent,
     isComplete: isStreamingComplete,
     isLoading: isStreamingActive,
-    error: streamingError
+    error: streamingError,
+    webSearchEvent
   } = useMessageStream(conversationId, streamingMessageId);
 
   // Handle successful stream completion
@@ -81,6 +83,7 @@ export const useMessageStreamHandler = ({
     isStreamingComplete,
     isStreamingActive,
     streamingError,
+    webSearchEvent,
     startStreaming,
     stopStreaming
   };

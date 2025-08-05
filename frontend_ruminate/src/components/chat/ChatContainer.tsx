@@ -86,6 +86,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const {
     streamingMessageId,
     streamingContent,
+    webSearchEvent,
     startStreaming
   } = useMessageStreamHandler({
     conversationId,
@@ -285,6 +286,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           activeThreadIds={activeThreadIds}
           streamingMessageId={streamingMessageId}
           streamingContent={streamingContent}
+          webSearchEvent={webSearchEvent}
           conversationId={conversationId}
           onSwitchVersion={switchToVersion}
           onEditMessage={handleEditMessage}

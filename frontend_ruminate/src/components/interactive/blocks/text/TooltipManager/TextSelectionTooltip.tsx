@@ -59,11 +59,24 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
     };
   }, [isVisible, onClose, isOnboardingStep5, isOnboardingStep6]);
 
-  // Close tooltip when pressing Escape
+  // Close tooltip when pressing Escape, but allow copy/cut shortcuts
   useEffect(() => {
     if (!isVisible) return;
 
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log('🔑 TextSelectionTooltip keydown:', {
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        selection: window.getSelection()?.toString()
+      });
+      
+      // Allow copy/cut shortcuts to work normally
+      if ((event.metaKey || event.ctrlKey) && (event.key === 'c' || event.key === 'x')) {
+        console.log('✅ Allowing copy/cut shortcut');
+        return; // Don't prevent default, let the browser handle it
+      }
+      
       // Don't close during onboarding step 5 or 6
       if (isOnboardingStep5 || isOnboardingStep6) return;
       
@@ -72,9 +85,10 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
+    // Use capture phase to catch events early
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [isVisible, onClose, isOnboardingStep5, isOnboardingStep6]);
 
@@ -174,6 +188,12 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           : 'border-library-sage-300'
       }`}
       style={tooltipStyle}
+      onKeyDown={(e) => {
+        // Ensure copy/cut keyboard shortcuts work when tooltip has focus
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'x')) {
+          e.stopPropagation(); // Stop propagation but don't prevent default
+        }
+      }}
     >
       <div className="animate-fadeIn">
         <div className="flex">

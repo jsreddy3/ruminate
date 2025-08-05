@@ -95,6 +95,14 @@ const SelectionManager: React.FC<SelectionManagerProps> = ({
     // Additional protection for preventing deselection during onboarding
     const handleGlobalClick = (e: Event) => {
       if (preventDeselection) {
+        // Allow keyboard events for copy/cut
+        if (e instanceof KeyboardEvent) {
+          const keyEvent = e as KeyboardEvent;
+          if ((keyEvent.metaKey || keyEvent.ctrlKey) && (keyEvent.key === 'c' || keyEvent.key === 'x')) {
+            return; // Don't prevent copy/cut
+          }
+        }
+        
         const target = e.target as HTMLElement;
         const isTooltipClick = target.closest('.selection-tooltip, .definition-popup');
         if (!isTooltipClick) {
