@@ -353,9 +353,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setDefinitionVisible(false);
     setAnnotationVisible(false);
   };
-  
-  console.log('🎯 TextRenderer: isOnboardingStep5 =', isOnboardingStep5, 'isOnboardingStep6 =', isOnboardingStep6, 'hasOnCreateRabbithole =', !!onCreateRabbithole);
-  
+    
   // Check if content contains math tags
   const hasMathContent = /<math[^>]*>/.test(htmlContent);
   

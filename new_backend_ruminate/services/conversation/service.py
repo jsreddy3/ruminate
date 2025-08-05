@@ -49,7 +49,10 @@ class ConversationService:
         
         full = ""
         async for chunk in self._llm.generate_response_stream(prompt):
-            full += chunk
+            # Only add text chunks to the stored message, not JSON events
+            if not chunk.startswith('{"type"'):
+                full += chunk
+            # But still publish everything to SSE for real-time UI updates
             await self._hub.publish(ai_id, chunk)
         
         # Send completion signal that frontend expects

@@ -382,9 +382,6 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   if (prevStateRef.current.viewMode !== viewMode) 
     stateChanges.push(`viewMode(${prevStateRef.current.viewMode}→${viewMode})`);
     
-  console.log(`🎯 PDFViewer render #${viewerRenderRef.current}`, 
-    stateChanges.length ? `- State changes: ${stateChanges.join(', ')}` : '- No state changes');
-  
   prevStateRef.current = {
     currentPage,
     totalPages,

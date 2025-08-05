@@ -65,8 +65,7 @@ export default function BlockRenderer({
 }: BlockRendererProps) {
   const type = blockType.toLowerCase();
   
-  // Debug log for block type and content
-  console.log(`Block Type: ${blockType}, First 200 chars: "${htmlContent.substring(0, 200)}..."`);
+    // Debug log for block type and content
   
   // Unsupported block types
   const unsupportedTypes = [

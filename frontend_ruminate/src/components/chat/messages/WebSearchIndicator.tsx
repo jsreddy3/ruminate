@@ -30,11 +30,11 @@ export const WebSearchIndicator: React.FC<WebSearchIndicatorProps> = ({ event })
   const getMessage = () => {
     switch (event.status) {
       case 'starting':
-        return 'Initializing web search...';
+        return 'Researching online...';
       case 'searching':
-        return event.query ? `Searching: "${event.query}"` : 'Searching the web...';
+        return event.query ? `Searching: "${event.query}"` : 'Researching online...';
       case 'completed':
-        return 'Web search completed';
+        return 'Finished external research!';
     }
   };
 
