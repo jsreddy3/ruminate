@@ -198,6 +198,20 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
                 <h3 className="text-lg font-serif font-medium text-reading-primary truncate">
                   {document.title}
                 </h3>
+                {/* Edit Button - next to document name */}
+                {!isOnboardingActive && (
+                  <button
+                    onClick={handleEditClick}
+                    className={`p-1 transition-all rounded-full hover:bg-library-sage-50 ${
+                      isHovering 
+                        ? 'text-library-sage-400 hover:text-library-sage-600 opacity-100' 
+                        : 'text-transparent opacity-0 pointer-events-none'
+                    }`}
+                    title="Edit document name"
+                  >
+                    <PencilIcon className="w-3 h-3" />
+                  </button>
+                )}
                 {getStatusIcon()}
               </>
             )}
@@ -243,20 +257,6 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
           
           {/* Action buttons - positioned absolutely to prevent layout shift */}
           <div className="absolute right-12 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-            {/* Edit Button */}
-            {!isEditing && !isOnboardingActive && (
-              <button
-                onClick={handleEditClick}
-                className={`p-1 transition-all rounded-full hover:bg-library-sage-50 ${
-                  isHovering 
-                    ? 'text-library-sage-400 hover:text-library-sage-600 opacity-100' 
-                    : 'text-transparent opacity-0 pointer-events-none'
-                }`}
-                title="Edit document name"
-              >
-                <PencilIcon className="w-3 h-3" />
-              </button>
-            )}
             
             {/* Delete Button */}
             {onDelete && document.status !== 'PROCESSING' && document.status !== 'PROCESSING_MARKER' && !isEditing && !isOnboardingActive && (
