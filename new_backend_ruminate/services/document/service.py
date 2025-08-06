@@ -314,22 +314,29 @@ class DocumentService:
         self,
         *,
         background: BackgroundTasks,
-        file: BinaryIO,
+        file_content: Optional[bytes],
         filename: str,
         user_id: str,
+        s3_key: Optional[str] = None,
     ) -> Document:
         """
         Upload a document and start processing
         For large documents (>20 pages), creates batch with first chunk auto-processing
         Returns the first document while batch creation continues in background
+        
+        Args:
+            file_content: PDF content as bytes (None if s3_key is provided)
+            filename: Original filename
+            user_id: User ID
+            s3_key: Optional S3 key if file is already in S3
         """
-        # Read file content once
-        try:
-            file_content = file.read()
-            file.seek(0)  # Reset for any subsequent reads
-        except Exception as e:
-            print(f"[DocumentService] Error reading file: {type(e).__name__}: {str(e)}")
-            raise ValueError(f"Failed to read file: {str(e)}")
+        # If S3 key is provided but no content, download it for validation/splitting
+        if s3_key and not file_content:
+            try:
+                file_content = await self._storage.download_file(s3_key)
+            except Exception as e:
+                print(f"[DocumentService] Error downloading from S3: {type(e).__name__}: {str(e)}")
+                raise ValueError(f"Failed to download file from S3: {str(e)}")
                 
         # Check PDF page count to determine if we need batch processing
         page_count = self._get_pdf_page_count(file_content)
@@ -340,7 +347,8 @@ class DocumentService:
                 background=background,
                 file_content=file_content,
                 filename=filename,
-                user_id=user_id
+                user_id=user_id,
+                s3_key=s3_key
             )
         else:
             # Batch processing for large documents
@@ -349,7 +357,8 @@ class DocumentService:
                 file_content=file_content,
                 filename=filename,
                 user_id=user_id,
-                total_pages=page_count
+                total_pages=page_count,
+                s3_key=s3_key
             )
     
     async def _upload_single_document(
@@ -359,6 +368,7 @@ class DocumentService:
         file_content: bytes,
         filename: str,
         user_id: str,
+        s3_key: Optional[str] = None,
     ) -> Document:
         """Upload and process a single document (existing logic)"""
         # Create document record
@@ -399,14 +409,21 @@ class DocumentService:
             else:
                 print(f"[DocumentService] No conversation service available")
         
-        # Upload file to storage
+        # Upload file to storage or reuse existing S3 key
         try:
-            storage_key = f"documents/{document.id}/{filename}"
-            await self._storage.upload_file(
-                file=io.BytesIO(file_content),
-                key=storage_key,
-                content_type="application/pdf"
-            )
+            if s3_key:
+                # File already in S3, just use the existing key
+                storage_key = s3_key
+                print(f"[DocumentService] Reusing existing S3 key: {storage_key}")
+            else:
+                # Need to upload file to S3
+                storage_key = f"documents/{document.id}/{filename}"
+                await self._storage.upload_file(
+                    file=io.BytesIO(file_content),
+                    key=storage_key,
+                    content_type="application/pdf"
+                )
+                print(f"[DocumentService] Uploaded file to S3: {storage_key}")
             
             # Update document with storage key
             async with session_scope() as session:
@@ -436,6 +453,7 @@ class DocumentService:
         filename: str,
         user_id: str,
         total_pages: int,
+        s3_key: Optional[str] = None,
     ) -> Document:
         """Upload and create batch documents for large PDFs"""
         batch_id = str(uuid4())

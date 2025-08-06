@@ -7,6 +7,7 @@ interface UseMessageTreeProps {
   selectedBlockId?: string | null;
   currentPage?: number;
   blocks?: Array<{ id: string; page_number?: number; block_type: string; html_content?: string }>;
+  debugMode?: boolean;
 }
 
 interface UseMessageTreeReturn {
@@ -28,7 +29,8 @@ export function useMessageTree({
   conversationId,
   selectedBlockId = null,
   currentPage = 1,
-  blocks = []
+  blocks = [],
+  debugMode = false
 }: UseMessageTreeProps): UseMessageTreeReturn {
   const [messageTree, setMessageTree] = useState<MessageNode[]>([]);
   const [flatMessages, setFlatMessages] = useState<Message[]>([]);
@@ -316,7 +318,8 @@ export function useMessageTree({
           content, 
           parentId, 
           activeThreadIds,
-          blockIdToSend
+          blockIdToSend,
+          { debugMode }
         );
         
         // 4. Refresh tree - this will replace optimistic messages with real ones
@@ -330,7 +333,7 @@ export function useMessageTree({
         throw err;
       }
     },
-    [conversationId, activeThreadIds, selectedBlockId, getFallbackBlockId, refreshTree, flatMessages, buildMessageTree]
+    [conversationId, activeThreadIds, selectedBlockId, getFallbackBlockId, refreshTree, flatMessages, buildMessageTree, debugMode]
   );
 
   // Function to edit an existing message with streaming
@@ -360,7 +363,8 @@ export function useMessageTree({
           messageId,
           content,
           activeThreadIds,
-          blockIdToSend
+          blockIdToSend,
+          { debugMode }
         );
         
         // 3. Refresh to get real data and new AI message
@@ -374,7 +378,7 @@ export function useMessageTree({
         throw err;
       }
     },
-    [conversationId, activeThreadIds, selectedBlockId, getFallbackBlockId, refreshTree, flatMessages, buildMessageTree]
+    [conversationId, activeThreadIds, selectedBlockId, getFallbackBlockId, refreshTree, flatMessages, buildMessageTree, debugMode]
   );
 
 

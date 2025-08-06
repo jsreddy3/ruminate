@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Document } from '@/services/api/document';
-import DocumentRow from './DocumentRow';
-import { ChevronDownIcon, ChevronRightIcon, FolderIcon, FolderOpenIcon } from '@heroicons/react/24/outline';
+import { FolderIcon, FolderOpenIcon } from '@heroicons/react/24/outline';
+import { formatDistanceToNow } from 'date-fns';
 
 interface DocumentFolderProps {
   parentDocument: Document;
@@ -42,12 +42,29 @@ export default function DocumentFolder({
   const awaitingCount = sortedChunks.filter(c => c.status === 'AWAITING_PROCESSING').length;
 
   const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    if (!dateString) return '-';
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return '-';
+    }
+  };
+
+  const getStatusIcon = () => {
+    // If all chunks are ready
+    if (readyCount === sortedChunks.length) {
+      return <div className="w-2 h-2 bg-library-forest-500 rounded-full" />;
+    }
+    // If any are processing
+    if (processingCount > 0) {
+      return <div className="w-2 h-2 bg-library-gold-500 rounded-full animate-pulse" />;
+    }
+    // If any are awaiting
+    if (awaitingCount > 0) {
+      return <div className="w-2 h-2 bg-library-sage-500 rounded-full" />;
+    }
+    // Default
+    return <div className="w-2 h-2 bg-library-sage-400 rounded-full" />;
   };
 
   return (
@@ -69,9 +86,12 @@ export default function DocumentFolder({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-serif text-reading-primary truncate">
-                {parentDocument.title.replace(/ \(Part \d+ of \d+\)$/, '')}
-              </p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-serif font-medium text-reading-primary truncate">
+                  {parentDocument.title.replace(/ \(Part \d+ of \d+\)$/, '')}
+                </h3>
+                {getStatusIcon()}
+              </div>
               <p className="text-sm text-reading-muted mt-1">
                 {totalPages} pages • {parentDocument.total_chunks} parts
                 {processingCount > 0 && ` • ${processingCount} processing`}
@@ -80,10 +100,10 @@ export default function DocumentFolder({
             </div>
           </div>
         </td>
-        <td className="px-6 py-4 text-base text-reading-secondary">
+        <td className="px-6 py-4 text-lg text-reading-secondary font-serif">
           {formatDate(parentDocument.created_at)}
         </td>
-        <td className="px-6 py-4 text-base text-reading-secondary">
+        <td className="px-6 py-4 text-lg text-reading-secondary font-serif">
           {formatDate(parentDocument.updated_at)}
         </td>
         <td className="px-6 py-4 text-right">
@@ -103,60 +123,73 @@ export default function DocumentFolder({
 
       {/* Expanded chunks */}
       {isExpanded && sortedChunks.map((chunk) => (
-        <tr key={chunk.id} className="bg-surface-vellum">
-          <td colSpan={4} className="pl-16 pr-6 py-2">
+        <tr key={chunk.id} className="bg-surface-paper/50 hover:bg-surface-vellum transition-colors">
+          <td className="pl-12 pr-6 py-3" colSpan={3}>
             <div 
-              className="hover:bg-surface-cream rounded-md transition-colors cursor-pointer p-3"
+              className="flex items-center justify-between cursor-pointer group"
               onClick={(e) => {
                 e.stopPropagation();
                 onDocumentClick(chunk);
               }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-reading-muted">
-                    Part {(chunk.chunk_index || 0) + 1}
-                  </span>
-                  <span className="text-sm font-medium text-reading-primary">
-                    Pages {((chunk.chunk_index || 0) * 20) + 1}-{Math.min(((chunk.chunk_index || 0) + 1) * 20, totalPages)}
-                  </span>
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-6 flex justify-center">
+                  <div className="w-1.5 h-1.5 bg-library-sage-400 rounded-full"></div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {chunk.status === 'READY' ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-library-mint-100 text-library-mint-800">
-                      Ready
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3">
+                    <span className="text-base font-medium text-reading-primary">
+                      Part {(chunk.chunk_index || 0) + 1}
                     </span>
-                  ) : chunk.status === 'AWAITING_PROCESSING' ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onStartProcessing(chunk.id);
-                      }}
-                      className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md text-reading-primary bg-library-gold-100 hover:bg-library-gold-200 transition-colors"
-                    >
-                      Start Processing
-                    </button>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-library-cream-200 text-library-sage-700">
-                      {chunk.status.replace(/_/g, ' ').toLowerCase()}
+                    <span className="text-sm text-reading-muted">
+                      Pages {((chunk.chunk_index || 0) * 20) + 1}-{Math.min(((chunk.chunk_index || 0) + 1) * 20, totalPages)}
                     </span>
-                  )}
-                  {onDocumentDelete && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDocumentDelete(chunk.id);
-                      }}
-                      className="text-library-sage-500 hover:text-red-600 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-4 mt-1 text-sm text-reading-secondary">
+                    <span>Created {formatDate(chunk.created_at)}</span>
+                    <span>•</span>
+                    <span>Updated {formatDate(chunk.updated_at)}</span>
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                {chunk.status === 'READY' ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-library-mint-100 text-library-mint-800">
+                    Ready
+                  </span>
+                ) : chunk.status === 'AWAITING_PROCESSING' ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStartProcessing(chunk.id);
+                    }}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-library-gold-500 hover:bg-library-gold-600 transition-colors"
+                  >
+                    Process
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-library-cream-200 text-library-sage-700">
+                    {chunk.status.replace(/_/g, ' ').toLowerCase()}
+                  </span>
+                )}
+                {onDocumentDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDocumentDelete(chunk.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-library-sage-400 hover:text-red-600 transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
+          </td>
+          <td className="px-6 py-3">
+            {/* Empty cell for alignment */}
           </td>
         </tr>
       ))}

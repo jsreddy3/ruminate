@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Any
 from uuid import uuid4
+import json
 
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.context.prompts import agent_system_prompt, default_system_prompts
 from new_backend_ruminate.domain.ports.tool import tool_registry
+from new_backend_ruminate.services.conversation.prompt_approval import prompt_approval_service
 
 class ConversationService:
     """Pure business logic: no Pydantic, no FastAPI, no DB-bootstrap."""
@@ -36,9 +38,8 @@ class ConversationService:
 
     # ─────────────────────────────── helpers ──────────────────────────────── #
 
-    async def _publish_stream(self, ai_id: str, prompt: List[dict[str, str]]) -> None:
+    async def _publish_stream(self, ai_id: str, prompt: List[dict[str, str]], conv_id: str = None, debug_mode: bool = False) -> None:
         # Debug: Write exactly what we're sending to the LLM
-        import json
         with open("/tmp/llm_prompt_debug.json", "w") as f:
             json.dump({
                 "ai_msg_id": ai_id,
@@ -46,6 +47,51 @@ class ConversationService:
                 "message_count": len(prompt),
                 "total_chars": sum(len(msg.get("content", "")) for msg in prompt)
             }, f, indent=2)
+        
+        # If debug mode is enabled, request approval before sending to LLM
+        if debug_mode:
+            try:
+                # Create the approval request and get the ID
+                approval_id = prompt_approval_service.create_approval_request(
+                    prompt=prompt,
+                    conversation_id=conv_id,
+                    message_id=ai_id,
+                    metadata={
+                        "original_message_count": len(prompt),
+                        "total_chars": sum(len(msg.get("content", "")) for msg in prompt)
+                    }
+                )
+                
+                # Notify frontend about pending approval via SSE
+                await self._hub.publish(ai_id, json.dumps({
+                    "type": "prompt_approval_required",
+                    "approval_id": approval_id,
+                    "conversation_id": conv_id,
+                    "message_id": ai_id
+                }))
+                
+                # Wait for approval
+                approved_prompt = await prompt_approval_service.wait_for_approval(approval_id)
+                
+                # Use the approved (potentially modified) prompt
+                prompt = approved_prompt
+                
+                # Notify that approval was received
+                await self._hub.publish(ai_id, json.dumps({
+                    "type": "prompt_approved",
+                    "message_id": ai_id
+                }))
+                
+            except RuntimeError as e:
+                # Prompt was rejected
+                await self._hub.publish(ai_id, json.dumps({
+                    "type": "prompt_rejected", 
+                    "message_id": ai_id,
+                    "reason": str(e)
+                }))
+                await self._hub.publish(ai_id, "[DONE]")
+                await self._hub.terminate(ai_id)
+                return
         
         full = ""
         async for chunk in self._llm.generate_response_stream(prompt):
@@ -123,6 +169,7 @@ class ConversationService:
         parent_id: str | None,
         user_id: str,
         selected_block_id: str | None = None,
+        debug_mode: bool = False,
     ) -> Tuple[str, str]:
         """
         Standard user turn: write user + placeholder, extend active thread,
@@ -174,7 +221,7 @@ class ConversationService:
             prompt = await self._ctx_builder.build(convo, thread + [user], session=session)
 
         # -------- 4  background stream --------
-        background.add_task(self._publish_stream, ai_id, prompt)
+        background.add_task(self._publish_stream, ai_id, prompt, conv_id, debug_mode)
 
         return user.id, ai_id
 
@@ -187,6 +234,7 @@ class ConversationService:
         new_content: str,
         user_id: str,
         selected_block_id: str | None = None,
+        debug_mode: bool = False,
     ) -> Tuple[str, str]:
         """
         Creates a sibling version of `msg_id`, attaches new assistant placeholder,
@@ -223,7 +271,7 @@ class ConversationService:
             prompt = await self._ctx_builder.build(convo, prior[:cut] + [sibling], session=session)
 
         # 4 ─ background stream
-        background.add_task(self._publish_stream, ai_id, prompt)
+        background.add_task(self._publish_stream, ai_id, prompt, conv_id, debug_mode)
 
         return sibling_id, ai_id
 

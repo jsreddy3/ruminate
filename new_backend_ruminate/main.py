@@ -23,6 +23,7 @@ from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.db.bootstrap import init_engine
 from new_backend_ruminate.dependencies import get_event_hub  # optional: expose on app.state
 from new_backend_ruminate.api.conversation.routes import router as conversation_router
+from new_backend_ruminate.api.conversation.prompt_approval_routes import router as prompt_approval_router
 from new_backend_ruminate.api.document.routes import router as document_router
 from new_backend_ruminate.api.auth.routes import router as auth_router
 from new_backend_ruminate.middleware.security import (
@@ -53,6 +54,7 @@ app.add_middleware(
 )
 
 app.include_router(conversation_router)          # ← this line wires /conversations/…
+app.include_router(prompt_approval_router)       # ← this line wires /prompt-approval/…
 app.include_router(document_router)              # ← this line wires /documents/…
 app.include_router(auth_router)                  # ← this line wires /auth/…
 

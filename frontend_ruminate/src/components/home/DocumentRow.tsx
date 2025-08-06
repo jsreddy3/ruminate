@@ -167,16 +167,14 @@ export default function DocumentRow({ document, onClick, onDelete, onStartProces
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
           {/* PDF Icon */}
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-library-cream-200 rounded-book flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-library-mahogany-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-              </svg>
-            </div>
+          <div className="flex-shrink-0 w-6 flex justify-center">
+            <svg
+              className="w-6 h-6 text-library-mahogany-600"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+            </svg>
           </div>
           
           {/* Document Name */}

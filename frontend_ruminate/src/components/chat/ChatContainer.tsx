@@ -3,12 +3,15 @@ import { Block } from '../pdf/PDFViewer';
 import { useMessageTree } from '../../hooks/useMessageTree';
 import { useMessageStreamHandler } from '../../hooks/useMessageStreamHandler';
 import { useNoteGeneration } from '../../hooks/useNoteGeneration';
+import { usePromptApproval } from '../../hooks/usePromptApproval';
 import { MessageRole } from '../../types/chat';
 
 // Import components
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
 import NoteGenerationPopup from './NoteGenerationPopup';
+import { PromptApprovalModal } from '../PromptApprovalModal';
+import { Bug } from 'lucide-react';
 
 interface ChatContainerProps {
   documentId: string;
@@ -59,6 +62,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [isZoomCollapsed, setIsZoomCollapsed] = useState(true); // Start collapsed
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Debug mode state - HARDCODED POLLING FOR NOW
+  const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
+  
   const zoomPresets = [
     { level: 0.9, label: 'Small', percentage: '90%' },
     { level: 1, label: 'Standard', percentage: '100%' },
@@ -79,7 +85,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     conversationId,
     selectedBlockId: selectedBlock?.id,
     currentPage,
-    blocks
+    blocks,
   });
   
   // Message streaming handler
@@ -111,6 +117,36 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     getBlockMetadata,
     onSummaryGenerated: (_messageId, summary) => addSummaryToMessage(summary)
   });
+  
+  // When we start streaming, we know there's an approval waiting
+  useEffect(() => {
+    if (!streamingMessageId) return;
+    
+    // Get the approval ID immediately
+    const getApprovalId = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/prompt-approval/pending/list`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.pending_approvals && data.pending_approvals.length > 0) {
+            // Get the most recent approval (should be the one we just created)
+            const approval = data.pending_approvals[data.pending_approvals.length - 1];
+            setPendingApprovalId(approval.approval_id);
+          }
+        }
+      } catch (err) {
+        console.error('Error getting approval ID:', err);
+      }
+    };
+    
+    // Just get it once - we know it's there
+    getApprovalId();
+  }, [streamingMessageId]);
   
   // Set conversation ID from parent immediately (no initialization logic)
   useEffect(() => {
@@ -356,6 +392,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         totalMessages={totalMessageCount}
         onClose={() => setShowNotePopup(false)}
         onGenerate={handleGenerateNote}
+      />
+      
+      {/* Prompt Approval Modal - HARDCODED FOR NOW */}
+      <PromptApprovalModal
+        approvalId={pendingApprovalId}
+        onClose={() => setPendingApprovalId(null)}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import { useMessageStream } from './useMessageStream';
 interface UseMessageStreamHandlerProps {
   conversationId: string | null;
   onStreamComplete?: () => void;
+  onPromptApprovalEvent?: (event: any) => void;
 }
 
 interface UseMessageStreamHandlerReturn {

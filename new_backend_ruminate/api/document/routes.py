@@ -104,9 +104,8 @@ async def upload_document(
         # Step 1: Comprehensive PDF validation
         PDFValidator.validate_and_raise(file)
         
-        # Step 2: Security scanning
+        # Step 2: Security scanning and read file content once
         file_content = await file.read()
-        await file.seek(0)  # Reset file pointer
         
         is_safe, security_warning = SecurityScanner.is_pdf_safe(file_content)
         if not is_safe:
@@ -116,24 +115,24 @@ async def upload_document(
             )
         
         filename = file.filename
-        file_obj = file.file
+        s3_key = None  # No pre-existing S3 key for direct uploads
         
     elif "application/json" in content_type:
-        # S3 URL upload path - download the file first
+        # S3 URL upload path - pass S3 key directly without downloading
         try:
             body = await request.json()
             s3_request = S3UploadRequest(**body)
             
-            print(f"[Upload Route] Downloading from S3 key: {s3_request.s3_key}")
+            print(f"[Upload Route] Processing S3 upload with key: {s3_request.s3_key}")
             
-            # Download file from S3
-            file_content = await storage.download_file(s3_request.s3_key)
-            file_obj = io.BytesIO(file_content)
+            # For S3 uploads, we'll pass the key directly to avoid re-downloading
             filename = s3_request.filename
+            s3_key = s3_request.s3_key
+            file_content = None  # Will be downloaded by service if needed
             
         except Exception as e:
-            print(f"[Upload Route] Error downloading from S3: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Failed to download from S3: {str(e)}")
+            print(f"[Upload Route] Error processing S3 request: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Failed to process S3 upload: {str(e)}")
     
     else:
         raise HTTPException(
@@ -147,9 +146,10 @@ async def upload_document(
         
         document = await svc.upload_document(
             background=background_tasks,
-            file=file_obj,
+            file_content=file_content,
             filename=filename,
-            user_id=current_user.id
+            user_id=current_user.id,
+            s3_key=s3_key  # Pass S3 key if available
         )
         
         print(f"[Upload Route] Upload successful, document ID: {document.id}")

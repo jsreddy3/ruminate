@@ -1,6 +1,6 @@
 # new_backend/api/conversation/routes.py
 import logging
-from fastapi import APIRouter, Depends, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, BackgroundTasks, Query, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
@@ -73,6 +73,7 @@ async def post_message(
     bg: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
+    x_debug_mode: bool = Header(False, description="Enable prompt approval debug mode"),
 ):
     user_id, ai_id = await svc.send_message(
         background=bg,
@@ -81,6 +82,7 @@ async def post_message(
         parent_id=str(req.parent_id) if req.parent_id is not None else None,
         user_id=current_user.id,
         selected_block_id=req.selected_block_id,
+        debug_mode=True,  # HARDCODED TO TRUE
     )
     return {"user_id": user_id, "ai_id": ai_id}
 
@@ -93,6 +95,7 @@ async def edit_message(
     bg: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
+    x_debug_mode: bool = Header(False, description="Enable prompt approval debug mode"),
 ):
     edited_id, ai_id = await svc.edit_message_streaming(
         background=bg,
@@ -101,6 +104,7 @@ async def edit_message(
         new_content=req.content,
         user_id=current_user.id,
         selected_block_id=req.selected_block_id,
+        debug_mode=True,  # HARDCODED TO TRUE
     )
     return {"user_id": edited_id, "ai_id": ai_id}
 

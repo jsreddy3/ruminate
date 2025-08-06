@@ -1,6 +1,10 @@
 import { Message } from "../../types/chat";
 import { authenticatedFetch, API_BASE_URL } from "../../utils/api";
 
+interface ApiOptions {
+  debugMode?: boolean;
+}
+
 export const conversationApi = {
   create: async (documentId?: string, type: string = "chat", meta?: any): Promise<{ 
     conversation_id: string; 
@@ -51,13 +55,19 @@ export const conversationApi = {
     content: string, 
     parentId: string,
     activeThreadIds: string[],
-    selectedBlockId?: string
+    selectedBlockId?: string,
+    options?: ApiOptions
   ): Promise<{ user_id: string; ai_id: string }> => {
+    const headers: HeadersInit = { 
+      "Content-Type": "application/json",
+      "X-Debug-Mode": "true" // HARDCODED DEBUG MODE
+    };
+    
     const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ 
           content, 
           parent_id: parentId,
@@ -97,13 +107,19 @@ export const conversationApi = {
     messageId: string, 
     content: string,
     activeThreadIds: string[],
-    selectedBlockId?: string
+    selectedBlockId?: string,
+    options?: ApiOptions
   ): Promise<{ user_id: string; ai_id: string }> => {
+    const headers: HeadersInit = { 
+      "Content-Type": "application/json",
+      "X-Debug-Mode": "true" // HARDCODED DEBUG MODE
+    };
+    
     const response = await authenticatedFetch(
       `${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}/edit_streaming`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ 
           content,
           active_thread_ids: activeThreadIds,
