@@ -16,6 +16,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   const [urlInput, setUrlInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
+  const [showUploadStarted, setShowUploadStarted] = useState(false);
 
   const { isUploading, uploadError, uploadFile, uploadFromUrl } = useDocumentUploadV2();
   const { openProcessingModal } = useProcessing();
@@ -24,6 +25,10 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
     const file = e.target.files?.[0];
     if (file) {
       console.log('[UploadButton] Starting file upload:', file.name);
+      
+      // Show immediate feedback
+      setShowUploadStarted(true);
+      
       const documentId = await uploadFile(file);
       console.log('[UploadButton] Upload returned documentId:', documentId);
       
@@ -37,14 +42,21 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
         setTimeout(() => {
           console.log('[UploadButton] Calling openProcessingModal with:', documentId);
           openProcessingModal(documentId);
+          setShowUploadStarted(false);
         }, 300);
         onUploadComplete?.();
+      } else {
+        // Reset on error
+        setShowUploadStarted(false);
       }
     }
   };
 
   const handleUrlUpload = async () => {
     if (urlInput.trim()) {
+      // Show immediate feedback
+      setShowUploadStarted(true);
+      
       // Pass the user's URL to the augment service
       const augmentUrl = `https://augment.explainai.pro/generate-pdf?url=${encodeURIComponent(urlInput)}`;
       const filename = `generated-${Date.now()}.pdf`;
@@ -55,8 +67,12 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
         setIsOpen(false);
         setTimeout(() => {
           openProcessingModal(documentId);
+          setShowUploadStarted(false);
         }, 300);
         onUploadComplete?.();
+      } else {
+        // Reset on error
+        setShowUploadStarted(false);
       }
     }
   };
@@ -97,9 +113,25 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
       
       // Validate that it's a PDF
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        await uploadFile(file);
+        // Show immediate feedback
+        setShowUploadStarted(true);
+        
+        const documentId = await uploadFile(file);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
+        }
+        
+        if (documentId) {
+          // Close upload modal and show processing modal
+          setIsOpen(false);
+          setTimeout(() => {
+            openProcessingModal(documentId);
+            setShowUploadStarted(false);
+          }, 300);
+          onUploadComplete?.();
+        } else {
+          // Reset on error
+          setShowUploadStarted(false);
         }
       } else {
         // Show error for non-PDF files
@@ -115,7 +147,10 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
   return (
     <>
       <motion.button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          setShowUploadStarted(false);
+        }}
         className="inline-flex items-center px-3 py-1.5 bg-library-mahogany-500 text-white text-lg font-medium rounded-md shadow-sm hover:bg-library-mahogany-600 transition-colors whitespace-nowrap"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -158,9 +193,49 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div
-                className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transition-all duration-300"
+                className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transition-all duration-300 relative overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
+              {/* Upload Started Overlay */}
+              <AnimatePresence>
+                {(showUploadStarted || isUploading) && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white bg-opacity-95 z-10 flex flex-col items-center justify-center"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-center"
+                    >
+                      <div className="mb-4">
+                        <svg
+                          className="w-20 h-20 mx-auto text-library-mahogany-500"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload Started!</h3>
+                      <p className="text-gray-600">Your document is being processed...</p>
+                      <div className="mt-6 flex justify-center">
+                        <div className="w-8 h-8 border-4 border-library-mahogany-200 border-t-library-mahogany-600 rounded-full animate-spin" />
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                   Upload Document
@@ -168,6 +243,7 @@ export default function UploadButton({ onUploadComplete }: UploadButtonProps) {
                 <button
                   onClick={() => setIsOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={showUploadStarted || isUploading}
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

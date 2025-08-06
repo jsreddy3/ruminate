@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Document, documentApi } from '@/services/api/document';
 import DocumentRow from './DocumentRow';
+import DocumentFolder from './DocumentFolder';
 import { useProcessing } from '@/contexts/ProcessingContext';
 
 interface DocumentTableProps {
@@ -42,8 +43,39 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { startProcessing } = useProcessing();
 
+  // Group documents by batch_id
+  const { groupedDocuments, singleDocuments } = useMemo(() => {
+    const batches = new Map<string, Document[]>();
+    const singles: Document[] = [];
+
+    documents.forEach(doc => {
+      if (doc.batch_id && doc.total_chunks && doc.total_chunks > 1) {
+        if (!batches.has(doc.batch_id)) {
+          batches.set(doc.batch_id, []);
+        }
+        batches.get(doc.batch_id)!.push(doc);
+      } else {
+        singles.push(doc);
+      }
+    });
+
+    return {
+      groupedDocuments: batches,
+      singleDocuments: singles
+    };
+  }, [documents]);
+
   const sortedDocuments = useMemo(() => {
-    const sorted = [...documents].sort((a, b) => {
+    // Get the first document from each batch to represent the folder
+    const folderDocs = Array.from(groupedDocuments.values()).map(chunks => 
+      chunks.find(c => c.chunk_index === 0) || chunks[0]
+    );
+
+    // Combine with single documents
+    const allDocs = [...folderDocs, ...singleDocuments];
+
+    // Sort them
+    const sorted = allDocs.sort((a, b) => {
       let aValue: any = a[sortField];
       let bValue: any = b[sortField];
 
@@ -60,7 +92,7 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
       return 0;
     });
     return sorted;
-  }, [documents, sortField, sortDirection]);
+  }, [groupedDocuments, singleDocuments, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -156,19 +188,39 @@ export default function DocumentTable({ documents, onDocumentClick, onDocumentDe
           } : {
             background: ''
           }}>
-          {sortedDocuments.map((document, index) => (
-            <DocumentRow
-              key={document.id}
-              document={document}
-              onClick={() => onDocumentClick(document)}
-              onDelete={onDocumentDelete}
-              onStartProcessing={handleStartProcessing}
-              onUpdate={onDocumentUpdate}
-              isOnboardingActive={isOnboardingActive}
-              isOnboardingTarget={isOnboardingActive}  // All documents are selectable during onboarding
-              isNavigating={navigatingDocId === document.id}
-            />
-          ))}
+          {sortedDocuments.map((document, index) => {
+            // Check if this document is part of a batch
+            if (document.batch_id && document.total_chunks && document.total_chunks > 1) {
+              const chunks = groupedDocuments.get(document.batch_id) || [];
+              return (
+                <DocumentFolder
+                  key={document.batch_id}
+                  parentDocument={document}
+                  chunks={chunks}
+                  onDocumentClick={onDocumentClick}
+                  onDocumentDelete={onDocumentDelete}
+                  onDocumentUpdate={onDocumentUpdate}
+                  onStartProcessing={handleStartProcessing}
+                  isOnboardingActive={isOnboardingActive}
+                  navigatingDocId={navigatingDocId}
+                />
+              );
+            } else {
+              return (
+                <DocumentRow
+                  key={document.id}
+                  document={document}
+                  onClick={() => onDocumentClick(document)}
+                  onDelete={onDocumentDelete}
+                  onStartProcessing={handleStartProcessing}
+                  onUpdate={onDocumentUpdate}
+                  isOnboardingActive={isOnboardingActive}
+                  isOnboardingTarget={isOnboardingActive}  // All documents are selectable during onboarding
+                  isNavigating={navigatingDocId === document.id}
+                />
+              );
+            }
+          })}
         </tbody>
         </table>
       </div>

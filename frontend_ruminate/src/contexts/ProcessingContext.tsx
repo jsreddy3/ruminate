@@ -11,6 +11,11 @@ interface ProcessingDocument {
   events: DocumentProcessingEvent[];
   startedAt: Date;
   eventSource?: EventSource;
+  // For multi-chunk documents
+  batchId?: string;
+  totalChunks?: number;
+  chunkIndex?: number;
+  isParent?: boolean;
 }
 
 interface ProcessingContextType {

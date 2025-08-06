@@ -47,16 +47,17 @@ export function useDocumentUploadV2(): UseDocumentUploadResult {
       }
 
       const initialDocData = await response.json();
-      const newDocumentId = initialDocData.document?.id;
-      if (!newDocumentId) {
+      const document = initialDocData.document;
+      if (!document?.id) {
         throw new Error("Server did not return a document ID after upload.");
       }
 
       // Register with processing context - it will handle SSE
-      startProcessing(newDocumentId, file.name);
+      // For multi-chunk documents, we'll get batch info
+      startProcessing(document.id, file.name);
       
       setIsUploading(false);
-      return newDocumentId;
+      return document.id;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown upload error occurred.";
       setUploadError(errorMessage);

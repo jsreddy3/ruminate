@@ -20,6 +20,14 @@ export interface Document {
   furthest_read_updated_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  // Batch processing fields for chunked documents
+  batch_id?: string | null;
+  chunk_index?: number | null;
+  total_chunks?: number | null;
+  parent_document_id?: string | null;
+  is_auto_processed?: boolean;
+  main_conversation_id?: string | null;
+  document_info?: string | null;
 }
 
 export const documentApi = {
