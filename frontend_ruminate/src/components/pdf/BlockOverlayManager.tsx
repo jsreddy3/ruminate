@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { Block } from './PDFViewer';
 import { createRabbithole } from '../../services/rabbithole';
 import BlockOverlay from './BlockOverlay';
+import BasePopover from '../common/BasePopover';
+import ChatContainer from '../chat/ChatContainer';
 
 interface RabbitholeConversation {
   id: string;
@@ -106,6 +108,13 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
   const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
   const [isBlockOverlayOpen, setIsBlockOverlayOpen] = useState(false);
 
+  // Rabbithole chat popover state
+  const [openRabbitholePopover, setOpenRabbitholePopover] = useState<{
+    conversationId: string;
+    position: { x: number; y: number };
+    selectedText?: string;
+  } | null>(null);
+
   // Reusable function for block selection with lazy loading
   const handleBlockSelection = useCallback((block: Block) => {
     // Lazy load images if needed
@@ -132,9 +141,10 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
       
       // After block opens, automatically click the generated note to show it
       setTimeout(() => {
-        const generatedNoteElement = document.querySelector('button[title*="Generated note"], button svg[class*="lucide-lightbulb"]')?.closest('button');
+        const icon = document.querySelector('button[title*="Generated note"], button svg[class*="lucide-lightbulb"]');
+        const generatedNoteElement = icon ? (icon.closest('button') as HTMLElement | null) : null;
         if (generatedNoteElement) {
-          (generatedNoteElement as HTMLElement).click();
+          generatedNoteElement.click();
         }
       }, 800); // Slightly longer delay to ensure block overlay is fully rendered
     } else {
@@ -151,30 +161,31 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
     }
   }, [onBlockSelectionComplete, onSetBlockSelectionMode, onSetBlockSelectionComplete]);
 
-  // Handle rabbithole click
-  const handleRabbitholeClick = useCallback((rabbitholeId: string, selectedText: string) => {
-    const existingConversation = rabbitholeConversations.find(c => c.id === rabbitholeId);
-    if (existingConversation) {
-      onSetActiveConversationId(rabbitholeId);
-      return;
-    }
-    
+  // Handle rabbithole click -> open a popover chat instead of switching sidebar
+  const handleRabbitholeClick = useCallback((
+    rabbitholeId: string,
+    selectedText: string,
+    _start?: number,
+    _end?: number,
+    position?: { x: number; y: number }
+  ) => {
     const title = selectedText && selectedText.length > 30 
       ? `${selectedText.substring(0, 30)}...` 
       : selectedText || "Rabbithole Chat";
     
-    onSetRabbitholeConversations(prev => [
-      ...prev, 
-      {
-        id: rabbitholeId,
-        title,
-        selectionText: selectedText || "",
-        blockId: selectedBlock?.id || ""
-      }
-    ]);
-    
-    onSetActiveConversationId(rabbitholeId);
-  }, [rabbitholeConversations, selectedBlock, onSetRabbitholeConversations, onSetActiveConversationId]);
+    // Ensure this rabbithole is tracked for persistence (optional)
+    const exists = rabbitholeConversations.find(c => c.id === rabbitholeId);
+    if (!exists) {
+      onSetRabbitholeConversations(prev => ([...prev, { id: rabbitholeId, title, selectionText: selectedText || '', blockId: selectedBlock?.id || '' }]));
+    }
+
+    // Open or focus popover
+    setOpenRabbitholePopover({
+      conversationId: rabbitholeId,
+      position: position || { x: window.innerWidth / 2, y: window.innerHeight / 3 },
+      selectedText,
+    });
+  }, [rabbitholeConversations, onSetRabbitholeConversations, selectedBlock]);
 
   // Handle rabbithole creation
   const handleCreateRabbithole = useCallback((text: string, startOffset: number, endOffset: number) => {
@@ -198,6 +209,13 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
           rabbithole_conversation_ids: [...currentRabbitholeIds, conversation_id]
         };
         onUpdateBlockMetadata(selectedBlock.id, newMetadata);
+        
+        // Immediately open the chat popover at the center if creation came from tooltip (no explicit position)
+        setOpenRabbitholePopover({
+          conversationId: conversation_id,
+          position: { x: window.innerWidth / 2, y: window.innerHeight / 3 },
+          selectedText: text,
+        });
       }).catch(error => {
         console.error("Error creating rabbithole:", error);
       });
@@ -206,42 +224,81 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
 
   // Block overlay component
   const blockOverlayComponent = (
-    <BlockOverlay
-      isOpen={isBlockOverlayOpen}
-      selectedBlock={selectedBlock}
-      flattenedBlocks={flattenedBlocks}
-      documentId={documentId}
-      pdfPanelWidth={currentPanelSizes[0]}
-      getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
-      onClose={() => {
-        setIsBlockOverlayOpen(false);
-        setSelectedBlock(null);
-      }}
-      onBlockChange={(block) => {
-        handleBlockSelection(block);
-        // Auto-scroll PDF to follow block navigation
-        if (onScrollToBlock) {
-          onScrollToBlock(block);
-        }
-      }}
-      onRefreshRabbitholes={(refreshFn) => {
-        refreshRabbitholesFnRef.current = refreshFn;
-      }}
-      onAddTextToChat={onAddTextToChat}
-      onUpdateBlockMetadata={onUpdateBlockMetadata}
-      onRabbitholeClick={handleRabbitholeClick}
-      onCreateRabbithole={handleCreateRabbithole}
-      onSwitchToMainChat={() => onSetActiveConversationId(null)}
-      onTextSelectionForOnboarding={onTextSelectionForOnboarding}
-      isOnboardingStep4={isOnboardingStep4}
-      isOnboardingStep5={isOnboardingStep5}
-      isOnboardingStep6={isOnboardingStep6}
-      isOnboardingStep7={isOnboardingStep7}
-      isOnboardingStep8={isOnboardingStep8}
-      onCreateChatForOnboarding={onCreateChatForOnboarding}
-      onCompleteOnboarding={onCompleteOnboarding}
-      mainConversationId={mainConversationId ?? undefined}
-    />
+    <>
+      <BlockOverlay
+        isOpen={isBlockOverlayOpen}
+        selectedBlock={selectedBlock}
+        flattenedBlocks={flattenedBlocks}
+        documentId={documentId}
+        pdfPanelWidth={currentPanelSizes[0]}
+        getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
+        onClose={() => {
+          setIsBlockOverlayOpen(false);
+          setSelectedBlock(null);
+        }}
+        onBlockChange={(block) => {
+          handleBlockSelection(block);
+          // Auto-scroll PDF to follow block navigation
+          if (onScrollToBlock) {
+            onScrollToBlock(block);
+          }
+        }}
+        onRefreshRabbitholes={(refreshFn) => {
+          refreshRabbitholesFnRef.current = refreshFn;
+        }}
+        onAddTextToChat={onAddTextToChat}
+        onUpdateBlockMetadata={onUpdateBlockMetadata}
+        onRabbitholeClick={handleRabbitholeClick}
+        onCreateRabbithole={handleCreateRabbithole}
+        onSwitchToMainChat={() => onSetActiveConversationId(null)}
+        onTextSelectionForOnboarding={onTextSelectionForOnboarding}
+        isOnboardingStep4={isOnboardingStep4}
+        isOnboardingStep5={isOnboardingStep5}
+        isOnboardingStep6={isOnboardingStep6}
+        isOnboardingStep7={isOnboardingStep7}
+        isOnboardingStep8={isOnboardingStep8}
+        onCreateChatForOnboarding={onCreateChatForOnboarding}
+        onCompleteOnboarding={onCompleteOnboarding}
+        mainConversationId={mainConversationId ?? undefined}
+      />
+
+      {/* Rabbithole chat popover - draggable/resizable via BasePopover */}
+      {openRabbitholePopover && (
+        <BasePopover
+          isVisible={true}
+          position={openRabbitholePopover.position}
+          onClose={() => setOpenRabbitholePopover(null)}
+          title={openRabbitholePopover.selectedText || 'Rabbithole Chat'}
+          draggable={true}
+          resizable={true}
+          initialWidth={520}
+          initialHeight={420}
+          minWidth={360}
+          minHeight={300}
+          maxWidth={720}
+          maxHeight={'85vh'}
+        >
+          <div className="h-full w-full flex flex-col">
+            <div className="flex-1 min-h-0">
+              <ChatContainer
+                documentId={documentId}
+                selectedBlock={selectedBlock || null}
+                conversationId={openRabbitholePopover.conversationId}
+                conversationType="rabbithole"
+                rabbitholeMetadata={openRabbitholePopover.selectedText ? {
+                  source_block_id: selectedBlock?.id || '',
+                  selected_text: openRabbitholePopover.selectedText
+                } : undefined}
+                onUpdateBlockMetadata={onUpdateBlockMetadata}
+                onBlockMetadataUpdate={onFetchBlocks}
+                getBlockMetadata={() => ({})}
+                blocks={blocks}
+              />
+            </div>
+          </div>
+        </BasePopover>
+      )}
+    </>
   );
 
   return {

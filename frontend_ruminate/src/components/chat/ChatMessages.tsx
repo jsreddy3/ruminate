@@ -41,7 +41,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
   }, [messageTree, streamingContent]);
 
-
   return (
     <div 
       ref={scrollContainerRef} 
@@ -53,10 +52,18 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       } as React.CSSProperties}
     >
       <div style={{ zoom: zoomLevel }}>
-        <ConversationHeader 
-          conversationType={conversationType}
-          selectedText={selectedText}
-        />
+        {conversationType === 'main' ? (
+          <ConversationHeader conversationType="main" />
+        ) : (
+          <div className="px-4 py-2 border-b border-library-sage-200 bg-library-cream-50/60">
+            <div className="text-xs font-sans text-reading-muted">
+              Focused chat on selection
+              {selectedText ? (
+                <span className="italic"> — "{selectedText.length > 60 ? selectedText.substring(0, 60) + '…' : selectedText}"</span>
+              ) : null}
+            </div>
+          </div>
+        )}
         <MessageList 
           messages={messageTree}
           activeThreadIds={activeThreadIds}

@@ -4,6 +4,7 @@ import BlockNavigatorPill from './BlockNavigatorPill';
 import GeneratedNoteBadges from './GeneratedNoteBadges';
 import BlockContextStack from './BlockContextStack';
 import ImageGallery from './ImageGallery';
+import BlockSeamlessView from './BlockSeamlessView';
 import { Block } from '../../pdf/PDFViewer';
 import { useBlockImages } from '../../../hooks/useBlockImages';
 
@@ -57,7 +58,7 @@ export default function BlockNavigator({
   const { fetchBlockImages } = useBlockImages(documentId);
   
   // View mode state - toggles between traditional view and contextual stack
-  const [viewMode, setViewMode] = useState<'traditional' | 'stack'>('traditional');
+  const [viewMode, setViewMode] = useState<'traditional' | 'stack' | 'seamless'>('traditional');
   
   // Update index when currentBlockId changes from outside (e.g., when user clicks in PDF)
   useEffect(() => {
@@ -216,6 +217,22 @@ export default function BlockNavigator({
               >
                 📚 Stack
               </button>
+              <button
+                onClick={(isOnboardingStep4 || isOnboardingStep5) ? undefined : () => {
+                  setViewMode('seamless');
+                }}
+                className={`px-4 py-2 text-base font-serif rounded-paper transition-all ${
+                  (isOnboardingStep4 || isOnboardingStep5)
+                    ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30'
+                    : viewMode === 'seamless'
+                      ? 'bg-library-gold-100 text-reading-accent shadow-sm'
+                      : 'text-reading-muted hover:text-reading-secondary'
+                }`}
+                title={(isOnboardingStep4 || isOnboardingStep5) ? "Complete tutorial to continue" : "Seamless continuous view"}
+                disabled={(isOnboardingStep4 || isOnboardingStep5)}
+              >
+                🧵 Seamless
+              </button>
             </div>
           </div>
         </div>
@@ -305,10 +322,34 @@ export default function BlockNavigator({
               </div>
             </div>
           </div>
-        ) : (
+        ) : viewMode === 'stack' ? (
           // Contextual stack view
           <div className="flex flex-col h-full overflow-hidden">
             <BlockContextStack
+              blocks={blocks}
+              currentBlockId={currentBlock.id}
+              documentId={documentId}
+              onBlockChange={(block) => {
+                const newIndex = blocks.findIndex(b => b.id === block.id);
+                if (newIndex !== -1) {
+                  setCurrentIndex(newIndex);
+                  if (onBlockChange) {
+                    onBlockChange(block);
+                  }
+                }
+              }}
+              onAddTextToChat={onAddTextToChat}
+              onRabbitholeClick={onRabbitholeClick}
+              onCreateRabbithole={onCreateRabbithole}
+              onRefreshRabbitholes={onRefreshRabbitholes}
+              onUpdateBlockMetadata={onUpdateBlockMetadata}
+              getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
+            />
+          </div>
+        ) : (
+          // Seamless continuous view
+          <div className="flex flex-col h-full overflow-hidden">
+            <BlockSeamlessView
               blocks={blocks}
               currentBlockId={currentBlock.id}
               documentId={documentId}

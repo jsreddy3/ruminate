@@ -16,10 +16,23 @@ interface BlockRendererProps {
   images?: { [key: string]: string };
   metadata?: {
     definitions?: {
-      [term: string]: {
+      [key: string]: {
         term: string;
         definition: string;
+        text_start_offset: number;
+        text_end_offset: number;
         created_at: string;
+      };
+    };
+    annotations?: {
+      [key: string]: {
+        id: string;
+        text: string;
+        note: string;
+        text_start_offset: number;
+        text_end_offset: number;
+        created_at: string;
+        updated_at: string;
       };
     };
     [key: string]: any;
@@ -38,6 +51,8 @@ interface BlockRendererProps {
   isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
+  // New prop to gate interactions for seamless mode
+  interactionEnabled?: boolean;
 }
 
 /**
@@ -61,7 +76,8 @@ export default function BlockRenderer({
   isOnboardingStep5,
   isOnboardingStep6,
   onCreateChatForOnboarding,
-  customStyle
+  customStyle,
+  interactionEnabled
 }: BlockRendererProps) {
   const type = blockType.toLowerCase();
   
@@ -139,6 +155,7 @@ export default function BlockRenderer({
             isOnboardingStep6={isOnboardingStep6}
             onCreateChatForOnboarding={onCreateChatForOnboarding}
             customStyle={customStyle}
+            interactionEnabled={interactionEnabled}
           />
         );
     }

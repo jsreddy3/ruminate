@@ -6,7 +6,13 @@ import './RabbitholeHighlight.css';
 interface ReactRabbitholeHighlightProps {
   contentRef: React.RefObject<HTMLElement>;
   highlights: RabbitholeHighlightType[];
-  onHighlightClick: (id: string, text: string, start: number, end: number) => void;
+  onHighlightClick: (
+    id: string,
+    text: string,
+    start: number,
+    end: number,
+    position?: { x: number; y: number }
+  ) => void;
   definitions?: { [key: string]: any }; // To check for overlaps
 }
 
@@ -103,7 +109,19 @@ const ReactRabbitholeHighlight: React.FC<ReactRabbitholeHighlightProps> = ({
           // This fixes a naming mismatch between frontend and backend
           const effectiveConversationId = conversation_id || id;
           
-          onHighlightClick(effectiveConversationId, selected_text, text_start_offset, text_end_offset);
+          // Prefer mouse position if available; fallback to rect bottom-center
+          const pos = {
+            x: e.clientX ?? rect.left + rect.width / 2,
+            y: e.clientY ?? rect.top + rect.height,
+          };
+          
+          onHighlightClick(
+            effectiveConversationId,
+            selected_text,
+            text_start_offset,
+            text_end_offset,
+            pos
+          );
         };
         
         return (

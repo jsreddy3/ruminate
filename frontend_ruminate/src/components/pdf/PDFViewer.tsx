@@ -10,7 +10,6 @@ import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
 import VirtualizedPDFViewer from "./VirtualizedPDFWrapper";
-import ConversationLibrary from "../chat/ConversationLibrary";
 import MainConversationButton from "../chat/MainConversationButton";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
 import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
@@ -25,8 +24,7 @@ import { pdfViewerGlobalStyles } from "./PDFViewerStyles";
 import { OnboardingOverlays } from "./components/OnboardingOverlays";
 import { PDFLoadingUI } from "./components/PDFLoadingUI";
 import { usePanelStorage } from "../../hooks/usePanelStorage";
-import { DefinitionApprovalModal } from "../DefinitionApprovalModal";
-import { DefinitionApprovalProvider, useDefinitionApproval } from "../../contexts/DefinitionApprovalContext";
+import DefinitionPopup from "../interactive/blocks/text/TooltipManager/DefinitionPopup";
 
 export interface Block {
   id: string;
@@ -126,12 +124,7 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   // Add ref to store the rabbithole refresh function
   const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
   
-  // Use definition approval context
-  const definitionApprovalContext = useDefinitionApproval();
-  const { approvalId: definitionApprovalId, pendingRequest: pendingDefinitionRequest } = definitionApprovalContext;
-  
-  
-
+  // Definition approval flow removed: revert to inline definition popup behavior
 
 
   // Block management - first without updateProgress
@@ -218,7 +211,7 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   // renderOverlay moved to after blockOverlayManager hook
 
   // Use our custom hook for the main panel layout (PDF vs chat)
-  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [55, 45]);
   
   // Track current panel sizes for overlay
   const [currentPanelSizes, setCurrentPanelSizes] = useState(mainPanelSizes);
@@ -651,24 +644,6 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
                 onConversationChange={setActiveConversationId}
               />
             </div>
-
-            {/* Conversation Library - only show when there are rabbithole conversations */}
-            {rabbitholeConversations.length > 0 && (
-              <div className="flex-shrink-0">
-                <ConversationLibrary
-                  conversations={rabbitholeConversations.map(conv => ({
-                    id: conv.id,
-                    title: conv.title,
-                    type: 'rabbithole' as const,
-                    selectionText: conv.selectionText,
-                    isActive: activeConversationId === conv.id
-                  }))}
-                  activeConversationId={activeConversationId}
-                  onConversationChange={handleConversationChangeWithScroll}
-                  disabled={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 6}
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -886,29 +861,8 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
         scale={scale}
       />
       
-      {/* Definition Approval Modal */}
-      <DefinitionApprovalModal
-        approvalId={definitionApprovalId}
-        onClose={async () => {
-          definitionApprovalContext.clearApproval();
-          
-          // If approved, fetch the actual definition
-          if (pendingDefinitionRequest) {
-            try {
-              const result = await documentApi.getTermDefinitionAfterApproval(
-                pendingDefinitionRequest.documentId,
-                pendingDefinitionRequest.blockId,
-                pendingDefinitionRequest.term,
-                pendingDefinitionRequest.textStartOffset,
-                pendingDefinitionRequest.textEndOffset
-              );
-              // The definition will be saved automatically by the backend
-            } catch (error) {
-              console.error('Failed to get definition after approval:', error);
-            }
-          }
-        }}
-      />
+      {/* Approval modal removed */}
+      
       
     </MathJaxProvider>
   );
@@ -917,8 +871,6 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
 // Wrapper component that provides the context
 export default function PDFViewer(props: PDFViewerProps) {
   return (
-    <DefinitionApprovalProvider>
-      <PDFViewerInner {...props} />
-    </DefinitionApprovalProvider>
+    <PDFViewerInner {...props} />
   );
 }

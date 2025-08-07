@@ -33,6 +33,8 @@ interface BlockContainerProps {
   isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
+  // New: gate interactions in child renderer
+  interactionEnabled?: boolean;
 }
 
 /**
@@ -57,7 +59,8 @@ export default function BlockContainer({
   isOnboardingStep5,
   isOnboardingStep6,
   onCreateChatForOnboarding,
-  customStyle
+  customStyle,
+  interactionEnabled
 }: BlockContainerProps) {
   // No-op refetch function for backwards compatibility
   const noOpRefetch = () => {
@@ -92,6 +95,7 @@ export default function BlockContainer({
       isOnboardingStep6={isOnboardingStep6}
       onCreateChatForOnboarding={onCreateChatForOnboarding}
       customStyle={customStyle}
+      interactionEnabled={interactionEnabled}
     />
   );
 }

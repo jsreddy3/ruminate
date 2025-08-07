@@ -803,18 +803,17 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
                 }
             )
             
-            # Return immediately with approval_id for frontend to handle
-            return {
-                "term": term,
-                "definition": None,  # No definition yet
-                "approval_id": approval_id,  # Frontend will use this to show modal
-                "text_start_offset": text_start_offset,
-                "text_end_offset": text_end_offset,
-                "created_at": datetime.now().isoformat(),
-                "context": full_context,
-                "block_id": block_id,
-                "requires_approval": True
-            }
+            # Wait for approval
+            try:
+                approved_prompts = await definition_approval_service.wait_for_approval(approval_id)
+                
+                # Use the approved (potentially modified) prompts
+                system_prompt = approved_prompts["system_prompt"]
+                user_prompt = approved_prompts["user_prompt"]
+                
+            except RuntimeError as e:
+                # Prompt was rejected
+                raise ValueError(f"Definition generation rejected: {str(e)}")
         
         # Get LLM service and generate definition (this is async I/O, not DB)
         if not self._llm:

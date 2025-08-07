@@ -47,7 +47,8 @@ interface TextRendererProps {
     id: string, 
     text: string, 
     startOffset: number, 
-    endOffset: number
+    endOffset: number,
+    position?: { x: number; y: number }
   ) => void;
   rabbitholeHighlights?: RabbitholeHighlight[];
   getBlockClassName?: (blockType?: string) => string;
@@ -61,6 +62,8 @@ interface TextRendererProps {
   isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
   customStyle?: React.CSSProperties;
+  // New: gate all interactive behaviors (selection, tooltips, popups, highlight clicks)
+  interactionEnabled?: boolean;
 }
 
 const TextRenderer: React.FC<TextRendererProps> = ({
@@ -79,7 +82,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   isOnboardingStep5 = false,
   isOnboardingStep6 = false,
   onCreateChatForOnboarding,
-  customStyle
+  customStyle,
+  interactionEnabled = true
 }) => {
   // Use metadata directly from props - no local state needed
   const metadata = initialMetadata;
@@ -137,6 +141,9 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     text: string, 
     position: { x: number, y: number }
   ) => {
+    if (!interactionEnabled) {
+      return;
+    }
     setSelectedText(text);
     setTooltipPosition(position);
     setTooltipVisible(true);
@@ -234,15 +241,23 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     id: string, 
     text: string, 
     startOffset: number, 
-    endOffset: number
+    endOffset: number,
+    position?: { x: number; y: number }
   ) => {
-    if (onRabbitholeClick) {
-      onRabbitholeClick(id, text, startOffset, endOffset);
+    if (!interactionEnabled) {
+      return;
     }
-  }, [onRabbitholeClick]);
+    if (onRabbitholeClick) {
+      // @ts-ignore - extend signature to optionally include position without breaking existing callers
+      onRabbitholeClick(id, text, startOffset, endOffset, position);
+    }
+  }, [onRabbitholeClick, interactionEnabled]);
   
   // Handle saved definition click (from highlight)
   const handleSavedDefinitionClick = useCallback((term: string, definition: string, startOffset: number, endOffset: number, event: React.MouseEvent) => {
+    if (!interactionEnabled) {
+      return;
+    }
     setDefinitionWord(term);
     setSavedDefinition(definition);
     setDefinitionOffsets({ startOffset, endOffset });
@@ -250,7 +265,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     const mousePos = { x: event.clientX, y: event.clientY };
     setDefinitionPosition(mousePos);
     setDefinitionVisible(true);
-  }, []);
+  }, [interactionEnabled]);
   
   // Handle when a new definition is saved (no-op since we already handled it)
   const handleDefinitionSaved = () => {
@@ -260,6 +275,9 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
   // Handle annotation text action (from tooltip)
   const handleAnnotateText = (text: string) => {
+    if (!interactionEnabled) {
+      return;
+    }
     
     // Ensure we have the offsets from selectedRange
     if (!selectedRange) {
@@ -275,6 +293,9 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 
   // Handle annotation click (from highlight)
   const handleAnnotationClick = useCallback((annotation: any, event: React.MouseEvent) => {
+    if (!interactionEnabled) {
+      return;
+    }
     
     // Set up the selectedRange based on the annotation's stored offsets
     setSelectedRange({
@@ -293,7 +314,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     const mousePos = { x: event.clientX, y: event.clientY };
     setAnnotationPosition(mousePos);
     setAnnotationVisible(true);
-  }, []);
+  }, [interactionEnabled]);
 
   // Handle annotation save
   const handleAnnotationSave = async (note: string) => {
@@ -368,10 +389,35 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   
   return (
     <div ref={blockRef} className="text-renderer relative">
-      <SelectionManager 
-        onTextSelected={handleTextSelected}
-        preventDeselection={isOnboardingStep6}
-      >
+      {interactionEnabled ? (
+        <SelectionManager 
+          onTextSelected={handleTextSelected}
+          preventDeselection={isOnboardingStep6}
+        >
+          <div ref={contentRef} onClick={handleClick}>
+            {hasMathContent ? (
+              <TextWithMath
+                htmlContent={htmlContent}
+                blockType={blockType}
+                processedContent={htmlContent}
+                onClickHighlight={() => {}}
+                getBlockClassName={getBlockClassName}
+                customStyle={customStyle}
+                onMathRendered={handleMathRendered}
+              />
+            ) : (
+              <TextContent 
+                htmlContent={htmlContent}
+                blockType={blockType}
+                processedContent={htmlContent}
+                onClickHighlight={() => {}}
+                getBlockClassName={getBlockClassName}
+                customStyle={customStyle}
+              />
+            )}
+          </div>
+        </SelectionManager>
+      ) : (
         <div ref={contentRef} onClick={handleClick}>
           {hasMathContent ? (
             <TextWithMath
@@ -394,7 +440,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
             />
           )}
         </div>
-      </SelectionManager>
+      )}
       
       {/* Annotation highlights overlay (rendered first, lowest z-index) */}
       {shouldShowHighlights && metadata?.annotations && (
@@ -428,7 +474,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
       
       {/* Text selection tooltip */}
-      {tooltipVisible && createPortal(
+      {interactionEnabled && tooltipVisible && createPortal(
         <TextSelectionTooltip
           isVisible={true}
           position={tooltipPosition}
@@ -453,7 +499,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
         document.body
       )}
       
-      {definitionVisible && (selectedRange || definitionOffsets) && createPortal(
+      {interactionEnabled && definitionVisible && (selectedRange || definitionOffsets) && createPortal(
         <DefinitionPopup
           isVisible={definitionVisible}
           term={definitionWord}
@@ -474,7 +520,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
       
       {/* Annotation editor */}
-      {annotationVisible && selectedRange && createPortal(
+      {interactionEnabled && annotationVisible && selectedRange && createPortal(
         <AnnotationEditor
           isVisible={annotationVisible}
           position={annotationPosition}

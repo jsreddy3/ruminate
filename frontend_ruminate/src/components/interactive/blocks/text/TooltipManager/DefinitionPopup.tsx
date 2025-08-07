@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Book, Loader } from 'lucide-react';
 import { documentApi } from '@/services/api/document';
 import BasePopover from '../../../../common/BasePopover';
-import { useDefinitionApproval } from '@/contexts/DefinitionApprovalContext';
+// Approval flow removed
 
 interface DefinitionPopupProps {
   isVisible: boolean;
@@ -32,13 +32,7 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
   const [definition, setDefinition] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Try to use the context, but it might not be available
-  let definitionApproval: any = null;
-  try {
-    definitionApproval = useDefinitionApproval();
-  } catch (e) {
-    // Context not available, that's okay
-  }
+  // Approval flow removed; always fetch definition directly
 
   // Fetch definition when popup becomes visible (only if not a saved definition)
   useEffect(() => {
@@ -62,25 +56,7 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       try {
         const result = await documentApi.getTermDefinition(documentId, blockId, term, textStartOffset, textEndOffset);
         
-        // Check if approval is required
-        if (result.requires_approval && result.approval_id) {
-          // Use context to set approval needed if available
-          if (definitionApproval) {
-            definitionApproval.setApprovalNeeded(result.approval_id, {
-              documentId,
-              blockId,
-              term,
-              textStartOffset,
-              textEndOffset
-            });
-          } else {
-            console.warn('Definition approval context not available');
-          }
-          onClose(); // Close the popup
-          return;
-        }
-        
-        // Otherwise, we have a definition
+        // Inline flow only; ignore any approval flags from backend
         if (result.definition) {
           setDefinition(result.definition);
           

@@ -26,7 +26,7 @@ from new_backend_ruminate.api.conversation.routes import router as conversation_
 from new_backend_ruminate.api.conversation.prompt_approval_routes import router as prompt_approval_router
 from new_backend_ruminate.api.document.routes import router as document_router
 from new_backend_ruminate.api.document.definition_debug_routes import router as definition_debug_router
-from new_backend_ruminate.api.document.definition_approval_routes import router as definition_approval_router
+# from new_backend_ruminate.api.document.definition_approval_routes import router as definition_approval_router
 from new_backend_ruminate.api.auth.routes import router as auth_router
 from new_backend_ruminate.middleware.security import (
     SecurityHeadersMiddleware, 
@@ -59,7 +59,7 @@ app.include_router(conversation_router)          # ← this line wires /conversa
 app.include_router(prompt_approval_router)       # ← this line wires /prompt-approval/…
 app.include_router(document_router)              # ← this line wires /documents/…
 app.include_router(definition_debug_router)      # ← this line wires /definition-debug/…
-app.include_router(definition_approval_router)   # ← this line wires /definition-approval/…
+# app.include_router(definition_approval_router)   # disabled: remove definition approval endpoints
 app.include_router(auth_router)                  # ← this line wires /auth/…
 
 @app.get("/health")

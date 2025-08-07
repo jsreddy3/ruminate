@@ -10,7 +10,6 @@ import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
 import { useBlockOverlayManager } from "./BlockOverlayManager";
 import VirtualizedPDFViewer from "./VirtualizedPDFViewer";
-import ConversationLibrary from "../chat/ConversationLibrary";
 import MainConversationButton from "../chat/MainConversationButton";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
 import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
@@ -155,7 +154,7 @@ export default function PDFViewerVirtualized({
   }, [documentId, initializeProgress]);
 
   // Use our custom hook for the main panel layout (PDF vs chat)
-  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [70, 30]);
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [55, 45]);
   
   // Track current panel sizes for overlay
   const [currentPanelSizes, setCurrentPanelSizes] = useState(mainPanelSizes);
@@ -471,23 +470,6 @@ export default function PDFViewerVirtualized({
               />
             </div>
 
-            {/* Conversation Library - only show when there are rabbithole conversations */}
-            {rabbitholeConversations.length > 0 && (
-              <div className="flex-shrink-0">
-                <ConversationLibrary
-                  conversations={rabbitholeConversations.map(conv => ({
-                    id: conv.id,
-                    title: conv.title,
-                    type: 'rabbithole' as const,
-                    selectionText: conv.selectionText,
-                    isActive: activeConversationId === conv.id
-                  }))}
-                  activeConversationId={activeConversationId}
-                  onConversationChange={handleConversationChangeWithScroll}
-                  disabled={onboarding.onboardingState.isActive && onboarding.onboardingState.currentStep === 6}
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -526,10 +508,10 @@ export default function PDFViewerVirtualized({
           {/* Floating Toolbar */}
           <div className={onboarding.getToolbarClassName()}>
             <PDFToolbar
-              GoToPreviousPage={() => <button onClick={goToPreviousPage}>Previous</button>}
-              GoToNextPage={() => <button onClick={goToNextPage}>Next</button>}
-              ZoomOut={() => <button onClick={zoomOut}>Zoom Out</button>}
-              ZoomIn={() => <button onClick={zoomIn}>Zoom In</button>}
+              onGoToPreviousPage={goToPreviousPage}
+              onGoToNextPage={goToNextPage}
+              onZoomOut={zoomOut}
+              onZoomIn={zoomIn}
               currentPage={currentPage}
               totalPages={totalPages}
               currentPanelSizes={currentPanelSizes}
@@ -569,7 +551,6 @@ export default function PDFViewerVirtualized({
                   <VirtualizedPDFViewer
                     pdfFile={pdfFile}
                     blocks={blocks}
-                    currentPage={currentPage}
                     totalPages={totalPages}
                     scale={scale}
                     renderOverlay={renderOverlay}

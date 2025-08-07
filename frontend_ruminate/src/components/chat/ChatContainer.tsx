@@ -58,7 +58,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   
   // Zoom state - scholarly zoom levels
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(1.15);
   const [isZoomCollapsed, setIsZoomCollapsed] = useState(true); // Start collapsed
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -66,9 +66,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
   
   const zoomPresets = [
-    { level: 0.9, label: 'Small', percentage: '90%' },
-    { level: 1, label: 'Standard', percentage: '100%' },
-    { level: 1.1, label: 'Large', percentage: '110%' }
+    { level: 1.0, label: 'Standard', percentage: '100%' },
+    { level: 1.15, label: 'Large', percentage: '115%' },
+    { level: 1.25, label: 'XL', percentage: '125%' }
   ];
   
   // Core message tree state for the conversation
