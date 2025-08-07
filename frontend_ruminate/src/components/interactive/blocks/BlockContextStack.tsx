@@ -149,10 +149,10 @@ export default function BlockContextStack({
             <div
               key={block.id}
               ref={isCurrent ? focusedBlockRef : undefined}
-              className={`transition-all duration-300 cursor-pointer rounded-journal border ${
+              className={`transition-all duration-300 cursor-pointer ${
                 isCurrent 
-                  ? 'bg-surface-paper border-library-gold-300 shadow-book' 
-                  : 'bg-surface-parchment border-library-sage-200 hover:border-library-gold-200 hover:shadow-paper'
+                  ? '' 
+                  : ''
               } w-full overflow-hidden flex flex-col`}
               style={{ 
                 opacity,
@@ -181,7 +181,7 @@ export default function BlockContextStack({
               }}
             >
               {/* Block content using the same renderer as linear view */}
-              <div className={`p-4 ${
+              <div className={`${
                 isCurrent ? 'overflow-y-auto flex-1' : 
                 isAboveCurrent ? 'overflow-y-hidden flex-1 flex flex-col justify-end' : 
                 'overflow-y-hidden flex-shrink-0'

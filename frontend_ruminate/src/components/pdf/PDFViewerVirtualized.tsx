@@ -154,7 +154,7 @@ export default function PDFViewerVirtualized({
   }, [documentId, initializeProgress]);
 
   // Use our custom hook for the main panel layout (PDF vs chat)
-  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [55, 45]);
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [40, 60]);
   
   // Track current panel sizes for overlay
   const [currentPanelSizes, setCurrentPanelSizes] = useState(mainPanelSizes);
@@ -551,7 +551,6 @@ export default function PDFViewerVirtualized({
                   <VirtualizedPDFViewer
                     pdfFile={pdfFile}
                     blocks={blocks}
-                    totalPages={totalPages}
                     scale={scale}
                     renderOverlay={renderOverlay}
                     onPageChange={handlePageChange}

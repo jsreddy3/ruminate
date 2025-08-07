@@ -50,7 +50,7 @@ interface BlockRendererProps {
   isOnboardingStep5?: boolean;
   isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
-  customStyle?: React.CSSProperties;
+  customStyle?: React.CSSProperties & { seamless?: boolean };
   // New prop to gate interactions for seamless mode
   interactionEnabled?: boolean;
 }

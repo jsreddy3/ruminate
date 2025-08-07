@@ -266,9 +266,8 @@ export default function BlockNavigator({
           // Traditional linear view
           <div className="flex flex-col h-full overflow-hidden">
             <div className="flex-1 overflow-y-auto p-4 min-h-0">
-              <div className="border border-gray-100 rounded-md p-2 bg-white">
+              <div>
                 <BlockContainer
-                  key={currentBlock.id}
                   blockId={currentBlock.id}
                   blockType={currentBlock.block_type}
                   htmlContent={currentBlock.html_content || ''}
@@ -276,7 +275,7 @@ export default function BlockNavigator({
                   images={currentBlock.images}
                   metadata={currentBlock.metadata}
                   rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(currentBlock.id) : []}
-                  customStyle={{ backgroundColor: 'white', fontSize: '1.4rem' }}
+                  customStyle={{ backgroundColor: 'transparent', fontSize: '1.4rem' }}
                   onRefreshRabbitholes={onRefreshRabbitholes}
                   onAddTextToChat={onAddTextToChat}
                   onRabbitholeClick={onRabbitholeClick}

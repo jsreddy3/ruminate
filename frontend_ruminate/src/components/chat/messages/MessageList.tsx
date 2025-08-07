@@ -14,6 +14,7 @@ interface MessageListProps {
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   conversationId?: string;
   documentId?: string;
+  isCompact?: boolean;
 }
 
 /**
@@ -28,7 +29,8 @@ const MessageList: React.FC<MessageListProps> = ({
   onSwitchVersion,
   onEditMessage,
   conversationId,
-  documentId
+  documentId,
+  isCompact = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +64,7 @@ const MessageList: React.FC<MessageListProps> = ({
   // Empty state
   if (activeThread.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-500">
+      <div className="p-3 text-center text-gray-500 text-sm">
         <p>No messages yet. Start the conversation by sending a message.</p>
       </div>
     );
@@ -72,13 +74,13 @@ const MessageList: React.FC<MessageListProps> = ({
   const displayMessages = activeThread.filter(message => message.role !== MessageRole.SYSTEM);
   
   return (
-    <div className="p-4 space-y-4">
-      {displayMessages.map((message, index) => {
+    <div className={`${isCompact ? 'p-2 space-y-2' : 'p-4 space-y-4'}`}>
+      {displayMessages.map((message) => {
         // Determine if this message should be streaming
         const isMessageStreaming = message.id === streamingMessageId;
         
         // Check if this assistant message has generated summaries
-        const hasSummaries = message.role === MessageRole.ASSISTANT && 
+        const hasSummaries = !isCompact && message.role === MessageRole.ASSISTANT && 
                             message.meta_data?.generated_summaries && 
                             message.meta_data.generated_summaries.length > 0;
         
@@ -86,8 +88,8 @@ const MessageList: React.FC<MessageListProps> = ({
           
         return (
           <React.Fragment key={message.id}>
-            {/* Show web search indicator for streaming assistant messages */}
-            {isMessageStreaming && message.role === MessageRole.ASSISTANT && webSearchEvent && (
+            {/* Show web search indicator for streaming assistant messages (skip in compact) */}
+            {!isCompact && isMessageStreaming && message.role === MessageRole.ASSISTANT && webSearchEvent && (
               <WebSearchIndicator event={webSearchEvent} />
             )}
             
@@ -100,10 +102,11 @@ const MessageList: React.FC<MessageListProps> = ({
               onSwitchVersion={onSwitchVersion}
               onEditMessage={onEditMessage}
               conversationId={conversationId}
+              isCompact={isCompact}
             />
             
             {/* Insert summary cards after assistant messages that have summaries */}
-            {hasSummaries && summaries.map((summary: GeneratedSummary) => (
+            {!isCompact && hasSummaries && summaries.map((summary: GeneratedSummary) => (
               <SummaryCard
                 key={summary.note_id}
                 summary={summary}

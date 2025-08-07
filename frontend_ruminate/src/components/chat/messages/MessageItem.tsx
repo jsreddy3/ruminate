@@ -12,6 +12,7 @@ interface MessageItemProps {
   onSwitchVersion: (messageId: string) => void;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   conversationId?: string;
+  isCompact?: boolean;
 }
 
 /**
@@ -25,7 +26,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   streamingContent = null,
   onSwitchVersion,
   onEditMessage,
-  conversationId
+  conversationId,
+  isCompact = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -52,8 +54,15 @@ const MessageItem: React.FC<MessageItemProps> = ({
     }
   };
 
-  // Handle role-based styling with DRAMATIC manuscript aesthetics
+  // Handle role-based styling
   const getRoleStyles = () => {
+    if (isCompact) {
+      return {
+        container: message.role === MessageRole.USER ? 'bg-white border border-gray-200' : 'bg-gray-50 border border-gray-200',
+        accent: '',
+        glow: ''
+      };
+    }
     switch (message.role) {
       case MessageRole.USER:
         return {
@@ -89,6 +98,33 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
   const styles = getRoleStyles();
   
+  if (isCompact) {
+    // Ultra-compact rendering for rabbitholes with minimal labels
+    const roleLabel = message.role === MessageRole.USER ? 'You' : message.role === MessageRole.ASSISTANT ? 'Co-Reader' : 'System';
+    const dotColor = message.role === MessageRole.USER ? 'bg-library-mahogany-500' : message.role === MessageRole.ASSISTANT ? 'bg-library-forest-500' : 'bg-library-gold-500';
+
+    return (
+      <div className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}>
+        <div className={`max-w-[92%] rounded-md ${styles.container} p-2`}> 
+          {/* Tiny header row */}
+          <div className="flex items-center gap-1.5 mb-1 min-h-[14px]">
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
+            <span className="text-[11px] font-medium text-gray-600 truncate max-w-[70%]">{roleLabel}</span>
+          </div>
+          <div className="text-sm leading-6 text-reading-primary">
+            <MessageContentRenderer
+              content={message.content}
+              role={message.role as MessageRole}
+              isStreaming={isStreaming}
+              streamingContent={streamingContent}
+              disableDropCap={true}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'} mb-8 px-4`}>
       {/* DRAMATIC manuscript-style message container */}
@@ -114,10 +150,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
             `
           }}
         >
-        {/* ORNATE message header with illuminated manuscript styling */}
+        {/* ORNATE message header */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-library-sage-200/50 min-h-[3rem]">
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Role icon with dramatic styling */}
+            {/* Role icon */}
             <div className={`
               w-10 h-10 rounded-full flex items-center justify-center
               ${message.role === MessageRole.USER 
@@ -136,7 +172,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
               )}
             </div>
             
-            {/* Ornate role title */}
+            {/* Role title */}
             <div className="flex flex-col">
               <div className={`font-serif font-bold text-base whitespace-nowrap ${
                 message.role === MessageRole.USER ? 'text-library-mahogany-700' :
@@ -149,14 +185,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
           
           <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
-            {/* ORNATE streaming indicator */}
             {isStreaming && message.role === MessageRole.ASSISTANT && (
               <div className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-library-forest-100 to-library-sage-100 rounded-book border border-library-forest-200">
                 <span className="text-sm font-serif text-library-forest-700">Contemplating...</span>
               </div>
             )}
             
-            {/* ELEGANT edit button with manuscript styling */}
             {canEdit && !isStreaming && (
               <button
                 onClick={() => setIsEditing(!isEditing)}
@@ -172,11 +206,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         </div>
         
-        {/* LUXURIOUS message content with manuscript styling */}
+        {/* Message content */}
         <div className="relative">
           {isEditing ? (
             <div className="space-y-4">
-              {/* ORNATE text editor */}
               <div className="relative">
                 <textarea
                   value={editContent}
@@ -194,7 +227,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 />
               </div>
               
-              {/* ORNATE action buttons */}
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setIsEditing(false)}
@@ -218,7 +250,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
             </div>
           ) : (
             <div className="relative">
-              {/* Message content rendered through dedicated component */}
               <div className="font-serif text-lg leading-relaxed text-reading-primary">
                 <MessageContentRenderer
                   content={message.content}
@@ -231,10 +262,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
           )}
         </div>
         
-        
-        {/* ELEGANT timestamp with version navigation */}
+        {/* Footer with versions and timestamp */}
         <div className="flex items-center justify-between mt-4 pt-2 border-t border-library-sage-200/30">
-          {/* Version navigation - minimal arrows (only show if multiple versions) */}
           {hasVersions && versions.length > 1 && !isStreaming && (() => {
             const currentIndex = versions.findIndex(v => v.id === message.id);
             const totalVersions = versions.length;
@@ -278,7 +307,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
             );
           })()}
           
-          {/* Timestamp */}
           <div className="flex items-center gap-2 text-sm text-reading-muted font-sans italic">
             <svg className="w-3 h-3 opacity-60" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12.5,7H11V12.5L15.75,15.1L16.5,13.9L12.5,11.7V7Z"/>
@@ -308,6 +336,7 @@ export default memo(MessageItem, (prevProps, nextProps) => {
     prevProps.isActive === nextProps.isActive &&
     prevProps.isStreaming === nextProps.isStreaming &&
     prevProps.streamingContent === nextProps.streamingContent &&
-    prevProps.versions.length === nextProps.versions.length
+    prevProps.versions.length === nextProps.versions.length &&
+    prevProps.isCompact === nextProps.isCompact
   );
 });

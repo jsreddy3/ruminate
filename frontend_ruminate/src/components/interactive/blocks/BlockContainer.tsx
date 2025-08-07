@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import BlockRenderer from './BlockRenderer';
 import { RabbitholeHighlight } from '../../../services/rabbithole';
 
@@ -8,16 +8,7 @@ interface BlockContainerProps {
   htmlContent: string;
   documentId: string;
   images?: { [key: string]: string };
-  metadata?: {
-    definitions?: {
-      [term: string]: {
-        term: string;
-        definition: string;
-        created_at: string;
-      };
-    };
-    [key: string]: any;
-  };
+  metadata?: any;
   highlights?: Array<{
     phrase: string;
     insight: string;
@@ -32,7 +23,7 @@ interface BlockContainerProps {
   isOnboardingStep5?: boolean;
   isOnboardingStep6?: boolean;
   onCreateChatForOnboarding?: () => void;
-  customStyle?: React.CSSProperties;
+  customStyle?: React.CSSProperties & { seamless?: boolean };
   // New: gate interactions in child renderer
   interactionEnabled?: boolean;
 }
@@ -41,7 +32,7 @@ interface BlockContainerProps {
  * BlockContainer now receives pre-computed rabbithole highlights.
  * No more per-block fetching - data comes from document-level state.
  */
-export default function BlockContainer({
+function BlockContainer({
   blockId,
   blockType,
   htmlContent,
@@ -99,3 +90,18 @@ export default function BlockContainer({
     />
   );
 }
+
+function arePropsEqual(prev: Readonly<BlockContainerProps>, next: Readonly<BlockContainerProps>) {
+  if (prev.blockId !== next.blockId) return false;
+  if (prev.htmlContent !== next.htmlContent) return false;
+  if (prev.blockType !== next.blockType) return false;
+  if (prev.documentId !== next.documentId) return false;
+  if (prev.interactionEnabled !== next.interactionEnabled) return false;
+  if (prev.metadata !== next.metadata) return false; // rely on reference equality
+  if (prev.rabbitholeHighlights !== next.rabbitholeHighlights) return false; // reference equality
+  if (prev.customStyle !== next.customStyle) return false; // ensure parent passes stable object
+  // Functions are assumed stable (parent should use useCallback or static functions)
+  return true;
+}
+
+export default memo(BlockContainer, arePropsEqual);

@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import { getBlockTypeStyles, baseTextStyles, containerStyles } from './textStyles';
 import { HTMLSanitizer } from '../../../../utils/htmlSanitizer';
 
@@ -8,7 +8,7 @@ interface TextContentProps {
   processedContent: string; // Content with highlight markers already processed
   onClickHighlight: (e: React.MouseEvent) => void;
   getBlockClassName?: (blockType?: string) => string;
-  customStyle?: React.CSSProperties;
+  customStyle?: React.CSSProperties & { seamless?: boolean };
 }
 
 /**
@@ -28,14 +28,16 @@ const TextContent = forwardRef<HTMLDivElement, TextContentProps>(
   ) => {
   // Merge styles in order of precedence
   const mergedStyles = {
-    ...containerStyles,
+    ...(customStyle?.seamless ? {} : containerStyles),
     ...baseTextStyles,
     ...getBlockTypeStyles(blockType),
     ...customStyle, // Custom overrides last
   };
 
   // Sanitize the processed content before rendering
-  const sanitizedContent = HTMLSanitizer.sanitizePDFContent(processedContent);
+  const sanitizedContent = useMemo(() => {
+    return HTMLSanitizer.sanitizePDFContent(processedContent);
+  }, [processedContent]);
 
   return (
     <div

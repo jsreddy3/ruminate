@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
-import { useBlockImages } from '../../../hooks/useBlockImages';
 
 interface BlockSeamlessViewProps {
   blocks: Block[];
@@ -34,7 +33,30 @@ export default function BlockSeamlessView({
   const containerRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef<HTMLDivElement>(null);
 
-  const { fetchBlockImages } = useBlockImages(documentId);
+  // Windowing: render only blocks within ±5 of focus
+  const windowedBlocks = useMemo(() => {
+    if (currentIndex === -1) return [] as Block[];
+    const start = Math.max(0, currentIndex - 5);
+    const end = Math.min(blocks.length, currentIndex + 6);
+    return blocks.slice(start, end);
+  }, [blocks, currentIndex]);
+
+  // stable style object
+  const baseStyle = useMemo(() => ({
+    seamless: true as const,
+    background: 'transparent',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderLeft: 'none',
+    borderRight: 'none',
+    borderTop: 'none',
+    borderBottom: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    padding: 0,
+    margin: 0,
+    fontSize: '1.25rem'
+  }), []);
 
   // Smoothly keep focused block near the top as it changes
   useEffect(() => {
@@ -43,7 +65,6 @@ export default function BlockSeamlessView({
       const focused = focusedRef.current;
       if (!container || !focused) return;
 
-      // Aim to place focused block ~15% from the top
       const viewport = container.clientHeight;
       const targetTop = viewport * 0.15;
       const blockTop = focused.offsetTop;
@@ -57,20 +78,16 @@ export default function BlockSeamlessView({
 
   return (
     <div ref={containerRef} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>
-      {/* Minimal spacing between blocks for seamless reading */}
-      <div className="px-6 py-8 space-y-3">
-        {blocks.map((block) => {
+      <div className="mx-auto max-w-[70ch] px-6 py-10 space-y-6">
+        {windowedBlocks.map((block) => {
           const isFocused = block.id === currentBlockId;
           return (
             <div
               key={block.id}
               ref={isFocused ? focusedRef : undefined}
-              className={`transition-colors duration-200 rounded-none`}
+              className="transition-opacity duration-200"
               onClick={() => onBlockChange(block)}
-              style={{
-                // Subtle background only for focused block
-                backgroundColor: isFocused ? 'rgba(255, 249, 231, 0.35)' : 'transparent',
-              }}
+              style={{ opacity: isFocused ? 1 : 0.88 }}
             >
               <BlockContainer
                 blockId={block.id}
@@ -80,16 +97,12 @@ export default function BlockSeamlessView({
                 images={block.images}
                 metadata={block.metadata}
                 rabbitholeHighlights={getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(block.id) : []}
-                customStyle={{
-                  backgroundColor: 'transparent',
-                  fontSize: '1.25rem',
-                }}
+                customStyle={baseStyle}
                 onRefreshRabbitholes={onRefreshRabbitholes}
                 onAddTextToChat={onAddTextToChat}
                 onRabbitholeClick={onRabbitholeClick}
                 onCreateRabbithole={onCreateRabbithole}
                 onUpdateBlockMetadata={onUpdateBlockMetadata}
-                // Only the focused block is interactive
                 interactionEnabled={isFocused}
               />
             </div>

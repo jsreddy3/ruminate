@@ -41,6 +41,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
   }, [messageTree, streamingContent]);
 
+  const isCompact = conversationType === 'rabbithole';
+
   return (
     <div 
       ref={scrollContainerRef} 
@@ -73,6 +75,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           streamingContent={streamingContent}
           conversationId={conversationId || undefined}
           documentId={documentId}
+          isCompact={isCompact}
         />
       </div>
     </div>

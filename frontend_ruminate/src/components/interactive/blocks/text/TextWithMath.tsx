@@ -9,7 +9,7 @@ interface TextWithMathProps {
   processedContent: string;
   onClickHighlight: (e: React.MouseEvent) => void;
   getBlockClassName?: (blockType?: string) => string;
-  customStyle?: React.CSSProperties;
+  customStyle?: React.CSSProperties & { seamless?: boolean };
   onMathRendered?: () => void;
 }
 
@@ -54,7 +54,7 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
 
     // Merge styles in order of precedence
     const mergedStyles = {
-      ...containerStyles,
+      ...(customStyle?.seamless ? {} : containerStyles),
       ...baseTextStyles,
       ...getBlockTypeStyles(blockType),
       ...customStyle,

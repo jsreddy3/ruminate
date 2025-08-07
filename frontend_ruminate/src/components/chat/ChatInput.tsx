@@ -2,7 +2,7 @@ import React from 'react';
 import MessageInput from './messages/MessageInput';
 
 interface ChatInputProps {
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string) => Promise<void>;
   isDisabled: boolean;
   pendingText?: string;
   onTextConsumed?: () => void;
@@ -15,8 +15,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onTextConsumed
 }) => {
   return (
-    <div className="border-t border-library-sage-200 p-4 bg-gradient-to-t from-surface-parchment to-library-cream-50 relative">
-      
+    <div className="border-t border-library-sage-200 p-2 bg-gradient-to-t from-surface-parchment to-library-cream-50 relative">
       <MessageInput
         onSendMessage={onSendMessage}
         isDisabled={isDisabled}

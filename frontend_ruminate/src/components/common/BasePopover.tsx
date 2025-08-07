@@ -223,17 +223,19 @@ const BasePopover: React.FC<BasePopoverProps> = ({
           className="drag-handle px-5 py-4 border-b border-library-sage-200 flex items-center justify-between bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50 rounded-t-journal cursor-grab active:cursor-grabbing backdrop-blur-sm"
           onMouseDown={handleMouseDown}
         >
-          <div className="flex items-center gap-3">
-            <Grip className="w-4 h-4 text-library-sage-400" />
+          <div className="flex items-center gap-3 min-w-0">
+            <Grip className="w-4 h-4 text-library-sage-400 flex-shrink-0" />
             {title && (
-              <h3 className="font-serif text-sm font-semibold text-reading-primary truncate">{title}</h3>
+              <h3 className="font-serif text-sm font-semibold text-reading-primary overflow-hidden whitespace-nowrap text-ellipsis">
+                {title}
+              </h3>
             )}
           </div>
           {showCloseButton && (
             <button
               onClick={onClose}
               onMouseDown={(e) => e.stopPropagation()} // Prevent close button from triggering drag
-              className="text-library-sage-400 hover:text-reading-secondary transition-all duration-200 p-1.5 rounded-book hover:bg-library-cream-100 shadow-paper hover:shadow-book"
+              className="text-library-sage-400 hover:text-reading-secondary transition-all duration-200 p-1.5 rounded-book hover:bg-library-cream-100 shadow-paper hover:shadow-book flex-shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -293,9 +295,11 @@ const BasePopover: React.FC<BasePopoverProps> = ({
         {/* Elegant header with title and close button */}
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between p-4 border-b border-library-sage-200 bg-gradient-to-r from-library-cream-50 via-surface-parchment to-library-cream-50 rounded-t-journal">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 min-w-0">
               {title && (
-                <h3 className="font-serif text-sm font-semibold text-reading-primary">{title}</h3>
+                <h3 className="font-serif text-sm font-semibold text-reading-primary overflow-hidden whitespace-nowrap text-ellipsis">
+                  {title}
+                </h3>
               )}
             </div>
             {showCloseButton && (

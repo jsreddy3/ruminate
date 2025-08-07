@@ -271,11 +271,11 @@ export const useBlockOverlayManager = (props: BlockOverlayManagerProps): BlockOv
           title={openRabbitholePopover.selectedText || 'Rabbithole Chat'}
           draggable={true}
           resizable={true}
-          initialWidth={520}
-          initialHeight={420}
-          minWidth={360}
-          minHeight={300}
-          maxWidth={720}
+          initialWidth={640}
+          initialHeight={500}
+          minWidth={380}
+          minHeight={320}
+          maxWidth={800}
           maxHeight={'85vh'}
         >
           <div className="h-full w-full flex flex-col">

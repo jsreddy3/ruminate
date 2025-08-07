@@ -211,7 +211,7 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   // renderOverlay moved to after blockOverlayManager hook
 
   // Use our custom hook for the main panel layout (PDF vs chat)
-  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [55, 45]);
+  const [mainPanelSizes, saveMainPanelSizes] = usePanelStorage('main', [40, 60]);
   
   // Track current panel sizes for overlay
   const [currentPanelSizes, setCurrentPanelSizes] = useState(mainPanelSizes);
