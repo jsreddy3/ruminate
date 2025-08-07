@@ -786,34 +786,35 @@ DO NOT say things like "in this document" or anything - imagine you're just prov
         
         # Handle debug mode with approval flow
         if debug_mode:
-            try:
-                # Create the approval request and get the ID
-                approval_id = definition_approval_service.create_approval_request(
-                    term=term,
-                    document_id=document_id,
-                    block_id=block_id,
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    full_context=full_context,
-                    metadata={
-                        "document_title": document_title,
-                        "document_summary": document_summary,
-                        "text_start_offset": text_start_offset,
-                        "text_end_offset": text_end_offset,
-                        "surrounding_text": surrounding_text
-                    }
-                )
-                
-                # Wait for approval
-                approved_prompts = await definition_approval_service.wait_for_approval(approval_id)
-                
-                # Use the approved (potentially modified) prompts
-                system_prompt = approved_prompts["system_prompt"]
-                user_prompt = approved_prompts["user_prompt"]
-                
-            except RuntimeError as e:
-                # Prompt was rejected
-                raise ValueError(f"Definition generation rejected: {str(e)}")
+            # Create the approval request and get the ID
+            approval_id = definition_approval_service.create_approval_request(
+                term=term,
+                document_id=document_id,
+                block_id=block_id,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                full_context=full_context,
+                metadata={
+                    "document_title": document_title,
+                    "document_summary": document_summary,
+                    "text_start_offset": text_start_offset,
+                    "text_end_offset": text_end_offset,
+                    "surrounding_text": surrounding_text
+                }
+            )
+            
+            # Return immediately with approval_id for frontend to handle
+            return {
+                "term": term,
+                "definition": None,  # No definition yet
+                "approval_id": approval_id,  # Frontend will use this to show modal
+                "text_start_offset": text_start_offset,
+                "text_end_offset": text_end_offset,
+                "created_at": datetime.now().isoformat(),
+                "context": full_context,
+                "block_id": block_id,
+                "requires_approval": True
+            }
         
         # Get LLM service and generate definition (this is async I/O, not DB)
         if not self._llm:

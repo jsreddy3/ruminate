@@ -26,6 +26,7 @@ import { OnboardingOverlays } from "./components/OnboardingOverlays";
 import { PDFLoadingUI } from "./components/PDFLoadingUI";
 import { usePanelStorage } from "../../hooks/usePanelStorage";
 import { DefinitionApprovalModal } from "../DefinitionApprovalModal";
+import { DefinitionApprovalProvider, useDefinitionApproval } from "../../contexts/DefinitionApprovalContext";
 
 export interface Block {
   id: string;
@@ -68,7 +69,7 @@ interface PDFViewerProps {
 }
 
 
-export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
+function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const router = useRouter();
 
   const [pdfFile] = useState<string>(initialPdfFile);
@@ -125,8 +126,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   // Add ref to store the rabbithole refresh function
   const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
   
-  // Definition approval state
-  const [definitionApprovalId, setDefinitionApprovalId] = useState<string | null>(null);
+  // Use definition approval context
+  const definitionApprovalContext = useDefinitionApproval();
+  const { approvalId: definitionApprovalId, pendingRequest: pendingDefinitionRequest } = definitionApprovalContext;
   
   
 
@@ -887,11 +889,36 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
       {/* Definition Approval Modal */}
       <DefinitionApprovalModal
         approvalId={definitionApprovalId}
-        onClose={() => {
-          setDefinitionApprovalId(null);
+        onClose={async () => {
+          definitionApprovalContext.clearApproval();
+          
+          // If approved, fetch the actual definition
+          if (pendingDefinitionRequest) {
+            try {
+              const result = await documentApi.getTermDefinitionAfterApproval(
+                pendingDefinitionRequest.documentId,
+                pendingDefinitionRequest.blockId,
+                pendingDefinitionRequest.term,
+                pendingDefinitionRequest.textStartOffset,
+                pendingDefinitionRequest.textEndOffset
+              );
+              // The definition will be saved automatically by the backend
+            } catch (error) {
+              console.error('Failed to get definition after approval:', error);
+            }
+          }
         }}
       />
       
     </MathJaxProvider>
+  );
+}
+
+// Wrapper component that provides the context
+export default function PDFViewer(props: PDFViewerProps) {
+  return (
+    <DefinitionApprovalProvider>
+      <PDFViewerInner {...props} />
+    </DefinitionApprovalProvider>
   );
 }
