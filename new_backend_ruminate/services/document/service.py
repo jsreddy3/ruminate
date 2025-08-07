@@ -20,6 +20,8 @@ from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.context.renderers.note_generation import NoteGenerationContext
 from new_backend_ruminate.services.chunk import ChunkService
+from new_backend_ruminate.services.document.definition_debug import DefinitionDebugger
+from new_backend_ruminate.services.document.definition_approval import definition_approval_service
 
 
 class DocumentService:
@@ -687,7 +689,8 @@ class DocumentService:
         text_start_offset: int,
         text_end_offset: int,
         surrounding_text: Optional[str],
-        user_id: str
+        user_id: str,
+        debug_mode: bool = False
     ) -> dict:
         """
         Generate a contextual definition for a term within a document.
@@ -770,6 +773,47 @@ class DocumentService:
 
 Provide a clear definition that explains what this term means in this specific document. Make your response BRIEF - only a sentence or two.
 DO NOT say things like "in this document" or anything - imagine you're just providing a short, concise note that, with no filler, has EVERY WORD be useful."""
+        
+        # Log debug information
+        DefinitionDebugger.log_definition_context(
+            term=term,
+            document_title=document_title or "Untitled",
+            document_summary=document_summary,
+            full_context=full_context,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt
+        )
+        
+        # Handle debug mode with approval flow
+        if debug_mode:
+            try:
+                # Create the approval request and get the ID
+                approval_id = definition_approval_service.create_approval_request(
+                    term=term,
+                    document_id=document_id,
+                    block_id=block_id,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    full_context=full_context,
+                    metadata={
+                        "document_title": document_title,
+                        "document_summary": document_summary,
+                        "text_start_offset": text_start_offset,
+                        "text_end_offset": text_end_offset,
+                        "surrounding_text": surrounding_text
+                    }
+                )
+                
+                # Wait for approval
+                approved_prompts = await definition_approval_service.wait_for_approval(approval_id)
+                
+                # Use the approved (potentially modified) prompts
+                system_prompt = approved_prompts["system_prompt"]
+                user_prompt = approved_prompts["user_prompt"]
+                
+            except RuntimeError as e:
+                # Prompt was rejected
+                raise ValueError(f"Definition generation rejected: {str(e)}")
         
         # Get LLM service and generate definition (this is async I/O, not DB)
         if not self._llm:

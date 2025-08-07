@@ -85,10 +85,24 @@ export default function ProcessingModal({ documentId, isOpen, onClose }: Process
               
               {/* Footer Info */}
               <div className="mt-8 pt-6 border-t border-library-cream-300">
-                <p className="text-sm text-reading-muted text-center">
-                  You can close this window and continue browsing. 
-                  Processing will continue in the background.
-                </p>
+                {currentStatus === 'ERROR' ? (
+                  <div className="text-center">
+                    <p className="text-sm text-red-700 font-medium mb-3">
+                      Processing failed and cannot be recovered.
+                    </p>
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2 bg-library-mahogany-500 text-white rounded-book hover:bg-library-mahogany-600 transition-colors text-sm font-medium"
+                    >
+                      Close and Upload Again
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-reading-muted text-center">
+                    You can close this window and continue browsing. 
+                    Processing will continue in the background.
+                  </p>
+                )}
               </div>
             </div>
           </motion.div>

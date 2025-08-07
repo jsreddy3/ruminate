@@ -61,10 +61,8 @@ class OpenAIResponsesLLM(LLMService):
         return {
             "type": "json_schema",
             "name": "DocumentInfo",  # Move name to top level for Responses API
-            "json_schema": {
-                "strict": True,          # hard fail on schema mismatch
-                "schema": schema,
-            },
+            "schema": schema,  # Changed from json_schema to schema
+            "strict": True,    # hard fail on schema mismatch
         }
 
     async def generate_response(

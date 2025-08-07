@@ -25,6 +25,7 @@ import { pdfViewerGlobalStyles } from "./PDFViewerStyles";
 import { OnboardingOverlays } from "./components/OnboardingOverlays";
 import { PDFLoadingUI } from "./components/PDFLoadingUI";
 import { usePanelStorage } from "../../hooks/usePanelStorage";
+import { DefinitionApprovalModal } from "../DefinitionApprovalModal";
 
 export interface Block {
   id: string;
@@ -123,6 +124,9 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
   
   // Add ref to store the rabbithole refresh function
   const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
+  
+  // Definition approval state
+  const [definitionApprovalId, setDefinitionApprovalId] = useState<string | null>(null);
   
   
 
@@ -339,6 +343,7 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
     lastInteractionPosition: furthestProgress.furthestPosition,
     selectedBlockId: blockOverlayManager.selectedBlock?.id || null
   });
+
 
   // Handle block selection requests from chat - now has access to blockOverlayManager
   const handleBlockSelectionRequest = useCallback((config: {
@@ -877,6 +882,14 @@ export default function PDFViewer({ initialPdfFile, initialDocumentId }: PDFView
         handleViewModeSelect={handleViewModeSelect}
         blocks={blocks}
         scale={scale}
+      />
+      
+      {/* Definition Approval Modal */}
+      <DefinitionApprovalModal
+        approvalId={definitionApprovalId}
+        onClose={() => {
+          setDefinitionApprovalId(null);
+        }}
       />
       
     </MathJaxProvider>

@@ -208,6 +208,7 @@ async def list_conversations(
         criteria["source_block_id"] = source_block_id
     if type:
         criteria["type"] = type.upper()
+    print("")
     
     conversations = await svc.get_conversations_by_criteria(criteria, current_user.id, session)
     return conversations

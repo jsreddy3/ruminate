@@ -239,6 +239,24 @@ export default function ProcessingProgress({
               Step {activeIndex + 1} of {steps.length}
             </p>
           )}
+          
+          {/* Error details and guidance */}
+          {currentStatus === 'ERROR' && (
+            <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+              <h4 className="text-sm font-semibold text-red-800 mb-2">What went wrong?</h4>
+              <p className="text-sm text-red-700 mb-3">
+                {error || 'The processing service encountered an error and couldn\'t complete your request.'}
+              </p>
+              <div className="border-t border-red-200 pt-3">
+                <h4 className="text-sm font-semibold text-red-800 mb-1">What can you do?</h4>
+                <ul className="text-sm text-red-700 space-y-1">
+                  <li>• Try uploading your document again</li>
+                  <li>• Make sure your PDF is not corrupted</li>
+                  <li>• If the problem persists, try a different document</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
     </div>

@@ -36,6 +36,7 @@ const ProcessingContext = createContext<ProcessingContextType | undefined>(undef
 
 const STORAGE_KEY = 'ruminate_active_processing';
 const RECONNECT_DELAY = 3000; // 3 seconds
+const MAX_RECONNECT_ATTEMPTS = 3; // Maximum number of reconnection attempts
 
 export function ProcessingProvider({ children }: { children: React.ReactNode }) {
   const [processingDocuments, setProcessingDocuments] = useState<Map<string, ProcessingDocument>>(new Map());
@@ -43,6 +44,7 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
   const reconnectTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const reconnectAttemptsRef = useRef<Map<string, number>>(new Map());
 
   // Calculate active count
   const activeCount = Array.from(processingDocuments.values()).filter(
@@ -62,6 +64,9 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
       clearTimeout(timeout);
       reconnectTimeoutsRef.current.delete(documentId);
     }
+    
+    // Clear reconnect attempts when cleaning up
+    reconnectAttemptsRef.current.delete(documentId);
   }, []);
 
   // Add processing event to document
@@ -70,9 +75,13 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
       const updated = new Map(prev);
       const doc = updated.get(documentId);
       if (doc) {
-        doc.events.push(event);
-        doc.status = event.status;
-        updated.set(documentId, { ...doc });
+        // Create new events array to trigger React re-render
+        const updatedDoc = {
+          ...doc,
+          events: [...doc.events, event],
+          status: event.status
+        };
+        updated.set(documentId, updatedDoc);
       }
       return updated;
     });
@@ -90,8 +99,29 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
     console.log('[ProcessingContext] Connecting to SSE:', authenticatedUrl);
     const es = new EventSource(authenticatedUrl);
     eventSourcesRef.current.set(documentId, es);
+    
+    // Set a timeout for initial connection
+    const connectionTimeout = setTimeout(() => {
+      if (es.readyState !== EventSource.OPEN) {
+        console.error(`Initial connection timeout for document ${documentId}`);
+        es.close();
+        // Trigger error handler
+        es.onerror?.(new Event('error'));
+      }
+    }, 10000); // 10 second timeout for initial connection
+    
+    es.onopen = () => {
+      // Clear connection timeout on successful open
+      clearTimeout(connectionTimeout);
+      console.log(`SSE connection established for document ${documentId}`);
+      // Reset reconnect attempts on successful connection
+      reconnectAttemptsRef.current.set(documentId, 0);
+    };
 
     es.onmessage = async (event) => {
+      // Clear connection timeout on successful message
+      clearTimeout(connectionTimeout);
+      
       try {
         let eventData;
         
@@ -147,28 +177,64 @@ export function ProcessingProvider({ children }: { children: React.ReactNode }) 
       }
     };
 
-    es.onerror = () => {
-      console.error(`EventSource failed for document ${documentId}`);
+    es.onerror = (error) => {
+      console.error(`EventSource failed for document ${documentId}`, {
+        readyState: es.readyState,
+        url: authenticatedUrl,
+        error: error,
+        isReconnect: isReconnect
+      });
       cleanupEventSource(documentId);
       
-      // Get current document status
+      // Get current document status and reconnect attempts
       const doc = processingDocuments.get(documentId);
+      const currentAttempts = reconnectAttemptsRef.current.get(documentId) || 0;
+      
       if (doc && !['READY', 'ERROR'].includes(doc.status)) {
-        // Attempt to reconnect after delay
-        const timeout = setTimeout(() => {
-          console.log(`Attempting to reconnect for document ${documentId}`);
-          connectToProcessingStream(documentId, true);
-        }, RECONNECT_DELAY);
-        reconnectTimeoutsRef.current.set(documentId, timeout);
+        // IMMEDIATELY show error to user before retry
+        if (!isReconnect || currentAttempts === 0) {
+          // First failure - show immediate feedback
+          addProcessingEvent(documentId, {
+            event_type: 'connection_error',
+            status: doc.status,
+            document_id: documentId,
+            message: 'Connection to processing service lost. Attempting to reconnect...',
+            timestamp: new Date().toISOString()
+          });
+        }
         
-        // Add reconnection event
-        addProcessingEvent(documentId, {
-          event_type: 'connection_error',
-          status: doc.status,
-          document_id: documentId,
-          message: isReconnect ? 'Reconnecting...' : 'Connection lost, attempting to reconnect...',
-          timestamp: new Date().toISOString()
-        });
+        if (currentAttempts < MAX_RECONNECT_ATTEMPTS) {
+          // Increment attempt counter
+          reconnectAttemptsRef.current.set(documentId, currentAttempts + 1);
+          
+          // Update message to show retry attempt
+          addProcessingEvent(documentId, {
+            event_type: 'connection_error',
+            status: doc.status,
+            document_id: documentId,
+            message: `Reconnecting... (attempt ${currentAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Attempt to reconnect after delay
+          const timeout = setTimeout(() => {
+            console.log(`Attempting to reconnect for document ${documentId} (attempt ${currentAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+            connectToProcessingStream(documentId, true);
+          }, RECONNECT_DELAY);
+          reconnectTimeoutsRef.current.set(documentId, timeout);
+        } else {
+          // Max attempts reached - mark as permanent failure
+          console.error(`Max reconnection attempts reached for document ${documentId}`);
+          
+          addProcessingEvent(documentId, {
+            event_type: 'processing_failed',
+            status: 'ERROR',
+            document_id: documentId,
+            message: 'Processing failed. The document could not be processed successfully.',
+            error: 'The processing service is not responding. Please try uploading your document again.',
+            timestamp: new Date().toISOString()
+          });
+        }
       }
     };
   }, [processingDocuments, addProcessingEvent, cleanupEventSource]);

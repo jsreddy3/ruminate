@@ -464,7 +464,8 @@ async def get_definition(
             text_start_offset=request.text_start_offset,
             text_end_offset=request.text_end_offset,
             surrounding_text=request.surrounding_text,
-            user_id=current_user.id
+            user_id=current_user.id,
+            debug_mode=True  # HARDCODED TO TRUE
         )
         
         return EnhancedDefinitionResponse(
