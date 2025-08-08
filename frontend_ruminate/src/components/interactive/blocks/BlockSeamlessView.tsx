@@ -49,12 +49,23 @@ export default function BlockSeamlessView({
   // Incremental render window (bottom-only growth)
   const INITIAL_COUNT = 20;
   const STEP_COUNT = 20;
-  const [endIndex, setEndIndex] = useState<number>(Math.min(blockOrder.length, INITIAL_COUNT));
+  
+  // Calculate initial endIndex to ensure focused block is included
+  const getInitialEndIndex = useCallback(() => {
+    const focusedIndex = blockOrder.findIndex(id => id === effectiveCurrentBlockId);
+    if (focusedIndex === -1) {
+      return Math.min(blockOrder.length, INITIAL_COUNT);
+    }
+    // Ensure we render at least up to the focused block + some buffer
+    return Math.min(blockOrder.length, Math.max(INITIAL_COUNT, focusedIndex + 10));
+  }, [blockOrder, effectiveCurrentBlockId]);
+  
+  const [endIndex, setEndIndex] = useState<number>(() => getInitialEndIndex());
 
-  // Reset endIndex when document changes
+  // Reset endIndex when document changes, ensuring focused block is visible
   useEffect(() => {
-    setEndIndex(Math.min(blockOrder.length, INITIAL_COUNT));
-  }, [blockOrder.length]);
+    setEndIndex(getInitialEndIndex());
+  }, [blockOrder.length, getInitialEndIndex]);
 
   const windowedIds = useMemo(() => blockOrder.slice(0, endIndex), [blockOrder, endIndex]);
 
@@ -75,6 +86,14 @@ export default function BlockSeamlessView({
     fontSize: '1.25rem'
   }), []);
 
+  // Track if this is the initial mount
+  const isInitialMount = useRef(true);
+  
+  // Scroll navigation state
+  const lastScrollTop = useRef(0);
+  const scrollDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const isNavigatingByScroll = useRef(false);
+  
   // Smoothly keep focused block near the top as it changes
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -86,10 +105,30 @@ export default function BlockSeamlessView({
       const targetTop = viewport * 0.15;
       const blockTop = focused.offsetTop;
       const scrollTop = blockTop - targetTop;
-      container.scrollTo({ top: scrollTop, behavior: 'smooth' });
+      
+      // On initial mount, scroll immediately without animation
+      // On subsequent changes, use smooth scrolling
+      container.scrollTo({ 
+        top: scrollTop, 
+        behavior: isInitialMount.current ? 'auto' : 'smooth' 
+      });
+      
+      // Update scroll position reference after programmatic scroll
+      setTimeout(() => {
+        if (container) {
+          lastScrollTop.current = container.scrollTop;
+        }
+      }, 100);
+      
+      isInitialMount.current = false;
     }, 50);
     return () => clearTimeout(timer);
   }, [effectiveCurrentBlockId]);
+
+  const handleFocusChange = useCallback((block: Block) => {
+    blocksActions.setCurrentBlockId(block.id);
+    onBlockChange?.(block);
+  }, [onBlockChange]);
 
   // Load more when near bottom
   const lastLoadRef = useRef<number>(0);
@@ -98,6 +137,8 @@ export default function BlockSeamlessView({
     if (!container) return;
     const { scrollTop, clientHeight, scrollHeight } = container;
     const threshold = 400;
+    
+    // Load more blocks when near bottom
     if (scrollTop + clientHeight >= scrollHeight - threshold) {
       const now = Date.now();
       if (now - lastLoadRef.current < 150) return;
@@ -106,12 +147,55 @@ export default function BlockSeamlessView({
         setEndIndex((prev) => Math.min(blockOrder.length, prev + STEP_COUNT));
       }
     }
-  }, [blockOrder.length, endIndex]);
-
-  const handleFocusChange = useCallback((block: Block) => {
-    blocksActions.setCurrentBlockId(block.id);
-    onBlockChange?.(block);
-  }, [onBlockChange]);
+    
+    // Scroll-based navigation with debouncing - focus on block where scrolling stops
+    if (!isNavigatingByScroll.current) {
+      // Clear existing timer on every scroll
+      if (scrollDebounceTimer.current) {
+        clearTimeout(scrollDebounceTimer.current);
+      }
+      
+      // Set new debounced navigation
+      scrollDebounceTimer.current = setTimeout(() => {
+        // Find which block is most visible in the viewport
+        const viewport = container.clientHeight;
+        const viewportCenter = scrollTop + (viewport / 2);
+        
+        // Find all block elements
+        const blockElements = container.querySelectorAll('[data-block-id]');
+        let closestBlock: { element: Element; distance: number; id: string } | null = null;
+        
+        blockElements.forEach((element) => {
+          const blockId = element.getAttribute('data-block-id');
+          if (!blockId) return;
+          
+          const htmlElement = element as HTMLElement;
+          const rect = htmlElement.getBoundingClientRect();
+          const elementTop = htmlElement.offsetTop;
+          const elementCenter = elementTop + (rect.height / 2);
+          const distance = Math.abs(viewportCenter - elementCenter);
+          
+          if (!closestBlock || distance < closestBlock.distance) {
+            closestBlock = { element: htmlElement, distance, id: blockId };
+          }
+        });
+        
+        // Focus on the closest block if it's different from current
+        if (closestBlock && closestBlock.id !== effectiveCurrentBlockId) {
+          const targetBlock = blocks.find(b => b.id === closestBlock.id);
+          if (targetBlock) {
+            isNavigatingByScroll.current = true;
+            handleFocusChange(targetBlock);
+            setTimeout(() => {
+              isNavigatingByScroll.current = false;
+            }, 300);
+          }
+        }
+        
+        lastScrollTop.current = scrollTop;
+      }, 150); // 150ms debounce delay
+    }
+  }, [blockOrder.length, endIndex, windowedIds, effectiveCurrentBlockId, blocks, handleFocusChange]);
 
   const handleCreateRabbithole = useCallback(async (
     docId: string,
@@ -153,6 +237,15 @@ export default function BlockSeamlessView({
     }
   }, [blocks, onRabbitholeClick, onUpdateBlockMetadata]);
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollDebounceTimer.current) {
+        clearTimeout(scrollDebounceTimer.current);
+      }
+    };
+  }, []);
+  
   return (
     <TextInteractionProvider>
       <div ref={containerRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>

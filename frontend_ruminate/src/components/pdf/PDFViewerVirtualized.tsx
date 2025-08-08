@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import MathJaxProvider from "../common/MathJaxProvider";
+// import MathJaxProvider from "../common/MathJaxProvider";
 import { documentApi } from "../../services/api/document";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import PDFBlockOverlay from "./PDFBlockOverlay";
@@ -359,7 +359,7 @@ export default function PDFViewerVirtualized({
   }, [setActiveConversationId, rabbitholeConversations, flattenedBlocks, scrollToBlock]);
 
   return (
-    <MathJaxProvider>
+    <>
       <style jsx global>{`
         ${pdfViewerGlobalStyles}
         
@@ -649,6 +649,6 @@ export default function PDFViewerVirtualized({
         closeViewDropdown={closeViewDropdown}
         handleViewModeSelect={handleViewModeSelect}
       />
-    </MathJaxProvider>
+    </>
   );
 }

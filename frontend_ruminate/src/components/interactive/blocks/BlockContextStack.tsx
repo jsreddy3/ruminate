@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
 import BasePopover from '../../common/BasePopover';
-import ImageGallery from './ImageGallery';
 import { useBlockImages } from '../../../hooks/useBlockImages';
 
 interface BlockContextStackProps {
@@ -110,13 +109,6 @@ export default function BlockContextStack({
 
   return (
     <>
-      {/* Image Gallery */}
-      <ImageGallery 
-        blocks={blocks}
-        currentBlockId={currentBlockId}
-        documentId={documentId}
-        onImageFetch={fetchBlockImages}
-      />
       
       <div 
         ref={containerRef}

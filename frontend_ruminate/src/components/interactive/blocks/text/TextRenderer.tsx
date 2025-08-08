@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import TextContent from './TextContentFile';
 import TextWithMath from './TextWithMath';
+import TextWithMathSimple from './TextWithMathSimple';
 import TextSelectionTooltip from './TooltipManager/TextSelectionTooltip';
 import DefinitionPopup from './TooltipManager/DefinitionPopup';
 import AnnotationEditor from './TooltipManager/AnnotationEditor';
@@ -394,8 +395,8 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     setAnnotationVisible(false);
   };
     
-  // Check if content contains math tags
-  const hasMathContent = /<math[^>]*>/.test(htmlContent);
+  // Check if content contains math (either <math> tags or TeX delimiters)
+  const hasMathContent = /<math[^>]*>|\\\(|\\\[/.test(htmlContent);
   
   // Handle math rendering completion
   const handleMathRendered = () => {

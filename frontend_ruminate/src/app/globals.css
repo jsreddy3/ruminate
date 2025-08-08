@@ -5,6 +5,20 @@
 @import 'react-pdf/dist/Page/AnnotationLayer.css';
 @import 'react-pdf/dist/Page/TextLayer.css';
 
+/* KaTeX styles */
+@import 'katex/dist/katex.min.css';
+
+/* Ensure KaTeX elements are visible */
+.katex {
+  display: inline !important;
+  visibility: visible !important;
+}
+
+.katex-display {
+  display: block !important;
+  visibility: visible !important;
+}
+
 /* Iowan Old Style - Local font declarations */
 @font-face {
     font-family: 'Iowan Old Style';

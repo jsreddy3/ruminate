@@ -42,6 +42,7 @@ const SeamlessBlockRow: React.FC<SeamlessBlockRowProps> = ({
   return (
     <div
       ref={isFocused ? focusedRef : undefined}
+      data-block-id={blockId}
       className="transition-opacity duration-200"
       onClick={(e) => {
         const target = e.target as HTMLElement;

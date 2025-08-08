@@ -48,6 +48,20 @@ export class HTMLSanitizer {
       return '';
     }
 
+    // Preserve LaTeX delimiters by temporarily replacing them
+    const latexPlaceholders = {
+      '\\(': '___LATEX_INLINE_START___',
+      '\\)': '___LATEX_INLINE_END___',
+      '\\[': '___LATEX_BLOCK_START___',
+      '\\]': '___LATEX_BLOCK_END___'
+    };
+    
+    // Replace LaTeX delimiters with placeholders
+    let content = htmlContent;
+    Object.entries(latexPlaceholders).forEach(([delimiter, placeholder]) => {
+      content = content.replace(new RegExp(delimiter.replace(/[\\[\]()]/g, '\\$&'), 'g'), placeholder);
+    });
+
     // Additional security for PDF content - more restrictive
     const pdfConfig = {
       ...this.config,
@@ -60,7 +74,16 @@ export class HTMLSanitizer {
       ALLOWED_ATTR: ['class', 'style', 'display', 'block-type'] // Added display for math tags and block-type
     };
 
-    return DOMPurify.sanitize(htmlContent, pdfConfig);
+    // Sanitize the content
+    const sanitized = DOMPurify.sanitize(content, pdfConfig);
+    
+    // Restore LaTeX delimiters
+    let result = sanitized;
+    Object.entries(latexPlaceholders).forEach(([delimiter, placeholder]) => {
+      result = result.replace(new RegExp(placeholder, 'g'), delimiter);
+    });
+
+    return result;
   }
 
   /**

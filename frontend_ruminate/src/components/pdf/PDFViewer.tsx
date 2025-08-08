@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import MathJaxProvider from "../common/MathJaxProvider";
 import { documentApi } from "../../services/api/document";
 import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
 import PDFBlockOverlay from "./PDFBlockOverlay";
@@ -577,7 +576,7 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
 
 
   return (
-    <MathJaxProvider>
+    <>
       <style jsx global>{`
         ${pdfViewerGlobalStyles}
         
@@ -901,7 +900,7 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
       {/* Approval modal removed */}
       
       
-    </MathJaxProvider>
+    </>
   );
 }
 
