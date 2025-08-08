@@ -111,6 +111,17 @@ export default function BlockSeamlessView({
         end_offset: end,
         type: 'rabbithole'
       });
+
+      // Optimistic underline via store
+      blocksActions.addRabbitholeHighlight(blockId, {
+        id: conversationId,
+        selected_text: text,
+        text_start_offset: start,
+        text_end_offset: end,
+        created_at: new Date().toISOString(),
+        conversation_id: conversationId,
+      });
+
       // Optimistic metadata
       onUpdateBlockMetadata?.(blockId, {
         rabbithole_conversation_ids: [

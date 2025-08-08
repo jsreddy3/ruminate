@@ -73,6 +73,15 @@ export const blocksActions = {
     const next = { ...state.rabbitholesByBlockId, [blockId]: highlights };
     setState({ rabbitholesByBlockId: next });
   },
+  addRabbitholeHighlight(blockId: string, highlight: RabbitholeHighlight) {
+    const current = state.rabbitholesByBlockId[blockId] || [];
+    const keyOf = (h: RabbitholeHighlight) => `${(h as any).conversation_id || h.id || ''}:${h.text_start_offset}-${h.text_end_offset}`;
+    const map = new Map<string, RabbitholeHighlight>();
+    for (const h of current) map.set(keyOf(h), h);
+    map.set(keyOf(highlight), highlight);
+    const nextArr = Array.from(map.values());
+    setState({ rabbitholesByBlockId: { ...state.rabbitholesByBlockId, [blockId]: nextArr } });
+  },
 };
 
 // Selectors hook with referential stability
