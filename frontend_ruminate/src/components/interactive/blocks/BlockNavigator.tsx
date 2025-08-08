@@ -158,11 +158,22 @@ export default function BlockNavigator({
       }`}>
       {/* Minimal progress bar */}
       <div className="p-3 flex-shrink-0">
-        <div className="w-full bg-library-sage-200 rounded-full h-2 shadow-inner">
-          <div 
-            className="bg-gradient-to-r from-library-gold-400 to-library-mahogany-400 h-2 rounded-full transition-all duration-500 ease-out shadow-sm"
-            style={{ width: `${((currentIndex + 1) / blocks.length) * 100}%` }}
-          />
+        <div className="w-full relative group">
+          {/* Percentage tooltip on hover */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+              {Math.round(((currentIndex + 1) / blocks.length) * 100)}%
+            </div>
+            {/* Arrow pointing down */}
+            <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+          </div>
+          {/* Progress bar */}
+          <div className="w-full bg-library-sage-200 rounded-full h-2 shadow-inner overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-library-gold-400 to-library-mahogany-400 h-2 rounded-full transition-all duration-500 ease-out shadow-sm"
+              style={{ width: `${((currentIndex + 1) / blocks.length) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
 

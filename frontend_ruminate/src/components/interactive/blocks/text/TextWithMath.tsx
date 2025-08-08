@@ -25,8 +25,7 @@ class MathErrorBoundary extends React.Component<React.PropsWithChildren<{ fallba
     return { hasError: true };
   }
   componentDidCatch(error: any, info: any) {
-    // eslint-disable-next-line no-console
-    console.error(`[KaTeX][ErrorBoundary]`, this.props.tag, error, info);
+    // Error boundary error handling
   }
   render() {
     if (this.state.hasError) return this.props.fallback;
@@ -95,16 +94,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
         setCanTypeset(true);
       }
       typesetVersionRef.current += 1;
-      // eslint-disable-next-line no-console
-      console.debug(`[KaTeX] processed`, tag, { 
-        hadInline, 
-        hadBlock, 
-        hadExistingInline,
-        hadExistingBlock,
-        len: sanitized.length, 
-        version: typesetVersionRef.current, 
-        sample: sanitized.substring(0, 400) 
-      });
     }, [processedContent]);
 
     // IntersectionObserver to detect actual visibility
@@ -125,8 +114,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
           // Do not force canTypeset back to false after we already typeset
           if (!hasTypesetRef.current) setCanTypeset(false);
         }
-        // eslint-disable-next-line no-console
-        console.debug(`[KaTeX] visibility`, tag, { intersecting, ratio, now, threshold: visibilityThreshold });
       }, { root: null, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] });
       observer.observe(el);
       return () => observer.disconnect();
@@ -147,8 +134,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
         const stillAttached = Boolean(hostRef.current && hostRef.current.isConnected);
         const stillVisible = isVisible;
         setCanTypeset(stillAttached && stillVisible);
-        // eslint-disable-next-line no-console
-        console.debug(`[KaTeX] canTypeset`, tag, { stillAttached, stillVisible, delay: stableDelayMs });
       }, stableDelayMs);
       return () => {
         if (stableTimerRef.current) window.clearTimeout(stableTimerRef.current);
@@ -158,8 +143,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
     useEffect(() => () => {
       // on unmount, prevent late typeset callbacks from acting
       typesetVersionRef.current += 1;
-      // eslint-disable-next-line no-console
-      console.debug(`[KaTeX] unmount`, tag, { version: typesetVersionRef.current });
     }, []);
 
     // Typeset with KaTeX when allowed
@@ -173,24 +156,17 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
         try {
           // Double-check element is still connected
           if (!el || !el.isConnected) {
-            console.debug(`[KaTeX] Element disconnected before render`, tag);
             return;
           }
           
           // Ensure content is actually in the DOM
           if (!el.innerHTML || el.innerHTML.trim() === '') {
-            console.debug(`[KaTeX] Empty content, retrying...`, tag);
             // Retry after a short delay if content is empty
             setTimeout(() => {
               if (el && el.isConnected && el.innerHTML && el.innerHTML.trim() !== '') {
                 import('katex/contrib/auto-render').then(mod => {
                   const renderMathInElement = (mod as any).default || (mod as any);
                   
-                  console.debug(`[KaTeX] Retry: Pre-render content`, tag, { 
-                    innerHTML: el.innerHTML.substring(0, 200),
-                    hasInlineDelimiters: el.innerHTML.includes('\\('),
-                    hasBlockDelimiters: el.innerHTML.includes('\\[')
-                  });
                   
                   renderMathInElement(el, {
                     delimiters: [
@@ -206,10 +182,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
                   });
                   hasTypesetRef.current = true;
                   
-                  console.debug(`[KaTeX] Retry: Post-render`, tag, {
-                    hasKatexElements: el.querySelectorAll('.katex').length > 0,
-                    katexCount: el.querySelectorAll('.katex').length
-                  });
                   
                   setKatexProcessed(true);
                   
@@ -226,12 +198,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
           const mod = await import('katex/contrib/auto-render');
           const renderMathInElement = (mod as any).default || (mod as any);
           
-          // Log the content before KaTeX processes it
-          console.debug(`[KaTeX] Pre-render content`, tag, { 
-            innerHTML: el.innerHTML.substring(0, 200),
-            hasInlineDelimiters: el.innerHTML.includes('\\('),
-            hasBlockDelimiters: el.innerHTML.includes('\\[')
-          });
           
           renderMathInElement(el, {
             delimiters: [
@@ -248,13 +214,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
           
           hasTypesetRef.current = true;
           
-          // Log the content after KaTeX processes it
-          console.debug(`[KaTeX] Post-render`, tag, { 
-            attached: Boolean(el && el.isConnected), 
-            version: myVersion,
-            hasKatexElements: el.querySelectorAll('.katex').length > 0,
-            katexCount: el.querySelectorAll('.katex').length
-          });
           
           setKatexProcessed(true);
           
@@ -265,8 +224,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
             }, 100);
           }
         } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error('[KaTeX] render error', tag, error);
         }
       });
       return () => cancelAnimationFrame(id);
@@ -283,15 +240,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
     // Add a data attribute to help debug
     const plain = <div data-has-math={processedMathContent.includes('\\(')} dangerouslySetInnerHTML={{ __html: processedMathContent }} />;
 
-    // Debug re-renders
-    useEffect(() => {
-      console.debug('[KaTeX] Component rendered/re-rendered', tag, {
-        hasProcessedContent: !!processedMathContent,
-        katexProcessed,
-        mathRendered,
-        canTypeset
-      });
-    });
 
     // Run KaTeX on every render to ensure math stays rendered
     useEffect(() => {
@@ -307,7 +255,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
           
           // Check if KaTeX has already rendered
           if (el.querySelector('.katex')) {
-            console.debug('[KaTeX] Already rendered, skipping');
             return;
           }
           
@@ -315,7 +262,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
             const mod = await import('katex/contrib/auto-render');
             const renderMathInElement = (mod as any).default || (mod as any);
             
-            console.debug('[KaTeX] Running render for math content');
             
             renderMathInElement(el, {
               delimiters: [
@@ -330,9 +276,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
               }
             });
             
-            console.debug('[KaTeX] Render complete', {
-              katexElements: el.querySelectorAll('.katex').length
-            });
             
             // Mark that KaTeX has processed the content
             setKatexProcessed(true);
@@ -341,7 +284,6 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
               onMathRendered?.();
             }
           } catch (error) {
-            console.error('[KaTeX] Render error:', error);
           }
         }, 50); // Use a slightly longer delay
         
