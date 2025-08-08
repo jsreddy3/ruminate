@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { Block } from '../../pdf/PDFViewer';
 import BlockContainer from './BlockContainer';
 import { TextInteractionProvider } from './text/TextInteractionContext';
@@ -41,13 +41,22 @@ export default function BlockSeamlessView({
 
   const storeCurrentBlockId = useCurrentBlockId();
   const effectiveCurrentBlockId = storeCurrentBlockId || currentBlockId;
-  const currentIndex = useBlocksSelector(
-    (s) => s.blockOrder.findIndex((id) => id === effectiveCurrentBlockId),
-    (a, b) => a === b
-  );
+  const blockOrder = useBlocksSelector((s) => s.blockOrder, (a, b) => a.length === b.length && a.every((v, i) => v === b[i]));
 
   const containerRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef<HTMLDivElement>(null);
+
+  // Incremental render window (bottom-only growth)
+  const INITIAL_COUNT = 20;
+  const STEP_COUNT = 20;
+  const [endIndex, setEndIndex] = useState<number>(Math.min(blockOrder.length, INITIAL_COUNT));
+
+  // Reset endIndex when document changes
+  useEffect(() => {
+    setEndIndex(Math.min(blockOrder.length, INITIAL_COUNT));
+  }, [blockOrder.length]);
+
+  const windowedIds = useMemo(() => blockOrder.slice(0, endIndex), [blockOrder, endIndex]);
 
   // stable style object
   const baseStyle = useMemo(() => ({
@@ -82,13 +91,22 @@ export default function BlockSeamlessView({
     return () => clearTimeout(timer);
   }, [effectiveCurrentBlockId]);
 
-  // Window small for perf (guard when index invalid)
-  const startIndex = Math.max(0, currentIndex < 0 ? 0 : currentIndex - 4);
-  const endIndex = Math.max(startIndex, Math.min((blocks?.length || 0), (currentIndex < 0 ? 0 : currentIndex + 5)));
-  const windowedIds = useBlocksSelector(
-    (s) => s.blockOrder.slice(startIndex, endIndex),
-    (a, b) => a.length === b.length && a.every((v, i) => v === b[i])
-  );
+  // Load more when near bottom
+  const lastLoadRef = useRef<number>(0);
+  const handleScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const { scrollTop, clientHeight, scrollHeight } = container;
+    const threshold = 400;
+    if (scrollTop + clientHeight >= scrollHeight - threshold) {
+      const now = Date.now();
+      if (now - lastLoadRef.current < 150) return;
+      lastLoadRef.current = now;
+      if (endIndex < blockOrder.length) {
+        setEndIndex((prev) => Math.min(blockOrder.length, prev + STEP_COUNT));
+      }
+    }
+  }, [blockOrder.length, endIndex]);
 
   const handleFocusChange = useCallback((block: Block) => {
     blocksActions.setCurrentBlockId(block.id);
@@ -137,7 +155,7 @@ export default function BlockSeamlessView({
 
   return (
     <TextInteractionProvider>
-      <div ref={containerRef} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>
+      <div ref={containerRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${className}`}>
         <div className="mx-auto max-w-[70ch] px-6 py-10 space-y-6">
           {windowedIds.map((blockId) => (
             <SeamlessBlockRow
