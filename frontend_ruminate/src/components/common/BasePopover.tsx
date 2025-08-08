@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, ReactNode, useState } from 'react';
+import React, { useRef, useEffect, ReactNode, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Grip } from 'lucide-react';
 
@@ -28,6 +28,11 @@ interface BasePopoverProps {
   offsetX?: number;
   offsetY?: number;
   preventOverflow?: boolean;
+  
+  // Side positioning (like Google Docs comments)
+  placement?: 'auto' | 'left' | 'right' | 'top' | 'bottom' | 'center';
+  anchorElement?: HTMLElement | null;
+  sideOffset?: number; // Distance from anchor when using side placement
 }
 
 const BasePopover: React.FC<BasePopoverProps> = ({
@@ -50,6 +55,9 @@ const BasePopover: React.FC<BasePopoverProps> = ({
   offsetX = 0,
   offsetY = 0,
   preventOverflow = true,
+  placement = 'center',
+  anchorElement = null,
+  sideOffset = 20,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   
@@ -125,43 +133,102 @@ const BasePopover: React.FC<BasePopoverProps> = ({
     };
   }, [isDragging, isResizing, dragStart, resizeStart, popupPosition, popupSize]);
 
+  // Calculate position based on placement and anchor
+  const calculatePosition = useCallback(() => {
+    if (!isVisible) return { x: 0, y: 0 };
+
+    let finalX = position.x + offsetX;
+    let finalY = position.y + offsetY;
+
+    // If we have an anchor element and side placement, calculate relative position
+    if (anchorElement && placement !== 'center') {
+      const anchorRect = anchorElement.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Determine placement
+      let actualPlacement = placement;
+      
+      // Auto placement logic
+      if (placement === 'auto') {
+        const spaceLeft = anchorRect.left;
+        const spaceRight = viewportWidth - anchorRect.right;
+        
+        // Choose side with more space
+        actualPlacement = spaceRight >= spaceLeft ? 'right' : 'left';
+      }
+      
+      // Calculate position based on placement
+      switch (actualPlacement) {
+        case 'left':
+          finalX = anchorRect.left - popupSize.width - sideOffset;
+          finalY = anchorRect.top;
+          break;
+        case 'right':
+          finalX = anchorRect.right + sideOffset;
+          finalY = anchorRect.top;
+          break;
+        case 'top':
+          finalX = anchorRect.left;
+          finalY = anchorRect.top - popupSize.height - sideOffset;
+          break;
+        case 'bottom':
+          finalX = anchorRect.left;
+          finalY = anchorRect.bottom + sideOffset;
+          break;
+      }
+      
+      // Adjust Y position to align with anchor vertically for side placements
+      if (actualPlacement === 'left' || actualPlacement === 'right') {
+        // Try to align top of popover with top of anchor
+        finalY = anchorRect.top;
+        
+        // If popover would go below viewport, adjust up
+        if (finalY + popupSize.height > viewportHeight - 20) {
+          finalY = Math.max(20, viewportHeight - popupSize.height - 20);
+        }
+      }
+    }
+
+    // Apply overflow prevention
+    if (preventOverflow) {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Prevent horizontal overflow
+      if (finalX + popupSize.width > viewportWidth - 20) {
+        finalX = viewportWidth - popupSize.width - 20;
+      }
+      if (finalX < 20) {
+        finalX = 20;
+      }
+
+      // For auto height, just make sure we're not too close to the top
+      if (initialHeight === 'auto') {
+        if (finalY < 20) {
+          finalY = 20;
+        }
+      } else {
+        // Prevent vertical overflow (only if height is numeric)
+        if (finalY + popupSize.height > viewportHeight - 20) {
+          finalY = position.y - popupSize.height - 10; // Position above instead
+        }
+        if (finalY < 20) {
+          finalY = 20;
+        }
+      }
+    }
+
+    return { x: finalX, y: finalY };
+  }, [isVisible, position.x, position.y, offsetX, offsetY, preventOverflow, initialHeight, anchorElement, placement, sideOffset, popupSize]);
+
   // Initialize position when popup becomes visible
   useEffect(() => {
     if (isVisible) {
-      let finalX = position.x + offsetX;
-      let finalY = position.y + offsetY;
-
-      if (preventOverflow) {
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        // Prevent horizontal overflow
-        if (finalX + popupSize.width > viewportWidth - 20) {
-          finalX = viewportWidth - popupSize.width - 20;
-        }
-        if (finalX < 20) {
-          finalX = 20;
-        }
-
-        // For auto height, just make sure we're not too close to the top
-        if (initialHeight === 'auto') {
-          if (finalY < 20) {
-            finalY = 20;
-          }
-        } else {
-          // Prevent vertical overflow (only if height is numeric)
-          if (finalY + popupSize.height > viewportHeight - 20) {
-            finalY = position.y - popupSize.height - 10; // Position above instead
-          }
-          if (finalY < 20) {
-            finalY = 20;
-          }
-        }
-      }
-
-      setPopupPosition({ x: finalX, y: finalY });
+      const newPosition = calculatePosition();
+      setPopupPosition(newPosition);
     }
-  }, [isVisible, position.x, position.y, offsetX, offsetY, preventOverflow, initialHeight]);
+  }, [isVisible, calculatePosition]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -269,15 +336,14 @@ const BasePopover: React.FC<BasePopoverProps> = ({
   }
 
   // Render static version
-  const finalX = position.x + offsetX;
-  const finalY = position.y + offsetY;
+  const staticPosition = calculatePosition();
 
   return createPortal(
     <div
       className="fixed z-50"
       style={{
-        left: finalX,
-        top: finalY,
+        left: staticPosition.x,
+        top: staticPosition.y,
         transform: 'translateZ(0)', // Force hardware acceleration
       }}
     >

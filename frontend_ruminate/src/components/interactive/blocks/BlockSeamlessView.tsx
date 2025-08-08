@@ -18,6 +18,7 @@ interface BlockSeamlessViewProps {
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   getRabbitholeHighlightsForBlock?: (blockId: string) => any[];
   className?: string;
+  isArrowNavigationRef?: React.MutableRefObject<boolean>;
 }
 
 export default function BlockSeamlessView({
@@ -30,7 +31,8 @@ export default function BlockSeamlessView({
   onRefreshRabbitholes,
   onUpdateBlockMetadata,
   getRabbitholeHighlightsForBlock,
-  className = ''
+  className = '',
+  isArrowNavigationRef
 }: BlockSeamlessViewProps) {
   // Initialize store once when inputs arrive
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function BlockSeamlessView({
   const lastScrollTop = useRef(0);
   const scrollDebounceTimer = useRef<NodeJS.Timeout | null>(null);
   const isNavigatingByScroll = useRef(false);
+  const programmaticScrollTimer = useRef<NodeJS.Timeout | null>(null);
   
   // Smoothly keep focused block near the top as it changes
   useEffect(() => {
@@ -112,6 +115,14 @@ export default function BlockSeamlessView({
         top: scrollTop, 
         behavior: isInitialMount.current ? 'auto' : 'smooth' 
       });
+      
+      // Mark this as a programmatic scroll to prevent auto-focus
+      if (programmaticScrollTimer.current) {
+        clearTimeout(programmaticScrollTimer.current);
+      }
+      programmaticScrollTimer.current = setTimeout(() => {
+        programmaticScrollTimer.current = null;
+      }, 300);
       
       // Update scroll position reference after programmatic scroll
       setTimeout(() => {
@@ -146,6 +157,20 @@ export default function BlockSeamlessView({
       if (endIndex < blockOrder.length) {
         setEndIndex((prev) => Math.min(blockOrder.length, prev + STEP_COUNT));
       }
+    }
+    
+    // Check if this scroll was triggered by arrow navigation or programmatic scroll
+    if (isArrowNavigationRef?.current || programmaticScrollTimer.current) {
+      // If arrow navigation, reset the flag after a delay to ensure smooth scrolling completes
+      if (isArrowNavigationRef?.current) {
+        setTimeout(() => {
+          if (isArrowNavigationRef) {
+            isArrowNavigationRef.current = false;
+          }
+        }, 500); // Give time for smooth scroll to complete
+      }
+      lastScrollTop.current = scrollTop;
+      return;
     }
     
     // Scroll-based navigation with debouncing - focus on block where scrolling stops
@@ -237,11 +262,14 @@ export default function BlockSeamlessView({
     }
   }, [blocks, onRabbitholeClick, onUpdateBlockMetadata]);
 
-  // Cleanup debounce timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (scrollDebounceTimer.current) {
         clearTimeout(scrollDebounceTimer.current);
+      }
+      if (programmaticScrollTimer.current) {
+        clearTimeout(programmaticScrollTimer.current);
       }
     };
   }, []);

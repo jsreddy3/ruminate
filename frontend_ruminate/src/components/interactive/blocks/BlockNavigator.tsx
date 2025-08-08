@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import BlockSeamlessView from './BlockSeamlessView';
 import { Block } from '../../pdf/PDFViewer';
 import { useBlockImages } from '../../../hooks/useBlockImages';
@@ -52,6 +53,13 @@ export default function BlockNavigator({
   // Image fetching hook
   const { fetchBlockImages } = useBlockImages(documentId);
   
+  // Track if navigation was triggered by arrow keys
+  const isArrowNavigationRef = useRef(false);
+  
+  // Progress bar tooltip state
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const progressBarRef = useRef<HTMLDivElement>(null);
   
   // Update index when currentBlockId changes from outside (e.g., when user clicks in PDF)
   useEffect(() => {
@@ -75,6 +83,7 @@ export default function BlockNavigator({
   const goToNextBlock = useCallback(() => {
     if (isOnboardingStep4) return; // Disable during onboarding step 4
     if (currentIndex < blocks.length - 1) {
+      isArrowNavigationRef.current = true; // Mark as arrow navigation
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       const newBlock = blocks[newIndex];
@@ -87,6 +96,7 @@ export default function BlockNavigator({
   const goToPrevBlock = useCallback(() => {
     if (isOnboardingStep4) return; // Disable during onboarding step 4
     if (currentIndex > 0) {
+      isArrowNavigationRef.current = true; // Mark as arrow navigation
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       const newBlock = blocks[newIndex];
@@ -141,6 +151,9 @@ export default function BlockNavigator({
   // Get current block
   const currentBlock = blocks[currentIndex];
   
+  // Percentage for tooltip
+  const percentage = Math.round(((currentIndex + 1) / blocks.length) * 100);
+  
   return (
     <div className="h-full flex flex-col overflow-hidden relative">
       {/* Full overlay for step 5 - only allow tooltip interactions */}
@@ -158,24 +171,47 @@ export default function BlockNavigator({
       }`}>
       {/* Minimal progress bar */}
       <div className="p-3 flex-shrink-0">
-        <div className="w-full relative group">
-          {/* Percentage tooltip on hover */}
-          <div className="absolute left-1/2 -translate-x-1/2 -bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
-              {Math.round(((currentIndex + 1) / blocks.length) * 100)}%
-            </div>
-            {/* Arrow pointing down */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
-          </div>
+        <div 
+          ref={progressBarRef}
+          className="w-full relative"
+          onMouseEnter={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setTooltipPosition({
+              x: rect.left + rect.width / 2,
+              y: rect.top - 8
+            });
+            setShowTooltip(true);
+          }}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
           {/* Progress bar */}
           <div className="w-full bg-library-sage-200 rounded-full h-2 shadow-inner overflow-hidden">
             <div 
               className="bg-gradient-to-r from-library-gold-400 to-library-mahogany-400 h-2 rounded-full transition-all duration-500 ease-out shadow-sm"
-              style={{ width: `${((currentIndex + 1) / blocks.length) * 100}%` }}
+              style={{ width: `${percentage}%` }}
             />
           </div>
         </div>
       </div>
+      
+      {/* Portal-based tooltip */}
+      {showTooltip && createPortal(
+        <div 
+          className="fixed z-[99999] pointer-events-none"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+            {percentage}%
+          </div>
+          {/* Arrow pointing down */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+        </div>,
+        document.body
+      )}
 
       {/* Seamless continuous view */}
       <div className="flex-1 overflow-hidden relative flex flex-col">
@@ -197,6 +233,7 @@ export default function BlockNavigator({
           onRefreshRabbitholes={onRefreshRabbitholes}
           onUpdateBlockMetadata={onUpdateBlockMetadata}
           getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
+          isArrowNavigationRef={isArrowNavigationRef}
         />
       </div>
       </div>
