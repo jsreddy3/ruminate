@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import MathJaxProvider from "../common/MathJaxProvider";
 import { documentApi } from "../../services/api/document";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
 import PDFBlockOverlay from "./PDFBlockOverlay";
 import PDFToolbar from "./PDFToolbar";
 import ChatSidebar from "./ChatSidebar";
@@ -215,6 +215,28 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   
   // Track current panel sizes for overlay
   const [currentPanelSizes, setCurrentPanelSizes] = useState(mainPanelSizes);
+
+  // Collapsible main chat
+  const chatPanelRef = useRef<ImperativePanelHandle | null>(null);
+  const pdfPanelRef = useRef<ImperativePanelHandle | null>(null);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
+  const [lastChatSize, setLastChatSize] = useState<number>(mainPanelSizes[1]);
+  const collapseChat = useCallback(() => {
+    // Remember current size from layout state, then hard-resize to 0
+    if (Array.isArray(currentPanelSizes) && currentPanelSizes.length > 1) {
+      setLastChatSize(currentPanelSizes[1] || 30);
+    }
+    chatPanelRef.current?.resize?.(0);
+    pdfPanelRef.current?.resize?.(100);
+    setIsChatCollapsed(true);
+  }, [currentPanelSizes]);
+  const expandChat = useCallback(() => {
+    // Restore to last known size (fallback to 40 if missing)
+    const target = lastChatSize && lastChatSize > 0 ? lastChatSize : 40;
+    chatPanelRef.current?.resize?.(target);
+    pdfPanelRef.current?.resize?.(100 - target);
+    setIsChatCollapsed(false);
+  }, [lastChatSize]);
   
   // Ensure panel sizes are applied correctly
   useEffect(() => {
@@ -636,14 +658,10 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
                 </button>
               </div>
             </div>
-
-            {/* Main Conversation Button - standalone */}
-            <div className="flex-shrink-0">
-              <MainConversationButton
-                isActive={activeConversationId === null}
-                onConversationChange={setActiveConversationId}
-              />
-            </div>
+            <MainConversationButton
+              isActive={activeConversationId === null}
+              onConversationChange={setActiveConversationId}
+            />
           </div>
         </div>
 
@@ -705,9 +723,10 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
         >
           {/* Content viewer - left panel (PDF or Glossary) */}
           <Panel 
+            ref={pdfPanelRef}
             defaultSize={mainPanelSizes[0]} 
             minSize={20}
-            maxSize={85}
+            maxSize={100}
             className="relative overflow-hidden"
           >
             {/* Manuscript-like background */}
@@ -797,12 +816,28 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
           <PanelResizeHandle className="w-1 bg-gradient-to-b from-library-sage-100 via-library-sage-200 to-library-sage-100 hover:bg-gradient-to-b hover:from-library-gold-200 hover:via-library-gold-300 hover:to-library-gold-200 transition-all duration-300 cursor-col-resize group relative">
             {/* Subtle grip indicator */}
             <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-0.5 bg-library-sage-300 group-hover:bg-library-gold-400 opacity-50 group-hover:opacity-80 transition-all duration-300"></div>
+            {/* Collapse/Expand toggle on the divider - always visible */}
+            <button
+              onClick={isChatCollapsed ? expandChat : collapseChat}
+              className="absolute top-1/2 -translate-y-1/2 px-1.5 py-1 text-[10px] font-sans rounded-full border border-library-sage-300 bg-white/90 hover:bg-white shadow-paper"
+              title={isChatCollapsed ? 'Show Main Conversation' : 'Hide Main Conversation'}
+              style={{
+                // When collapsed, anchor into the PDF side; when expanded, anchor into the chat side
+                left: isChatCollapsed ? '-0.75rem' as any : undefined,
+                right: isChatCollapsed ? undefined : '-0.75rem' as any,
+              }}
+            >
+              {isChatCollapsed ? '⟨⟨' : '⟩⟩'}
+            </button>
           </PanelResizeHandle>
           
           {/* Chat panel - scholarly discussion area */}
           <Panel 
+            ref={chatPanelRef}
+            collapsible
+            collapsedSize={0}
             defaultSize={mainPanelSizes[1]} 
-            minSize={15}
+            minSize={0}
             maxSize={80}
             className="relative overflow-hidden"
           >
@@ -817,33 +852,35 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
             
             {/* Content with enhanced border */}
             <div className={onboarding.getChatClassName('relative h-full border-l border-library-sage-300 shadow-inner bg-gradient-to-r from-library-cream-50/30 to-transparent')}>
-              {/* Decorative book spine edge */}
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-library-mahogany-400 via-library-mahogany-500 to-library-mahogany-600 shadow-sm"></div>
-            <ChatSidebar
-              documentId={documentId}
-              selectedBlock={blockOverlayManager.selectedBlock}
-              mainConversationId={documentState.data?.main_conversation_id}
-              activeConversationId={activeConversationId}
-              rabbitholeConversations={rabbitholeConversations}
-              rabbitholeData={rabbitholeData}
-              pendingChatText={pendingChatText}
-              onSetActiveConversationId={setActiveConversationId}
-              onSetRabbitholeConversations={setRabbitholeConversations}
-              onTextAdded={handleTextAdded}
-              onBlockSelectionRequest={handleBlockSelectionRequest}
-              onUpdateBlockMetadata={updateBlockMetadata}
-              onFetchBlocks={fetchBlocks}
-              onOpenBlockWithNote={blockOverlayManager.handleOpenBlockWithNote}
-              getBlockMetadata={(blockId: string) => {
-                const block = blocks.find(b => b.id === blockId);
-                return block?.metadata || {};
-              }}
-              currentPage={currentPage}
-              blocks={blocks}
-            />
+              {/* Chat content only when expanded */}
+              {!isChatCollapsed && (
+                <ChatSidebar
+                  documentId={documentId}
+                  selectedBlock={blockOverlayManager.selectedBlock}
+                  mainConversationId={documentState.data?.main_conversation_id}
+                  activeConversationId={activeConversationId}
+                  rabbitholeConversations={rabbitholeConversations}
+                  rabbitholeData={rabbitholeData}
+                  pendingChatText={pendingChatText}
+                  onSetActiveConversationId={setActiveConversationId}
+                  onSetRabbitholeConversations={setRabbitholeConversations}
+                  onTextAdded={handleTextAdded}
+                  onBlockSelectionRequest={handleBlockSelectionRequest}
+                  onUpdateBlockMetadata={updateBlockMetadata}
+                  onFetchBlocks={fetchBlocks}
+                  onOpenBlockWithNote={blockOverlayManager.handleOpenBlockWithNote}
+                  getBlockMetadata={(blockId: string) => {
+                    const block = blocks.find(b => b.id === blockId);
+                    return block?.metadata || {};
+                  }}
+                  currentPage={currentPage}
+                  blocks={blocks}
+                />
+              )}
             </div>
           </Panel>
         </PanelGroup>
+        {/* Header contains the chat toggle button, so no extra overlay needed */}
         </div>
       </div>
 

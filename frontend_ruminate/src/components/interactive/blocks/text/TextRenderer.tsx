@@ -12,6 +12,7 @@ import ReactAnnotationHighlight from './HighlightOverlay/AnnotationHighlight';
 import { useAnnotations } from '../../../../hooks/useAnnotations';
 import { useDefinitions } from '../../../../hooks/useDefinitions';
 import { createPortal } from 'react-dom';
+import { useTextInteraction } from './TextInteractionContext';
 
 interface TextRendererProps {
   htmlContent: string;
@@ -41,7 +42,7 @@ interface TextRendererProps {
     };
     [key: string]: any;
   };
-  onAddTextToChat?: (text: string) => void;
+  onAddTextToChat?: (text: string, blockId?: string) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRabbitholeClick?: (
     id: string, 
@@ -87,6 +88,10 @@ const TextRenderer: React.FC<TextRendererProps> = ({
 }) => {
   // Use metadata directly from props - no local state needed
   const metadata = initialMetadata;
+  
+  const textInteraction = (() => {
+    try { return useTextInteraction(); } catch { return null; }
+  })();
   
   // CRUD hooks for annotations and definitions
   const { saveAnnotation, deleteAnnotation } = useAnnotations({
@@ -144,38 +149,48 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     if (!interactionEnabled) {
       return;
     }
+    // If global interaction is available, open tooltip there and return
+    if (textInteraction) {
+      if (contentRef.current) {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const preSelectionRange = range.cloneRange();
+          preSelectionRange.selectNodeContents(contentRef.current);
+          preSelectionRange.setEnd(range.startContainer, range.startOffset);
+          const startOffset = preSelectionRange.toString().length;
+          const endOffset = startOffset + text.length;
+          textInteraction.openTooltip({
+            blockId,
+            documentId,
+            position,
+            selectedText: text,
+            startOffset,
+            endOffset,
+          });
+          return;
+        }
+      }
+    }
+    // Fallback to local tooltip flow
     setSelectedText(text);
     setTooltipPosition(position);
     setTooltipVisible(true);
     
-    // Trigger onboarding callback if provided (for step 4)
     if (onTextSelectionForOnboarding) {
       onTextSelectionForOnboarding();
     }
     
-    // Calculate text offsets for the selected text
     if (contentRef.current) {
       const selection = window.getSelection();
-      
-      // If we have a selection, try to get the range and offsets
       if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        
-        // Find container nodes to calculate offsets
         const preSelectionRange = range.cloneRange();
         preSelectionRange.selectNodeContents(contentRef.current);
         preSelectionRange.setEnd(range.startContainer, range.startOffset);
         const startOffset = preSelectionRange.toString().length;
-        
-        // Calculate end offset
         const endOffset = startOffset + text.length;
-        
-        // Save selection range data
-        setSelectedRange({
-          text,
-          startOffset,
-          endOffset
-        });
+        setSelectedRange({ text, startOffset, endOffset });
       }
     }
   };
@@ -184,7 +199,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
   // Handle adding text to chat
   const handleAddToChat = (text: string) => {
     if (onAddTextToChat) {
-      onAddTextToChat(text);
+      onAddTextToChat(text, blockId);
     }
     
     // Only hide tooltip, don't clear selection yet
@@ -362,11 +377,14 @@ const TextRenderer: React.FC<TextRendererProps> = ({
     // If clicking on the content (not a highlight), close tooltips
     if ((e.target as HTMLElement).closest('.rabbithole-highlight, .definition-highlight, .annotation-highlight')) {
       // Don't close tooltips if clicking a highlight
+      // Also prevent parent containers from treating this as a block focus click
+      e.stopPropagation();
       return;
     }
     
     // Don't clear selection if annotation editor is open
     if (annotationVisible) {
+      e.stopPropagation();
       return;
     }
     
@@ -474,7 +492,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
       
       {/* Text selection tooltip */}
-      {interactionEnabled && tooltipVisible && createPortal(
+      {interactionEnabled && !textInteraction && tooltipVisible && createPortal(
         <TextSelectionTooltip
           isVisible={true}
           position={tooltipPosition}
@@ -500,6 +518,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       )}
       
       {interactionEnabled && definitionVisible && (selectedRange || definitionOffsets) && createPortal(
+      // Keep local definition popup only if no global interaction present
         <DefinitionPopup
           isVisible={definitionVisible}
           term={definitionWord}
@@ -521,6 +540,7 @@ const TextRenderer: React.FC<TextRendererProps> = ({
       
       {/* Annotation editor */}
       {interactionEnabled && annotationVisible && selectedRange && createPortal(
+      // Keep local annotation editor only if no global interaction present
         <AnnotationEditor
           isVisible={annotationVisible}
           position={annotationPosition}

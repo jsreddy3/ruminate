@@ -145,14 +145,12 @@ class ReadingProgressRequest(BaseModel):
 class EnhancedDefinitionResponse(BaseModel):
     """Enhanced response schema for definition with positioning data"""
     term: str
-    definition: Optional[str] = Field(None, description="The definition text, or None if approval is required")
+    definition: Optional[str] = Field(None, description="The definition text")
     text_start_offset: int
     text_end_offset: int
     created_at: datetime
     context: Optional[str] = Field(None, description="The context used to generate the definition")
     block_id: str
-    approval_id: Optional[str] = Field(None, description="Approval ID if definition requires debug approval")
-    requires_approval: Optional[bool] = Field(False, description="Whether this definition requires approval")
     
     class Config:
         json_encoders = {

@@ -97,10 +97,10 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
       </div>
 
       {isExpanded && (
-        <BasePopover
+      <BasePopover
           isVisible={true}
           position={{ x: (containerRef.current?.getBoundingClientRect().right || 0) + 8, y: containerRef.current?.getBoundingClientRect().top || 0 }}
-          onClose={() => setIsExpanded(false)}
+        onClose={() => setIsExpanded(false)}
           initialWidth={360}
           initialHeight={'auto'}
           showCloseButton
@@ -108,7 +108,7 @@ const ConversationLibrary: React.FC<ConversationLibraryProps> = ({
           <div className="p-3">
             <div className="text-sm text-reading-secondary">Deprecated UI</div>
           </div>
-        </BasePopover>
+      </BasePopover>
       )}
     </div>
   );

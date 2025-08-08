@@ -82,7 +82,7 @@ async def post_message(
         parent_id=str(req.parent_id) if req.parent_id is not None else None,
         user_id=current_user.id,
         selected_block_id=req.selected_block_id,
-        debug_mode=True,  # HARDCODED TO TRUE
+        debug_mode=False,
     )
     return {"user_id": user_id, "ai_id": ai_id}
 
@@ -104,7 +104,7 @@ async def edit_message(
         new_content=req.content,
         user_id=current_user.id,
         selected_block_id=req.selected_block_id,
-        debug_mode=True,  # HARDCODED TO TRUE
+        debug_mode=False,
     )
     return {"user_id": edited_id, "ai_id": ai_id}
 

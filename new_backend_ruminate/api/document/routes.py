@@ -465,7 +465,7 @@ async def get_definition(
             text_end_offset=request.text_end_offset,
             surrounding_text=request.surrounding_text,
             user_id=current_user.id,
-            debug_mode=True  # HARDCODED TO TRUE
+            debug_mode=False
         )
         
         return EnhancedDefinitionResponse(
@@ -475,9 +475,7 @@ async def get_definition(
             text_end_offset=definition_result["text_end_offset"],
             created_at=definition_result["created_at"],
             context=definition_result.get("context"),
-            block_id=definition_result["block_id"],
-            approval_id=definition_result.get("approval_id"),
-            requires_approval=definition_result.get("requires_approval", False)
+            block_id=definition_result["block_id"]
         )
         
     except ValueError as e:
@@ -486,46 +484,6 @@ async def get_definition(
         raise HTTPException(status_code=500, detail=f"Error generating definition: {str(e)}")
 
 
-@router.post("/{document_id}/define-after-approval")
-async def get_definition_after_approval(
-    document_id: str,
-    request: DefinitionRequest,
-    current_user: User = Depends(get_current_user),
-    svc: DocumentService = Depends(get_document_service)
-):
-    """
-    Get a definition after approval has been completed.
-    This endpoint is called after the debug approval flow.
-    """
-    try:
-        # Call the service method without debug mode to actually generate
-        definition_result = await svc.get_term_definition(
-            document_id=document_id,
-            block_id=request.block_id,
-            term=request.term,
-            text_start_offset=request.text_start_offset,
-            text_end_offset=request.text_end_offset,
-            surrounding_text=request.surrounding_text,
-            user_id=current_user.id,
-            debug_mode=False  # No debug mode - just generate
-        )
-        
-        return EnhancedDefinitionResponse(
-            term=definition_result["term"],
-            definition=definition_result.get("definition"),
-            text_start_offset=definition_result["text_start_offset"],
-            text_end_offset=definition_result["text_end_offset"],
-            created_at=definition_result["created_at"],
-            context=definition_result.get("context"),
-            block_id=definition_result["block_id"],
-            approval_id=definition_result.get("approval_id"),
-            requires_approval=definition_result.get("requires_approval", False)
-        )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating definition: {str(e)}")
 
 
 @router.post("/{document_id}/blocks/{block_id}/annotate")

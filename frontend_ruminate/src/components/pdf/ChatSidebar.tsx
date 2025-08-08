@@ -48,28 +48,28 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {/* Chat container - always main conversation in sidebar */}
       <div className="flex-1 overflow-hidden">
         {mainConversationId ? (
-          <ChatContainer 
-            key={`main-chat-${mainConversationId}`}
-            documentId={documentId}
-            selectedBlock={selectedBlock}
-            conversationId={mainConversationId}
-            conversationType="main"
-            pendingText={pendingChatText}
-            onTextAdded={onTextAdded}
-            onRequestBlockSelection={onBlockSelectionRequest}
-            onUpdateBlockMetadata={onUpdateBlockMetadata}
-            onBlockMetadataUpdate={() => {
-              onFetchBlocks();
-            }}
-            onOpenBlockWithNote={onOpenBlockWithNote}
-            getBlockMetadata={getBlockMetadata}
-            currentPage={currentPage}
-            blocks={blocks}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            Initializing conversation...
-          </div>
+            <ChatContainer 
+              key={`main-chat-${mainConversationId}`}
+              documentId={documentId}
+              selectedBlock={selectedBlock}
+              conversationId={mainConversationId}
+              conversationType="main"
+              pendingText={pendingChatText}
+              onTextAdded={onTextAdded}
+              onRequestBlockSelection={onBlockSelectionRequest}
+              onUpdateBlockMetadata={onUpdateBlockMetadata}
+              onBlockMetadataUpdate={() => {
+                onFetchBlocks();
+              }}
+              onOpenBlockWithNote={onOpenBlockWithNote}
+              getBlockMetadata={getBlockMetadata}
+              currentPage={currentPage}
+              blocks={blocks}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              Initializing conversation...
+            </div>
         )}
       </div>
     </div>

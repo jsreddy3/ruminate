@@ -103,8 +103,6 @@ export const documentApi = {
     created_at: string;
     context?: string;
     block_id: string;
-    approval_id?: string;
-    requires_approval?: boolean;
   }> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/define`, {
       method: 'POST',
@@ -122,43 +120,6 @@ export const documentApi = {
     
     if (!response.ok) {
       throw new Error("Failed to get definition");
-    }
-    
-    return response.json();
-  },
-
-  getTermDefinitionAfterApproval: async (
-    documentId: string, 
-    blockId: string, 
-    term: string,
-    textStartOffset: number,
-    textEndOffset: number,
-    surroundingText?: string
-  ): Promise<{ 
-    term: string; 
-    definition: string; 
-    text_start_offset: number;
-    text_end_offset: number;
-    created_at: string;
-    context?: string;
-    block_id: string;
-  }> => {
-    const response = await authenticatedFetch(`${API_BASE_URL}/documents/${documentId}/define-after-approval`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        term,
-        block_id: blockId,
-        text_start_offset: textStartOffset,
-        text_end_offset: textEndOffset,
-        surrounding_text: surroundingText
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error("Failed to get definition after approval");
     }
     
     return response.json();

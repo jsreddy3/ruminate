@@ -17,7 +17,7 @@ interface BlockNavigatorProps {
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onRefreshRabbitholes?: (refreshFn: () => void) => void;
-  onAddTextToChat?: (text: string) => void;
+  onAddTextToChat?: (text: string, blockId?: string) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
   onSwitchToMainChat?: () => void;
   onTextSelectionForOnboarding?: () => void;

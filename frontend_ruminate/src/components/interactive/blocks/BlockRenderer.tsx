@@ -42,7 +42,7 @@ interface BlockRendererProps {
     insight: string;
   }>;
   rabbitholeHighlights?: RabbitholeHighlight[];
-  onAddTextToChat?: (text: string) => void;
+  onAddTextToChat?: (text: string, blockId?: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
   onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;

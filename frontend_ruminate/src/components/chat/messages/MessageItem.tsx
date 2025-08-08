@@ -107,18 +107,56 @@ const MessageItem: React.FC<MessageItemProps> = ({
       <div className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}>
         <div className={`max-w-[92%] rounded-md ${styles.container} p-2`}> 
           {/* Tiny header row */}
-          <div className="flex items-center gap-1.5 mb-1 min-h-[14px]">
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
-            <span className="text-[11px] font-medium text-gray-600 truncate max-w-[70%]">{roleLabel}</span>
+          <div className="flex items-center justify-between gap-1.5 mb-1 min-h-[14px]">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
+              <span className="text-[11px] font-medium text-gray-600 truncate max-w-[70%]">{roleLabel}</span>
+            </div>
+            {canEdit && !isStreaming && (
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="p-1 text-gray-500 hover:text-gray-700 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
+                title={isEditing ? 'Cancel editing' : 'Edit message'}
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                </svg>
+              </button>
+            )}
           </div>
-          <div className="text-sm leading-6 text-reading-primary">
-            <MessageContentRenderer
-              content={message.content}
-              role={message.role as MessageRole}
-              isStreaming={isStreaming}
-              streamingContent={streamingContent}
-              disableDropCap={true}
-            />
+          <div className="text-sm leading-6 text-reading-primary px-1.5 py-0.5">
+            {isEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={3}
+                  className="w-full p-2 text-sm font-serif border border-gray-300 rounded focus:outline-none focus:border-gray-500 bg-white"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEditSubmit}
+                    className="px-2 py-1 text-xs rounded bg-library-mahogany-600 text-white hover:bg-library-mahogany-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <MessageContentRenderer
+                content={message.content}
+                role={message.role as MessageRole}
+                isStreaming={isStreaming}
+                streamingContent={streamingContent}
+                disableDropCap={true}
+              />
+            )}
           </div>
         </div>
       </div>

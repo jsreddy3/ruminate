@@ -182,14 +182,14 @@ const TextSelectionTooltip: React.FC<TextSelectionTooltipProps> = ({
           {defaultActions.map((action, index) => (
             <button
               key={`${action.label}-${index}`}
-              onMouseUp={(e) => {
-                // Use mouseup instead of onClick during onboarding steps 5 and 6
-                if ((isOnboardingStep5 || isOnboardingStep6) && !action.disabled && action.onClick) {
+              onMouseUp={(isOnboardingStep5 || isOnboardingStep6) ? ((e) => {
+                // During onboarding, handle onMouseUp and suppress onClick
+                if (!action.disabled && action.onClick) {
                   e.preventDefault();
                   e.stopPropagation();
                   action.onClick();
                 }
-              }}
+              }) : undefined}
               className={`px-3 py-1.5 rounded flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 font-serif relative ${
                 action.disabled 
                   ? 'text-library-sage-400 cursor-not-allowed bg-library-sage-50 opacity-30' 

@@ -58,7 +58,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   
   // Zoom state - scholarly zoom levels
-  const [zoomLevel, setZoomLevel] = useState(1.15);
+  const [zoomLevel, setZoomLevel] = useState(1.0);
   const [isZoomCollapsed, setIsZoomCollapsed] = useState(true); // Start collapsed
   const containerRef = useRef<HTMLDivElement>(null);
   

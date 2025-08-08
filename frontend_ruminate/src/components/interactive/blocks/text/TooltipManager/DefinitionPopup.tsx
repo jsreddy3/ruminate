@@ -15,6 +15,9 @@ interface DefinitionPopupProps {
   savedDefinition?: string; // If provided, show this instead of fetching
   onClose: () => void;
   onDefinitionSaved?: (term: string, definition: string, startOffset: number, endOffset: number, fullResponse?: any) => void; // Callback when a new definition is saved
+  // New optional props to integrate with global overlay orchestration
+  loading?: boolean;
+  disableFetch?: boolean;
 }
 
 const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
@@ -27,17 +30,31 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
   blockId,
   savedDefinition,
   onClose,
-  onDefinitionSaved
+  onDefinitionSaved,
+  loading: externalLoading,
+  disableFetch = false
 }) => {
   const [definition, setDefinition] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Approval flow removed; always fetch definition directly
+  // Approval flow removed; always fetch definition directly unless disabled
 
-  // Fetch definition when popup becomes visible (only if not a saved definition)
+  // Initialize with savedDefinition if provided
+  useEffect(() => {
+    if (savedDefinition) {
+      setDefinition(savedDefinition);
+      setIsLoading(false);
+      setError(null);
+    } else {
+      setDefinition('');
+    }
+  }, [savedDefinition]);
+
+  // Fetch definition when popup becomes visible (only if not a saved definition and not disabled)
   useEffect(() => {
     if (!isVisible) return;
-    
+    if (disableFetch) return;
+
     // If we have a saved definition, use it directly
     if (savedDefinition) {
       setDefinition(savedDefinition);
@@ -74,9 +91,9 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
     };
     
     fetchDefinition();
-  }, [isVisible, term, documentId, blockId, savedDefinition]); // Removed onDefinitionSaved to prevent infinite loop
+  }, [isVisible, term, documentId, blockId, savedDefinition, disableFetch, textStartOffset, textEndOffset, onDefinitionSaved]);
 
-
+  const effectiveLoading = Boolean(externalLoading) || isLoading;
 
   return (
     <BasePopover
@@ -102,7 +119,7 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
       <div className="p-5 flex flex-col h-full">
         <div className="font-serif font-semibold text-reading-primary mb-2 text-xl border-b border-library-sage-200 pb-2">{term}</div>
         <div className="text-reading-secondary text-lg mt-3 flex-1 font-serif leading-relaxed">
-          {isLoading ? (
+          {effectiveLoading ? (
             <div className="flex items-center gap-3 text-library-gold-600">
               <Loader size={18} className="animate-spin" />
               <span className="font-serif">Consulting scholarly sources...</span>
@@ -118,14 +135,16 @@ const DefinitionPopup: React.FC<DefinitionPopupProps> = ({
         
         {/* Elegant footer with flourish */}
         <div className="pt-4 mt-4 border-t border-library-sage-200 text-base text-reading-muted relative">
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-            <div className="w-4 h-1 bg-library-gold-300 rounded-full opacity-60"></div>
+          <div className="absolute -top-2 left-0 right-0 flex justify-center">
+            <div className="w-12 h-1 bg-library-gold-300 rounded-full"></div>
           </div>
-          <span className="font-sans italic">Definition derived from document context</span>
+          <div className="flex items-center justify-between">
+            <span className="font-serif">Context-aware definition</span>
+          </div>
         </div>
       </div>
     </BasePopover>
   );
-};
+}
 
 export default DefinitionPopup;
