@@ -18,6 +18,16 @@ kill_timeout = '5s'
 
 [env]
   PORT = '8000'
+  # Defaults for ingestion + Redis backends (override via fly secrets in prod)
+  UPLOAD_PIPELINE_MODE = 'ingestion'
+  QUEUE_BACKEND = 'redis'
+  EVENT_BACKEND = 'redis'
+  # REDIS_URL is set via fly secrets
+
+# Define separate processes for API and worker
+[processes]
+  app = "uvicorn new_backend_ruminate.main:app --host 0.0.0.0 --port 8000"
+  worker = "python -m new_backend_ruminate.worker.processor"
 
 [http_service]
   internal_port = 8000
