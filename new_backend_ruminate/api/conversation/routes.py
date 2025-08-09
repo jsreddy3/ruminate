@@ -24,10 +24,13 @@ from new_backend_ruminate.dependencies import (
     get_session,
     get_current_user,
     get_current_user_from_query_token,
+    get_text_enhancement_service,
 )
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.services.conversation.service import ConversationService
 from new_backend_ruminate.services.document.service import DocumentService
+from new_backend_ruminate.services.document.text_enhancement_service import TextEnhancementService
+from new_backend_ruminate.infrastructure.document.rds_text_enhancement_repository import RDSTextEnhancementRepository
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 
 router = APIRouter(prefix="/conversations")
@@ -41,6 +44,8 @@ async def create_conversation(
     body: Optional[CreateConversationRequest] = None,
     current_user: User = Depends(get_current_user),
     svc: ConversationService = Depends(get_conversation_service),
+    text_enhancement_svc: TextEnhancementService = Depends(get_text_enhancement_service),
+    session: AsyncSession = Depends(get_session),
 ):
     """
     Create a new conversation.
@@ -63,6 +68,26 @@ async def create_conversation(
             text_start_offset=body.text_start_offset,
             text_end_offset=body.text_end_offset
         )
+        
+        # If this is a rabbithole conversation, also create a text enhancement
+        if (body.type.value.lower() == "rabbithole" and 
+            body.document_id and 
+            body.source_block_id and 
+            body.selected_text is not None and
+            body.text_start_offset is not None and 
+            body.text_end_offset is not None):
+            
+            # Create text enhancement for this rabbithole
+            await text_enhancement_svc.create_rabbithole_enhancement(
+                conversation_id=conv_id,
+                document_id=body.document_id,
+                block_id=body.source_block_id,
+                selected_text=body.selected_text,
+                text_start_offset=body.text_start_offset,
+                text_end_offset=body.text_end_offset,
+                user_id=current_user.id,
+                session=session
+            )
     
     return {"conversation_id": conv_id, "system_msg_id": root_id}
 

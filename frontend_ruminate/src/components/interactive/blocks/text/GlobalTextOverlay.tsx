@@ -4,15 +4,15 @@ import { useTextInteraction } from './TextInteractionContext';
 import TextSelectionTooltip from './TooltipManager/TextSelectionTooltip';
 import DefinitionPopup from './TooltipManager/DefinitionPopup';
 import AnnotationEditor from './TooltipManager/AnnotationEditor';
-import { documentApi } from '@/services/api/document';
 
 interface GlobalTextOverlayProps {
   onAddToChat?: (docId: string, blockId: string, text: string) => void;
   onCreateRabbithole?: (docId: string, blockId: string, text: string, start: number, end: number) => void;
-  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onCreateDefinition?: (blockId: string, term: string, startOffset: number, endOffset: number, context?: string) => Promise<any>;
+  onCreateAnnotation?: (blockId: string, text: string, note: string, startOffset: number, endOffset: number) => Promise<any>;
 }
 
-export default function GlobalTextOverlay({ onAddToChat, onCreateRabbithole, onUpdateBlockMetadata }: GlobalTextOverlayProps) {
+export default function GlobalTextOverlay({ onAddToChat, onCreateRabbithole, onCreateDefinition, onCreateAnnotation }: GlobalTextOverlayProps) {
   const { state, close, openDefinition, openAnnotation } = useTextInteraction();
   const [saving, setSaving] = useState(false);
 
@@ -37,38 +37,29 @@ export default function GlobalTextOverlay({ onAddToChat, onCreateRabbithole, onU
               loading: true,
               disableFetch: true,
             });
-            const result = await documentApi.getTermDefinition(
-              t.documentId,
-              t.blockId,
-              text,
-              t.startOffset,
-              t.endOffset
-            );
-            if (result?.definition && onUpdateBlockMetadata) {
-              const key = `${t.startOffset}-${t.endOffset}`;
-              onUpdateBlockMetadata(t.blockId, {
-                definitions: {
-                  [key]: {
-                    term: text,
-                    definition: result.definition,
-                    text_start_offset: t.startOffset,
-                    text_end_offset: t.endOffset,
-                    created_at: new Date().toISOString(),
-                  }
-                }
+            
+            // Use new unified system
+            if (onCreateDefinition) {
+              const result = await onCreateDefinition(
+                t.blockId,
+                text,
+                t.startOffset,
+                t.endOffset,
+                window.getSelection?.()?.toString() || ''
+              );
+
+              // Reopen with saved definition
+              openDefinition({
+                position: t.position,
+                documentId: t.documentId,
+                blockId: t.blockId,
+                term: text,
+                startOffset: t.startOffset,
+                endOffset: t.endOffset,
+                savedDefinition: result.data.definition,
+                disableFetch: true,
               });
             }
-            // Reopen with saved definition (update context state)
-            openDefinition({
-              position: t.position,
-              documentId: t.documentId,
-              blockId: t.blockId,
-              term: text,
-              startOffset: t.startOffset,
-              endOffset: t.endOffset,
-              savedDefinition: result?.definition,
-              disableFetch: true,
-            });
           } catch (e) {
             // Fallback: open without savedDefinition; popup can fetch if allowed
             openDefinition({
@@ -115,20 +106,8 @@ export default function GlobalTextOverlay({ onAddToChat, onCreateRabbithole, onU
         savedDefinition={d.savedDefinition}
         onClose={close}
         onDefinitionSaved={(term, definition, start, end) => {
-          if (onUpdateBlockMetadata) {
-            const key = `${start}-${end}`;
-            onUpdateBlockMetadata(d.blockId, {
-              definitions: {
-                [key]: {
-                  term,
-                  definition,
-                  text_start_offset: start,
-                  text_end_offset: end,
-                  created_at: new Date().toISOString(),
-                }
-              }
-            });
-          }
+          // Definition saving is now handled by onDefine above
+          // No need for additional metadata updates
         }}
         loading={d.loading}
         disableFetch={d.disableFetch}
@@ -152,38 +131,15 @@ export default function GlobalTextOverlay({ onAddToChat, onCreateRabbithole, onU
         onSave={async (note: string) => {
           setSaving(true);
           try {
-            const result = await documentApi.createAnnotation(
-              a.documentId,
-              a.blockId,
-              a.selectedText,
-              note,
-              a.startOffset,
-              a.endOffset
-            );
-            if (result && onUpdateBlockMetadata && (result as any).id) {
-              const r = result as {
-                id: string;
-                text: string;
-                note: string;
-                text_start_offset: number;
-                text_end_offset: number;
-                created_at: string;
-                updated_at: string;
-              };
-              const key = `${a.startOffset}-${a.endOffset}`;
-              onUpdateBlockMetadata(a.blockId, {
-                annotations: {
-                  [key]: {
-                    id: r.id,
-                    text: r.text,
-                    note: r.note,
-                    text_start_offset: r.text_start_offset,
-                    text_end_offset: r.text_end_offset,
-                    created_at: r.created_at,
-                    updated_at: r.updated_at,
-                  }
-                }
-              });
+            // Use new unified system
+            if (onCreateAnnotation) {
+              await onCreateAnnotation(
+                a.blockId,
+                a.selectedText,
+                note,
+                a.startOffset,
+                a.endOffset
+              );
             }
           } finally {
             setSaving(false);

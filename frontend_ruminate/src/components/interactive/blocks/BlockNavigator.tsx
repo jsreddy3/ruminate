@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import BlockSeamlessView from './BlockSeamlessView';
+import DocumentViewSwitcher from './DocumentViewSwitcher';
 import { Block } from '../../pdf/PDFViewer';
 import { useBlockImages } from '../../../hooks/useBlockImages';
 
@@ -215,11 +215,12 @@ export default function BlockNavigator({
 
       {/* Seamless continuous view */}
       <div className="flex-1 overflow-hidden relative flex flex-col">
-        <BlockSeamlessView
+        <DocumentViewSwitcher
+          useOptimized={true}
           blocks={blocks}
           currentBlockId={currentBlock.id}
           documentId={documentId}
-          onBlockChange={(block) => {
+          onBlockChange={(block: Block) => {
             const newIndex = blocks.findIndex(b => b.id === block.id);
             if (newIndex !== -1) {
               setCurrentIndex(newIndex);
@@ -230,9 +231,6 @@ export default function BlockNavigator({
           }}
           onAddTextToChat={onAddTextToChat}
           onRabbitholeClick={onRabbitholeClick}
-          onRefreshRabbitholes={onRefreshRabbitholes}
-          onUpdateBlockMetadata={onUpdateBlockMetadata}
-          getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
           isArrowNavigationRef={isArrowNavigationRef}
         />
       </div>

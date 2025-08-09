@@ -1,6 +1,6 @@
 import { useRef, useSyncExternalStore } from 'react';
 import type { Block } from '../components/pdf/PDFViewer';
-import type { RabbitholeHighlight } from '../services/rabbithole';
+import type { TextEnhancement } from '../services/api/textEnhancements';
 
 type BlocksById = Record<string, Block>;
 
@@ -8,14 +8,14 @@ type State = {
   blocksById: BlocksById;
   blockOrder: string[];
   currentBlockId: string | null;
-  rabbitholesByBlockId: Record<string, RabbitholeHighlight[]>;
+  enhancementsByBlockId: Record<string, TextEnhancement[]>;
 };
 
 let state: State = {
   blocksById: {},
   blockOrder: [],
   currentBlockId: null,
-  rabbitholesByBlockId: {},
+  enhancementsByBlockId: {},
 };
 
 const listeners = new Set<() => void>();
@@ -36,6 +36,16 @@ function setState(partial: Partial<State>) {
 
 // Actions
 export const blocksActions = {
+  // Getter method for internal use (avoids triggering subscriptions)
+  getEnhancementsByBlockId(blockId: string): TextEnhancement[] {
+    return state.enhancementsByBlockId[blockId] || [];
+  },
+  getBlockOrder(): string[] {
+    return state.blockOrder;
+  },
+  getCurrentBlockId(): string | null {
+    return state.currentBlockId;
+  },
   initialize(blocks: Block[], currentBlockId: string | null) {
     const blocksById: BlocksById = {};
     const order: string[] = [];
@@ -69,18 +79,41 @@ export const blocksActions = {
     const updated = { ...existing, images } as Block;
     setState({ blocksById: { ...state.blocksById, [blockId]: updated } });
   },
-  setRabbitholes(blockId: string, highlights: RabbitholeHighlight[]) {
-    const next = { ...state.rabbitholesByBlockId, [blockId]: highlights };
-    setState({ rabbitholesByBlockId: next });
+  setEnhancements(blockId: string, enhancements: TextEnhancement[]) {
+    // Only update if enhancements actually changed
+    const current = state.enhancementsByBlockId[blockId];
+    if (current && arraysEqual(current, enhancements)) return;
+    
+    const next = { ...state.enhancementsByBlockId, [blockId]: enhancements };
+    setState({ enhancementsByBlockId: next });
   },
-  addRabbitholeHighlight(blockId: string, highlight: RabbitholeHighlight) {
-    const current = state.rabbitholesByBlockId[blockId] || [];
-    const keyOf = (h: RabbitholeHighlight) => `${(h as any).conversation_id || h.id || ''}:${h.text_start_offset}-${h.text_end_offset}`;
-    const map = new Map<string, RabbitholeHighlight>();
-    for (const h of current) map.set(keyOf(h), h);
-    map.set(keyOf(highlight), highlight);
-    const nextArr = Array.from(map.values());
-    setState({ rabbitholesByBlockId: { ...state.rabbitholesByBlockId, [blockId]: nextArr } });
+  addEnhancement(blockId: string, enhancement: TextEnhancement) {
+    const current = state.enhancementsByBlockId[blockId] || [];
+    
+    // Check if enhancement already exists to avoid duplicate updates
+    const existingIndex = current.findIndex(e => e.id === enhancement.id);
+    if (existingIndex >= 0) {
+      // Replace existing enhancement
+      if (enhancementsEqual(current[existingIndex], enhancement)) return; // No change
+      const nextArr = [...current];
+      nextArr[existingIndex] = enhancement;
+      setState({ enhancementsByBlockId: { ...state.enhancementsByBlockId, [blockId]: nextArr } });
+    } else {
+      // Add new enhancement, keeping array sorted by text position
+      const nextArr = [...current, enhancement].sort((a, b) => a.text_start_offset - b.text_start_offset);
+      setState({ enhancementsByBlockId: { ...state.enhancementsByBlockId, [blockId]: nextArr } });
+    }
+  },
+  removeEnhancement(blockId: string, enhancementId: string) {
+    const current = state.enhancementsByBlockId[blockId] || [];
+    const index = current.findIndex(e => e.id === enhancementId);
+    if (index === -1) return; // Enhancement not found, no update needed
+    
+    const filtered = current.filter((_, i) => i !== index);
+    setState({ enhancementsByBlockId: { ...state.enhancementsByBlockId, [blockId]: filtered } });
+  },
+  initializeEnhancements(enhancementsByBlock: Record<string, TextEnhancement[]>) {
+    setState({ enhancementsByBlockId: enhancementsByBlock });
   },
 };
 
@@ -101,19 +134,56 @@ export function useBlock(blockId: string) {
   return useBlocksSelector((s) => s.blocksById[blockId], (a, b) => a === b);
 }
 
-export function useBlockRabbitholes(blockId: string) {
-  return useBlocksSelector((s) => s.rabbitholesByBlockId[blockId] || [], (a, b) => {
+// Get all enhancements for a block, optionally filtered by type
+export function useBlockEnhancements(blockId: string, type?: 'DEFINITION' | 'ANNOTATION' | 'RABBITHOLE') {
+  return useBlocksSelector((s) => {
+    const enhancements = s.enhancementsByBlockId[blockId] || [];
+    return type ? enhancements.filter(e => e.type === type) : enhancements;
+  }, (a, b) => {
     if (a === b) return true;
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
-      const ka = `${(a[i] as any).conversation_id || a[i].id || ''}:${a[i].text_start_offset}-${a[i].text_end_offset}`;
-      const kb = `${(b[i] as any).conversation_id || b[i].id || ''}:${b[i].text_start_offset}-${b[i].text_end_offset}`;
-      if (ka !== kb) return false;
+      if (a[i].id !== b[i].id || a[i].text_start_offset !== b[i].text_start_offset || a[i].text_end_offset !== b[i].text_end_offset) return false;
     }
     return true;
   });
 }
 
+// Backwards compatibility - get only rabbithole enhancements
+export function useBlockRabbitholes(blockId: string) {
+  return useBlockEnhancements(blockId, 'RABBITHOLE');
+}
+
+// Convenience selectors for specific enhancement types
+export function useBlockDefinitions(blockId: string) {
+  return useBlockEnhancements(blockId, 'DEFINITION');
+}
+
+export function useBlockAnnotations(blockId: string) {
+  return useBlockEnhancements(blockId, 'ANNOTATION');
+}
+
 export function useCurrentBlockId() {
   return useBlocksSelector((s) => s.currentBlockId, (a, b) => a === b);
+}
+
+// Helper functions for performance optimization
+function arraysEqual<T>(a: T[], b: T[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false; // Reference equality for objects
+  }
+  return true;
+}
+
+function enhancementsEqual(a: TextEnhancement, b: TextEnhancement): boolean {
+  return (
+    a.id === b.id &&
+    a.text_start_offset === b.text_start_offset &&
+    a.text_end_offset === b.text_end_offset &&
+    a.text === b.text &&
+    a.type === b.type &&
+    JSON.stringify(a.data) === JSON.stringify(b.data) // Deep compare data
+  );
 } 

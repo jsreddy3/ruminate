@@ -23,9 +23,11 @@ from new_backend_ruminate.api.document.schemas import (
     ReadingProgressRequest
 )
 from new_backend_ruminate.services.document.service import DocumentService
-from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token, get_storage_service
+from new_backend_ruminate.dependencies import get_session, get_document_service, get_current_user, get_current_user_from_query_token, get_storage_service, get_ingestion_service
 from new_backend_ruminate.domain.user.entities.user import User
 from new_backend_ruminate.utils.file_validator import PDFValidator, SecurityScanner
+from new_backend_ruminate.services.document.ingestion_service import IngestionService
+from new_backend_ruminate.config import settings
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -82,7 +84,8 @@ async def upload_document(
     file: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user),
     svc: DocumentService = Depends(get_document_service),
-    storage = Depends(get_storage_service)
+    storage = Depends(get_storage_service),
+    ingestion: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Upload a PDF document for processing
@@ -91,69 +94,95 @@ async def upload_document(
     1. A PDF file upload (multipart/form-data)
     2. A JSON body with s3_key and filename (for files already uploaded to S3)
     
-    Both paths use the same processing logic.
     Returns immediately with document ID while processing continues in background.
     """
     
-    # Check if this is a file upload or S3 URL upload
     content_type = request.headers.get("content-type", "")
-    
+
+    # New ingestion pipeline path
+    if settings().upload_pipeline_mode == "ingestion":
+        try:
+            if file and file.filename:
+                # Stream to storage via ingestion service (no deep validation here)
+                document = await ingestion.create_document_and_enqueue(
+                    user_id=current_user.id,
+                    filename=file.filename,
+                    file_stream=file.file,
+                )
+            elif "application/json" in content_type:
+                body = await request.json()
+                s3_request = S3UploadRequest(**body)
+                document = await ingestion.create_document_and_enqueue(
+                    user_id=current_user.id,
+                    filename=s3_request.filename,
+                    s3_key=s3_request.s3_key,
+                )
+            else:
+                raise HTTPException(status_code=400, detail="Must provide either a file upload or JSON body with s3_key")
+
+            return DocumentUploadResponse(
+                document=DocumentResponse(
+                    id=document.id,
+                    user_id=document.user_id,
+                    status=document.status,
+                    title=document.title,
+                    summary=document.summary,
+                    created_at=document.created_at,
+                    updated_at=document.updated_at,
+                    processing_error=document.processing_error,
+                    parent_document_id=document.parent_document_id,
+                    batch_id=document.batch_id,
+                    chunk_index=document.chunk_index,
+                    total_chunks=document.total_chunks,
+                    is_auto_processed=document.is_auto_processed,
+                    main_conversation_id=document.main_conversation_id,
+                    document_info=document.document_info,
+                )
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            import traceback
+            print(f"[Upload Route - Ingestion] Unexpected error: {type(e).__name__}: {str(e)}")
+            print(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Legacy path (existing behavior)
+    # Check if this is a file upload or S3 URL upload
     if file and file.filename:
         # Traditional file upload path with comprehensive validation
-        
         # Step 1: Comprehensive PDF validation
         PDFValidator.validate_and_raise(file)
-        
         # Step 2: Security scanning and read file content once
         file_content = await file.read()
-        
         is_safe, security_warning = SecurityScanner.is_pdf_safe(file_content)
         if not is_safe:
             raise HTTPException(
                 status_code=422, 
                 detail=f"PDF contains potentially dangerous content: {security_warning}"
             )
-        
         filename = file.filename
-        s3_key = None  # No pre-existing S3 key for direct uploads
-        
+        s3_key = None
     elif "application/json" in content_type:
-        # S3 URL upload path - pass S3 key directly without downloading
         try:
             body = await request.json()
             s3_request = S3UploadRequest(**body)
-            
-            print(f"[Upload Route] Processing S3 upload with key: {s3_request.s3_key}")
-            
-            # For S3 uploads, we'll pass the key directly to avoid re-downloading
             filename = s3_request.filename
             s3_key = s3_request.s3_key
-            file_content = None  # Will be downloaded by service if needed
-            
+            file_content = None
         except Exception as e:
-            print(f"[Upload Route] Error processing S3 request: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to process S3 upload: {str(e)}")
-    
     else:
-        raise HTTPException(
-            status_code=400, 
-            detail="Must provide either a file upload or JSON body with s3_key"
-        )
+        raise HTTPException(status_code=400, detail="Must provide either a file upload or JSON body with s3_key")
     
-    # Now use the SAME upload logic regardless of source
     try:
-        print(f"[Upload Route] Starting upload for file: {filename}")
-        
         document = await svc.upload_document(
             background=background_tasks,
             file_content=file_content,
             filename=filename,
             user_id=current_user.id,
-            s3_key=s3_key  # Pass S3 key if available
+            s3_key=s3_key
         )
-        
-        print(f"[Upload Route] Upload successful, document ID: {document.id}")
-        
         return DocumentUploadResponse(
             document=DocumentResponse(
                 id=document.id,
@@ -173,13 +202,11 @@ async def upload_document(
                 document_info=document.document_info
             )
         )
-        
     except ValueError as e:
-        print(f"[Upload Route] ValueError: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        print(f"[Upload Route] Unexpected error: {type(e).__name__}: {str(e)}")
         import traceback
+        print(f"[Upload Route] Unexpected error: {type(e).__name__}: {str(e)}")
         print(f"[Upload Route] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 

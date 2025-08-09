@@ -25,6 +25,7 @@ from new_backend_ruminate.dependencies import get_event_hub  # optional: expose 
 from new_backend_ruminate.api.conversation.routes import router as conversation_router
 from new_backend_ruminate.api.conversation.prompt_approval_routes import router as prompt_approval_router
 from new_backend_ruminate.api.document.routes import router as document_router
+from new_backend_ruminate.api.document.text_enhancement_routes import router as text_enhancement_router
 # from new_backend_ruminate.api.document.definition_approval_routes import router as definition_approval_router
 from new_backend_ruminate.api.auth.routes import router as auth_router
 from new_backend_ruminate.middleware.security import (
@@ -56,6 +57,7 @@ app.add_middleware(
 
 app.include_router(conversation_router)          # ← this line wires /conversations/…
 app.include_router(document_router)              # ← this line wires /documents/…
+app.include_router(text_enhancement_router)      # ← this line wires /documents/{id}/text-enhancements/…
 # app.include_router(definition_approval_router)   # disabled: remove definition approval endpoints
 app.include_router(auth_router)                  # ← this line wires /auth/…
 

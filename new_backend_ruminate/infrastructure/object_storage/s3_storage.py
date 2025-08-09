@@ -30,25 +30,53 @@ class S3ObjectStorage(ObjectStorageInterface):
         )
     
     async def upload_file(self, file: BinaryIO, key: str, content_type: Optional[str] = None) -> str:
-        """Upload a file to S3"""
-        # Read file content
-        file.seek(0)
-        content = file.read()
-        
+        """Upload a file to S3 (streaming)."""
         async with self.session.client('s3') as s3:
             extra_args = {}
             if content_type:
                 extra_args['ContentType'] = content_type
-            
-            await s3.put_object(
+            # aioboto3 doesn't expose upload_fileobj directly; emulate by reading chunks
+            file.seek(0)
+            CHUNK_SIZE = 8 * 1024 * 1024  # 8MB chunks
+            multipart_upload = await s3.create_multipart_upload(
                 Bucket=self.bucket_name,
                 Key=key,
-                Body=content,
                 **extra_args
             )
+            upload_id = multipart_upload['UploadId']
+            parts = []
+            part_number = 1
+            try:
+                while True:
+                    chunk = file.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    resp = await s3.upload_part(
+                        Bucket=self.bucket_name,
+                        Key=key,
+                        PartNumber=part_number,
+                        UploadId=upload_id,
+                        Body=chunk,
+                    )
+                    parts.append({'ETag': resp['ETag'], 'PartNumber': part_number})
+                    part_number += 1
+                await s3.complete_multipart_upload(
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    MultipartUpload={'Parts': parts},
+                    UploadId=upload_id,
+                )
+            except Exception:
+                # Abort on error
+                await s3.abort_multipart_upload(
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    UploadId=upload_id
+                )
+                raise
         
         return f"s3://{self.bucket_name}/{key}"
-    
+
     async def download_file(self, key: str) -> bytes:
         """Download a file from S3"""
         async with self.session.client('s3') as s3:
@@ -59,6 +87,26 @@ class S3ObjectStorage(ObjectStorageInterface):
                 )
                 content = await response['Body'].read()
                 return content
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'NoSuchKey':
+                    raise FileNotFoundError(f"File not found: {key}")
+                raise
+
+    async def download_to_path(self, key: str, dest_path: str) -> None:
+        """Stream-download a file to a destination path without loading into memory."""
+        async with self.session.client('s3') as s3:
+            try:
+                response = await s3.get_object(
+                    Bucket=self.bucket_name,
+                    Key=key
+                )
+                body = response['Body']
+                with open(dest_path, 'wb') as f:
+                    while True:
+                        chunk = await body.read(8 * 1024 * 1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
             except ClientError as e:
                 if e.response['Error']['Code'] == 'NoSuchKey':
                     raise FileNotFoundError(f"File not found: {key}")

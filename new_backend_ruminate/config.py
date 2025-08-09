@@ -54,6 +54,8 @@ class _Settings(BaseSettings):
     marker_api_key: Optional[str] = None
     marker_max_poll_attempts: int = 300          # 10 minutes with 2s intervals
     marker_poll_interval: int = 2                # seconds
+    processing_mode: str = "inproc"             # inproc | queue
+    upload_pipeline_mode: str = "inproc"        # inproc | ingestion
 
     # ------------------------------------------------------------------ #
     # Authentication                                                     #
@@ -69,6 +71,13 @@ class _Settings(BaseSettings):
     # Template Documents (for new user onboarding)                      #
     # ------------------------------------------------------------------ #
     template_document_ids: Optional[str] = "7e89a199-51ad-4cb6-b59e-2f72dece26c6"  # Comma-separated list of document IDs to clone for new users
+
+    # ------------------------------------------------------------------ #
+    # Events & Queue                                                     #
+    # ------------------------------------------------------------------ #
+    event_backend: str = "inproc"               # inproc | redis
+    queue_backend: str = "inproc"               # inproc | redis
+    redis_url: str = "redis://localhost:6379/0"
 
     # ------------------------------------------------------------------ #
     # Misc                                                                #

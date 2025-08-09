@@ -36,3 +36,31 @@ def agent_system_prompt(tools: list[Tool]) -> str:
         "Return a JSON object with keys thought, response_type, and either "
         "`action`+`arguments` or `answer`.\n"
     )
+
+
+def definition_prompt(term: str, context: str = None) -> str:
+    """Generate a prompt for creating a contextual definition"""
+    base_prompt = f"Provide a concise, contextual definition for the term: '{term}'"
+    
+    if context:
+        return f"""{base_prompt}
+
+Context from the document:
+{context}
+
+Provide a definition that is:
+1. Specific to how this term is used in this context
+2. Clear and concise (1-2 sentences)
+3. Academically accurate
+4. Helpful for understanding the document
+
+Definition:"""
+    else:
+        return f"""{base_prompt}
+
+Provide a general definition that is:
+1. Clear and concise (1-2 sentences)  
+2. Academically accurate
+3. Helpful for a reader
+
+Definition:"""

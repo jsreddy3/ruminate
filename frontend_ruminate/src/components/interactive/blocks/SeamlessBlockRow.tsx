@@ -1,8 +1,8 @@
 import React from 'react';
 import BlockContainer from './BlockContainer';
-import { useBlock, useBlockRabbitholes } from '../../../store/blocksStore';
+import { useBlock, useBlockEnhancements } from '../../../store/blocksStore';
 import type { Block } from '../../pdf/PDFViewer';
-import type { RabbitholeHighlight } from '../../../services/rabbithole';
+import type { TextEnhancement } from '../../../services/api/textEnhancements';
 
 interface SeamlessBlockRowProps {
   blockId: string;
@@ -11,12 +11,12 @@ interface SeamlessBlockRowProps {
   documentId: string;
   baseStyle: React.CSSProperties & { seamless?: boolean };
   onFocusChange: (block: Block) => void;
-  onRefreshRabbitholes?: (refreshFn: () => void) => void;
   onAddTextToChat?: (text: string, blockId?: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
-  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
-  getRabbitholeHighlightsForBlock?: (blockId: string) => RabbitholeHighlight[];
+  onCreateDefinition?: (blockId: string, term: string, startOffset: number, endOffset: number, context?: string) => Promise<TextEnhancement>;
+  onCreateAnnotation?: (blockId: string, text: string, note: string, startOffset: number, endOffset: number) => Promise<TextEnhancement | null>;
+  onDeleteEnhancement?: (blockId: string, enhancementId: string) => Promise<void>;
 }
 
 const SeamlessBlockRow: React.FC<SeamlessBlockRowProps> = ({
@@ -26,16 +26,29 @@ const SeamlessBlockRow: React.FC<SeamlessBlockRowProps> = ({
   documentId,
   baseStyle,
   onFocusChange,
-  onRefreshRabbitholes,
   onAddTextToChat,
   onRabbitholeClick,
   onCreateRabbithole,
-  onUpdateBlockMetadata,
-  getRabbitholeHighlightsForBlock,
+  onCreateDefinition,
+  onCreateAnnotation,
+  onDeleteEnhancement,
 }) => {
   const block = useBlock(blockId);
-  const baseHighlights = (getRabbitholeHighlightsForBlock ? getRabbitholeHighlightsForBlock(blockId) : []) as RabbitholeHighlight[];
-  const rabbitholeHighlights = useBlockRabbitholes(blockId) || baseHighlights;
+  
+  // Get all enhancements from the store
+  const rabbitholeEnhancements = useBlockEnhancements(blockId, 'RABBITHOLE');
+  const definitionEnhancements = useBlockEnhancements(blockId, 'DEFINITION');
+  const annotationEnhancements = useBlockEnhancements(blockId, 'ANNOTATION');
+  
+  // Convert to legacy format for BlockContainer compatibility
+  const rabbitholeHighlights = rabbitholeEnhancements.map(enhancement => ({
+    id: enhancement.id,
+    selected_text: enhancement.text,
+    text_start_offset: enhancement.text_start_offset,
+    text_end_offset: enhancement.text_end_offset,
+    created_at: enhancement.created_at,
+    conversation_id: enhancement.type === 'RABBITHOLE' ? enhancement.data.conversation_id : enhancement.id,
+  }));
 
   if (!block) return null;
 
@@ -61,12 +74,15 @@ const SeamlessBlockRow: React.FC<SeamlessBlockRowProps> = ({
         images={block.images}
         metadata={block.metadata}
         rabbitholeHighlights={rabbitholeHighlights}
+        definitionEnhancements={definitionEnhancements}
+        annotationEnhancements={annotationEnhancements}
         customStyle={baseStyle}
-        onRefreshRabbitholes={onRefreshRabbitholes}
         onAddTextToChat={onAddTextToChat}
         onRabbitholeClick={onRabbitholeClick}
         onCreateRabbithole={onCreateRabbithole}
-        onUpdateBlockMetadata={onUpdateBlockMetadata}
+        onCreateDefinition={onCreateDefinition}
+        onCreateAnnotation={onCreateAnnotation}
+        onDeleteEnhancement={onDeleteEnhancement}
         interactionEnabled={true}
       />
     </div>

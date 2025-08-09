@@ -21,3 +21,4 @@ class UserModel(Base):
     conversations = relationship("Conversation", back_populates="user")
     documents = relationship("DocumentModel", back_populates="user")
     messages = relationship("Message", back_populates="user")
+    text_enhancements = relationship("TextEnhancementModel", back_populates="user")

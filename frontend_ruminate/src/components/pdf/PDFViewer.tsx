@@ -24,6 +24,7 @@ import { OnboardingOverlays } from "./components/OnboardingOverlays";
 import { PDFLoadingUI } from "./components/PDFLoadingUI";
 import { usePanelStorage } from "../../hooks/usePanelStorage";
 import DefinitionPopup from "../interactive/blocks/text/TooltipManager/DefinitionPopup";
+import { useTextEnhancements } from "../../hooks/useTextEnhancements";
 
 export interface Block {
   id: string;
@@ -147,6 +148,30 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
       updateProgress(blockId);
     }
   }, [updateBlockMetadataBase, updateProgress]);
+  
+  // Text enhancements management
+  const {
+    enhancements: textEnhancements,
+    // loading: textEnhancementsLoading,
+    // error: textEnhancementsError,
+    refetch: refetchTextEnhancements,
+    getDefinitionsForBlock,
+    getAnnotationsForBlock,
+    getRabbitholesForBlock,
+  } = useTextEnhancements(documentId);
+  
+  // Convert text enhancement rabbitholes to the format expected by existing components
+  const getRabbitholeHighlightsForBlockNew = useCallback((blockId: string) => {
+    const rabbitholes = getRabbitholesForBlock(blockId);
+    return rabbitholes.map(r => ({
+      id: r.data.conversation_id || r.id,
+      selected_text: r.text,
+      text_start_offset: r.text_start_offset,
+      text_end_offset: r.text_end_offset,
+      created_at: r.created_at,
+      conversation_id: r.data.conversation_id,
+    }));
+  }, [getRabbitholesForBlock]);
   
   // Conversation management
   const {

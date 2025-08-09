@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { Block } from '../../pdf/PDFViewer';
-import BlockContainer from './BlockContainer';
 import { TextInteractionProvider } from './text/TextInteractionContext';
 import GlobalTextOverlay from './text/GlobalTextOverlay';
-import { createRabbithole, RabbitholeHighlight } from '../../../services/rabbithole';
 import { blocksActions, useBlocksSelector, useCurrentBlockId } from '../../../store/blocksStore';
+import { useDocumentEnhancements } from '../../../hooks/useDocumentEnhancements';
 import SeamlessBlockRow from './SeamlessBlockRow';
 
 interface BlockSeamlessViewProps {
@@ -14,11 +13,8 @@ interface BlockSeamlessViewProps {
   onBlockChange: (block: Block) => void;
   onAddTextToChat?: (text: string, blockId?: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
-  onRefreshRabbitholes?: (refreshFn: () => void) => void;
-  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
-  getRabbitholeHighlightsForBlock?: (blockId: string) => any[];
   className?: string;
-  isArrowNavigationRef?: React.MutableRefObject<boolean>;
+  isArrowNavigationRef?: { current: boolean };
 }
 
 export default function BlockSeamlessView({
@@ -28,18 +24,19 @@ export default function BlockSeamlessView({
   onBlockChange,
   onAddTextToChat,
   onRabbitholeClick,
-  onRefreshRabbitholes,
-  onUpdateBlockMetadata,
-  getRabbitholeHighlightsForBlock,
   className = '',
   isArrowNavigationRef
 }: BlockSeamlessViewProps) {
+  // Data layer - manages ALL enhancements for this document
+  const { createRabbithole, createDefinition, createAnnotation, deleteEnhancement } = useDocumentEnhancements(documentId);
+
   // Initialize store once when inputs arrive
   useEffect(() => {
     if (blocks && blocks.length > 0) {
       blocksActions.initialize(blocks, currentBlockId);
     }
   }, [blocks, currentBlockId]);
+
 
   const storeCurrentBlockId = useCurrentBlockId();
   const effectiveCurrentBlockId = storeCurrentBlockId || currentBlockId;
@@ -223,44 +220,18 @@ export default function BlockSeamlessView({
   }, [blockOrder.length, endIndex, windowedIds, effectiveCurrentBlockId, blocks, handleFocusChange]);
 
   const handleCreateRabbithole = useCallback(async (
-    docId: string,
     blockId: string,
     text: string,
     start: number,
     end: number
   ) => {
     try {
-      const conversationId = await createRabbithole({
-        document_id: docId,
-        block_id: blockId,
-        selected_text: text,
-        start_offset: start,
-        end_offset: end,
-        type: 'rabbithole'
-      });
-
-      // Optimistic underline via store
-      blocksActions.addRabbitholeHighlight(blockId, {
-        id: conversationId,
-        selected_text: text,
-        text_start_offset: start,
-        text_end_offset: end,
-        created_at: new Date().toISOString(),
-        conversation_id: conversationId,
-      });
-
-      // Optimistic metadata
-      onUpdateBlockMetadata?.(blockId, {
-        rabbithole_conversation_ids: [
-          ...((blocks.find(b => b.id === blockId)?.metadata?.rabbithole_conversation_ids) || []),
-          conversationId,
-        ],
-      });
+      const conversationId = await createRabbithole(blockId, text, start, end);
       onRabbitholeClick?.(conversationId, text, start, end);
     } catch (e) {
       console.error('[Seamless] rabbithole create failed', e);
     }
-  }, [blocks, onRabbitholeClick, onUpdateBlockMetadata]);
+  }, [createRabbithole, onRabbitholeClick]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -287,24 +258,25 @@ export default function BlockSeamlessView({
               documentId={documentId}
               baseStyle={baseStyle}
               onFocusChange={handleFocusChange}
-              onRefreshRabbitholes={onRefreshRabbitholes}
               onAddTextToChat={onAddTextToChat}
               onRabbitholeClick={onRabbitholeClick}
               onCreateRabbithole={(text: string, start: number, end: number) =>
-                handleCreateRabbithole(documentId, blockId, text, start, end)
+                handleCreateRabbithole(blockId, text, start, end)
               }
-              onUpdateBlockMetadata={onUpdateBlockMetadata}
-              getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock as (id: string) => RabbitholeHighlight[]}
+              onCreateDefinition={createDefinition}
+              onCreateAnnotation={createAnnotation}
+              onDeleteEnhancement={deleteEnhancement}
             />
           ))}
         </div>
       </div>
       <GlobalTextOverlay
-        onAddToChat={(docId, blockId, text) => onAddTextToChat?.(text, blockId)}
-        onCreateRabbithole={(docId: string, blockId: string, text: string, start: number, end: number) =>
-          handleCreateRabbithole(docId, blockId, text, start, end)
+        onAddToChat={(_docId: string, blockId: string, text: string) => onAddTextToChat?.(text, blockId)}
+        onCreateRabbithole={(_docId: string, blockId: string, text: string, start: number, end: number) =>
+          handleCreateRabbithole(blockId, text, start, end)
         }
-        onUpdateBlockMetadata={onUpdateBlockMetadata}
+        onCreateDefinition={createDefinition}
+        onCreateAnnotation={createAnnotation}
       />
     </TextInteractionProvider>
   );

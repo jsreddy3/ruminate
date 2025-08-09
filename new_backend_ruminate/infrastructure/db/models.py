@@ -9,6 +9,7 @@ from new_backend_ruminate.domain.conversation.entities.message import Message
 
 # Import document models
 from new_backend_ruminate.infrastructure.document.models import DocumentModel, PageModel, BlockModel
+from new_backend_ruminate.infrastructure.document.text_enhancement_models import TextEnhancementModel
 
 # Import user models
 from new_backend_ruminate.infrastructure.user.models import UserModel
@@ -19,5 +20,6 @@ __all__ = [
     'DocumentModel',
     'PageModel',
     'BlockModel',
+    'TextEnhancementModel',
     'UserModel'
 ]

@@ -17,6 +17,7 @@ from new_backend_ruminate.config import settings
 from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.conversation.rds_conversation_repository import RDSConversationRepository
 from new_backend_ruminate.infrastructure.document.rds_document_repository import RDSDocumentRepository
+from new_backend_ruminate.infrastructure.document.rds_text_enhancement_repository import RDSTextEnhancementRepository
 from new_backend_ruminate.infrastructure.object_storage.factory import get_object_storage_singleton
 from new_backend_ruminate.infrastructure.llm.openai_llm import OpenAILLM
 from new_backend_ruminate.infrastructure.llm.openai_responses_llm import OpenAIResponsesLLM
@@ -24,6 +25,8 @@ from new_backend_ruminate.services.conversation.service import ConversationServi
 from new_backend_ruminate.services.agent.service import AgentService
 from new_backend_ruminate.services.document.service import DocumentService
 from new_backend_ruminate.services.chunk import ChunkService
+from new_backend_ruminate.services.document.text_enhancement_service import TextEnhancementService
+from new_backend_ruminate.services.document.ingestion_service import IngestionService
 from new_backend_ruminate.context.builder import ContextBuilder
 from new_backend_ruminate.context.windowed import WindowedContextBuilder
 from new_backend_ruminate.infrastructure.db.bootstrap import get_session as get_db_session
@@ -35,14 +38,54 @@ from new_backend_ruminate.infrastructure.auth.google_oauth_client import GoogleO
 from new_backend_ruminate.infrastructure.auth.jwt_manager import JWTManager
 from new_backend_ruminate.services.auth.service import AuthService
 
+# New: event publisher abstraction + adapters
+from typing import AsyncIterator
+from new_backend_ruminate.infrastructure.events.redis_publisher import RedisEventPublisher
+
+class EventPublisher:
+    async def publish(self, stream_id: str, chunk: str) -> None:
+        raise NotImplementedError
+
+    async def subscribe(self, stream_id: str) -> AsyncIterator[str]:
+        raise NotImplementedError
+
+class InProcessEventPublisher(EventPublisher):
+    def __init__(self, hub: EventStreamHub) -> None:
+        self._hub = hub
+
+    async def publish(self, stream_id: str, chunk: str) -> None:
+        await self._hub.publish(stream_id, chunk)
+
+    async def subscribe(self, stream_id: str) -> AsyncIterator[str]:
+        async for item in self._hub.register_consumer(stream_id):
+            yield item
+
+# New: processing queue singletons
+from new_backend_ruminate.infrastructure.queue.inproc_queue import InProcessProcessingQueue
+from new_backend_ruminate.infrastructure.queue.redis_queue import RedisProcessingQueue
+
 register_agent_renderers()
 
 # ────────────────────────── singletons ─────────────────────────── #
 
 _hub = EventStreamHub()
+# Select event publisher backend
+if settings().event_backend == "redis":
+    _event_publisher = RedisEventPublisher(url=settings().redis_url)
+else:
+    _event_publisher = InProcessEventPublisher(_hub)
+
 _repo = RDSConversationRepository()
 _document_repo = RDSDocumentRepository()
 _user_repo = RDSUserRepository()
+_text_enhancement_repo = RDSTextEnhancementRepository()
+
+# Queue selection
+if settings().queue_backend == "redis":
+    _processing_queue = RedisProcessingQueue(url=settings().redis_url)
+else:
+    _processing_queue = InProcessProcessingQueue()
+
 if settings().use_responses_api:
     print(f"[Dependencies] Initializing OpenAIResponsesLLM with web_search={settings().enable_web_search}")
     _llm = OpenAIResponsesLLM(
@@ -85,16 +128,35 @@ _document_service = DocumentService(
     _hub, 
     _storage,
     llm=_llm,
-    analyzer=_document_analyzer,
+    analyzer=_document_analyzer if True else None,
     note_context=_note_generation_context,
     conversation_service=_conversation_service,
-    chunk_service=_chunk_service
+    chunk_service=_chunk_service,
+    processing_queue=_processing_queue,
+    event_publisher=_event_publisher,
 )
+# New: ingestion service singleton
+_ingestion_service = IngestionService(
+    repo=_document_repo,
+    storage=_storage,
+    processing_queue=_processing_queue,
+    conversation_service=_conversation_service,
+)
+_text_enhancement_service = TextEnhancementService(_text_enhancement_repo, _llm)
 # ─────────────────────── DI provider helpers ───────────────────── #
 
 def get_event_hub() -> EventStreamHub:
     """Return the process-wide in-memory hub (singleton)."""
     return _hub
+
+def get_event_publisher() -> EventPublisher:
+    """Return the configured event publisher."""
+    return _event_publisher
+
+# New: queue provider
+
+def get_processing_queue():
+    return _processing_queue
 
 def get_context_builder() -> ContextBuilder:
     """Return the singleton ContextBuilder; stateless, safe to share."""
@@ -116,11 +178,18 @@ def get_chunk_service() -> ChunkService:
     """Return the singleton ChunkService; stateless, safe to share."""
     return _chunk_service
 
+def get_text_enhancement_service() -> TextEnhancementService:
+    """Return the singleton TextEnhancementService; stateless, safe to share."""
+    return _text_enhancement_service
+
 def get_auth_service() -> AuthService:
     """Return the singleton AuthService; stateless, safe to share."""
     if _auth_service is None:
         raise HTTPException(status_code=500, detail="Authentication not configured")
     return _auth_service
+
+def get_ingestion_service() -> IngestionService:
+    return _ingestion_service
 
 # If you ever need the repository or LLM directly in a router:
 def get_conversation_repository() -> RDSConversationRepository:

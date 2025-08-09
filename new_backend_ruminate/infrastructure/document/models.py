@@ -46,6 +46,8 @@ class DocumentModel(Base):
     main_conversation = relationship("Conversation", foreign_keys=[main_conversation_id])
     # Batch processing relationships
     parent_document = relationship("DocumentModel", remote_side=[id], backref="child_documents")
+    # Text enhancements relationship
+    text_enhancements = relationship("TextEnhancementModel", back_populates="document", cascade="all, delete-orphan")
 
 
 class PageModel(Base):
@@ -109,3 +111,4 @@ class BlockModel(Base):
     page = relationship("PageModel", back_populates="blocks")
     chunk = relationship("ChunkModel", back_populates="blocks")
     messages = relationship("Message", back_populates="block")
+    text_enhancements = relationship("TextEnhancementModel", back_populates="block", cascade="all, delete-orphan")

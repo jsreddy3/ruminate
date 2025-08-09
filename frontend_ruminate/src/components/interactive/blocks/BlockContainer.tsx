@@ -1,6 +1,7 @@
-import React, { useEffect, memo } from 'react';
+import React, { memo } from 'react';
 import BlockRenderer from './BlockRenderer';
 import { RabbitholeHighlight } from '../../../services/rabbithole';
+import type { TextEnhancement } from '../../../services/api/textEnhancements';
 
 interface BlockContainerProps {
   blockId: string;
@@ -14,11 +15,14 @@ interface BlockContainerProps {
     insight: string;
   }>;
   rabbitholeHighlights?: RabbitholeHighlight[];
+  definitionEnhancements?: TextEnhancement[];
+  annotationEnhancements?: TextEnhancement[];
   onAddTextToChat?: (text: string, blockId?: string) => void;
   onRabbitholeClick?: (rabbitholeId: string, selectedText: string, startOffset?: number, endOffset?: number) => void;
   onCreateRabbithole?: (text: string, startOffset: number, endOffset: number) => void;
-  onRefreshRabbitholes?: (refreshFn: () => void) => void;
-  onUpdateBlockMetadata?: (blockId: string, newMetadata: any) => void;
+  onCreateDefinition?: (blockId: string, term: string, startOffset: number, endOffset: number, context?: string) => Promise<TextEnhancement>;
+  onCreateAnnotation?: (blockId: string, text: string, note: string, startOffset: number, endOffset: number) => Promise<TextEnhancement | null>;
+  onDeleteEnhancement?: (blockId: string, enhancementId: string) => Promise<void>;
   onTextSelectionForOnboarding?: () => void;
   isOnboardingStep5?: boolean;
   isOnboardingStep6?: boolean;
@@ -41,11 +45,14 @@ function BlockContainer({
   metadata,
   highlights = [],
   rabbitholeHighlights = [],
+  definitionEnhancements = [],
+  annotationEnhancements = [],
   onAddTextToChat,
   onRabbitholeClick,
   onCreateRabbithole,
-  onRefreshRabbitholes,
-  onUpdateBlockMetadata,
+  onCreateDefinition,
+  onCreateAnnotation,
+  onDeleteEnhancement,
   onTextSelectionForOnboarding,
   isOnboardingStep5,
   isOnboardingStep6,
@@ -53,34 +60,55 @@ function BlockContainer({
   customStyle,
   interactionEnabled
 }: BlockContainerProps) {
-  // No-op refetch function for backwards compatibility
-  const noOpRefetch = () => {
-    // Rabbithole data is now managed at document level
-    // Refreshing happens via optimistic updates
+  
+  // Convert new enhancement arrays back to legacy metadata format for BlockRenderer
+  const enhancedMetadata = {
+    ...metadata,
+    definitions: definitionEnhancements.reduce((acc, enhancement) => {
+      const key = `${enhancement.text_start_offset}-${enhancement.text_end_offset}`;
+      acc[key] = {
+        term: enhancement.data.term,
+        definition: enhancement.data.definition,
+        text_start_offset: enhancement.text_start_offset,
+        text_end_offset: enhancement.text_end_offset,
+        created_at: enhancement.created_at,
+      };
+      return acc;
+    }, {} as Record<string, any>),
+    annotations: annotationEnhancements.reduce((acc, enhancement) => {
+      const key = `${enhancement.text_start_offset}-${enhancement.text_end_offset}`;
+      acc[key] = {
+        id: enhancement.id,
+        text: enhancement.text,
+        note: enhancement.data.note,
+        text_start_offset: enhancement.text_start_offset,
+        text_end_offset: enhancement.text_end_offset,
+        created_at: enhancement.created_at,
+        updated_at: enhancement.updated_at,
+      };
+      return acc;
+    }, {} as Record<string, any>),
   };
-  
-  // Expose refetch function through callback for backwards compatibility
-  useEffect(() => {
-    if (onRefreshRabbitholes) {
-      onRefreshRabbitholes(noOpRefetch);
-    }
-  }, [onRefreshRabbitholes]);
-  
+
   // Delegate rendering to the appropriate renderer component
   return (
     <BlockRenderer
       blockType={blockType}
       htmlContent={htmlContent}
       images={images}
-      metadata={metadata}
+      metadata={enhancedMetadata}
       blockId={blockId}
       documentId={documentId}
       highlights={highlights}
       rabbitholeHighlights={rabbitholeHighlights}
+      definitionEnhancements={definitionEnhancements}
+      annotationEnhancements={annotationEnhancements}
       onAddTextToChat={onAddTextToChat}
       onRabbitholeClick={onRabbitholeClick}
       onCreateRabbithole={onCreateRabbithole}
-      onUpdateBlockMetadata={onUpdateBlockMetadata}
+      onCreateDefinition={onCreateDefinition}
+      onCreateAnnotation={onCreateAnnotation}
+      onDeleteEnhancement={onDeleteEnhancement}
       onTextSelectionForOnboarding={onTextSelectionForOnboarding}
       isOnboardingStep5={isOnboardingStep5}
       isOnboardingStep6={isOnboardingStep6}
@@ -99,6 +127,8 @@ function arePropsEqual(prev: Readonly<BlockContainerProps>, next: Readonly<Block
   if (prev.interactionEnabled !== next.interactionEnabled) return false;
   if (prev.metadata !== next.metadata) return false; // rely on reference equality
   if (prev.rabbitholeHighlights !== next.rabbitholeHighlights) return false; // reference equality
+  if (prev.definitionEnhancements !== next.definitionEnhancements) return false; // reference equality
+  if (prev.annotationEnhancements !== next.annotationEnhancements) return false; // reference equality
   if (prev.customStyle !== next.customStyle) return false; // ensure parent passes stable object
   // Functions are assumed stable (parent should use useCallback or static functions)
   return true;

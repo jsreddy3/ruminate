@@ -6,6 +6,8 @@ from datetime import datetime
 import asyncio
 import json
 import io
+import tempfile
+import os
 
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +22,27 @@ from new_backend_ruminate.infrastructure.sse.hub import EventStreamHub
 from new_backend_ruminate.infrastructure.db.bootstrap import session_scope
 from new_backend_ruminate.context.renderers.note_generation import NoteGenerationContext
 from new_backend_ruminate.services.chunk import ChunkService
+from new_backend_ruminate.utils.file_validator import PDFValidator, SecurityScanner
+
+# Publisher interface adapter type (duck-typed: publish/subscribe)
+class _PublisherAdapter:
+    def __init__(self, hub: Optional[EventStreamHub] = None, event_publisher: Optional[object] = None) -> None:
+        self._hub = hub
+        self._event_publisher = event_publisher
+
+    async def publish(self, stream_id: str, chunk: str) -> None:
+        if self._event_publisher is not None:
+            await self._event_publisher.publish(stream_id, chunk)
+        elif self._hub is not None:
+            await self._hub.publish(stream_id, chunk)
+
+    async def subscribe(self, stream_id: str):
+        if self._event_publisher is not None:
+            async for item in self._event_publisher.subscribe(stream_id):
+                yield item
+        elif self._hub is not None:
+            async for item in self._hub.register_consumer(stream_id):
+                yield item
 
 
 class DocumentService:
@@ -35,10 +58,13 @@ class DocumentService:
         analyzer: Optional[DocumentAnalyzer] = None,
         note_context: Optional[NoteGenerationContext] = None,
         conversation_service = None,  # Type hint avoided due to circular imports
-        chunk_service: Optional[ChunkService] = None
+        chunk_service: Optional[ChunkService] = None,
+        processing_queue: Optional[object] = None,
+        event_publisher: Optional[object] = None,
     ) -> None:
         self._repo = repo
         self._hub = hub
+        self._publisher = _PublisherAdapter(hub=hub, event_publisher=event_publisher)
         self._storage = storage
         self._llm = llm
         self._marker_client = marker_client or MarkerClient()
@@ -46,8 +72,21 @@ class DocumentService:
         self._note_context = note_context
         self._conversation_service = conversation_service
         self._chunk_service = chunk_service
+        self._processing_queue = processing_queue
     
     # ─────────────────────────────── helpers ──────────────────────────────── #
+    
+    async def _enqueue_processing_job(self, document_id: str, storage_key: str) -> None:
+        if not self._processing_queue:
+            return
+        job = {
+            "type": "process_document",
+            "document_id": document_id,
+            "storage_key": storage_key,
+        }
+        enqueue = getattr(self._processing_queue, "enqueue", None)
+        if enqueue is not None:
+            await enqueue(job)
     
     async def _process_document_background(self, document_id: str, storage_key: str) -> None:
         """Background task to process document with Marker API"""
@@ -57,7 +96,7 @@ class DocumentService:
                 "status": DocumentStatus.PROCESSING_MARKER.value,
                 "document_id": document_id
             })
-            await self._hub.publish(
+            await self._publisher.publish(
                 f"document_{document_id}",
                 f"event: processing_started\ndata: {event_data}\n\n"
             )
@@ -71,13 +110,25 @@ class DocumentService:
                 document.start_marker_processing()
                 await self._repo.update_document(document, session)
             
-            # Download file from storage
-            file_content = await self._storage.download_file(storage_key)
+            # Download file from storage to temp file
+            tmp_dir = tempfile.mkdtemp(prefix="ruminate_pdf_")
+            tmp_path = os.path.join(tmp_dir, storage_key.split('/')[-1] or "document.pdf")
+            await self._storage.download_to_path(storage_key, tmp_path)
+
+            # Deep validation using file handle to limit memory copies
+            with open(tmp_path, 'rb') as f:
+                file_bytes = f.read()  # Single materialization
+            is_valid, error_message = PDFValidator.validate_bytes(file_bytes, filename=os.path.basename(tmp_path))
+            if not is_valid:
+                raise Exception(f"Invalid PDF file: {error_message}")
+            is_safe, security_warning = SecurityScanner.is_pdf_safe(file_bytes)
+            if not is_safe:
+                raise Exception(f"PDF contains potentially dangerous content: {security_warning}")
             
             # Process with Marker API
             marker_response = await self._marker_client.process_document(
-                file_content=file_content,
-                filename=storage_key.split('/')[-1]
+                file_content=file_bytes,
+                filename=os.path.basename(tmp_path)
             )
             
             if marker_response.status == "error":
@@ -105,7 +156,7 @@ class DocumentService:
                 "status": DocumentStatus.READY.value,
                 "document_id": document_id
             })
-            await self._hub.publish(
+            await self._publisher.publish(
                 f"document_{document_id}",
                 f"event: processing_completed\ndata: {event_data}\n\n"
             )
@@ -124,10 +175,17 @@ class DocumentService:
                 "error": str(e),
                 "document_id": document_id
             })
-            await self._hub.publish(
+            await self._publisher.publish(
                 f"document_{document_id}",
                 f"event: processing_error\ndata: {event_data}\n\n"
             )
+        finally:
+            try:
+                if 'tmp_path' in locals():
+                    os.remove(tmp_path)
+                    os.rmdir(os.path.dirname(tmp_path))
+            except Exception:
+                pass
     
     async def _save_marker_results(
         self, 
@@ -210,7 +268,7 @@ class DocumentService:
                 "document_id": document_id,
                 "message": "Analyzing document content..."
             })
-            await self._hub.publish(
+            await self._publisher.publish(
                 f"document_{document_id}",
                 f"event: analysis_started\ndata: {event_data}\n\n"
             )
@@ -245,7 +303,7 @@ class DocumentService:
                 "message": "Document analysis completed",
                 "extracted_info": doc_info
             })
-            await self._hub.publish(
+            await self._publisher.publish(
                 f"document_{document_id}",
                 f"event: analysis_completed\ndata: {event_data}\n\n"
             )
@@ -261,7 +319,7 @@ class DocumentService:
                 "document_id": document_id,
                 "message": f"Summary generation failed: {str(e)}"
             })
-            await self._hub.publish(
+            await self._publisher.publish(
                 f"document_{document_id}",
                 f"event: analysis_warning\ndata: {event_data}\n\n"
             )
@@ -436,12 +494,15 @@ class DocumentService:
                 await self._repo.update_document(document, session)
             raise
         
-        # Start background processing
-        background.add_task(
-            self._process_document_background,
-            document.id,
-            storage_key
-        )
+        # Start processing: enqueue if queue is configured, else fallback to background task
+        if self._processing_queue:
+            await self._enqueue_processing_job(document.id, storage_key)
+        else:
+            background.add_task(
+                self._process_document_background,
+                document.id,
+                storage_key
+            )
         
         return document
     
@@ -523,11 +584,14 @@ class DocumentService:
                 # Keep reference to first chunk and start processing it
                 if idx == 0:  # First document in the list
                     first_document = updated_document
-                    background.add_task(
-                        self._process_document_background,
-                        first_document.id,
-                        storage_key
-                    )
+                    if self._processing_queue:
+                        await self._enqueue_processing_job(first_document.id, storage_key)
+                    else:
+                        background.add_task(
+                            self._process_document_background,
+                            first_document.id,
+                            storage_key
+                        )
             
             if not first_document:
                 raise ValueError("Failed to create batch documents - no first document found")
@@ -671,8 +735,8 @@ class DocumentService:
                     })
                     yield f"event: status_update\ndata: {event_data}\n\n"
             
-            # Subscribe to events from hub
-            async for chunk in self._hub.register_consumer(stream_id):
+            # Subscribe to events via configured publisher
+            async for chunk in self._publisher.subscribe(stream_id):
                 yield chunk
         
         from sse_starlette.sse import EventSourceResponse

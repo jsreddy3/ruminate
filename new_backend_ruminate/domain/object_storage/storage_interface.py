@@ -32,6 +32,13 @@ class ObjectStorageInterface(ABC):
             File contents as bytes
         """
         pass
+
+    @abstractmethod
+    async def download_to_path(self, key: str, dest_path: str) -> None:
+        """
+        Stream-download a file from storage directly to a destination path.
+        """
+        pass
     
     @abstractmethod
     async def delete_file(self, key: str) -> bool:

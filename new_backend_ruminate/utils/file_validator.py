@@ -82,6 +82,31 @@ class PDFValidator:
             return False, f"File validation error: {str(e)}"
     
     @classmethod
+    def validate_bytes(cls, file_content: bytes, filename: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+        """Validate a PDF from raw bytes (used in worker).
+        Returns (is_valid, error_message)."""
+        try:
+            # 1. File size
+            if not cls._validate_file_size(file_content):
+                return False, f"File size must be between {cls.MIN_FILE_SIZE} bytes and {cls.MAX_FILE_SIZE} bytes"
+            # 2. Optional extension hint
+            if filename is not None and not cls._validate_file_extension(filename):
+                return False, "File must have a .pdf extension"
+            # 3. MIME
+            if not cls._validate_mime_type(file_content):
+                return False, "File is not a valid PDF (MIME type check failed)"
+            # 4. Signature
+            if not cls._validate_pdf_signature(file_content):
+                return False, "File is not a valid PDF (signature check failed)"
+            # 5. Structure
+            structure_valid, structure_error = cls._validate_pdf_structure(file_content)
+            if not structure_valid:
+                return False, f"Invalid PDF structure: {structure_error}"
+            return True, None
+        except Exception as e:
+            return False, f"File validation error: {str(e)}"
+    
+    @classmethod
     def _validate_file_size(cls, file_content: bytes) -> bool:
         """Validate file size is within acceptable limits"""
         file_size = len(file_content)
@@ -239,18 +264,14 @@ class SecurityScanner:
         Returns:
             Tuple of (is_safe, warning_message)
         """
-        # Check for definitely dangerous patterns first
+        # First check for dangerous content - these should always be blocked
         has_dangerous, dangerous_patterns = cls.scan_for_dangerous_content(file_content)
-        
         if has_dangerous:
-            warning = f"PDF contains dangerous elements: {', '.join(dangerous_patterns)}"
-            return False, warning
+            return False, f"Contains dangerous content: {', '.join(dangerous_patterns)}"
         
-        # Check for suspicious patterns (for logging/monitoring, but don't block)
+        # Then check for suspicious content - allow but warn
         has_suspicious, suspicious_patterns = cls.scan_for_suspicious_content(file_content)
-        
         if has_suspicious:
-            # Log the suspicious patterns but don't block the upload
-            print(f"INFO: PDF contains suspicious elements (allowing upload): {', '.join(suspicious_patterns)}")
+            return True, f"Contains potentially suspicious content: {', '.join(suspicious_patterns)}"
         
         return True, None
