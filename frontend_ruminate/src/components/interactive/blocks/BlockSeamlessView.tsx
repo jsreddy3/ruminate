@@ -45,28 +45,36 @@ export default function BlockSeamlessView({
   const containerRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef<HTMLDivElement>(null);
 
-  // Incremental render window (bottom-only growth)
+  // Smart windowing with both top and bottom boundaries
   const INITIAL_COUNT = 20;
-  const STEP_COUNT = 20;
+  const STEP_COUNT = 15;
+  const MAX_WINDOW_SIZE = 60; // Maximum blocks to render at once
+  const BUFFER_SIZE = 5; // Blocks to keep around focused block
   
-  // Calculate initial endIndex to ensure focused block is included
-  const getInitialEndIndex = useCallback(() => {
+  // Window state with start and end indices
+  const getInitialWindow = useCallback(() => {
     const focusedIndex = blockOrder.findIndex(id => id === effectiveCurrentBlockId);
     if (focusedIndex === -1) {
-      return Math.min(blockOrder.length, INITIAL_COUNT);
+      return { start: 0, end: Math.min(blockOrder.length, INITIAL_COUNT) };
     }
-    // Ensure we render at least up to the focused block + some buffer
-    return Math.min(blockOrder.length, Math.max(INITIAL_COUNT, focusedIndex + 10));
+    
+    // Center window around focused block
+    const start = Math.max(0, focusedIndex - Math.floor(INITIAL_COUNT / 2));
+    const end = Math.min(blockOrder.length, start + INITIAL_COUNT);
+    return { start, end };
   }, [blockOrder, effectiveCurrentBlockId]);
   
-  const [endIndex, setEndIndex] = useState<number>(() => getInitialEndIndex());
+  const [windowState, setWindowState] = useState(() => getInitialWindow());
 
-  // Reset endIndex when document changes, ensuring focused block is visible
+  // Reset window when document changes
   useEffect(() => {
-    setEndIndex(getInitialEndIndex());
-  }, [blockOrder.length, getInitialEndIndex]);
+    setWindowState(getInitialWindow());
+  }, [blockOrder.length, getInitialWindow]);
 
-  const windowedIds = useMemo(() => blockOrder.slice(0, endIndex), [blockOrder, endIndex]);
+  const windowedIds = useMemo(() => 
+    blockOrder.slice(windowState.start, windowState.end), 
+    [blockOrder, windowState.start, windowState.end]
+  );
 
   // stable style object
   const baseStyle = useMemo(() => ({
@@ -88,13 +96,11 @@ export default function BlockSeamlessView({
   // Track if this is the initial mount
   const isInitialMount = useRef(true);
   
-  // Scroll navigation state
+  // Scroll state for programmatic scroll detection
   const lastScrollTop = useRef(0);
-  const scrollDebounceTimer = useRef<NodeJS.Timeout | null>(null);
-  const isNavigatingByScroll = useRef(false);
   const programmaticScrollTimer = useRef<NodeJS.Timeout | null>(null);
   
-  // Smoothly keep focused block near the top as it changes
+  // Smart scroll to keep focused block in comfortable view
   useEffect(() => {
     const timer = setTimeout(() => {
       const container = containerRef.current;
@@ -102,31 +108,55 @@ export default function BlockSeamlessView({
       if (!container || !focused) return;
 
       const viewport = container.clientHeight;
-      const targetTop = viewport * 0.15;
+      const currentScrollTop = container.scrollTop;
       const blockTop = focused.offsetTop;
-      const scrollTop = blockTop - targetTop;
+      const blockBottom = blockTop + focused.offsetHeight;
+      const viewportTop = currentScrollTop;
+      const viewportBottom = currentScrollTop + viewport;
       
-      // On initial mount, scroll immediately without animation
-      // On subsequent changes, use smooth scrolling
-      container.scrollTo({ 
-        top: scrollTop, 
-        behavior: isInitialMount.current ? 'auto' : 'smooth' 
-      });
+      // Only scroll if block is not comfortably visible
+      const topBuffer = viewport * 0.15;    // 15% from top
+      const bottomBuffer = viewport * 0.15; // 15% from bottom
       
-      // Mark this as a programmatic scroll to prevent auto-focus
-      if (programmaticScrollTimer.current) {
-        clearTimeout(programmaticScrollTimer.current);
+      let newScrollTop = currentScrollTop;
+      let shouldScroll = false;
+      
+      // Block is above viewport or too close to top
+      if (blockTop < viewportTop + topBuffer) {
+        newScrollTop = blockTop - topBuffer;
+        shouldScroll = true;
       }
-      programmaticScrollTimer.current = setTimeout(() => {
-        programmaticScrollTimer.current = null;
-      }, 300);
+      // Block is below viewport or too close to bottom
+      else if (blockBottom > viewportBottom - bottomBuffer) {
+        newScrollTop = blockBottom - viewport + bottomBuffer;
+        shouldScroll = true;
+      }
       
-      // Update scroll position reference after programmatic scroll
-      setTimeout(() => {
-        if (container) {
-          lastScrollTop.current = container.scrollTop;
+      // Only scroll if there's a meaningful difference (avoid micro-adjustments)
+      if (shouldScroll && Math.abs(newScrollTop - currentScrollTop) > 10) {
+        // Clamp scroll position to valid range
+        newScrollTop = Math.max(0, Math.min(container.scrollHeight - viewport, newScrollTop));
+        
+        container.scrollTo({ 
+          top: newScrollTop, 
+          behavior: isInitialMount.current ? 'auto' : 'smooth' 
+        });
+        
+        // Mark this as a programmatic scroll
+        if (programmaticScrollTimer.current) {
+          clearTimeout(programmaticScrollTimer.current);
         }
-      }, 100);
+        programmaticScrollTimer.current = setTimeout(() => {
+          programmaticScrollTimer.current = null;
+        }, 500); // Longer timeout for smooth scroll
+        
+        // Update scroll position reference after animation
+        setTimeout(() => {
+          if (container) {
+            lastScrollTop.current = container.scrollTop;
+          }
+        }, 600);
+      }
       
       isInitialMount.current = false;
     }, 50);
@@ -138,7 +168,7 @@ export default function BlockSeamlessView({
     onBlockChange?.(block);
   }, [onBlockChange]);
 
-  // Load more when near bottom
+  // Smart windowing expansion
   const lastLoadRef = useRef<number>(0);
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
@@ -146,15 +176,42 @@ export default function BlockSeamlessView({
     const { scrollTop, clientHeight, scrollHeight } = container;
     const threshold = 400;
     
-    // Load more blocks when near bottom
-    if (scrollTop + clientHeight >= scrollHeight - threshold) {
-      const now = Date.now();
-      if (now - lastLoadRef.current < 150) return;
-      lastLoadRef.current = now;
-      if (endIndex < blockOrder.length) {
-        setEndIndex((prev) => Math.min(blockOrder.length, prev + STEP_COUNT));
+    const now = Date.now();
+    if (now - lastLoadRef.current < 150) return; // Throttle updates
+    
+    setWindowState(prev => {
+      let { start, end } = prev;
+      let shouldUpdate = false;
+      
+      // Expand window when near bottom
+      if (scrollTop + clientHeight >= scrollHeight - threshold && end < blockOrder.length) {
+        end = Math.min(blockOrder.length, end + STEP_COUNT);
+        shouldUpdate = true;
+        lastLoadRef.current = now;
       }
-    }
+      
+      // Expand window when near top
+      if (scrollTop <= threshold && start > 0) {
+        start = Math.max(0, start - STEP_COUNT);
+        shouldUpdate = true;
+        lastLoadRef.current = now;
+      }
+      
+      // Prune window if it gets too large (keep focused block in center)
+      const windowSize = end - start;
+      if (windowSize > MAX_WINDOW_SIZE) {
+        const focusedIndex = blockOrder.findIndex(id => id === effectiveCurrentBlockId);
+        if (focusedIndex >= 0) {
+          // Keep focused block in center, prune equally from both sides
+          const half = Math.floor(MAX_WINDOW_SIZE / 2);
+          start = Math.max(0, focusedIndex - half);
+          end = Math.min(blockOrder.length, focusedIndex + half);
+          shouldUpdate = true;
+        }
+      }
+      
+      return shouldUpdate ? { start, end } : prev;
+    });
     
     // Check if this scroll was triggered by arrow navigation or programmatic scroll
     if (isArrowNavigationRef?.current || programmaticScrollTimer.current) {
@@ -170,54 +227,9 @@ export default function BlockSeamlessView({
       return;
     }
     
-    // Scroll-based navigation with debouncing - focus on block where scrolling stops
-    if (!isNavigatingByScroll.current) {
-      // Clear existing timer on every scroll
-      if (scrollDebounceTimer.current) {
-        clearTimeout(scrollDebounceTimer.current);
-      }
-      
-      // Set new debounced navigation
-      scrollDebounceTimer.current = setTimeout(() => {
-        // Find which block is most visible in the viewport
-        const viewport = container.clientHeight;
-        const viewportCenter = scrollTop + (viewport / 2);
-        
-        // Find all block elements
-        const blockElements = container.querySelectorAll('[data-block-id]');
-        let closestBlock: { element: Element; distance: number; id: string } | null = null;
-        
-        blockElements.forEach((element) => {
-          const blockId = element.getAttribute('data-block-id');
-          if (!blockId) return;
-          
-          const htmlElement = element as HTMLElement;
-          const rect = htmlElement.getBoundingClientRect();
-          const elementTop = htmlElement.offsetTop;
-          const elementCenter = elementTop + (rect.height / 2);
-          const distance = Math.abs(viewportCenter - elementCenter);
-          
-          if (!closestBlock || distance < closestBlock.distance) {
-            closestBlock = { element: htmlElement, distance, id: blockId };
-          }
-        });
-        
-        // Focus on the closest block if it's different from current
-        if (closestBlock && closestBlock.id !== effectiveCurrentBlockId) {
-          const targetBlock = blocks.find(b => b.id === closestBlock.id);
-          if (targetBlock) {
-            isNavigatingByScroll.current = true;
-            handleFocusChange(targetBlock);
-            setTimeout(() => {
-              isNavigatingByScroll.current = false;
-            }, 300);
-          }
-        }
-        
-        lastScrollTop.current = scrollTop;
-      }, 150); // 150ms debounce delay
-    }
-  }, [blockOrder.length, endIndex, windowedIds, effectiveCurrentBlockId, blocks, handleFocusChange]);
+    // Just update scroll position reference for other systems
+    lastScrollTop.current = scrollTop;
+  }, [blockOrder.length, windowState.start, windowState.end, effectiveCurrentBlockId, blocks, handleFocusChange]);
 
   const handleCreateRabbithole = useCallback(async (
     blockId: string,
@@ -236,9 +248,6 @@ export default function BlockSeamlessView({
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (scrollDebounceTimer.current) {
-        clearTimeout(scrollDebounceTimer.current);
-      }
       if (programmaticScrollTimer.current) {
         clearTimeout(programmaticScrollTimer.current);
       }
