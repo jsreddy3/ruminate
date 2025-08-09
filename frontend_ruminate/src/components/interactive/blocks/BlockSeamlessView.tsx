@@ -196,68 +196,53 @@ export default function BlockSeamlessView({
     onBlockChange?.(block);
   }, [onBlockChange, effectiveCurrentBlockId, blockOrder]);
 
-  // Smart windowing expansion
+  // Smart windowing expansion - simplified to avoid scroll conflicts
   const lastLoadRef = useRef<number>(0);
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     const { scrollTop, clientHeight, scrollHeight } = container;
-    const threshold = 400;
+    const threshold = 800; // Increased threshold to reduce frequent updates
     
     const now = Date.now();
-    if (now - lastLoadRef.current < 150) return; // Throttle updates
+    if (now - lastLoadRef.current < 300) return; // Increased throttle time
+    
+    // Only update window state if we're not in a programmatic scroll
+    if (programmaticScrollTimer.current) {
+      lastScrollTop.current = scrollTop;
+      return;
+    }
     
     setWindowState(prev => {
       let { start, end } = prev;
       let shouldUpdate = false;
       
-      // Expand window when near bottom
+      // Expand window when near bottom (less aggressive)
       if (scrollTop + clientHeight >= scrollHeight - threshold && end < blockOrder.length) {
-        end = Math.min(blockOrder.length, end + STEP_COUNT);
-        shouldUpdate = true;
-        lastLoadRef.current = now;
-      }
-      
-      // Expand window when near top
-      if (scrollTop <= threshold && start > 0) {
-        start = Math.max(0, start - STEP_COUNT);
-        shouldUpdate = true;
-        lastLoadRef.current = now;
-      }
-      
-      // Prune window if it gets too large (keep focused block in center)
-      const windowSize = end - start;
-      if (windowSize > MAX_WINDOW_SIZE) {
-        const focusedIndex = blockOrder.findIndex(id => id === effectiveCurrentBlockId);
-        if (focusedIndex >= 0) {
-          // Keep focused block in center, prune equally from both sides
-          const half = Math.floor(MAX_WINDOW_SIZE / 2);
-          start = Math.max(0, focusedIndex - half);
-          end = Math.min(blockOrder.length, focusedIndex + half);
+        const newEnd = Math.min(blockOrder.length, end + STEP_COUNT);
+        if (newEnd !== end) {
+          end = newEnd;
           shouldUpdate = true;
+          lastLoadRef.current = now;
+        }
+      }
+      
+      // Expand window when near top (less aggressive)
+      if (scrollTop <= threshold && start > 0) {
+        const newStart = Math.max(0, start - STEP_COUNT);
+        if (newStart !== start) {
+          start = newStart;
+          shouldUpdate = true;
+          lastLoadRef.current = now;
         }
       }
       
       return shouldUpdate ? { start, end } : prev;
     });
     
-    // Check if this scroll was triggered by arrow navigation or programmatic scroll
-    if (isArrowNavigationRef?.current || programmaticScrollTimer.current) {
-      // If arrow navigation, reset the flag after a delay to ensure smooth scrolling completes
-      if (isArrowNavigationRef?.current) {
-        setTimeout(() => {
-          if (isArrowNavigationRef) {
-            isArrowNavigationRef.current = false;
-          }
-        }, 500); // Give time for smooth scroll to complete
-      }
-      lastScrollTop.current = scrollTop;
-      return;
-    }
-    
-    // Just update scroll position reference for other systems
+    // Update scroll position reference
     lastScrollTop.current = scrollTop;
-  }, [blockOrder.length, windowState.start, windowState.end, effectiveCurrentBlockId, blocks, handleFocusChange]);
+  }, [blockOrder.length]);
 
   const handleCreateRabbithole = useCallback(async (
     blockId: string,
