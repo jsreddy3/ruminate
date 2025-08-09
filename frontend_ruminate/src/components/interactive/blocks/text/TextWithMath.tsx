@@ -235,6 +235,16 @@ const TextWithMath = React.forwardRef<HTMLDivElement, TextWithMathProps>(
       ...baseTextStyles,
       ...getBlockTypeStyles(blockType),
       ...customStyle,
+      // Ensure seamless mode completely removes borders
+      ...(customStyle?.seamless ? {
+        border: 'none',
+        borderLeft: 'none',
+        borderRight: 'none', 
+        borderTop: 'none',
+        borderBottom: 'none',
+        padding: customStyle.padding || 0,
+        margin: customStyle.margin || 0,
+      } : {}),
     };
 
     // Add a data attribute to help debug

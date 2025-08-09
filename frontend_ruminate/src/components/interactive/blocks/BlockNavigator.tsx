@@ -65,9 +65,31 @@ export default function BlockNavigator({
   useEffect(() => {
     if (currentBlockId && blocks.length > 0) {
       const index = blocks.findIndex(block => block.id === currentBlockId);
+      const isProblematicBlock = currentBlockId === '5f50d3a1-8d40-4c9c-abef-11589f961fed';
+      
+      console.log('[BlockNavigator] Updating index from currentBlockId:', {
+        currentBlockId,
+        foundIndex: index,
+        blocksLength: blocks.length,
+        isProblematicBlock,
+        currentIndex,
+        willUpdate: index !== -1,
+        firstBlockId: blocks[0]?.id,
+        blockIds: blocks.slice(0, 5).map(b => b.id) // First 5 for debugging
+      });
+      
       if (index !== -1) {
         setCurrentIndex(index);
         const currentBlock = blocks[index];
+        if (isProblematicBlock) {
+          console.log('[BlockNavigator] Successfully set index for problematic block:', index);
+        }
+      } else if (isProblematicBlock) {
+        console.error('[BlockNavigator] FAILED to find problematic block in blocks array!', {
+          searchingFor: currentBlockId,
+          blocksLength: blocks.length,
+          allBlockIds: blocks.map(b => b.id)
+        });
       }
     }
   }, [currentBlockId, blocks]);

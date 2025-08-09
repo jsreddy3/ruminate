@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { authenticatedFetch, API_BASE_URL } from '../utils/api';
 
 interface ImageCache {
@@ -8,7 +8,8 @@ interface ImageCache {
   };
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const MAX_CACHE_SIZE = 50; // Maximum number of cached blocks
 
 export function useBlockImages(documentId: string) {
   const [cache, setCache] = useState<ImageCache>({});
@@ -49,14 +50,30 @@ export function useBlockImages(documentId: string) {
       );
       const data = await resp.json();
       
-      // Update cache
-      setCache(prev => ({
-        ...prev,
-        [blockId]: {
+      // Update cache with LRU eviction
+      setCache(prev => {
+        const newCache = { ...prev };
+        
+        // Add/update the current block
+        newCache[blockId] = {
           images: data.images || {},
           timestamp: Date.now()
+        };
+        
+        // If cache is too large, remove oldest entries
+        const entries = Object.entries(newCache);
+        if (entries.length > MAX_CACHE_SIZE) {
+          // Sort by timestamp (oldest first) and remove excess
+          const sortedEntries = entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+          const toRemove = entries.length - MAX_CACHE_SIZE;
+          
+          for (let i = 0; i < toRemove; i++) {
+            delete newCache[sortedEntries[i][0]];
+          }
         }
-      }));
+        
+        return newCache;
+      });
 
       fetchingRef.current.delete(blockId);
       return data.images || {};
@@ -80,6 +97,15 @@ export function useBlockImages(documentId: string) {
       return newCache;
     });
   }, []);
+
+  // Periodic cleanup of expired cache entries
+  useEffect(() => {
+    const interval = setInterval(() => {
+      clearExpiredCache();
+    }, CACHE_DURATION); // Clean up every 10 minutes
+    
+    return () => clearInterval(interval);
+  }, [clearExpiredCache]);
 
   return {
     fetchBlockImages,

@@ -101,17 +101,10 @@ export default function BlockRenderer({
   const content = (() => {
     switch (type) {
       case 'picture':
-        return <PictureBlock images={images} />;
+        return <PictureBlock images={images} blockId={blockId} documentId={documentId} />;
       case 'figure':
-        return <FigureBlock images={images} />;
-      case 'textinlinemath':
-        return (
-          <MathBlock
-            html_content={htmlContent}
-            block_type={blockType}
-            getBlockClassName={() => ''}
-          />
-        );
+        return <FigureBlock images={images} blockId={blockId} documentId={documentId} />;
+      // Removed textinlinemath case - should be handled by TextRenderer like other text blocks
       case 'equation':
         return (
           <EquationBlock

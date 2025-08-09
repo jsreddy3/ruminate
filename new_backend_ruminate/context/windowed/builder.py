@@ -14,6 +14,7 @@ from new_backend_ruminate.context.windowed.providers import (
 from new_backend_ruminate.context.windowed.providers.chunk_summary import ChunkSummaryProvider
 from new_backend_ruminate.domain.document.repositories.document_repository_interface import DocumentRepositoryInterface
 from new_backend_ruminate.services.chunk import ChunkService
+from new_backend_ruminate.config import settings
 
 
 class WindowedContextBuilder:
@@ -55,6 +56,8 @@ class WindowedContextBuilder:
         document_summary = await self.document_summary_provider.get_document_summary(
             conv, session=session
         )
+        if not settings().include_doc_summary_in_prompts:
+            document_summary = None
         
         # Get chunk summaries if available
         chunk_summaries = ""

@@ -14,6 +14,7 @@ import { useReadingProgress } from "../../hooks/useReadingProgress";
 import { useViewportReadingTracker } from "../../hooks/useViewportReadingTracker";
 import GlossaryView from "../interactive/blocks/GlossaryView";
 import AnnotationsView from "../interactive/blocks/AnnotationsView";
+import BlockNavigator from "../interactive/blocks/BlockNavigator";
 import { useVirtualizedPDF } from "./hooks/useVirtualizedPDF";
 import { useViewMode } from "./hooks/useViewMode";
 import { useBlockManagement } from "./hooks/useBlockManagement";
@@ -25,6 +26,9 @@ import { PDFLoadingUI } from "./components/PDFLoadingUI";
 import { usePanelStorage } from "../../hooks/usePanelStorage";
 import DefinitionPopup from "../interactive/blocks/text/TooltipManager/DefinitionPopup";
 import { useTextEnhancements } from "../../hooks/useTextEnhancements";
+import BasePopover from "../common/BasePopover";
+import ChatContainer from "../chat/ChatContainer";
+import { createRabbithole } from "../../services/rabbithole";
 
 export interface Block {
   id: string;
@@ -123,6 +127,13 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   
   // Add ref to store the rabbithole refresh function
   const refreshRabbitholesFnRef = useRef<(() => void) | null>(null);
+  
+  // Rabbithole chat popover state (for ruminate view mode)
+  const [openRabbitholePopover, setOpenRabbitholePopover] = useState<{
+    conversationId: string;
+    position: { x: number; y: number };
+    selectedText?: string;
+  } | null>(null);
   
   // Definition approval flow removed: revert to inline definition popup behavior
 
@@ -282,6 +293,78 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
   const handleTextAdded = useCallback(() => {
     setPendingChatText('');
   }, []);
+
+  // Rabbithole handlers for ruminate view mode
+  const handleRabbitholeClickInRuminate = useCallback((
+    rabbitholeId: string,
+    selectedText: string,
+    _startOffset?: number,
+    _endOffset?: number
+  ) => {
+    const title = selectedText && selectedText.length > 30 
+      ? `${selectedText.substring(0, 30)}...` 
+      : selectedText || "Rabbithole Chat";
+    
+    // Ensure this rabbithole is tracked for persistence
+    const exists = rabbitholeConversations.find(c => c.id === rabbitholeId);
+    if (!exists) {
+      setRabbitholeConversations(prev => ([...prev, { 
+        id: rabbitholeId, 
+        title, 
+        selectionText: selectedText || '', 
+        blockId: '' // We don't have easy access to blockId here
+      }]));
+    }
+
+    // Open rabbithole popover at center of screen
+    setOpenRabbitholePopover({
+      conversationId: rabbitholeId,
+      position: { x: window.innerWidth / 2, y: window.innerHeight / 3 },
+      selectedText,
+    });
+  }, [rabbitholeConversations, setRabbitholeConversations]);
+
+  const handleCreateRabbitholeInRuminate = useCallback((
+    currentBlockId: string,
+    text: string,
+    startOffset: number,
+    endOffset: number
+  ) => {
+    if (documentId && currentBlockId) {
+      createRabbithole({
+        document_id: documentId,
+        block_id: currentBlockId,
+        selected_text: text,
+        start_offset: startOffset,
+        end_offset: endOffset,
+        type: 'rabbithole'
+      }).then((conversation_id) => {
+        handleRabbitholeCreated(conversation_id, text, currentBlockId);
+        
+        // Add the new rabbithole conversation
+        addRabbitholeConversation(currentBlockId, conversation_id, text, startOffset, endOffset);
+        
+        // Update block metadata with new rabbithole conversation ID
+        const currentBlock = flattenedBlocks.find(b => b.id === currentBlockId);
+        if (currentBlock) {
+          const currentRabbitholeIds = currentBlock.metadata?.rabbithole_conversation_ids || [];
+          const newMetadata = {
+            rabbithole_conversation_ids: [...currentRabbitholeIds, conversation_id]
+          };
+          updateBlockMetadata(currentBlockId, newMetadata);
+        }
+        
+        // Open the chat popover immediately
+        setOpenRabbitholePopover({
+          conversationId: conversation_id,
+          position: { x: window.innerWidth / 2, y: window.innerHeight / 3 },
+          selectedText: text,
+        });
+      }).catch(error => {
+        console.error("Error creating rabbithole:", error);
+      });
+    }
+  }, [documentId, flattenedBlocks, handleRabbitholeCreated, addRabbitholeConversation, updateBlockMetadata]);
 
   // Get furthest progress for later use
   const furthestProgress = getFurthestProgress();
@@ -675,7 +758,7 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
                   }}
                   data-view-mode-dropdown
                 >
-                  <span>{viewMode === 'pdf' ? 'PDF View' : viewMode === 'glossary' ? 'Glossary' : 'Annotations'}</span>
+                  <span>{viewMode === 'ruminate' ? 'Main View' : viewMode === 'pdf' ? 'PDF View' : viewMode === 'glossary' ? 'Glossary' : 'Annotations'}</span>
                   <svg className={`w-4 h-4 transition-transform ${isViewDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -763,7 +846,49 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
             </div>
             
             {/* Conditional content based on view mode */}
-            {viewMode === 'pdf' ? (
+            {viewMode === 'ruminate' ? (
+              /* Main Ruminate view - seamless block reading with proper viewport structure */
+              <div className="bg-white h-full flex flex-col relative overflow-hidden">
+                {/* Content container - matches the modal's inner structure */}
+                <div className="flex-1 flex flex-col min-h-0 relative">
+                  <BlockNavigator
+                    blocks={flattenedBlocks}
+                    currentBlockId={blockOverlayManager.selectedBlock?.id}
+                    documentId={documentId}
+                    getRabbitholeHighlightsForBlock={getRabbitholeHighlightsForBlock}
+                    onBlockChange={(block) => {
+                      // Lazy load images if needed
+                      if (block.images && Object.values(block.images).includes("LAZY_LOAD")) {
+                        fetchBlockImages(block.id);
+                      }
+                      
+                      // Update reading progress
+                      if (updateProgress) {
+                        updateProgress(block.id);
+                      }
+                      
+                      // Auto-scroll PDF to follow block navigation if user switches to PDF mode
+                      scrollToBlock(block);
+                    }}
+                    onRefreshRabbitholes={(refreshFn) => {
+                      refreshRabbitholesFnRef.current = refreshFn;
+                    }}
+                    onAddTextToChat={handleAddTextToChat}
+                    onUpdateBlockMetadata={updateBlockMetadata}
+                    onRabbitholeClick={handleRabbitholeClickInRuminate}
+                    onCreateRabbithole={(text: string, startOffset: number, endOffset: number) => {
+                      // Get the current block ID for rabbithole creation
+                      const currentBlockId = blockOverlayManager.selectedBlock?.id || (flattenedBlocks.length > 0 ? flattenedBlocks[0].id : '');
+                      if (currentBlockId) {
+                        handleCreateRabbitholeInRuminate(currentBlockId, text, startOffset, endOffset);
+                      }
+                    }}
+                    onSwitchToMainChat={() => setActiveConversationId(null)}
+                    mainConversationId={documentState.data?.main_conversation_id}
+                  />
+                </div>
+              </div>
+            ) : viewMode === 'pdf' ? (
               /* PDF content with enhanced shadow */
               <div className="relative h-full shadow-inner"
                    style={{ boxShadow: 'inset 0 0 20px rgba(175, 95, 55, 0.03)' }}>
@@ -907,6 +1032,43 @@ function PDFViewerInner({ initialPdfFile, initialDocumentId }: PDFViewerProps) {
         {/* Header contains the chat toggle button, so no extra overlay needed */}
         </div>
       </div>
+
+      {/* Rabbithole chat popover - for ruminate mode */}
+      {openRabbitholePopover && (
+        <BasePopover
+          isVisible={true}
+          position={openRabbitholePopover.position}
+          onClose={() => setOpenRabbitholePopover(null)}
+          title={openRabbitholePopover.selectedText || 'Rabbithole Chat'}
+          draggable={true}
+          resizable={true}
+          initialWidth={640}
+          initialHeight={500}
+          minWidth={380}
+          minHeight={320}
+          maxWidth={800}
+          maxHeight={'85vh'}
+        >
+          <div className="h-full w-full flex flex-col">
+            <div className="flex-1 min-h-0">
+              <ChatContainer
+                documentId={documentId}
+                selectedBlock={null}
+                conversationId={openRabbitholePopover.conversationId}
+                conversationType="rabbithole"
+                rabbitholeMetadata={openRabbitholePopover.selectedText ? {
+                  source_block_id: '',
+                  selected_text: openRabbitholePopover.selectedText
+                } : undefined}
+                onUpdateBlockMetadata={updateBlockMetadata}
+                onBlockMetadataUpdate={fetchBlocks}
+                getBlockMetadata={() => ({})}
+                blocks={blocks}
+              />
+            </div>
+          </div>
+        </BasePopover>
+      )}
 
       {/* All onboarding overlays and view mode selector */}
       <OnboardingOverlays

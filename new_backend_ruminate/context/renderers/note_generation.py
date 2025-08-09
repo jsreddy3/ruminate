@@ -1,9 +1,11 @@
 # new_backend_ruminate/context/renderers/note_generation.py
 
+from __future__ import annotations
 from typing import List, Optional, Dict, Any
 import re
 from new_backend_ruminate.domain.conversation.entities.message import Message, Role
 from new_backend_ruminate.domain.document.entities import Document, Block
+from new_backend_ruminate.config import settings
 
 
 class NoteGenerationContext:
@@ -69,9 +71,11 @@ class NoteGenerationContext:
         topic: Optional[str]
     ) -> str:
         """Build the system prompt for note generation"""
+        include_summary = settings().include_doc_summary_in_prompts
+        summary_part = f"Document summary: {document.summary}" if (include_summary and document.summary) else ""
         return f"""You are a helpful assistant that creates concise, insightful notes from conversations.
 You are creating a note about a conversation that took place while reading a document titled: "{document.title}"
-{f'Document summary: {document.summary}' if document.summary else ''}
+{summary_part}
 {f'The conversation is focused on the topic: {topic}' if topic else ''}
 
 The note will be attached to this specific text from the document:

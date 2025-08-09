@@ -55,7 +55,9 @@ class _Settings(BaseSettings):
     marker_max_poll_attempts: int = 300          # 10 minutes with 2s intervals
     marker_poll_interval: int = 2                # seconds
     processing_mode: str = "inproc"             # inproc | queue
-    upload_pipeline_mode: str = "inproc"        # inproc | ingestion
+    upload_pipeline_mode: str = "ingestion"     # inproc | ingestion
+    analyze_documents: bool = False              # generate summary/info in worker
+    include_doc_summary_in_prompts: bool = False # include summary/info in prompts
 
     # ------------------------------------------------------------------ #
     # Authentication                                                     #

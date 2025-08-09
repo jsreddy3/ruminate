@@ -5,9 +5,10 @@ interface MathBlockProps {
   html_content: string;
   block_type: string;
   getBlockClassName: (block_type?: string) => string;
+  customStyle?: React.CSSProperties & { seamless?: boolean };
 }
 
-export default function MathBlock({ html_content, block_type, getBlockClassName }: MathBlockProps) {
+export default function MathBlock({ html_content, block_type, getBlockClassName, customStyle }: MathBlockProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   const processInlineMath = (content: string) => {
@@ -50,8 +51,19 @@ export default function MathBlock({ html_content, block_type, getBlockClassName 
   })();
   
   const mergedStyles = {
-    ...containerStyles,
+    ...(customStyle?.seamless ? {} : containerStyles),
     ...baseTextStyles,
+    ...customStyle,
+    // Ensure seamless mode completely removes borders
+    ...(customStyle?.seamless ? {
+      border: 'none',
+      borderLeft: 'none',
+      borderRight: 'none', 
+      borderTop: 'none',
+      borderBottom: 'none',
+      padding: customStyle.padding || 0,
+      margin: customStyle.margin || 0,
+    } : {}),
   };
 
   useEffect(() => {

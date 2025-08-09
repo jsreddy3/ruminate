@@ -100,7 +100,7 @@ else:
         model=settings().openai_model,
     )
 _storage = get_object_storage_singleton()
-_document_analyzer = LLMDocumentAnalyzer(_llm)
+_document_analyzer = LLMDocumentAnalyzer(_llm) if settings().analyze_documents else None
 _note_generation_context = NoteGenerationContext()
 _chunk_service = ChunkService(_document_repo, _llm)
 _ctx_builder = WindowedContextBuilder(_document_repo, chunk_service=_chunk_service)
@@ -128,7 +128,7 @@ _document_service = DocumentService(
     _hub, 
     _storage,
     llm=_llm,
-    analyzer=_document_analyzer if True else None,
+    analyzer=_document_analyzer,
     note_context=_note_generation_context,
     conversation_service=_conversation_service,
     chunk_service=_chunk_service,

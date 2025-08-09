@@ -57,6 +57,21 @@ export const blocksActions = {
   },
   setCurrentBlockId(blockId: string) {
     if (state.currentBlockId === blockId) return;
+    
+    const isProblematicBlock = blockId === '5f50d3a1-8d40-4c9c-abef-11589f961fed';
+    const isFirstBlock = state.blockOrder[0] === blockId;
+    
+    console.log('[BlocksStore] setCurrentBlockId called:', {
+      newBlockId: blockId,
+      previousBlockId: state.currentBlockId,
+      isProblematicBlock,
+      isFirstBlock,
+      blockExists: !!state.blocksById[blockId],
+      blockIndex: state.blockOrder.findIndex(id => id === blockId),
+      timestamp: new Date().toISOString(),
+      callStack: isProblematicBlock ? new Error().stack : 'not logged'
+    });
+    
     setState({ currentBlockId: blockId });
   },
   mergeBlockMetadata(blockId: string, newMetadata: any) {

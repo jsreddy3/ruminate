@@ -58,11 +58,49 @@ const SeamlessBlockRow: React.FC<SeamlessBlockRowProps> = ({
       data-block-id={blockId}
       className="transition-opacity duration-200"
       onClick={(e) => {
+        console.log('[SeamlessBlockRow] Block clicked:', {
+          clickedBlockId: blockId,
+          blockType: block?.block_type,
+          isFocused,
+          blockContent: block?.html_content?.substring(0, 100) + '...',
+          clickTarget: (e.target as HTMLElement).tagName,
+          timestamp: new Date().toISOString()
+        });
+        
         const target = e.target as HTMLElement;
-        if (target.closest('.rabbithole-highlight, .definition-highlight, .annotation-highlight, .selection-tooltip, .definition-popup')) return;
+        if (target.closest('.rabbithole-highlight, .definition-highlight, .annotation-highlight, .selection-tooltip, .definition-popup')) {
+          console.log('[SeamlessBlockRow] Click ignored - hit interactive element:', target.closest('.rabbithole-highlight, .definition-highlight, .annotation-highlight, .selection-tooltip, .definition-popup'));
+          return;
+        }
+        
         const sel = window.getSelection?.();
-        if (sel && !sel.isCollapsed) return;
+        if (sel && !sel.isCollapsed) {
+          console.log('[SeamlessBlockRow] Click ignored - text selected:', sel.toString());
+          return;
+        }
+        
+        if (!block) {
+          console.error('[SeamlessBlockRow] Cannot focus - block is null/undefined for blockId:', blockId);
+          return;
+        }
+        
+        const isProblematicBlock = block.id === '5f50d3a1-8d40-4c9c-abef-11589f961fed';
+        console.log('[SeamlessBlockRow] Proceeding with focus change to:', block.id, isProblematicBlock ? 'PROBLEMATIC BLOCK!' : '');
+        
+        if (isProblematicBlock) {
+          console.error('[SeamlessBlockRow] About to call onFocusChange for problematic block:', {
+            blockId: block.id,
+            blockType: block.block_type,
+            onFocusChangeType: typeof onFocusChange,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
         onFocusChange(block);
+        
+        if (isProblematicBlock) {
+          console.log('[SeamlessBlockRow] onFocusChange call completed for problematic block');
+        }
       }}
       style={{ opacity: isFocused ? 1 : 0.88 }}
     >

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export type ViewMode = 'pdf' | 'glossary' | 'annotations';
+export type ViewMode = 'ruminate' | 'pdf' | 'glossary' | 'annotations';
 
 interface UseViewModeProps {
   onViewModeChange?: (mode: ViewMode) => void;
@@ -23,7 +23,7 @@ export function useViewMode({
   onViewModeChange 
 }: UseViewModeProps = {}): UseViewModeReturn {
   // View mode state
-  const [viewMode, setViewModeInternal] = useState<ViewMode>('pdf');
+  const [viewMode, setViewModeInternal] = useState<ViewMode>('ruminate');
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const [viewDropdownPosition, setViewDropdownPosition] = useState({ x: 0, y: 0 });
   

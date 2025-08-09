@@ -24,7 +24,15 @@ const NO_MIN_WORD_COUNT_TYPES = [
   "figure",
   "image",
   "equation",
-  "table"
+  "table",
+  "textinlinemath",
+  "sectionheader",
+  "pageheader",
+  "footnote",
+  "reference",
+  "caption",
+  "list",
+  "listitem",
 ].map(type => type.toLowerCase());
 
 /**

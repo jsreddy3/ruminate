@@ -7,10 +7,10 @@ import { PDFTourDialogue } from '../../onboarding/PDFTourDialogue';
 
 interface OnboardingOverlaysProps {
   onboarding: any; // Using any to avoid complex type definition for now
-  viewMode: 'pdf' | 'glossary' | 'annotations';
+  viewMode: 'ruminate' | 'pdf' | 'glossary' | 'annotations';
   isViewDropdownOpen: boolean;
   closeViewDropdown: () => void;
-  handleViewModeSelect: (mode: 'pdf' | 'glossary' | 'annotations') => void;
+  handleViewModeSelect: (mode: 'ruminate' | 'pdf' | 'glossary' | 'annotations') => void;
   blocks?: any[]; // For finding onboarding target block
   scale?: number; // PDF scale for positioning
 }
@@ -83,6 +83,19 @@ export function OnboardingOverlays({
         offsetY={0}
       >
         <div className="p-3 space-y-2">
+          <button
+            onClick={() => {
+              if (onboarding.canSelectViewMode()) {
+                handleViewModeSelect('ruminate');
+              }
+            }}
+            className={onboarding.getViewModeOptionClassName('ruminate', 'w-full flex items-center gap-3 px-3 py-2 rounded-book text-left font-serif text-sm transition-colors')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            Main View
+          </button>
           <button
             onClick={() => {
               if (onboarding.canSelectViewMode()) {

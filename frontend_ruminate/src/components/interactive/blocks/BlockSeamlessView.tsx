@@ -164,9 +164,37 @@ export default function BlockSeamlessView({
   }, [effectiveCurrentBlockId]);
 
   const handleFocusChange = useCallback((block: Block) => {
+    const blockIndex = blockOrder.findIndex(id => id === block.id);
+    const isProblematicBlock = block.id === '5f50d3a1-8d40-4c9c-abef-11589f961fed';
+    
+    console.log('[SeamlessView] Focus change requested:', {
+      newBlockId: block.id,
+      blockType: block.block_type,
+      previousBlockId: effectiveCurrentBlockId,
+      blockIndex,
+      totalBlocks: blockOrder.length,
+      blockContent: block.html_content?.substring(0, 100) + '...',
+      isProblematicBlock,
+      blockExistsInOrder: blockIndex !== -1,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Special logging for the problematic block
+    if (isProblematicBlock) {
+      console.error('[SeamlessView] PROBLEMATIC BLOCK DETECTED - investigating:', {
+        blockId: block.id,
+        blockExists: !!block,
+        blockInOrder: blockIndex,
+        blockOrderLength: blockOrder.length,
+        blockOrder: blockOrder.slice(0, 10), // First 10 for debugging
+        currentEffectiveBlockId: effectiveCurrentBlockId,
+        callStack: new Error().stack
+      });
+    }
+    
     blocksActions.setCurrentBlockId(block.id);
     onBlockChange?.(block);
-  }, [onBlockChange]);
+  }, [onBlockChange, effectiveCurrentBlockId, blockOrder]);
 
   // Smart windowing expansion
   const lastLoadRef = useRef<number>(0);

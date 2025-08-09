@@ -32,6 +32,16 @@ const TextContent = forwardRef<HTMLDivElement, TextContentProps>(
     ...baseTextStyles,
     ...getBlockTypeStyles(blockType),
     ...customStyle, // Custom overrides last
+    // Ensure seamless mode completely removes borders
+    ...(customStyle?.seamless ? {
+      border: 'none',
+      borderLeft: 'none',
+      borderRight: 'none', 
+      borderTop: 'none',
+      borderBottom: 'none',
+      padding: customStyle.padding || 0,
+      margin: customStyle.margin || 0,
+    } : {}),
   };
 
   // Sanitize the processed content before rendering
