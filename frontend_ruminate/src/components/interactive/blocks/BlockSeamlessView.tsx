@@ -27,6 +27,7 @@ export default function BlockSeamlessView({
   className = '',
   isArrowNavigationRef
 }: BlockSeamlessViewProps) {
+  
   // Data layer - manages ALL enhancements for this document
   const { createRabbithole, createDefinition, createAnnotation, deleteEnhancement } = useDocumentEnhancements(documentId);
 
@@ -48,8 +49,6 @@ export default function BlockSeamlessView({
   // Smart windowing with both top and bottom boundaries
   const INITIAL_COUNT = 20;
   const STEP_COUNT = 15;
-  const MAX_WINDOW_SIZE = 60; // Maximum blocks to render at once
-  const BUFFER_SIZE = 5; // Blocks to keep around focused block
   
   // Window state with start and end indices
   const getInitialWindow = useCallback(() => {
@@ -96,71 +95,12 @@ export default function BlockSeamlessView({
   // Track if this is the initial mount
   const isInitialMount = useRef(true);
   
-  // Scroll state for programmatic scroll detection
+  // Scroll state for windowing
   const lastScrollTop = useRef(0);
-  const programmaticScrollTimer = useRef<NodeJS.Timeout | null>(null);
   
-  // Smart scroll to keep focused block in comfortable view
+  // Remove automatic scroll adjustment - let users control their own scroll position
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const container = containerRef.current;
-      const focused = focusedRef.current;
-      if (!container || !focused) return;
-
-      const viewport = container.clientHeight;
-      const currentScrollTop = container.scrollTop;
-      const blockTop = focused.offsetTop;
-      const blockBottom = blockTop + focused.offsetHeight;
-      const viewportTop = currentScrollTop;
-      const viewportBottom = currentScrollTop + viewport;
-      
-      // Only scroll if block is not comfortably visible
-      const topBuffer = viewport * 0.15;    // 15% from top
-      const bottomBuffer = viewport * 0.15; // 15% from bottom
-      
-      let newScrollTop = currentScrollTop;
-      let shouldScroll = false;
-      
-      // Block is above viewport or too close to top
-      if (blockTop < viewportTop + topBuffer) {
-        newScrollTop = blockTop - topBuffer;
-        shouldScroll = true;
-      }
-      // Block is below viewport or too close to bottom
-      else if (blockBottom > viewportBottom - bottomBuffer) {
-        newScrollTop = blockBottom - viewport + bottomBuffer;
-        shouldScroll = true;
-      }
-      
-      // Only scroll if there's a meaningful difference (avoid micro-adjustments)
-      if (shouldScroll && Math.abs(newScrollTop - currentScrollTop) > 10) {
-        // Clamp scroll position to valid range
-        newScrollTop = Math.max(0, Math.min(container.scrollHeight - viewport, newScrollTop));
-        
-        container.scrollTo({ 
-          top: newScrollTop, 
-          behavior: isInitialMount.current ? 'auto' : 'smooth' 
-        });
-        
-        // Mark this as a programmatic scroll
-        if (programmaticScrollTimer.current) {
-          clearTimeout(programmaticScrollTimer.current);
-        }
-        programmaticScrollTimer.current = setTimeout(() => {
-          programmaticScrollTimer.current = null;
-        }, 500); // Longer timeout for smooth scroll
-        
-        // Update scroll position reference after animation
-        setTimeout(() => {
-          if (container) {
-            lastScrollTop.current = container.scrollTop;
-          }
-        }, 600);
-      }
-      
-      isInitialMount.current = false;
-    }, 50);
-    return () => clearTimeout(timer);
+    isInitialMount.current = false;
   }, [effectiveCurrentBlockId]);
 
   const handleFocusChange = useCallback((block: Block) => {
@@ -207,11 +147,6 @@ export default function BlockSeamlessView({
     const now = Date.now();
     if (now - lastLoadRef.current < 300) return; // Increased throttle time
     
-    // Only update window state if we're not in a programmatic scroll
-    if (programmaticScrollTimer.current) {
-      lastScrollTop.current = scrollTop;
-      return;
-    }
     
     setWindowState(prev => {
       let { start, end } = prev;
@@ -258,14 +193,6 @@ export default function BlockSeamlessView({
     }
   }, [createRabbithole, onRabbitholeClick]);
 
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (programmaticScrollTimer.current) {
-        clearTimeout(programmaticScrollTimer.current);
-      }
-    };
-  }, []);
   
   return (
     <TextInteractionProvider>

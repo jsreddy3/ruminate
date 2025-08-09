@@ -27,7 +27,7 @@ web_search_logger.addHandler(console_handler)
 class OpenAIResponsesLLM(LLMService):
     """OpenAI Responses API implementation with web search support."""
 
-    def __init__(self, api_key: str | None = None, model: str = "gpt-4o", enable_web_search: bool = True) -> None:
+    def __init__(self, api_key: str | None = None, model: str = "gpt-5", enable_web_search: bool = True) -> None:
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self._model = model
         self._enable_web_search = enable_web_search
@@ -82,6 +82,10 @@ class OpenAIResponsesLLM(LLMService):
             "input": chat_msgs,
             "stream": stream,
         }
+        
+        # Set reasoning effort to minimum for gpt-5
+        if (model or self._model) == "gpt-5":
+            payload["reasoning"] = {"effort": "low"}
 
         # Propagate structured-output settings for Responses API
         if response_format:
@@ -137,6 +141,10 @@ class OpenAIResponsesLLM(LLMService):
             "stream": True,
         }
         
+        # Set reasoning effort to minimum for gpt-5
+        if (model or self._model) == "gpt-5":
+            payload["reasoning"] = {"effort": "low"}
+        
         if self._enable_web_search:
             payload["tools"] = [{"type": "web_search_preview"}]
             web_search_logger.info(f"Web search ENABLED for request")
@@ -153,7 +161,16 @@ class OpenAIResponsesLLM(LLMService):
             async with client.stream(
                 "POST", self._base_url, headers=self._headers, json=payload
             ) as resp:
-                resp.raise_for_status()
+                if resp.status_code >= 400:
+                    # Read and log error body for easier debugging
+                    error_bytes = await resp.aread()
+                    try:
+                        error_body = error_bytes.decode() if isinstance(error_bytes, (bytes, bytearray)) else str(error_bytes)
+                    except Exception:
+                        error_body = str(error_bytes)
+                    print(f"[OpenAI Responses API] Error {resp.status_code}: {error_body}")
+                    print(f"[OpenAI Responses API] Request payload: {json.dumps(payload, indent=2)}")
+                    resp.raise_for_status()
                 
                 web_search_performed = False
                 web_search_query = None
@@ -248,7 +265,7 @@ class OpenAIResponsesLLM(LLMService):
         response = await self.generate_response(
             messages,
             response_format=self._make_schema_format(json_schema) if json_schema else response_format,
-            model=model or "gpt-4o-2024-08-06",   # any model ≥ 4o-08-06 works
+            model=model or "gpt-5",
             enable_web_search=enable_web_search,  # Pass through web search control
         )
         try:

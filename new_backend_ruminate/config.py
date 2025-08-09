@@ -33,7 +33,7 @@ class _Settings(BaseSettings):
     # LLM provider                                                       #
     # ------------------------------------------------------------------ #
     openai_api_key: str
-    openai_model: str = "gpt-4o"
+    openai_model: str = "gpt-5"
     use_responses_api: bool = True
     enable_web_search: bool = True
 
